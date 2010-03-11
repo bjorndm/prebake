@@ -1,0 +1,13 @@
+#summary External dependencies and staging
+
+== Usage ==
+
+{{{
+prebakery --root=<client-root-directory> --ignore <ignore-pattern> [--umask=<umash>]
+}}}
+
+will start up the bakery service.  It will write out {{{.prebakery.pid}}} in <client-root-directory> if there is none already running.
+
+The <client-root-directory> is a directory containing all source files manipulable by the system.
+
+The <ignore-pattern> is a regex of file paths to ignore, such as {{{.*~|.*bak}}}.
