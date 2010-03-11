@@ -1,0 +1,25 @@
+#summary structure of a directory in the client root.
+
+= {{{.prebake}}} directory structure =
+
+{{{
+<client-root>/
+    .prebake/
+        pid
+        hashes.bdb
+        cmd_pipe
+}}}
+
+The PreBakery service creates a directory on startup and deletes it on shutdown.
+
+=== {{{<client-root>/.prebake/pid}}} ===
+
+Contains the process id of the PreBakery service.
+
+=== {{{<client-root>/.prebake/hashes.bdb}}} ===
+
+Contains a [http://www.oracle.com/database/berkeley-db/index.html Berkeley DB] mapping file paths under [ClientRoot <client-root>] to MD5 hashes of those files.
+
+=== {{{<client-root>/.prebake/.cmd_pipe}}} ===
+
+Is a named pipe that the [PreBake prebake] command uses to kick off builds using the PreBakeCommand grammar.
