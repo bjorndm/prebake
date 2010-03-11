@@ -2,11 +2,12 @@
 
 == Usage ==
 
+=== The prebakery Service ===
 {{{
 prebakery --root=<client-root-directory> --ignore <ignore-pattern> [--umask=<umash>]
 }}}
 
-will start up the bakery service.  It will write out {{{.prebakery.pid}}} in {{{<client-root-directory>}}} if there is none already running.  TODO: .prebakery directory structure including hash bdb and separate pid file.
+will start up the bakery service.  It will write create a {{{.prebake}}} [PrebakeDirectory directory] if there is none already.
 
 The {{{<client-root-directory>}}} is a directory containing all source files manipulable by the system.
 
@@ -14,6 +15,7 @@ The {{{<ignore-pattern>}}} is a regex of file paths to ignore, such as {{{/.*~$|
 
 The {{{<umask>}}} affects the permission bits on all files created as a result of executing build commands.
 
+=== The prebake command ===
 {{{
 prebake [-f <bake-file>] <target> ...
 }}}
