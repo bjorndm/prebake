@@ -20,6 +20,6 @@ Contains the process id of the PreBakery service.
 
 Contains a [http://www.oracle.com/database/berkeley-db/index.html Berkeley DB] mapping file paths under [ClientRoot <client-root>] to MD5 hashes of those files.
 
-=== {{{<client-root>/.prebake/.cmd_pipe}}} ===
+=== {{{<client-root>/.prebake/cmd_pipe}}} ===
 
 Is a named pipe that the [PreBake prebake] command uses to kick off builds using the PreBakeCommand grammar.
