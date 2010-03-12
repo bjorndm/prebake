@@ -14,7 +14,8 @@ Can't filter.
 
 
 Option 2
-Action is a function that is called with files and can filter and provide a callback to receive results of exec.
+Action is a function that is called with files and can filter and
+provide a callback to receive results of exec.
 
 Can't be hashed
 
@@ -30,16 +31,21 @@ TODO
 
 
 Option 4
-Action is a command line with an optional javascript file that can reinterpret file lists and do follow on commands.
+
+Action is a command line with an optional javascript file that can
+reinterpret file lists and do follow on commands.
 
 
 Option 5
-Action's are specified in terms of a javascript file.
+Actions are specified in terms of a javascript file.
 
-javac loads javac.js which receives an exec function, a file system object, and a bundle of JSON.
-Possibly including functions with no free variables.
+javac loads javac.js which receives an exec function, a file system
+object, and a bundle of JSON. Possibly including functions with no
+free variables.
 
 Satisfies all 3.
+
+
 
 
 
@@ -51,7 +57,9 @@ There is a search path of command line wrappers:
     javac.js
     gcc.js
     ...
-for each of these, we extract top level functions added, associated documentation, and argument validators (no-free-var functions that take the JSON arguments and can report errors or warnings).
+for each of these, we extract top level functions added, associated
+documentation, and argument validators (no-free-var functions that
+take the JSON arguments and can report errors or warnings).
 
 The environment available to these files is
   os
@@ -64,8 +72,9 @@ The prebakery keeps a bit as to whether or not the plan files are consistent.
 
 When the tools change, or the plans or their dynamic deps change:
 
-They run in a context where each recipe is bound to a function
-that generates a JSON action description : recipe to invoke plus JSON arguments, e.g. [ 'gcc', { '-O': 3 } ] and that peform validation.
+They run in a context where each recipe is bound to a function that
+generates a JSON action description : recipe to invoke plus JSON
+arguments, e.g. [ 'gcc', { '-O': 3 } ] and that peform validation.
 
 The environment available looks like:
     products (receives targets described below)
@@ -74,38 +83,50 @@ The environment available looks like:
     Date   // attenuated to warn when constructed
       .time  // attenuated to warn when called
     console  // for debugging
-    help  // prints help text when called with no arguments, and otherwise prints docs associated with a function
-    load(source_file)  // adds to a set of dynamic deps, loads and parses the file, returning a function.
+    help  // prints usage when called w/out args, else docs associated with arg
+    load(source_file)  // adds to dynamic deps, loads it, returning a function.
 
 TODO Issue a warning if load()ed module never invoked.
- 
+
 The plan files can register targets:
       inputs: ["foo/**/*.bar", ...]
       actions: list of JSON action descriptions
       outputs: list of globs as inputs
       docstring: ...
 using a syntax like
-      products.foo = { actions: [ tools.javac({ source: 1.5 } ], inputs: [ '**/*.java' ], outputs: ['**/*.class'], doc: { ... } };
+      products.foo = {
+        actions: [ tools.javac({ source: 1.5 } ],
+        inputs: [ '**/*.java' ],
+        outputs: ['**/*.class'],
+        doc: { ... }
+      };
 
-The products host object checks that the result is ΛSON, and checks that it knows the keys available.  It will do a levenshtein distance check from any unknown keys to known keys and suggests "did you mean?" fixes.
+The products host object checks that the result is ΛSON, and checks
+that it knows the keys available. It will do a levenshtein distance
+check from any unknown keys to known keys and suggests "did you mean?"
+fixes.
+
+Use same levenshtein check for tools getters.
 
 If the prebakery has hashes for the plan files which are up-to-date,
    it uses its stored product definitions
-else 
-   it runs the plan files 
+else
+   it runs the plan files
      If the plan files fail to parse or throw,
        mark the plan inconsistent
      else
         collect the products members assigned
      if the plan files did not call Math.random() or Date
-       it hashes them and any dynamic deps (see load()) to the (consistent bit, products)
+       it hashes them and any dynamic deps (see load) to (consistent, products)
 
 For each product,
   hash it.
-  if the hash doesn't match, mark it dirty and throw out any edges with it as an endpoint
+  if the hash doesn't match,
+    mark it dirty and throw out any edges with it as an endpoint
 
 For each undirty product,
-  if it doesn't exist in the list of names from plan files, discard it and any edges with it as an endpoint.
+  if it doesn't exist in the list of names from plan files,
+    discard it and any edges with it as an endpoint.
 
 For each dirty product p
   for each product q
@@ -136,15 +157,16 @@ while count(unsatisfied) != count(unsatisfiable)
   for target in plan:
     if #pending-dependencies for target != 0
       get input file list:
-        if the in-memory tree has not changed since the inputs glob was last intersected,
+        if (the in-memory tree has not changed
+            since the inputs glob intersection was computed),
           use that result
         else
           walk the tree intersecting with the input globs
       hash(input file list, target actions)
       if hash does not match:
+       execute actions (see below)
         create a temp directory
         copy inputs to that directory
-        execute actions (see below)
         if actions succeed
           intersect output globs with tmp file tree
           copy matched outputs back
@@ -165,4 +187,28 @@ else
 
 
 When executing actions
-TODO
+  // temporary directory already exists and inputs have been copied
+  success = true
+  for (name, options, callback) in action:
+    create an execution context
+    bind "exec" to a function that uses a process builder as below to execute
+    load(name + '.js') from tools path
+    tool = lookup in the global scope the function named (name).
+    if callback is undefined:
+      callback = function (tool, options, inputs) {
+        return tool(options, inputs);
+      }
+    call callback(tool, options, inputs)
+    if callback does not return true:
+     success = false
+     log result and break
+  return success
+
+
+The "exec" function:
+  function exec(path, param0, param1, ...) {
+    // Throw if any param is NaN, null, or undef, or a function or object.
+    // coerce all params to strings.
+    // path is resolved using PATH
+    // return { out: getter, err: getter, result: 0-255 }
+  }
