@@ -1,0 +1,5 @@
+#summary definition
+
+A tool is an executable file with a command line interface like {{{gcc}}} or {{{javac}}}.  Tools are often located outside the ClientRoot.
+
+The PreBakery cannot hash tools located outside the ClientRoot, so the [Goals reliability] of the bakery depends on these tools not changing while the bakery process is running.  If you need to upgrade core tools, or headers, statically linked libraries, or configuration files that they implicitly depend upon, then restart the bakery.
