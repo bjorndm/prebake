@@ -1,1 +1,87 @@
-#summary TODO
+#summary A pattern that matches a group of files.
+
+= Glob =
+A glob is a pattern used to specify a set of file paths.
+
+
+== Meaning ==
+There are many different glob syntaxes used on various systems.
+
+|| *Special Character* || *Meaning* ||
+|| {{{*}}} || In {{{prebake}}} as in most glob syntaxes, {{{*}}} matches any number of characters other than a path separator.
+|| {{{**}}} || In {{{prebake}}}, as in ANT, {{{**}}} matches any number of characters including path separators. ||
+|| {{{/}}} || The {{{/}}} character matches a file separator regardless of operating system.  So it matches a {{{/}}} on *NIX systems and {{{\}}} on Windows. ||
+
+
+== Examples ==
+|| *Glob* || *Matches* || *No Match* ||
+|| {{{*.cpp}}} || {{{foo.cpp}}} || {{{foo.h}}}, {{{foo/bar.cpp}}} ||
+|| {{{**.cpp}}} || {{{foo.cpp}}}, {{{foo/bar.cpp}}} || {{{foo.h}}} ||
+|| {{{foo/*.js}}} || {{{foo/bar.js}}} || {{{foo.js}}}, {{{bar/foo.js}}} ||
+|| {{{foo/*}}} || {{{foo/bar}}}, {{{foo/bar.py}}} || foo ||
+
+
+== Constraints ==
+To allow us to efficiently compute intersection, we place some limits on where {{{*}}} and {{{**}}} can appear.
+  * three or more asterisks ({{{***}}}) cannot appear in a row.
+  * both {{{*}}} and {{{**}}} must appear either at the beginning or directly after a path separator ({{{/}}}).  It is possible to do a suffix match of a path element but not a prefix match.
+  * the special path elements {{{.}}} and {{{..}}} cannot appear in a glob.
+  * two path separators cannot appear adjacently as in {{{foo//bar}}}
+
+See the grammar below for details.
+
+
+== Intersection ==
+The larger {{{prebake}}} system infers dependencies between [Product]s when there is a non-empty [http://en.wikipedia.org/wiki/Intersection_(set_theory) intersection] between the outputs of one product and the inputs of the other.
+
+Globs specify a regular language and can be expressed in terms of regular expressions, with {{{*}}} translated to {{{[^/]*}}}, and {{{**}}} translated to {{{.*}}}, and every other non-alphanumeric character translated to {{{\}}} followed by the character.
+
+Two globs are considered as *intersecting* if there exists at least one string that is in both languages.  E.g., {{{foo/*/baz.js}}} and {{{*/bar/*}}} both have {{{foo/bar/baz.js}}} in common.  But {{{*.java}}} and {{{*.class}}} do not.
+
+The intersection of two globs can always be expressed as a glob.
+
+
+== Grammar ==
+{{{
+Pattern
+  : PatternNoStar
+  | StarPattern
+  | '/' PatternNoSlash
+  ;
+
+StarPattern
+  : '**' PatternNoStar
+  | '*' PatternNoStar
+  ;
+
+PatternNoStar
+  : empty
+  | PatternChar PatternNoStar
+  | '/' PatternNoSlash
+  ;
+
+PatternNoSlash
+  : empty
+  | StarPattern
+  | PathElement
+  ;
+
+PathElement
+  : '.' PathElement
+  | NoDot PatternNoStar
+  | '.' '.' '.' Dots
+  ;
+
+Dots
+  : empty
+  | '.' Dots
+  ;
+
+PatternChar
+  ~ any except '/', '*'
+  ;
+
+NoDot
+  ~ PatternChar except '.'
+  ;
+}}}
