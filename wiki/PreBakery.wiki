@@ -38,9 +38,9 @@ There are also a number of caches:
 
 
 = Plans =
-A plan is graph of [Product]s.  When in a consistent state, it is acyclic.
+A plan is a graph of [Product]s, with an edge for each dependency between products.
 
-There is an edge for each dependency between products.
+When in a consistent state, it is acyclic.
 
 Dependencies are inferred based on the intersections of input and output descriptions.
 
@@ -58,5 +58,8 @@ javac
         jar
 }}}
 
+The input and output [Glob globs] of two [Product]s are considered to intersect when there exists a string that is in both languages.  It is independent of the actual set of files under the ClientRoot.
+
+This graph is available in DOT format as via the [PreBakeCommand graph command].
 
 = Tool Search Path =
