@@ -12,8 +12,8 @@ will start up the bakery service.  It will write create a {{{.prebake}}} [Prebak
 || {{{--root}}} || a [ClientRoot directory] containing all source files manipulable by the system ||
 || {{{--ignore}}} || a regex of file paths to ignore || E.g. {{{/.*~$|/.*bak$|/\.svn/}}} ignores files that end with "~" or ".bak" and ".svn" directories and their contents. ||
 || {{{--umask}}} || [http://en.wikipedia.org/wiki/Umask mask] for permissions on all built files ||
-|| {{{--tools}}} || a search path for [ToolsJs tools] ||
-|| {{{<bake-file>}}} || paths to [PlanJs plan] files ||
+|| {{{--tools}}} || a search path for [ToolFile tools] ||
+|| {{{<bake-file>}}} || paths to [PlanFile plan] files ||
 
 == The prebake command ==
 {{{
