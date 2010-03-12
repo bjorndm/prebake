@@ -7,7 +7,7 @@
     .prebake/
         pid
         hashes.bdb
-        cmd_pipe
+        port
 }}}
 
 The PreBakery service creates a directory on startup and deletes it on shutdown.
@@ -20,6 +20,6 @@ Contains the process id of the PreBakery service.
 
 Contains a [http://www.oracle.com/database/berkeley-db/index.html Berkeley DB] mapping file paths under [ClientRoot <client-root>] to MD5 hashes of those files.
 
-=== {{{<client-root>/.prebake/cmd_pipe}}} ===
+=== {{{<client-root>/.prebake/port}}} ===
 
-Is a named pipe that the [PreBake prebake] command uses to kick off builds using the PreBakeCommand grammar.
+Contains a port number on the local machine.  The [PreBake prebake] command connects to this port to kick off builds using the PreBakeCommand grammar.
