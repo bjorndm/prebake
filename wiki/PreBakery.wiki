@@ -64,3 +64,16 @@ The input and output [Glob globs] of two [Product]s are considered to intersect 
 This graph is available in DOT format as via the [PreBakeCommand graph command].
 
 = Tool Search Path =
+The [ToolFile tool] search path is a path like the PATH or CLASSPATH environment variables -- a list of paths separated by "{{{:}}}" on *NIX systems and by "{{{;}}}" on Windows.
+
+The PreBakery walks this list and looks for javascript ({{{*.js}}} files where the basename is a javascript identifier.  These are made available via wrapper functions under the {{{tools}}} object to code in {{{PlanFileEnv plan files}}}.
+
+I.e., if the tools path contains directories like {{{/foo/}}} and {{{/bar/}}}
+{{{
+/foo/
+  gcc.js
+  javac.js
+/bar/
+  jar.js
+}}}
+then [PlanFile]s have available {{{gcc}}}, {{{javac}}}, and {{{jar}}} tools.
