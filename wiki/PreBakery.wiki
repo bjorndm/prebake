@@ -1,0 +1,28 @@
+#summary a service that watches files and maintains plans
+
+The {{{prebakery}}} is a persistent service that services [PreBakeCommand commands] from the PreBake client.
+
+It can be started by following the instructions under [Usage usage].
+
+= Requirements =
+JDK1.7 is required because the PreBakery makes extensive use of 
+The {{{prebakery}}} is an ExtTool outside the ClientRoot so the caveats there apply to upgrading the PreBakery.
+
+= Responsibilities =
+The PreBakery watches the ClientRoot and sees when files change so it can determine which files to rebuild without {{{stat}}}ing every file.
+
+It maintains [http://en.wikipedia.org/wiki/Cryptographic_hash_function hashes] of files under the client root so it can combine file hashes with rule hashes and other hashes to reliably determine which and only which commands need to be run to rebuild files that have changed based on dependencies.
+
+= Client Watcher =
+The PreBakery uses the java [http://java.sun.com/developer/technicalArticles/javase/nio/#6 watch service] to determine which files have changed in a reasonably cross-platform way that is independent of the number of files in the ClientRoot on most systems.
+
+The PreBakery will not be efficient on systems for which the {{{WatchService}}} is not able to hook into the filesystem.
+
+= FileSystem State =
+The PreBakery maintains a hidden [PreBakeDirectory directory] in the client root that it uses to cache state.
+
+= Hashes =
+
+= Plans =
+
+= Tool Chain =
