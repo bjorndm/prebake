@@ -44,7 +44,7 @@ There is an edge for each dependency between products.
 
 Dependencies are inferred based on the intersections of input and output descriptions.
 
-|| *Tool* || *Inputs* || *Outputs* || *Notes* |
+|| *Tool* || *Inputs* || *Outputs* || *Notes* ||
 || {{{javac}}} || {{{**/*.java}}} || {{{lib/**/*.class}}} || Compiles java source to bytecode ||
 || {{{junit}}} || {{{lib/tests/**/*.class}}} || {{{reports/junit/**/*.html}}} || Runs unit tests and generates reports ||
 || {{{jar}}} || {{{lib/src/**/*.class}}} || {{{lib/foo.jar}}} || Packages the non-test outputs ||
