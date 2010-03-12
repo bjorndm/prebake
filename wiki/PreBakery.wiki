@@ -51,17 +51,11 @@ Dependencies are inferred based on the intersections of input and output descrip
 
 Given the above rules, we get a simple dependency graph
 {{{
-            +-------+
-            | junit |
-            +-------+
-          /
-+-------+
-| javac |
-+-------+
-          \
-            +-----+
-            | jar |
-            +-----+
+        junit
+      ⇗
+javac
+      ⇘
+        jar
 }}}
 
 
