@@ -9,11 +9,11 @@ prebakery --root=<client-root-directory> [--ignore=<ignore-pattern>] [--umask=<u
 
 will start up the bakery service.  It will write create a {{{.prebake}}} [PrebakeDirectory directory] if there is none already.
 
-The {{{<client-root-directory>}}} is a directory containing all source files manipulable by the system.
-
-The {{{<ignore-pattern>}}} is a regex of file paths to ignore, such as {{{/.*~$|/.*bak$|/\.svn/}}} to ignore files that end with "~" or ".bak" or all ".svn" directories and their contents.
-
-The {{{<umask>}}} affects the permission bits on all files created as a result of executing build commands.
+|| {{{--root}}} || a [ClientRoot directory] containing all source files manipulable by the system ||
+|| {{{--ignore}}} || a regex of file paths to ignore || E.g. {{{/.*~$|/.*bak$|/\.svn/}}} ignores files that end with "~" or ".bak" and ".svn" directories and their contents. ||
+|| {{{--umask}}} || [http://en.wikipedia.org/wiki/Umask mask] for permissions on all built files ||
+|| {{{--tools}}} || a search path for [ToolsJs tools] ||
+|| {{{<bake-file>}}} || paths to [PlanJs plan] files ||
 
 == The prebake command ==
 {{{
