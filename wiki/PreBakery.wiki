@@ -21,19 +21,20 @@ The PreBakery uses the java [http://java.sun.com/developer/technicalArticles/jav
 The PreBakery will not be efficient on systems for which the {{{WatchService}}} is not able to hook into the filesystem.
 
 
-= FileSystem State =
+= File System State =
 The PreBakery maintains a hidden [PrebakeDirectory directory] in the client root that it uses to cache state.
 
 
 = [http://en.wikipedia.org/wiki/Cryptographic_hash_function Hashes] and Caches =
 || *Key* || *Value* || *Use* ||
 || Path under ClientRoot || (hash(path), ChangeIndex) || Tracking file changes ||
-|| [Product] name || hash(inputs, [BuildAction]s) || 
+|| [Product] name || hash(inputs, [BuildAction]s, intersect(ToolsFile, actions)) || 
+|| PlanFile path || hash(PlanFile content, loadedJsFiles) ||
 
 These hashes are stored in a [http://www.oracle.com/database/berkeley-db/je/index.html BDB] instance since some might become large.
 
 There are also a number of caches:
-|| PlanFile path || ([Product]s | {{{null}}}) || The products a plan file produced or null if it failed to run ||
+|| PlanFile path || ([Product]s, loadedJsFiles) | {{{null}}} || The products a plan file produced or null if it failed to run ||
 || (product name, product name) || || An edge in the PlanGraph ||
 
 
