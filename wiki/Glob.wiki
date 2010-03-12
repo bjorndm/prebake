@@ -1,16 +1,16 @@
 #summary A pattern that matches a group of files.
 
 = Glob =
-A glob is a pattern used to specify a set of file paths.
+A glob is a pattern used to specify a group of files.
 
 
 == Meaning ==
 There are many different glob syntaxes used on various systems.
 
 || *Special Character* || *Meaning* ||
-|| {{{*}}} || In {{{prebake}}} as in most glob syntaxes, {{{*}}} matches any number of characters other than a path separator.
+|| {{{*}}} || In {{{prebake}}} as in most glob syntaxes, {{{*}}} matches any number of characters other than a path separator. ||
 || {{{**}}} || In {{{prebake}}}, as in ANT, {{{**}}} matches any number of characters including path separators. ||
-|| {{{/}}} || The {{{/}}} character matches a file separator regardless of operating system.  So it matches a {{{/}}} on *NIX systems and {{{\}}} on Windows. ||
+|| {{{/}}} || The {{{/}}} character matches a file separator regardless of operating system.  So it matches a {{{/}}} on {{{*}}}NIX systems and {{{\}}} on Windows. ||
 
 
 == Examples ==
@@ -18,7 +18,8 @@ There are many different glob syntaxes used on various systems.
 || {{{*.cpp}}} || {{{foo.cpp}}} || {{{foo.h}}}, {{{foo/bar.cpp}}} ||
 || {{{**.cpp}}} || {{{foo.cpp}}}, {{{foo/bar.cpp}}} || {{{foo.h}}} ||
 || {{{foo/*.js}}} || {{{foo/bar.js}}} || {{{foo.js}}}, {{{bar/foo.js}}} ||
-|| {{{foo/*}}} || {{{foo/bar}}}, {{{foo/bar.py}}} || foo ||
+|| {{{foo/*}}} || {{{foo/bar}}}, {{{foo/bar.py}}} || {{{foo}}} ||
+|| {{{foo/**/*.rb}}} || {{{foo/bar.rb}}}, {{{foo/bar/baz/boo.rb}}} || {{{foo.rb}}} ||
 
 
 == Constraints ==
@@ -28,15 +29,15 @@ To allow us to efficiently compute intersection, we place some limits on where {
   * the special path elements {{{.}}} and {{{..}}} cannot appear in a glob.
   * two path separators cannot appear adjacently as in {{{foo//bar}}}
 
-See the grammar below for details.
+See the grammar below for a formal description.
 
 
 == Intersection ==
 The larger {{{prebake}}} system infers dependencies between [Product]s when there is a non-empty [http://en.wikipedia.org/wiki/Intersection_(set_theory) intersection] between the outputs of one product and the inputs of the other.
 
-Globs specify a regular language and can be expressed in terms of regular expressions, with {{{*}}} translated to {{{[^/]*}}}, and {{{**}}} translated to {{{.*}}}, and every other non-alphanumeric character translated to {{{\}}} followed by the character.
+Globs specify a regular language and can be expressed in terms of regular expressions, with {{{*}}} translated to {{{[^/]*}}}, and {{{**}}} translated to {{{.*}}}, and every other non-alphanumeric character translated to {{{\}}} followed by the character.  E.g. the glob {{{foo/**/*Test.java}}} 
 
-Two globs are considered as *intersecting* if there exists at least one string that is in both languages.  E.g., {{{foo/*/baz.js}}} and {{{*/bar/*}}} both have {{{foo/bar/baz.js}}} in common.  But {{{*.java}}} and {{{*.class}}} do not.
+Two globs intersect if (and only if) there exists at least one string that is in both languages.  E.g., {{{foo/*/baz.js}}} and {{{*/bar/*}}} both have {{{foo/bar/baz.js}}} in common.  But {{{*.java}}} and {{{*.class}}} do not.
 
 The intersection of two globs can always be expressed as a glob.
 
