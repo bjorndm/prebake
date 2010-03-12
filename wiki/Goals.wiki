@@ -1,0 +1,13 @@
+#summary goals
+
+= Goals =
+  # Hermetic -- the output of a build should not depend on [SourceFile source files] not specified as inputs
+  # Reliable -- a [GeneratedFile generated file] should be scheduled for rebuilding if any file it depends on has changed or if the rules that specify how it is built have changed
+  # Efficient -- files should be rebuilt unnecessary, and files shouldn't be examined unnecessarily
+  # Complete -- it should be able to build files from any language for which [ExtTool tools] with a command line interface are available
+  # Succinct -- common and easy tasks should be specifiable with little code
+  # Flexible -- it should be possible to specify complex tasks, such as learning optimization flags
+  # Widely Usable -- it should not requiring learning an obscure language or understanding specialized theory
+  # Dynamically Extensible -- user code should be able to integrate home grown tools without breaking out into a different language
+  # Inspectable -- it should expose useful statistics and derivative data to continuous integration tools
+  # Automatable -- it should be drivable by continuous integration tools
