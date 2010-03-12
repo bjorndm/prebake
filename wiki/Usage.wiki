@@ -4,7 +4,7 @@
 
 == The prebakery Service ==
 {{{
-prebakery --root=<client-root-directory> [--ignore=<ignore-pattern>] [--umask=<umash>]  [--tools=<tools-path>] <bake-file> ...
+prebakery --root=<client-root-directory> [--ignore=<ignore-pattern>] [--umask=<umash>]  [--tools=<tools-path>] <plan-file> ...
 }}}
 
 will start up the bakery service.  It will write create a {{{.prebake}}} [PrebakeDirectory directory] if there is none already.
@@ -13,12 +13,12 @@ will start up the bakery service.  It will write create a {{{.prebake}}} [Prebak
 || {{{--ignore}}} || a regex of file paths to ignore || E.g. {{{/.*~$|/.*bak$|/\.svn/}}} ignores files that end with "~" or ".bak" and ".svn" directories and their contents. ||
 || {{{--umask}}} || [http://en.wikipedia.org/wiki/Umask mask] for permissions on all built files ||
 || {{{--tools}}} || a search path for [ToolFile tools] ||
-|| {{{<bake-file>}}} || paths to [PlanFile plan] files ||
+|| {{{<plan-file>}}} || paths to [PlanFile plan] files ||
 
 == The prebake command ==
 {{{
 prebake <target> ...
 }}}
 
-will connect to a {{{prebakery}}} by looking for a {{{.prebake}}} directory in an ancestorward traversal and run a build.  It will load the specified {{{<bake-file>}}}, a javascript source file run in the [BakefileEnv Bakefile environment].
-It will then build the associated [Target targets].
+will connect to a {{{prebakery}}} by looking for a {{{.prebake}}} directory in an ancestorward traversal and run a build.  It will load the specified {{{<plan-file>}}}, a javascript source file run in the [PlanFileEnv PlanFile environment].
+It will then build the associated [Product]s.
