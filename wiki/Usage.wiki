@@ -15,10 +15,9 @@ will start up the bakery service.  It will write create a {{{.prebake}}} [Prebak
 || {{{--tools}}} || a search path for [ToolFile tools] ||
 || {{{<plan-file>}}} || paths to [PlanFile plan] files ||
 
-== The prebake command ==
+== The bake command ==
 {{{
-prebake <target> ...
+bake <target> ...
 }}}
 
-will connect to a {{{prebakery}}} by looking for a {{{.prebake}}} directory in an ancestorward traversal and run a build.  It will load the specified {{{<plan-file>}}}, a javascript source file run in the [PlanFileEnv PlanFile environment].
-It will then build the associated [Product]s.
+will connect to a {{{prebakery}}} by looking for a {{{.prebake}}} [PrebakeDirectory directory] in an ancestorward traversal and run a build.
