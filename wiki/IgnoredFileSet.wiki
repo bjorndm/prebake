@@ -31,7 +31,7 @@ If the ignore pattern is not specified, it is the union of the below.
 || `\.pyc` || generated python ||
 || `~$` || emacs backup ||
 || `\.bak$` || other backup files ||
-|| `(^|/)%[^/]+%$` || emacs unsaved ||
+|| `(^|/)#[^/]+#$` || emacs unsaved ||
 || `\.rej$` || {{{patch}}} reject file ||
 || `\.prej$` || more reject files ||
 || `\.tmp$` || common temp file suffix ||
