@@ -1,0 +1,3 @@
+#summary logging from JavaScript
+
+JavaScript code in {{{prebake}}} can log by using the {{{console}}} API defined by [http://getfirebug.com/wiki/index.php/Console_API Firebug].
