@@ -27,19 +27,22 @@ public final class Glob implements Comparable<Glob> {
     for (int i = 0; i < n; ++i) {
       ++partCount;
       switch (s.charAt(i)) {
-        case '*':
+        case '*':  // * or **
           if (i + 1 < n && s.charAt(i + 1) == '*') {
             ++i;
+            // Three adjecent **'s not allowed.
             if (i + 1 < n && s.charAt(i + 1) == '*') { badGlob(s); }
           }
           break;
         case '/':
+          // Two adjacent path separators not allowed
           if (i != 0 && s.charAt(i - 1) == '/') { badGlob(s); }
           break;
         default:
           while (i + 1 < n) {
             char next = s.charAt(i + 1);
             if (next == '/') { break; }
+            // * must follow / or start the glob.
             if (next == '*') { badGlob(s); }
             ++i;
           }
@@ -64,6 +67,7 @@ public final class Glob implements Comparable<Glob> {
           break;
       }
       String part = s.substring(pos, ++i);
+      // . and .. are not allowed as path parts.
       switch (part.length()) {
         case 0: throw new IllegalStateException();
         case 2: if ('.' != part.charAt(1)) { break; }
