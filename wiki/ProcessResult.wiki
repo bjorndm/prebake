@@ -1,0 +1,16 @@
+#summary encapsulates the result of a process invoked to build a product's outputs.
+
+A ProcessResult is a JavaScript object of the form:
+{{{
+{
+  exitCode: <int>,
+  getOut(opt_offset, opt_length, opt_encoding): ...,
+  getErr(opt_offset, opt_length, opt_encoding): ... 
+}
+}}}
+
+The {{{exitCode}}} member is a system dependent [http://en.wikipedia.org/wiki/Exit_status exit status], but zero can be assumed to indicate success, and some non-zero number failure by convention.
+
+The {{{getOut}}} and {{{getErr}}} members can be used to get at the output from the process.  These can be expensive to call if the output is large, so don't call them unless you know the output is limited, or you need the result.  The {{{opt_offset}}} and {{{opt_length}}} parameters are a byte index and a byte length respectively into the output, and the {{{opt_encoding}}} specifies how the output should be converted to a string.  If not specified, {{{opt_encoding}}} is treated as 'UTF-8'.
+
+The {{{getOut}}} and {{{getErr}}} members are bound methods so they can be copied from one object to another without changing behavior.   You can recast the {{{exitCode}}} without having to fetch output or error content, and you can wrap either function to supply a better default encoding.
