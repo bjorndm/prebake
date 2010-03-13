@@ -56,4 +56,4 @@ Loads JS from a path relative to the tool file, evaluates it in a context where 
 == Limitations ==
 The tool *must not* pass any arguments that are paths into the ClientRoot to {{{exec}}}.
 
-If any arguments look like they might be paths into the ClientRoot, {{{exec}}} may raise an exception.
+If any arguments look like they might be or contain paths into the ClientRoot, {{{exec}}} may raise an exception.
