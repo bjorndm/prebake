@@ -2,9 +2,9 @@
 
 = Commands =
 
-The [PreBake prebake] client sends commands to the PreBakery over a [PrebakeDirectory named pipe].
+The [PreBake bake] client sends commands to the PreBakery over a [PrebakeDirectory port].
 
-Commands are strings of JSON and the structures below should fit into the [http://jsonml.org/ JSON ML] subset of JSON.
+Commands are strings of JSON and the structures below is in the [http://jsonml.org/ JSON ML] subset of JSON.
 
 E.g. {{{ [ 'build', {}, [ 'target0', 'target1' ] ] }}} to request that the service kick off a build of targets {{{target0}}} and {{{target1}}}.
 
@@ -12,6 +12,7 @@ Each command has the form {{{ [}}}_verb_{{{, {"}}}_option_{{{": }}}_value_{{{ },
 
 == Verbs ==
 || *Verb* || *Options* || *Arguments* || *Effect* ||
+|| handshake || N/A || token from PrebakeDirectory || establishes authority to issue commands ||
 || build || N/A || targets || builds the given targets ||
 || plan || N/A || targets || prints the targets that would be built if targets were passed to build ||
 || changes || N/A || N/A || prints the set of files that have been changed since their dependencies were last built ||
