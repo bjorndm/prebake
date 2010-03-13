@@ -1,6 +1,6 @@
 #summary A pattern that matches a group of files.
 
-= Glob <sup><font size="1">[http://code.google.com/p/prebake/source/browse/trunk/src/org/prebake/core/Glob.java (src)]</font></sup> =
+= Glob <font size="1">[http://code.google.com/p/prebake/source/browse/trunk/src/org/prebake/core/Glob.java (src)]</font> =
 A glob is a pattern used to specify a group of files.
 
 
