@@ -32,4 +32,4 @@ Contains the {{{argv}}} passed to the prior PreBakery so the {{{bake}}} command 
 
 === {{{<client-root>/.prebake/token}}} ===
 
-Contains a secret string which the {{{bake}}} command sends with PreBakeCommand to demonstrate that it has at least a minimal level of access to the ClientRoot.
+Contains a random string which the {{{bake}}} command sends with PreBakeCommand to demonstrate that it has at least a minimal level of access to the ClientRoot.
