@@ -4,25 +4,44 @@
 A tool file is a JavaScript file that appears on the PreBakery's tool search path.  Tool files can kick off an executable, like {{{gcc}}} or {{{javac}}} to do the work of building a [Product]'s output.
 
 == Requirements ==
-A tool file must be a child of a directory listed in the search path that the PreBakery was started with (see [Usage]).  This is not recursive -- if the search path is {{{foo}}}, the file {{{foo/bar.js}}} is a candidate, but {{{foo/bar/baz.js}}} is not.
+A tool file *must* be a child of a directory listed in the search path that the PreBakery was started with (see [Usage]).  This is not recursive -- if the search path is {{{foo}}}, the file {{{foo/bar.js}}} is a candidate, but {{{foo/bar/baz.js}}} is not.
 
-A tool file must end with {{{.js}}} and the rest of its name must be a valid JavaScript identifier.  The name {{{javac.js}}} is OK, but {{{dashed-name.js}}} is not since dashes are not allowed in JavaScript identifiers.
+A tool file *must* end with {{{.js}}} and the rest of its name must be a valid JavaScript identifier.  The name {{{javac.js}}} is OK, but {{{dashed-name.js}}} is not since dashes are not allowed in JavaScript identifiers.
 
-A tool file must parse as valid JavaScript.
+A tool file *must* parse as valid JavaScript.
 
 The result of evaluating a tool file in the environment described below should be the value {{{true}}}.  You can do this by having the code {{{true;}}} as the last statement in the build file.
 
-A tool file should define a function with the signature below
+A tool file *must* define a function with the signature:
 {{{
 function build(options, inputFiles, product) {
   ...
 }
 }}}
-where {{{options}}} is a frozen [ΛSON] object that the tool is free to interpret however it likes ; {{{inputFiles}}} is an array of paths into the TmpWorkspace ; and {{{product}}} is the frozen [ΛSON] of the product whose action is being evaluated.
+where {{{options}}} is a frozen [LSON ΛSON] object that the tool is free to interpret however it likes ; {{{inputFiles}}} is an array of paths into the TmpWorkspace ; and {{{product}}} is the frozen [LSON ΛSON] of the product whose action is being evaluated.
 
-The {{{build}}} function should return {{{true}}} to indicate success.
+The {{{build}}} function *must* return a ProcessResult or raise an exception.
+
+The {{{build}}} function *may* log helpful messages to the [JsConsole].
+
+A tool file *may* define a MobileFunction:
+{{{
+function precondition(options, inputs, outputs) { ... }
+}}}
+that *may* be run to give PlanFile authors quick feedback on what is wrong with [BuildAction action]s that use the tool.  The {{{options}}} parameter is the one that the author intends to pass to build.  The {{{inputFiles}}} [Glob]s match source files that would be available in the TmpWorkspace and the {{{outputFiles}}} [Glob]s match generated files that would be copied back from the TmpWorkspace to the ClientRoot.  Either set of globs may match files intended for other [BuildAction action]s.
+
+The {{{precondition}}} *should* return true if the options could be valid, and *may* log helpful messages to the JsConsole for the plan author.
 
 == Environment ==
+In addition to the global objects defined by JavaScript, the tool will have available:
+
+=== {{{exec}}} ===
+
+=== {{{console.log}}}, {{{warn}}}, etc. ===
+
+=== {{{glob.intersect}}} ===
+
+=== {{{load}}} ===
 
 
 == Limitations ==
