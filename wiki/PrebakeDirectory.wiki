@@ -24,7 +24,7 @@ Contains a [http://www.oracle.com/database/berkeley-db/index.html Berkeley DB] m
 
 === {{{<client-root>/.prebake/port}}} ===
 
-Contains a port number on the local machine.  The [PreBake prebake] command connects to this port to kick off builds using the PreBakeCommand grammar.
+Contains a port number on the local machine.  The [PreBake bake] command connects to this port to kick off builds using the PreBakeCommand grammar.
 
 === {{{<client-root>/.prebake/cmdline}}} ===
 
