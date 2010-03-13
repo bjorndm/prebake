@@ -1,1 +1,28 @@
-#summary TODO
+#summary a JavaScript bridge to the command line.
+
+= Tool Files =
+A tool file is a JavaScript file that appears on the PreBakery's tool search path.  Tool files can kick off an executable, like {{{gcc}}} or {{{javac}}} to do the work of building a [Product]'s output.
+
+== Requirements ==
+A tool file must be a child of a directory listed in the search path that the PreBakery was started with (see [Usage]).  This is not recursive -- if the search path is {{{foo}}}, the file {{{foo/bar.js}}} is a candidate, but {{{foo/bar/baz.js}}} is not.
+
+A tool file must end with {{{.js}}} and the rest of its name must be a valid JavaScript identifier.  The name {{{javac.js}}} is OK, but {{{dashed-name.js}}} is not since dashes are not allowed in JavaScript identifiers.
+
+A tool file must parse as valid JavaScript.
+
+The result of evaluating a tool file in the environment described below should be the value {{{true}}}.  You can do this by having the code {{{true;}}} as the last statement in the build file.
+
+A tool file should define a function with the signature below
+{{{
+function build(options, inputFiles, product) {
+  ...
+}
+}}}
+where {{{options}}} is a frozen [ΛSON] object that the tool is free to interpret however it likes ; {{{inputFiles}}} is an array of paths into the TmpWorkspace ; and {{{product}}} is the frozen [ΛSON] of the product whose action is being evaluated.
+
+The {{{build}}} function should return {{{true}}} to indicate success.
+
+== Environment ==
+
+
+== Limitations ==
