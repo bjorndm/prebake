@@ -8,9 +8,11 @@
         pid
         hashes.bdb
         port
+        cmdline
+        token
 }}}
 
-The PreBakery service creates a directory on startup and deletes it on shutdown.
+The PreBakery service creates a directory in the ClientRoot on startup and, except for {{{cmdline}}}, deletes it on shutdown.
 
 === {{{<client-root>/.prebake/pid}}} ===
 
@@ -23,3 +25,11 @@ Contains a [http://www.oracle.com/database/berkeley-db/index.html Berkeley DB] m
 === {{{<client-root>/.prebake/port}}} ===
 
 Contains a port number on the local machine.  The [PreBake prebake] command connects to this port to kick off builds using the PreBakeCommand grammar.
+
+=== {{{<client-root>/.prebake/cmdline}}} ===
+
+Contains the {{{argv}}} passed to the prior PreBakery so the {{{bake}}} command can start a PreBakery if none is running.
+
+=== {{{<client-root>/.prebake/token}}} ===
+
+Contains a secret string which the {{{bake}}} command sends with PreBakeCommand to demonstrate that it has at least a minimal level of access to the ClientRoot.
