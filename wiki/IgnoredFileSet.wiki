@@ -1,1 +1,39 @@
-#summary TODO
+#summary ignored files
+
+The ignore [Usage flag] passed to the PreBakery causes it to overlook certain files.  Paths that match the ignore regular expression.
+
+The regular expression is specified in [http://java.sun.com/javase/7/docs/api/java/util/regex/Pattern.html Java's variant of Perl 5 syntax].
+
+== Example ==
+The ignore pattern
+{{{
+\.pyc$|~$|/\.svn/|\.rej$|\.r\d+$
+}}}
+will ignore compiled python files generated from python source files, temporary files left by emacs, subversion's internal book-keeping files, and merge conflict files left by patch.
+
+== Affects ==
+The ignore pattern affects several parts of the system.
+  # ignored files will not be copied to the TmpWorkspace so cannot be [SourceFile]s and will not be visible to [BuildAction]s
+  # ignored files will not be copied back from the TmpWorkspace so cannot be [GeneratedFile]s.
+
+Ignored files can be explicit inputs to the system, so can be
+  # [PlanFile]s
+  # [ToolFile]s
+  # {{{load}}}ed by the above
+
+== OS Independent ==
+The ignored files will match against paths normalized to use POSIX style file separators so {{{/}}} can be used as the file systems even on Windows systems.
+
+== The default ignore pattern ==
+If the ignore pattern is not specified, it is the union of the below.
+
+|| *Regexp* || *Reason* ||
+|| `\.pyc` || generated python ||
+|| `~$` || emacs backup ||
+|| `\.bak$` || other backup files ||
+|| `(^|/)%.*%$` || emacs unsaved ||
+|| `\.rej$` || {{{patch}}} reject file ||
+|| `\.prej$` || more reject files ||
+|| `\.tmp$` || common temp file suffix ||
+
+TODO: look at common .gitignore and subversion and CVS default ignore patterns.
