@@ -85,6 +85,8 @@ The environment available looks like:
     console  // for debugging
     help  // prints usage when called w/out args, else docs associated with arg
     load(source_file)  // adds to dynamic deps, loads it, returning a function.
+    glob
+      intersect
 
 TODO Issue a warning if load()ed module never invoked.
 
@@ -98,7 +100,8 @@ using a syntax like
         actions: [ tools.javac({ source: 1.5 } ],
         inputs: [ '**/*.java' ],
         outputs: ['**/*.class'],
-        doc: { ... }
+        doc: { ... },
+        private: false
       };
 
 The products host object checks that the result is ΛSON, and checks
@@ -193,12 +196,12 @@ When executing actions
     create an execution context
     bind "exec" to a function that uses a process builder as below to execute
     load(name + '.js') from tools path
-    tool = lookup in the global scope the function named (name).
+    tool = lookup in the global scope the function named "build".
     if callback is undefined:
-      callback = function (tool, options, inputs) {
+      callback = function (tool, options, inputFiles, product) {
         return tool(options, inputs);
       }
-    call callback(tool, options, inputs)
+    call callback(tool, options, inputFiles, product)
     if callback does not return true:
      success = false
      log result and break
