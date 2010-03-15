@@ -4,16 +4,16 @@
 
 == The prebakery Service ==
 {{{
-prebakery --root=<client-root-directory> [--ignore=<ignore-pattern>] [--umask=<umash>]  [--tools=<tools-path>] <plan-file> ...
+prebakery --root=<client-root-directory> [--ignore=<ignore-pattern>] [--umask=<umash>]  [--tools=<tools-path>] [<plan-file> ...]
 }}}
 
 will start up the bakery service.  It will write create a {{{.prebake}}} [PrebakeDirectory directory] if there is none already.
 
-|| {{{--root}}} || a [ClientRoot directory] containing all source files manipulable by the system ||
-|| {{{--ignore}}} || a regex of file paths to ignore || E.g. {{{/.*~$|/.*bak$|/\.svn/}}} ignores files that end with "~" or ".bak" and ".svn" directories and their contents. ||
-|| {{{--umask}}} || [http://en.wikipedia.org/wiki/Umask mask] for permissions on all built files ||
-|| {{{--tools}}} || a search path for [ToolFile tools] ||
-|| {{{<plan-file>}}} || paths to [PlanFile plan] files ||
+|| {{{--root}}} || a [ClientRoot directory] containing all [SourceFile]s || ||
+|| {{{--ignore}}} || a regex of file paths to ignore || E.g. {{{\.bak$|/\.svn/}}} ignores files that end with ".bak" and ".svn" directories and their contents. ||
+|| {{{--umask}}} || [http://en.wikipedia.org/wiki/Umask mask] for permissions on all built files || In octal ||
+|| {{{--tools}}} || a search path for [ToolFile tools] || ||
+|| {{{<plan-file>}}} || paths to [PlanFile plan] files. || If none supplied, defaults to {{{<client-root-directory>/recipe.js}}} ||
 
 == The bake command ==
 {{{
