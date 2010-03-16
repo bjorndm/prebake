@@ -6,7 +6,7 @@ import java.util.Set;
 import java.util.regex.Pattern;
 
 /**
- * Configuration for the {@link prebakery} service.
+ * Configuration for the {@link Prebakery} service.
  * <p>
  * The getters below should consistently return the same value.
  */
