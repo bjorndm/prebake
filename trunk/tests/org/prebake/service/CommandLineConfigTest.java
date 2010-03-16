@@ -3,8 +3,8 @@ package org.prebake.service;
 import org.prebake.core.MessageQueue;
 
 import java.io.IOException;
+import java.net.URI;
 import java.nio.file.FileSystem;
-import java.nio.file.StubFileSystem;
 import java.util.Arrays;
 import java.util.regex.Pattern;
 
@@ -149,14 +149,17 @@ public class CommandLineConfigTest extends TestCase {
   private CommandLineConfig assertConfig(
       String[] argv, boolean ok, String... msgs) throws IOException {
     MessageQueue mq = new MessageQueue();
-    FileSystem fs = new StubFileSystem()
-        .mkdir("/foo/bar/project/src")
-        .mkdir("/foo/bar/tools")
-        .mkdir("/foo/bar/project/ptools")
-        .touch("/foo/bar/project/recipe.js")
-        .touch("/foo/bar/project/recipe2.js")
-        .touch("/foo/bar/project/src/main.cc")
-        .touch("/foo/bar/project/src/main.h");
+    FileSystem fs = new StubFileSystemProvider("mfs")
+        .getFileSystem(URI.create("mfs://#/foo/bar"));
+    fs.getPath("/foo/bar").createDirectory();
+    fs.getPath("/foo/bar/project/src").createDirectory();
+    fs.getPath("/foo/bar/tools").createDirectory();
+    fs.getPath("/foo/bar/project/ptools").createDirectory();
+    fs.getPath("/foo/bar/project/recipe.js").createFile();
+    fs.getPath("/foo/bar/project/recipe2.js").createFile();
+    fs.getPath("/foo/bar/project/src/main.cc").createFile();
+    fs.getPath("/foo/bar/project/src/main.h").createFile();
+
     CommandLineConfig config = new CommandLineConfig(fs, mq, argv);
     assertEquals(join("\n", msgs), join("\n", mq.getMessages()));
     assertEquals(ok, !mq.hasErrors());

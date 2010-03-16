@@ -1,10 +1,8 @@
 package org.prebake.fs;
 
-import java.io.Closeable;
-import java.io.File;
+import java .io.Closeable;
 import java.io.IOError;
 import java.io.IOException;
-import java.nio.file.FileSystem;
 import java.nio.file.FileSystems;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
@@ -16,9 +14,7 @@ import java.nio.file.WatchEvent;
 import java.nio.file.WatchKey;
 import java.nio.file.WatchService;
 import java.nio.file.attribute.Attributes;
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -46,7 +42,7 @@ public class DirectoryHooks implements Closeable {
   private final BlockingQueue<Path> q = new LinkedBlockingQueue<Path>(1 << 12);
   private Thread watcher;
 
-  public DirectoryHooks(Path root) throws IOException {
+  public DirectoryHooks(Path root) {
     this.root = root;
   }
 
@@ -66,11 +62,7 @@ public class DirectoryHooks implements Closeable {
                 break;
               }
             }
-            try {
-              processEvent(ws, keys);
-            } catch (IOException ex) {
-              break;
-            }
+            processEvent(ws, keys);
           }
         }
       });
@@ -89,8 +81,7 @@ public class DirectoryHooks implements Closeable {
     watcher.interrupt();
   }
 
-  private void processEvent(WatchService ws, Map<WatchKey, Path> keys)
-      throws IOException {
+  private void processEvent(WatchService ws, Map<WatchKey, Path> keys) {
 
     WatchKey key;
     try {
@@ -104,7 +95,7 @@ public class DirectoryHooks implements Closeable {
 
     try {
       for (WatchEvent<?> event: key.pollEvents()) {
-        WatchEvent.Kind kind = event.kind();
+        WatchEvent.Kind<?> kind = event.kind();
 
         if (kind == StandardWatchEventKind.OVERFLOW) {
           // TODO: figure out what overflow means.

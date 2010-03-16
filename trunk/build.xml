@@ -101,7 +101,7 @@
     </javac>
   </target>
 
-  <target name="tests" depends="dirs">
+  <target name="tests" depends="classes">
     <javac destdir="${lib}" debug="true" target="1.5" source="1.5">
       <src path="${tests}"/>
       <classpath refid="classpath.tests.compile"/>
