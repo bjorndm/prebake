@@ -1,5 +1,6 @@
 package org.prebake.service;
 
+import org.prebake.channel.JsonSink;
 import org.prebake.core.DidYouMean;
 import org.prebake.core.MessageQueue;
 
@@ -31,6 +32,7 @@ final class CommandLineConfig implements Config {
   private final List<Path> toolDirs = new ArrayList<Path>();
   private final int umask;
 
+  private static final short DEFAULT_UMASK = 0x1a0 /* octal 0640 */;
   private static final String DANGLING_MODIFIER_MSG;
 
   static {
@@ -157,7 +159,7 @@ final class CommandLineConfig implements Config {
           for (int i = flags.length; --i >= 0;) {
             flags[i] = flagNames[i].flag;
           }
-          DidYouMean.toMessageQueue("Unrecognized flag", arg, mq, flags);
+          DidYouMean.toMessageQueue("Unrecognized flag " + arg, arg, mq, flags);
         }
       }
       if (argi < argc) {
@@ -178,7 +180,7 @@ final class CommandLineConfig implements Config {
       }
       this.clientRoot = clientRoot;
       this.ignorePattern = ignorePattern;
-      this.umask = umask != null ? umask.intValue() : 0x1a0 /* octal 0640 */;
+      this.umask = umask != null ? umask.intValue() : DEFAULT_UMASK;
     }
 
     if (clientRoot == null) {
@@ -228,6 +230,53 @@ final class CommandLineConfig implements Config {
         || (umask & 0x080) == 0) {
       mq.error("Invalid umask " + String.format("%04o", umask));
     }
+  }
+
+  public static String toArgv(Config config) {
+    List<String> argv = new ArrayList<String>();
+    Path root = config.getClientRoot();
+    if (root != null) {
+      argv.add(FlagName.ROOT.flag);
+      argv.add(root.toString());
+    }
+    Pattern p = config.getIgnorePattern();
+    if (p != null) {
+      argv.add(FlagName.IGNORE.flag);
+      argv.add(p.pattern());
+    }
+    List<Path> toolDirs = config.getToolDirs();
+    if (!toolDirs.isEmpty()) {
+      StringBuilder sb = new StringBuilder();
+      String sep = config.getPathSeparator();
+      for (Path d : toolDirs) {
+        if (sb.length() != 0) { sb.append(sep); }
+        sb.append(d);
+      }
+      argv.add(FlagName.TOOLS.flag);
+      argv.add(sb.toString());
+    }
+    int umask = config.getUmask();
+    if (umask != DEFAULT_UMASK) {
+      argv.add(FlagName.UMASK.flag);
+      argv.add(Integer.toOctalString(umask));
+    }
+    int planStart = argv.size();
+    boolean needsSep = false;
+    for (Path pf : config.getPlanFiles()) {
+      String pfs = pf.toString();
+      if (pfs.startsWith("-")) { needsSep = true; }
+      argv.add(pfs);
+    }
+    if (needsSep) { argv.add(planStart, "--"); }
+    StringBuilder sb = new StringBuilder();
+    JsonSink sink = new JsonSink(sb);
+    try {
+      sink.writeValue(argv);
+      sink.close();
+    } catch (IOException ex) {
+      throw new RuntimeException("IOException writing to StringBuilder", ex);
+    }
+    return sb.toString();
   }
 
   public Path getClientRoot() { return clientRoot; }
