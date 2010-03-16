@@ -5,7 +5,6 @@
 {{{
 <client-root>/
     .prebake/
-        pid
         hashes.bdb
         port
         cmdline
@@ -13,10 +12,6 @@
 }}}
 
 The PreBakery service creates a directory in the ClientRoot on startup and, except for {{{cmdline}}}, deletes it on shutdown.
-
-=== {{{<client-root>/.prebake/pid}}} ===
-
-Contains the process id of the PreBakery service.
 
 === {{{<client-root>/.prebake/hashes.bdb}}} ===
 
