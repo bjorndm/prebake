@@ -10,7 +10,7 @@ import java.nio.file.FileSystems;
  *
  * @author mikesamuel@gmail.com
  */
-public final class prebakery {
+public final class Main {
   public static final void main(String[] argv) {
     // TODO: handle -?, --help, -h, and variants by printing usage data.
     MessageQueue mq = new MessageQueue();
