@@ -13,30 +13,52 @@ import junit.framework.TestCase;
 public class CommandLineConfigTest extends TestCase {
   public final void testClientRoot() throws IOException {
     Config c;
-    assertConfig(new String[0], false, "Please specify --root");
-    assertConfig(
+    c = assertConfig(new String[0], false, "Please specify --root");
+    assertEquals("[]", CommandLineConfig.toArgv(c));
+    c = assertConfig(
         new String[] { "--root=/" }, false,
         "Plan file /recipe.js is not a file");
-    assertConfig(
+    assertEquals(
+        "[\"--root\",\"/\",\"/recipe.js\"]",
+        CommandLineConfig.toArgv(c));
+    c = assertConfig(
         new String[] { "--root", "/" }, false,
         "Plan file /recipe.js is not a file");
-    assertConfig(
+    assertEquals(
+        "[\"--root\",\"/\",\"/recipe.js\"]",
+        CommandLineConfig.toArgv(c));
+    c = assertConfig(
         new String[] { "--root", "/foo" }, false,
         "Plan file /foo/recipe.js is not a file");
-    assertConfig(new String[] { "--root", "/foo/bar/project" }, true);
+    assertEquals(
+        "[\"--root\",\"/foo\",\"/foo/recipe.js\"]",
+        CommandLineConfig.toArgv(c));
+    c = assertConfig(new String[] { "--root", "/foo/bar/project" }, true);
+    assertEquals(
+        "[\"--root\",\"/foo/bar/project\",\"/foo/bar/project/recipe.js\"]",
+        CommandLineConfig.toArgv(c));
     c = assertConfig(
         new String[] { "--root", "/foo/bar/project", "project/recipe.js" },
         true);
     assertEquals("/foo/bar/project", c.getClientRoot().toString());
     assertEquals("[/foo/bar/project/recipe.js]", c.getPlanFiles().toString());
-    assertConfig(
+    assertEquals(
+        "[\"--root\",\"/foo/bar/project\",\"/foo/bar/project/recipe.js\"]",
+        CommandLineConfig.toArgv(c));
+    c = assertConfig(
         new String[] { "--root", "/foo/bar/project", "project/recipee.js" },
         false,
         "Plan file /foo/bar/project/recipee.js is not a file");
+    assertEquals(
+        "[\"--root\",\"/foo/bar/project\",\"/foo/bar/project/recipee.js\"]",
+        CommandLineConfig.toArgv(c));
     c = assertConfig(
         new String[] { "--root", "/foo/bar/project", "--root=/foo" },
         false, "Dupe arg --root");
     assertEquals("/foo/bar/project", c.getClientRoot().toString());
+    assertEquals(
+        "[\"--root\",\"/foo/bar/project\",\"/foo/bar/project/recipe.js\"]",
+        CommandLineConfig.toArgv(c));
   }
 
   public final void testIgnorePattern() throws IOException {
@@ -50,6 +72,12 @@ public class CommandLineConfigTest extends TestCase {
         new String[] { "--root=/foo/bar/project", "--ignore=^.*~$" }, true);
     assertEquals("^.*~$", c.getIgnorePattern().pattern());
     assertEquals(Pattern.DOTALL, c.getIgnorePattern().flags());
+    assertEquals(
+        ""
+        + "[\"--root\",\"/foo/bar/project\","
+        + "\"--ignore\",\"^.*~$\","
+        + "\"/foo/bar/project/recipe.js\"]",
+        CommandLineConfig.toArgv(c));
     c = assertConfig(
         new String[] { "--root=project", "--ignore=^.*~$", "--ignore=\\.bak$" },
         false, "Dupe arg --ignore");
@@ -60,8 +88,19 @@ public class CommandLineConfigTest extends TestCase {
     Config c;
     c = assertConfig(new String[] { "--root=project" }, true);
     assertEquals(0640, c.getUmask());
+    assertEquals(
+        ""
+        + "[\"--root\",\"/foo/bar/project\","
+        + "\"/foo/bar/project/recipe.js\"]",
+        CommandLineConfig.toArgv(c));
     c = assertConfig(new String[] { "--root=project", "--umask=750" }, true);
     assertEquals(0750, c.getUmask());
+    assertEquals(
+        ""
+        + "[\"--root\",\"/foo/bar/project\","
+        + "\"--umask\",\"750\","
+        + "\"/foo/bar/project/recipe.js\"]",
+        CommandLineConfig.toArgv(c));
     c = assertConfig(
         new String[] { "--root=project", "--umask=750", "--umask=640" },
         false, "Dupe arg --umask");
@@ -102,6 +141,12 @@ public class CommandLineConfigTest extends TestCase {
         true);
     assertEquals(
         "[/foo/bar/tools, /foo/bar/project/ptools]", "" + c.getToolDirs());
+    assertEquals(
+        ""
+        + "[\"--root\",\"/foo/bar/project\","
+        + "\"--tools\",\"/foo/bar/tools:/foo/bar/project/ptools\","
+        + "\"/foo/bar/project/recipe.js\"]",
+        CommandLineConfig.toArgv(c));
     c = assertConfig(
         new String[] {
             "--root", "project",
@@ -130,6 +175,12 @@ public class CommandLineConfigTest extends TestCase {
     assertEquals(
         "[/foo/bar/project/recipe2.js, /foo/bar/project/recipe.js]",
         c.getPlanFiles().toString());
+    assertEquals(
+        ""
+        + "[\"--root\",\"/foo/bar/project\","
+        + "\"/foo/bar/project/recipe2.js\","
+        + "\"/foo/bar/project/recipe.js\"]",
+        CommandLineConfig.toArgv(c));
     c = assertConfig(
         new String[] {
             "--root=project",
@@ -144,6 +195,14 @@ public class CommandLineConfigTest extends TestCase {
             "project/recipe.js" },
         false,
         "Duplicate plan file /foo/bar/project/recipe.js");
+  }
+
+  public final void testMisspelledParams() throws IOException {
+    assertConfig(
+        new String[] { "-root", "project" },
+        false,
+        "Unrecognized flag -root. Did you mean \"--root\"?",
+        "Please specify --root");
   }
 
   private CommandLineConfig assertConfig(
