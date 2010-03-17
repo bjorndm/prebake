@@ -17,4 +17,5 @@ Each command has the form {{{ [}}}_verb_{{{, {"}}}_option_{{{": }}}_value_{{{ },
 || plan || N/A || targets || prints the targets that would be built if targets were passed to build ||
 || changes || N/A || N/A || prints the set of files that have been changed since their dependencies were last built ||
 || graph || N/A || targets || prints, in [http://www.graphviz.org/doc/info/lang.html DOT] format, a graph of the dependencies between the given targets and all targets that any of them indirectly depend upon. ||
+|| sync || N/A || || wait until all the queue of changed files is empty ||
 || shutdown || N/A || N/A || shuts down the PreBakery ||
