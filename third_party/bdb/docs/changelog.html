@@ -1,0 +1,1283 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<!-- Note: RELEASE_VERSION and DATE are set by ant -->
+
+<head>
+<!--$Id: changelog.html,v 1.148 2010/01/29 19:24:59 mark Exp $-->
+  <title>The Berkeley DB Java Edition Package: BDB JE 4.0.92 Change Log</title>
+  <meta name="description"
+        content="Berkeley DB, Java Edition: A database programmatic toolkit.">
+  <meta name="keywords"
+        content="embedded,database,programmatic,toolkit,b+tree,btree,transaction,transactions,locking,access method,access methods,java">
+</head>
+<body bgcolor="white">
+
+<h2 align="center">Berkeley DB Java Edition 4.0.92 Change
+Log</h2>
+
+<!-- =================================================== -->
+<hr>
+<h3 align="center"><u>Changes in 4.0.92</u></h3>
+
+<!-- =================================================== -->
+<h3>Features</h3>
+<ol>
+<li>
+Normal operation of JE HA requires that at least a simple majority of
+electable nodes be available to form a quorum for election of a new
+Master, or when committing a transaction with default durability
+requirements. The number of electable nodes (the Electable Group
+Size) is obtained from persistent internal metadata that is stored in
+the environment and replicated across all members. See Replication
+Group Life Cycle for details.
+<p>
+Under exceptional circumstances, a simple majority of nodes may become
+unavailable for some period of time. With only a minority of nodes
+available, the overall availability of the group can be adversely
+affected.
+<p>
+To deal with this exceptional circumstance, especially if the
+situation is likely to persist for an unacceptably long period of
+time, a mechanism has been added by which you can modify the way in
+which the number of electable nodes, and consequently the quorum
+requirements for elections and commit acknowledgments, is
+calculated. See <code>ReplicationMutableConfig.ELECTABLE_GROUP_SIZE_OVERRIDE</code>
+and Replication Guide appendix, <a href="ReplicationGuide/election-override.html">Managing
+a Failure of the Majority</a> [#18022]
+</li><br>
+<li>
+A number of improvements have been made to the JE Dynamic
+MBeans.  
+<ul>
+<li>JEMonitor has a new operation, getEnvConfig() which dumps the
+configuration of the running environment.
+<li>Replication network
+throughput information is now presented in an easier to understand
+bytes or messages per second format.
+<li>The <a href="jconsole/JConsole-plugin.html">Monitoring JE with
+JMX and JConsole</a> how-to has been expanded.
+<li>It is now possible to display and export incremental, rather than
+  cumulative stats though the JConsole plugin, making it easier to
+  detect trends in the statistics display.
+</ul>
+[#17913], [#18194]
+</li><br>
+
+</ol>
+
+
+<!-- =================================================== -->
+<h3>API Changes</h3>
+<ol>
+<li>
+Added <code>getGroupName()</code> to
+<code>com.sleepycat.je.rep.util.ReplicationGroupAdmin</code>, which
+returns the group
+name. <code>ReplicationGroupAdmin.getMasterSocket()</code> was
+inadvertently public and has been made private. [#17841]
+</li>
+<br>
+<li>
+The following methods
+in <code>com.sleepycat.je.rep.ReplicatedEnvironmentStats</code>:
+<blockquote>
+getProtocolAvgReadNanos()<br>
+getProtocolAvgWriteNanos()<br>
+getProtocolReadNanos()<br>
+getProtocolWriteNanos()<br>
+</blockquote>
+were intended to provide throughput information for a replicated JE
+environment, but required some computation from the user. They have
+been replaced with methods that present throughput in a more
+forthright manner:
+<blockquote>
+getProtocolBytesReadRate()<br>
+getProtocolBytesWriteRate()<br>
+getProtocolMessageReadRate()<br>
+getProtocolMessageWriteRate()<br>
+</blockquote>
+[#17913]
+</li><br>
+<li>
+A replication group can rollback a committed transaction in rare
+circumstances, if there is network partitioning or there are master
+failures when transactions have been committed with the type of
+durability that requires no replica acknowledgments. In such cases, a
+node which was previously a master may have transactions committed to
+disk which were not propagated to the group and which are not
+contained by the current master. By default, JE handles this case
+transparently. A new property has been added to limit the number of
+transactions that can be automatically rolled back, as a
+safeguard. See <code>com.sleepycat.je.rep.ReplicationConfig.TXN_ROLLBACK_LIMIT</code>
+and the
+new <code>com.sleepycat.je.rep.RollbackProhibitedException</code>. [#17926]
+</li><br>
+<li>
+<p>
+Several new classes and methods, and a bug fix were added to make it
+easier to track replication group changes when using the
+com.sleepycat.je.rep.monitor package.
+<p>
+<code>com.sleepycat.je.rep.monitor.GroupChangeEvent</code> was being
+generated whenever an electable node joined a replication group. Instead, this
+event should only be generated when the replication group composition changes.
+</p>
+<p>
+The class <code>com.sleepycat.je.rep.monitor.GroupChangeEvent</code>
+now defines a new enumeration: <code>GroupChangeType</code> and a new
+method <code>GroupChangeEvent.getChangeType()</code>. Together these
+changes make it possible to identify the type of structural change
+(whether a node was added or removed) and the affected node.
+</p>
+<p>
+The class
+<code>com.sleepycat.je.rep.monitor.MonitorChangeListener</code> now
+defines two new notify methods:
+<code>MonitorChangeListener.notify(JoinGroupEvent)</code> and
+<code>MonitorChangeListener.notify(LeaveGroupEvent)</code>. These new
+methods, along with the new events:
+<code>com.sleepycat.je.rep.monitor.JoinGroupEvent</code> and
+<code>com.sleepycat.je.rep.monitor.LeaveGroupEvent</code>, permit the
+listener to track the dynamic state of electable nodes as they join
+and leave the replication group. You will need to supply
+implementations for the new notify methods if you have an existing
+class that implements the <code>MonitorChangeListener</code>
+interface.
+</p>
+<p>
+This problem was originally
+reported <a href="http://forums.oracle.com/forums/message.jspa?messageID=3909614#3909614">here
+</a> on the OTN forum. [#18006]
+</li><br>
+<li>
+It is our intent to let the JE user set java.util.logging properties
+programmatically. JE logging output is most easily specified by
+setting the <code>com.sleepycat.je.util.ConsoleHandler.level</code>
+and <code>com.sleepycat.je.util.FileHandler.level</code> through the
+standard java.util.logging configuration file or MBean, but the
+java.util.logging API does not directly support setting handler
+levels. JE now accepts the properties
+<code>com.sleepycat.je.util.ConsoleHandler.level</code> and
+<code>com.sleepycat.je.util.FileHandler.level</code> as properties to
+the je.properties file or the EnvironmentConfig.setConfigParam()
+method to support programmatic setting of these values. See the <a href="GettingStartedGuide/managelogging.html">Logging</a>
+chapter for more information. [#18017]
+</li><br>
+<li>The maximum value for log file size (je.log.fileMax) on the Android
+platform was increased from 1MB to 10MB.
+</li>
+</ol>
+
+<!-- =================================================== -->
+<h3>General Changes</h3>
+<ol>
+<li><code>Database.preload(PreloadConfig)</code> no longer throws
+<code>NullPointerException</code> if null is passed for an argument.  Instead,
+it uses a default <code>PreloadConfig</code>. [#17784] (4.0.72)
+</li><br>
+<li>
+Fixed a bug on Android that appears as a NullPointerException when
+using a SerialBinding.  A workaround was added for a Harmony (Dalvik)
+bug that occurs when the ObjectInputStream.readClassDescriptor is
+overridden. [#17903]
+</li><br>
+<li>
+In certain cases, the JE MBeans did not return exception information
+correctly. For example, calling getDatabaseStats() operation with an
+invalid database name would return this message:
+<blockquote>
+<code>
+java.rmi.UnmarshalException: Error unmarshaling return; nested
+exception is java.lang.ClassNotFoundException:
+com.sleepycat.je.DatabaseNotFoundException ....
+</code>
+</blockquote>
+instead of a proper message explaining the problem. This has been fixed. [#17913]
+</li><br>
+<li>
+Fixed an inefficiency which resulted in extra computation on all
+transactional operations when there are multiple lock tables. The
+inefficiency became noticeable when using hundreds of lock
+tables. [#17944]
+</li><br>
+<li>
+Fixed a performance issue during highly concurrent read operations by
+hundreds of threads, caused by contention on a
+<code>java.util.concurrent.locks.ReentrantReadWriteLock</code> taken
+during construction of a <code>ThreadLocal</code>. The ThreadLocal is
+only used during stats collection, and the implementation now makes
+initialization lazy and conditional. [#17944]
+</li><br>
+<li>
+Fixed a problem with <code>Database.close</code> when the
+<code>EnvironmentConfig.ENV_IS_LOCKING</code> property is set to
+<code>false</code>.  This caused
+<code>Environment.truncateDatabase</code>, <code>removeDatabase</code>
+and <code>renameDatabase</code> to throw
+<code>LockTimeoutException</code> when the database is opened and
+closed prior to performing the truncate, remove or rename
+operation. It also caused a resource/memory leak (a single lock was
+not released by <code>Database.close</code>) that could impact
+applications that frequently open and close databases. Again, this
+only impacts applications that have explicitly set
+<code>EnvironmentConfig.ENV_IS_LOCKING</code> to false. [#17985]
+</li><br>
+<li>Fixed a bug that caused <code>PreloadStats.getNLNsLoaded</code> to return a
+non-zero number, even when <code>PreloadConfig.setLoadLNs(false)</code> was
+specified.  Note that no LNs were loaded -- only the returned stat was
+incorrect.  [#18021]
+</li><br>
+<li>A minor improvement was made to JE cache management.  The calculated amount of memory will be slightly more accurate, especially for applications that write with random key values.  The change could, in principle, prevent an OutOfMemoryError, but the improvement is small enough that it is unlikely to have a noticeable impact on most applications. [#18035]
+</li><br>
+<li>
+Fixed an issue on Android where ClassNotFoundException could sometimes
+be returned. Possible cases are when a custom key comparator, or a
+SerialBinding is used.  The problem was caused by a bug in the Harmony
+(Dalvik) implementation of Class.forName() when used with the thread's
+context class loader. [#18163]
+</li><br>
+<li>Fixed a bug on Android where a full Checkpoint or Environment.sync() might
+cause later errors to appear.  This problem was caused by a bug in the Harmony
+(Dalvik) implementation of java.util.IdentityHashMap which is described in
+<a href="http://issues.apache.org/jira/browse/HARMONY-6419">
+http://issues.apache.org/jira/browse/HARMONY-6419</a>. [#18167]
+</li><br>
+<li>
+The JConsole plugin would exit if an non-numeric value was entered in
+the graphing interval text box. This has been corrected to instead
+return an exception message. [#18194]
+</li><br>
+
+<li>Fixed a problem in JE HA where in the unusual case of a node
+transitioning from a Master to a Replica state, the node could
+sometimes fail with an com.sleepycat.je.EnvironmentFailureException as
+it tried to establish a replication stream with the new master. A
+sample stack trace is enclosed below:
+<pre>
+Replica unexpected exception com.sleepycat.je.EnvironmentFailureException: ...
+ Rep stream not sequential. Current VLSN: 94,338,473 next log entry VLSN: 94,338,515 UNEXPECTED_STATE: Unexpected internal state, may have side effects. com.sleepycat.je.EnvironmentFailureException: (JE 4.0.80) node4(3):/tmp/scaleDir4/env Rep stream not sequential. Current VLSN: 94,338,473 next log entry VLSN: 94,338,515 UNEXPECTED_STATE: Unexpected internal state, may have side effects.
+	at com.sleepycat.je.rep.impl.node.Replay.replayEntry(Replay.java:342)
+	at com.sleepycat.je.rep.impl.node.Replica.doRunReplicaLoopInternalWork(Replica.java:433)
+	at com.sleepycat.je.rep.impl.node.Replica.runReplicaLoopInternal(Replica.java:353)
+	at com.sleepycat.je.rep.impl.node.Replica.runReplicaLoop(Replica.java:295)
+	at com.sleepycat.je.rep.impl.node.RepNode.run(RepNode.java:914)
+</pre>
+[#18212]
+</li><br>
+
+<li>Fix a problem where cleaned and deleted log files could accumulate in the
+log cleaner's backlog, or list of files to be cleaned.  This occurs when
+multiple cleaner threads are configured.  The impacts of this problem are:
+  <ol>
+  <li>The <code>EnvironmentStats.getCleanerBacklog</code> stat is incorrect,
+  which could lead the application to unnecessarily increase the number of
+  cleaner threads.<li>
+  <li>If <code>EnvironmentConfig.CLEANER_MAX_BATCH_FILES</code> is set to a
+  non-zero value, log cleaning is disabled when the number of deleted files in
+  the backlog reaches this limit.</li>
+  </ol>
+[#18179]
+</li><br>
+
+<li>Fix a bug that can cause LogFileNotFound (loss of log information) when
+using temporary databases (DatabaseConfig.setTemporary(true) or
+StoreConfig.setTemporary(true)).  This is known to occur only under heavy
+concurrent cache eviction and log cleaning.
+[#18227]
+</li><br>
+
+</ol>
+
+<!-- =================================================== -->
+
+<h3>Utility Changes:</h3>
+<ol>
+<li>
+Added a utility named  com.sleepycat.je.rep.util.DbGroupAdmin which presents
+the functionality of the com.sleepycat.je.rep.util.ReplicationGroupAdmin class
+in a command line utility. It lets the user both display the composition of a
+replication group and remove nodes from the group. DbGroupAdmin should be used
+as part of
+<a
+href="http://www.oracle.com/technology/products/berkeley-db/faq/je_faq.html#HAChecklist">JE
+HA configuration checklist.</a> [#17841]
+</li><br>
+<li><code>DbCacheSize</code> now supports <code>-measure</code> to measure the
+actual amount of cache size used, without the use of <code>-data</code>.  When
+<code>-data</code> is not specified, <code>-measure</code> will cause only the
+keys and internal nodes to be kept in cache.  This allows measuring the amount
+of memory necessary to hold the internal nodes for a data set, without
+allocating enough memory to hold the entire data set, including leaf nodes.
+[#18036]
+</li>
+</ol>
+<h3>Examples:</h3>
+<ol>
+<li>
+Added a new example to illustrate the use of RMI for request
+forwarding in a replicated system. See the javadoc for <a href="examples/je/rep/quote/StockQuotesRMIForwarding.html">je.rep.quote.StockQuotesRMIForwarding</a>.
+</li>
+</ol>
+
+<!-- =================================================== -->
+<hr>
+<h3 align="center"><u><a name="FullList">Changes in JE 4.0.71</a></u></h3>
+<a href="#FileFormat">File Format</a><br>
+<a href="#Features">New Features</a><br>
+<a href="#API">API</a><br>
+<a href="#General">Performance and General Changes</a><br>
+<a href="#DPL">Direct Persistence Layer</a><br>
+<a href="#Utilities">Utility Changes</a><br>
+<a href="#IandI">Documentation, Installation and Integration</a><br>
+
+<!-- =================================================== -->
+<h3><a name="FileFormat">Log File On-Disk Format Changes:</a></h3>
+JE 4.0.92 has moved to on-disk file format 7.
+<p>
+The change is forward compatible in that JE files created with release
+3.3 and earlier can be read when opened with JE 4.0.92. The
+change is not backward compatible in that files created with JE 4.0
+cannot be read by earlier releases. Note that if an existing
+environment is opened read/write, a new log file is written by JE 4.0
+and the environment can no longer be read by earlier releases.
+<p>
+Changes in API and exception handling create a binary incompatibility
+between JE 4.0 and JE 3.X. Users are advised to recompile their
+applications when moving to JE 4.0.
+<!-- =================================================== -->
+
+<h3><a name="Features">New Features:</a></h3>
+<ol>
+<li>This release features <b>JE High Availability</b>, which permits the use
+of JE with replication. See the <a
+href="ReplicationGuide/index.html">High Availability Guide</a> for an
+introduction to the product, and the <a
+href="java/com/sleepycat/je/rep/package-summary.html">com.sleepycat.je.rep</a>
+javadoc for API specifications.
+</li><br>
+
+<li>
+JE now provides two JMX MBean implementations for monitoring a running
+JE application. A JConsole plugin is also provided for accessing the
+new JEMonitor and RepJEMonitor classes. Environment statistics can be
+collected and graphed, and other state information can be perused. See the <a
+href="jconsole/JConsole-plugin.html">how-to</a> for more information.
+</li><br>
+
+<li>
+It is critical that invalid files are not added to a backup set, since
+then both the live environment and the backup will be invalid. Two new
+classes now support verification of log files prior to making a
+backup.
+<p>
+The <code>com.sleepycat.je.util.LogVerificationInputStream</code>
+class enables log verification programmatically as files are being
+copied.  The <code>com.sleepycat.je.util.DbVerifyLog</code> class is a
+simple command line utility for inclusion in backup scripts. [#16476]
+</li><br>
+
+<li>Cursor and Database record retrieval has been optimized to significantly
+reduce I/O when <code>DatabaseEntry.setPartial</code> is used to suppress
+return of the data item and the <code>READ_UNCOMMITTED</code> isolation mode is
+used.  See "Using Partial DatabaseEntry Parameters"in the Cursor javadoc for
+more information.  [#16859]
+</li><br>
+
+<li>
+The <code>EnvironmentConfig.setNodeName(String nodeName)</code> and
+<code>EnvironmentConfig.getNodeName()</code> methods have been added
+to match those same methods in <code>ReplicationConfig</code>.
+Setting the <code>EnvironmentConfig</code> node name will cause
+java.util.logging messages and thread names to include the
+user-specified name. This was previously only true for replicated
+environments, and has been extended to work for non-replicated
+environments, as a debugging aid when using multiple environments in
+the same JVM. The feature was originally requested on the <a
+href="http://forums.oracle.com/forums/forum.jspa?forumID=273">OTN
+forum</a>.  [#17629] (4.0.70)
+</li>
+</ol>
+<!-- ================================================= -->
+<h3><a name="API">API Changes:</a></h3>
+<ol>
+
+<li>
+The <code>close()</code> method may now be called repeatedly on
+<code>Database</code>, <code>Cursor</code>, <code>Environment</code>,
+<code>JoinCursor</code>, and <code>EntityStore</code> instances, and
+<code>abort()</code> may be called repeatedly on <code>Transaction</code>
+instances. Whereas they used to throw an exception if <code>close()</code> or
+<code>abort()</code> was called multiple times, they now return silently on
+subsequent calls. [#16214]
+</li><br>
+
+<li>
+<code>XAEnvironment.getXATransaction()</code> has been removed from
+the Javadoc.  This is an internal entrypoint and should not be used by
+general users.  <code>getXATransaction()</code>'s behavior has been
+changed so that it will no longer return a <code>Transaction</code>
+instance for a transaction which is prepared, but not yet committed or
+rolled back.  The only user operations which can be performed on
+prepared, but not yet committed/rolled-back transactions are
+<code>XAEnvironment.commit()</code> or <code>rollback()</code>.
+[#16375]
+</li><br>
+
+<li>Added the <code>DatabaseConfig.setUseExistingConfig</code> and
+<code>DatabaseConfig.getUseExistingConfig</code> methods.  This allows
+a user application to open a Database readonly and determine its existing
+DatabaseConfig (e.g. whether the database has sorted duplicates or not).
+[#16504]
+</li><br>
+
+<li>Several major improvements have been made to the JE exception hierarchy.
+In most cases, no source code changes to applications are required.  However,
+users are strongly encouraged to read the new exception documentation and
+follow the recommended approach for exception handling.  In one case, a
+compatibility flag must be set if <code>DeadlockException</code> or
+<code>LockNotGrantedException</code> is explicitly caught, and the use of
+these exceptions is not changed as described below. Also, if an instance of
+<code>DatabaseException</code> is being created directly by the application,
+this must be changed as described below.
+<br><br>
+    <ul>
+    <li><code>DatabaseException</code> is now a runtime exception rather than a
+        checked exception.  In other words, it now extends
+        <code>RuntimeException</code> rather than <code>Exception</code>.
+        Since all other JE exceptions extend <code>DatabaseException</code>,
+        all JE exceptions are now runtime exceptions.  This change allows
+        catching and handling JE exceptions at the level of the call chain most
+        appropriate for a given situation, without having to declare
+        <code>DatabaseException</code> in the throws clause of every method or
+        wrap it in a runtime exception.  In some cases JE exceptions should be
+        handled by the immediate caller of a JE method, but in other cases
+        should be handled at a higher level.  Using runtime exceptions makes it
+        easier for applications to make the appropriate choice.  No application
+        changes are required, although many users may wish to remove
+        <code>DatabaseException</code> from the throws clause of methods where
+        it is no longer needed, or remove the use of runtime exception
+        wrappers.
+        [#16704]
+    </li><br>
+    <li>The JE exception hierarchy has been expanded and all exceptions are now
+        classified as either operation failures (base class
+        <code>OperationFailureException</code>) or environment failures (base
+        class <code>EnvironmentFailureException</code>).  For both types of
+        failures, the general approach for handling the exception has been
+        defined in the javadoc for these base classes.  To support handling all
+        exceptions in a general way, the <code>Transaction.isValid</code> and
+        <code>Environment.isValid</code> methods have been added.
+        [#16704]
+    </li><br>
+    <li><code>RunRecoveryException</code> has been deprecated and replaced by
+        <code>EnvironmentFailureException</code>; however, application code
+        that catches <code>RunRecoveryException</code> need not be changed
+        immediately.  <code>EnvironmentFailureException</code> extends
+        <code>RunRecoveryException</code>, so existing code that catches
+        <code>RunRecoveryException</code> will now catch
+        <code>EnvironmentFailureException</code>.  However, please be aware
+        that <code>EnvironmentFailureException</code> is now thrown for more
+        error cases than <code>RunRecoveryException</code> was in JE 3.3 and
+        earlier.  Applications are strongly encouraged to use the new approach
+        for handling <code>EnvironmentFailureException</code>, which is
+        described in the javadoc for this class.
+        [#16704]
+    </li><br>
+    <li>The <code>DatabaseException</code> class is now abstract.  This ensures
+        that a specific exception, having well defined rules for handling it,
+        is always thrown.  Applications that are throwing
+        <code>DatabaseException</code> directly must be changed to throw a
+        different exception, and not a JE exception.  Although JE exceptions
+        have public constructors, these are excluded from the javadoc and
+        marked as Internal Use Only.  JE exceptions should only be created and
+        thrown by JE.
+        [#16704]
+    </li><br>
+    <li>Several improvements have been made to the exception hierarchy for lock
+        conflicts (lock timeouts, transaction timeouts, deadlocks, etc).  New
+        exceptions and the new base class <code>LockConflictException</code>
+        are available.  Now, <code>LockConflictException</code> should be
+        caught to handle lock conflicts in a general manner, instead of
+        catching <code>DeadlockException</code>.  New exceptions are now thrown
+        as follows:
+            <ul>
+            <li><code>LockTimeoutException</code> is now thrown when a lock
+            timeout occurs, rather than <code>DeadlockException</code>.</li>
+            <li><code>TransactionTimeoutException</code> is now thrown when a
+            transaction timeout occurs, rather than
+            <code>DeadlockException</code>.</li>
+            <li><code>LockNotAvailableException</code> is now thrown when a
+            lock conflict occurs for a no-wait transaction, rather than
+            <code>LockNotGrantedException</code>.</li>
+            </ul>
+        These three new exceptions are subclasses of
+        <code>LockConflictException</code>.  <code>DeadlockException</code> is
+        also now a subclass of <code>LockConflictException</code>, but is not
+        currently thrown by JE because true deadlock detection is not used in
+        JE.  Currently, lock timeouts are used instead.  When true deadlock
+        detection is added to JE in the future, <code>DeadlockException</code>
+        will be thrown. <code>LockNotGrantedException</code> has been
+        deprecated and replaced by <code>LockNotAvailableException</code>.
+        Unless <code>EnvironmentConfig.LOCK_OLD_LOCK_EXCEPTIONS</code> is set
+        to true (which enables the old exception behavior) the following
+        changes must be made to JE applications that upgrade from JE 3.3 or
+        earlier.
+            <ol>
+            <li>All occurrences of <code>DeadlockException</code> must be
+            replaced with <code>LockConflictException</code> or one of its
+            non-deprecated subclasses (<code>LockTimeoutException</code>,
+            <code>TransactionTimeoutException</code>, or
+            <code>LockNotAvailableException</code>).  It is strongly
+            recommended to replace it with <code>LockConflictException</code>,
+            since catching this exception will catch true deadlocks in the
+            future and other types of lock conflicts.  All lock conflicts all
+            typically handled in the same way, which is normally to abort and
+            retry the transaction.</li>
+            <li>All occurrences of <code>LockNotGrantedException</code> must be
+            replaced with <code>LockNotAvailableException</code>.
+            <code>LockNotGrantedException</code> has been deprecated because it
+            misleadingly extends <code>DeadlockException</code>.</li>
+            </ol>
+        [#16264]
+    </li><br>
+    <li>To go along with the lock conflict exception changes above, example
+        code is now provided that shows the canonical approach for implementing
+        a transaction retry loop.  Adopting this approach is especially
+        important for compatibility with the use of replication.  Please see
+        the Performing Transaction Retries section in the javadoc for
+        <code>com.sleepycat.je.LockConflictException</code> (for the base API)
+        and <code>com.sleepycat.persist.EntityIndex</code> (for the DPL).
+        [#14573]
+    </li><br>
+    <li>In addition, many other new exceptions have been defined so they may be
+        specifically caught and handled.  For example, this allows detecting a
+        secondary constraint violation by catching
+        <code>SecondaryConstraintException</code>, or one of its more specific
+        subclasses, rather than by catching <code>DatabaseException</code>.
+        Please see the javadoc for the following new exceptions.  Note that
+        some new exceptions were added for replication support.
+        <br>
+        <ul>
+        <li><code>DatabaseExistsException</code></li>
+        <li><code>DatabasePreemptedException</code></li>
+        <li><code>DeleteConstraintException</code></li>
+        <li><code>DuplicateDataException</code></li>
+        <li><code>EnvironmentNotFoundException</code></li>
+        <li><code>ForeignConstraintException</code></li>
+        <li><code>LockConflictException</code></li>
+        <li><code>LockNotAvailableException</code></li>
+        <li><code>LockPreemptedException</code></li>
+        <li><code>LockTimeoutException</code></li>
+        <li><code>LogOverwriteException</code></li>
+        <li><code>LogWriteException</code></li>
+        <li><code>SecondaryConstraintException</code></li>
+        <li><code>SecondaryIntegrityException</code></li>
+        <li><code>SecondaryReferenceException</code></li>
+        <li><code>SequenceExistsException</code></li>
+        <li><code>SequenceIntegrityException</code></li>
+        <li><code>SequenceNotFoundException</code></li>
+        <li><code>SequenceOverflowException</code></li>
+        <li><code>ThreadInterruptedException</code></li>
+        <li><code>TransactionTimeoutException</code></li>
+        <li><code>UniqueConstraintException</code></li>
+        <li><code>VersionMismatchException</code></li>
+        <li><code>XAFailureException</code></li>
+        </ul>
+        [#16704]
+    </li><br>
+    <li>The JE javadoc has been updated to specify all exceptions that are
+        thrown by each method, including the standard Java runtime exceptions
+        (IllegalStateException, UnsupportedOperationException, and
+        IllegalArgumentException).
+        [#16704]
+    </li><br>
+    </ul>
+See the <code>DatabaseException</code> javadoc for an overview of all JE
+exceptions.
+</li><br>
+<li>
+The <code>Environment.getLockStats()</code> method and <code>LockStats</code>
+class are deprecated.  All of the lock stats may be obtained using
+<code>Environment.getStats()</code>.  The same get methods which exist on
+<code>LockStats</code> are now present on <code>EnvironmentStats</code>.
+[#16792]
+</li><br>
+<li>
+Added the <code>Database.compareKeys(DatabaseEntry, DatabaseEntry)</code> and
+<code>Database.compareDuplicates(DatabaseEntry, DatabaseEntry)</code> methods
+which may be used for comparing two <code>DatabaseEntry</code> instances
+using either the btree comparator or the duplicate comparator.
+[#16816]
+</li><br>
+<li>
+The <code>com.sleepycat.je.ForeignKeyDeleteAction</code>,
+<code>com.sleepycat.je.LockMode</code>, and
+<code>com.sleepycat.je.OperationStatus</code> classes have been changed from
+classes to Java enums.  This is a compatible change and does not require a
+recompilation unless you use <code>LockMode.DIRTY_READ</code>.
+<code>LockMode.DIRTY_READ</code> was previously deprecated and has now been
+removed from the code base. Use of the <code>LockMode.DIRTY_READ</code> field
+in class files compiled with earlier versions of JE will cause
+<code>java.lang.NoSuchFieldError</code> to be thrown at runtime.
+<p>
+In addition, the following previously deprecated methods, classes, and
+constants have been removed:<p>
+<code>com.sleepycat.collections.StoredCollections.dirtyReadCollection</code>,
+<br>
+<code>com.sleepycat.collections.StoredCollections.dirtyReadList</code>,
+<br>
+<code>com.sleepycat.collections.StoredCollections.dirtyReadMap</code>,
+<br>
+<code>com.sleepycat.collections.StoredCollections.dirtyReadSet</code>,
+<br>
+<code>com.sleepycat.collections.StoredCollections.dirtyReadSortedMap</code>,
+<br>
+<code>com.sleepycat.collections.StoredCollections.dirtyReadSortedSet</code>,
+<br>
+<code>com.sleepycat.collections.StoredContainer.isDirtyReadAllowed</code>,
+<br>
+<code>com.sleepycat.collections.StoredContainer.isDirtyRead</code>,
+<br>
+<code>com.sleepycat.je.CursorConfig.DIRTY_READ</code>,
+<br>
+<code>com.sleepycat.je.CursorConfig.setDirtyRead</code>,
+<br>
+<code>com.sleepycat.je.CursorConfig.getDirtyRead</code>,
+<br>
+<code>com.sleepycat.je.TransactionConfig.setDirtyRead</code>,
+<br>
+<code>com.sleepycat.je.TransactionConfig.getDirtyRead</code>,
+<p>
+[#16984]
+</li><br>
+<li>
+The <code>SecondaryCursor.dupSecondary()</code> method has been deprecated
+and replaced by <code>SecondaryCursor.dup()</code>.  The
+<code>SecondaryDatabase.openSecondaryCursor()</code> method has been deprecated
+and replaced by <code>SecondaryDatabase.openCursor()</code>.  The
+<code>SecondaryDatabase.getSecondaryConfig()</code> method has been deprecated
+and replaced by <code>SecondaryDatabase.getConfig()</code>.  The
+<code>SecondaryDatabase.openSecondaryCursor()</code> method has been deprecated
+and replaced by <code>SecondaryDatabase.openCursor()</code>.  The
+<code>cloneConfig()</code> methods for
+<code>DatabaseConfig</code>,
+<code>EvolveConfig</code>, and
+<code>StoreConfig</code> have been deprecated and replaced by
+<code>clone()</code>.  The
+<code>clone()</code> methods for
+<code>CheckpointConfig</code>,
+<code>CursorConfig</code>,
+<code>EnvironmentConfig</code>,
+<code>JoinConfig</code>,
+<code>PreloadConfig</code>,
+<code>SecondaryConfig</code>,
+<code>SequenceConfig</code>,
+<code>StatsConfig</code>,
+<code>TransactionConfig</code>, and
+<code>VerifyConfig</code> have been added. [#16985]
+</li><br>
+<li>
+All <code>public void setFoo()</code> methods in
+<code>com.sleepycat.je.*Config</code> have been changed to return
+<code>this</code> instead of <code>void</code>.  This allows multiple set
+calls to be placed on one line, similar to <code>StringBuffer</code> calls.
+For example, it is now possible to do the following:
+<pre><code>EnvironmentConfig envConf = new EnvironmentConfig();
+envConf.setAllowCreate(true).setTransactional(true);</code></pre>
+This will require users to recompile their code.  [#17021]
+</li><br>
+
+<li>In JE 4.0.70, an additional change was made so that all setter
+methods in the DPL <code>StoreConfig</code> <code>EvolveConfig</code>
+now return <code>this</code> rather than having a <code>void</code>
+return type.  This change requires that applications using the DPL be
+recompiled.  [#17021] (4.0.70)
+</li><br>
+
+
+<li>Previous versions of JE would allow conflicting settings in
+  <code>TransactionConfig</code> and <code>EnvironmentConfig</code>
+  for <code>TxnNoSync</code>, <code>TxnWriteNoSync</code>, and
+  <code>TxnSync</code>.  <code>TransactionConfig</code> no longer
+  allows setting more than one of <code>TxnNoSync</code>,
+  <code>TxnWriteNoSync</code>, or <code>TxnSync</code> to
+  <code>true</code>.  An <code>IllegalArgumentException</code> will be
+  thrown if the settings of these configuration parameters are
+  conflicting. [#17705]
+</li><br>
+
+
+<li>
+The 4.0 release provides support for replicated environments. JE defines a new
+class: <code>Durability</code>, as a single consistent way to specify
+durability for both standalone and replicated environments. Accordingly, the
+methods: <code>setTxnNoSync, getTxnNoSync, setTxnWriteNoSync,
+getTxnWriteNoSync</code> in EnvironmentMutableConfig and methods <code>
+setNoSync, getNoSync, setWriteNoSync, getWriteNoSync</code> in
+TransactionConfig are deprecated, the methods <code>setDurability,
+getDurability</code> should be used in their place.  A new
+<code>Transaction</code> method, <code>commit(Durability)</code> has also been
+provided for use in both standalone and replicated environments.
+</li><br>
+<li>
+Removed any code which uses NIO for IO to the file system.  Deprecated
+the <code>je.log.useNIO</code> and <code>je.log.directNIO</code>
+parameters.  If <code>EnvironmentConfig.LOG_USE_NIO</code> or
+<code>EnvironmentConfig.LOG_DIRECT_NIO</code> is used by the
+application, a deprecation warning will result.  If these parameters
+are set, they will have no effect on JE, and no warning (other than
+the deprecation warning) will be given to the user.
+</li><br>
+
+
+<li>
+JE 3.X and earlier provided various proprietary JE properties named
+"java.util.logging.XXX" which were meant to be set either in the
+je.properties file or in the EnvironmentConfig class. These properties
+configured JE's use of the java.util.logging framework, but did not
+obey the conventions of standard java.util.logging naming and
+configuration management. These proprietary properties have been
+removed. Instead, JE's use of java.util.logging can now be configured
+in the standard fashion through the configuration properties described
+by the java.util.logging package.
+<p>
+To display all logging output to the console, set
+com.sleepycat.je.util.ConsoleHandler.level = ALL as a
+java.util.logging property. By default, JE records logging output of
+level INFO or higher is recorded in &lt;envdir&gt;/je.info. To change
+the level of output displayed in the file, set
+com.sleepycat.je.util.FileHandler.level to the desired level. The
+logging output is particularly helpful in a replicated application. An
+example of the output can be found <a href="traceLogging.html">here</a>.
+</li><br>
+<li>
+The following <code>Environment</code> configuration properties now
+allow specifying a time unit. In the past, values could only be
+expressed as microseconds. For these properties, the default unit has
+always been microseconds and that has not changed.
+For more information about specifying units with configuration
+properties, see the <em>Time Duration Properties</em> section of the
+<code>EnvironmentConfig</code> class.
+ These properties are:
+    <ul>
+    <li><code>EnvironmentConfig.LOCK_TIMEOUT</code></li>
+    <li><code>EnvironmentConfig.TXN_TIMEOUT</code></li>
+    <li><code>EnvironmentConfig.LOG_FSYNC_TIMEOUT</code></li>
+    <li><code>EnvironmentConfig.ENV_BACKGROUND_SLEEP_INTERVAL</code></li>
+    <li><code>EnvironmentConfig.COMPRESSOR_WAKEUP_INTERVAL</code></li>
+    <li><code>EnvironmentConfig.COMPRESSOR_LOCK_TIMEOUT</code></li>
+    <li><code>EnvironmentConfig.CHECKPOINTER_WAKEUP_INTERVAL</code></li>
+    <li><code>EnvironmentConfig.CLEANER_LOCK_TIMEOUT</code></li>
+    </ul>
+<p>In addition, the following new methods have been added to allow specifying a
+unit along with a time duration.  The equivalent older methods, without a unit
+argument, have been deprecated.  The new methods are:</p>
+    <ul>
+    <li><code>EnvironmentConfig.setLockTimeout(long,TimeUnit)</code></li>
+    <li><code>EnvironmentConfig.getLockTimeout(TimeUnit)</code></li>
+    <li><code>EnvironmentConfig.setTxnTimeout(long,TimeUnit)</code></li>
+    <li><code>EnvironmentConfig.getTxnTimeout(TimeUnit)</code></li>
+    <li><code>Transaction.setLockTimeout(long,TimeUnit)</code></li>
+    <li><code>Transaction.getLockTimeout(TimeUnit)</code></li>
+    <li><code>Transaction.setTxnTimeout(long,TimeUnit)</code></li>
+    <li><code>Transaction.getTxnTimeout(TimeUnit)</code></li>
+    </ul>
+</li><br>
+
+<li>All methods that return a new cursor in a replicated environment
+now allow passing a null <code>Transaction</code>.  This includes
+<code>Database.openCursor</code>, <code>EntityIndex.entities</code>,
+<code>EntityIndex.keys</code>, and
+<code>StoredContainer.storedIterator</code>.  Before, a null
+<code>Transaction</code> was prohibited in a replicated environment
+unless read-uncommitted isolation was configured.  Note that a null
+transaction has always been allowed (and still is) in a non-replicated
+environment.  [#16513] (4.0.70) </li><br>
+
+<li>The <code>Transaction.commit</code> and
+<code>CurrentTransaction.commitTransaction</code> family of methods no longer
+throw <code>LockPreemptedException</code>.  Note that
+<code>LockPreemptedException</code> is only applicable in replicated
+environments.  [#16513] (4.0.70)
+</li><br>
+
+<li>
+An <code>IllegalArgumentException</code> is now thrown if
+<code>LockMode.RMW</code> is passed to the <code>Database.get</code> and
+<code>Database.getSearchBoth</code> methods, and a null <code>Transaction</code> is
+also passed.  Without a transaction it is not possible to use these methods to
+perform a read-modify-write operation that initially acquires a write
+lock, so the combination of parameters does not make sense.
+[#16513] (4.0.70)
+</li><br>
+<li>IllegalStateException is now thrown if
+Transaction.getCommitToken() is called before the transaction has
+finished. Previously, it would return a null commit token. [#17377]
+(4.0.70)
+</li><br>
+<li><code>Database.preload(PreloadConfig)</code> no longer throws
+<code>NullPointerException</code> if null is passed for an argument.  Instead,
+it uses a default <code>PreloadConfig</code>. [#17784] (4.0.72)
+</li>
+</ol>
+<!-- ----------------------------------------------------------------- -->
+<h3><a name="General">Performance and other General Changes</a></h3>
+<ol>
+<li>
+Fixed a bug which could cause a deadlock if a Database handle is closed while
+another thread is still using it. Removed code which automatically closes
+cursors that are still open at Database.close() time.  [#15413]
+</li><br>
+
+<li>
+If a call to <code>com.sleepycat.je.Transaction.commit()</code> throws
+an exception because the transaction has open cursors, a follow-on
+call to <code>Transaction.abort()</code> could fail with the following
+stack trace:
+<pre>
+    Transaction 3 has been closed. java.lang.IllegalStateException: Transaction 3 has been closed.
+        at com.sleepycat.je.txn.Txn.checkState(Txn.java:1580)
+        at com.sleepycat.je.txn.Txn.abortInternal(Txn.java:819)
+        at com.sleepycat.je.txn.Txn.abort(Txn.java:805)
+        at com.sleepycat.je.Transaction.abort(Transaction.java:90)
+        at com.sleepycat.je.txn.TxnEndTest.testTxnClose(TxnEndTest.java:
+</pre>
+This was a bug and has been fixed so the call to abort() will complete
+successfully. [#16214]
+</li><br>
+
+<li>
+Improved synchronization on <code>Database</code> instances obviating the need
+to use separate <code>Database</code> handles in high-concurrency environments.
+Previously, this practice was recommended, but is no longer necessary.
+[#16346]
+</li><br>
+
+<li>
+Improved internal concurrency by using shared (vs exclusive) latches on
+internal nodes of the B+Tree. Added a new stat to Database and Environment
+stats to record the number of "relatches" (latch upgrades) that have occurred
+on both the particular Database and overall for the Environment.  [#16346]
+</li><br>
+
+<li>
+When opening different environments in the same process, if recovery for one of
+the environments took a long time, the other environment openings would block.
+Changed the behavior such that opening additional environments is not blocked
+by another environment's recovery. [#16350]
+</li><br>
+
+<li>
+Improved JE write performance when doing synchronous transaction
+commits on certain Linux filesystems, including ext3.
+<p>
+In JE, when the durability specified for a transaction dictates
+force-writing to disk (for example, a <code>commitSync()</code> call),
+it calls <code>fsync()</code>.  On modern disk drives an
+<code>fsync()</code> will take on the order of several
+milliseconds. This is a
+relatively long time compared to the time required to do a
+<code>write()</code> call, which only moves data to the operating
+system's file cache.
+<p> JE's group commit mechanism seeks to reduce the number of fsyncs
+required by issuing one fsync for batches of multiple transaction commits.
+For
+example, if a thread T1 requires an <code>fsync()</code>, and JE
+determines that no <code>fsync()</code> is in progress, it will
+execute that <code>fsync()</code> immediately.  If, while T1 is
+executing the <code>fsync()</code>, some other thread(s) require an
+fsync(s), JE will block those threads until T1 finishes.  When T1's
+</code>fsync()</code> completes, a new <code>fsync()</code> executes
+on behalf of the blocked thread(s).
+<p>
+
+The past JE group commit implementation assumed that the underlying platform
+(OS + file system combination) allow IO operations like
+<code>seek()</code>, <code>read()</code> and <code>write()</code> to
+execute concurrently with an <code>fsync()</code> call (on the same
+file, but using different file descriptors).  On Solaris and Windows
+this is true.  Hence, on these platforms, a thread which is performing
+an <code>fsync()</code> does not block another thread performing a
+concurrent <code>write()</code>.  But, on several Linux file systems,
+ext3 in particular, an exclusive mutex on the inode is grabbed during
+<i>any</i> IO operation.  So a <code>write()</code> call on a file
+(inode) will be blocked by an <code>fsync()</code> operation on the
+same file (inode).  This negates any performance improvement which
+might be achieved by group commit.
+<p>
+
+The JE group commit code has been improved to batch
+<code>write()</code> and <code>fsync()</code> calls, rather than just
+<code>fsync()</code> calls.  Just before a <code>write()</code> call
+is executed, JE checks if an <code>fsync()</code> is in progress and
+if so, the write call is queued in a (new) Write Queue.  Once the
+<code>fsync()</code> completes, all pending writes in the Write Queue
+are executed.
+<p>
+This change in behavior is enabled by default and may be disabled by
+setting the <code>je.log.useWriteQueue</code> configuration parameter
+to <code>false</code>.  The size of the Write Queue (i.e. the amount of
+data it can queue until any currently-executing IO operations complete)
+can be controlled with the <code>je.log.writeQueueSize</code> parameter.
+The default for <code>je.log.writeQueueSize</code> is 1MB with a minimum
+value of 4KB and a maximum value of 32MB. The Write Queue does not use
+cache space controlled by the <code>je.maxMemory</code> parameter.  [#16440]
+</li><br>
+
+<li>
+Trace messages are now written to the log at recovery and shutdown
+time. This applies mostly as a field support aid.
+[#16452]
+</li><br>
+
+<li>Fixed a memory leak in applications which set
+EnvironmentConfig.setLocking(false) and used multiple environments and
+shared caches. JE could continue to maintain a reference to internal
+data structures after an <code> Environment</code> is fully closed.
+This report was originally mentioned in this <a
+href="http://forums.oracle.com/forums/thread.jspa?threadID=702367">forum
+post</a>.  [#16453] </li><br>
+<li>Fixed a circular static initialization dependency between
+<code>LockType</code> and <code>LockUpgrade</code>. This was
+discovered by a user whose use of reflection caused a change in the
+class loading order. [#16496]
+</li><br>
+
+
+<li>Fixed a bug that causes incorrect secondary key values to be created when a
+partial DatabaseEntry is passed to a Cursor or Database put() method, if
+secondaries are configured.  Before, the partial entry was passed to the
+SecondaryKeyCreator.  Now, the resulting merged data is passed to the key
+creator.  Thanks to archie172 for <a
+href="http://forums.oracle.com/forums/thread.jspa?threadID=864209">reporting</a>
+this on OTN. [#16929]
+</li><br>
+
+<li>A bug in which the <code>DbPrintLog</code> utility would sometimes display
+negative numbers for the size of the key/data bytes when using the
+<code>-S</code> option has been fixed.  A <code>-SC</code> option has also
+been added which prints the summary information in CSV format. [#17196]
+</li><br>
+<li>
+Fixed a bug where com.sleepycat.je.util.DbPrintLog could throw a
+NullPointerException. [#17456]
+</li> <br>
+<li>
+Fixed a bug that would allow the Total Memory Usage stat to become negative on
+certain architectures. [#17462]
+</li><br>
+<li>
+Removed a concurrency hot spot in TxnManager.thread2Txn, which has a
+positive influence on highly concurrent applications with many
+transactions . [#17542]
+</li><br>
+
+<li>
+Two new environment configuration parameters are available to control the use
+of "proactive migration" in the log cleaner:
+ <ul>
+ <li><code>EnvironmentConfig.CLEANER_FOREGROUND_PROACTIVE_MIGRATION</code></li>
+ <li><code>EnvironmentConfig.CLEANER_BACKGROUND_PROACTIVE_MIGRATION</code></li>
+ </ul>
+See the javadoc for these parameters for more information.  By default,
+proactive migration is now disabled.  In earlier releases, proactive migration
+was unconditionally enabled for both foreground and background activities.
+This sometimes caused operation delays and long checkpoints, and these problems
+should now be reduced.  But because of this change in behavior, in rare cases
+an application may now need to configure more cleaner threads, or enable
+proactive migration, in order to prevent a cleaner backlog. [#17634]
+</li><br>
+<li>
+In rare cases requiring a combination of delete and repeated insert
+operations and environment recoveries, Database.count() could be
+incorrect, usually by a small number of records. Note that
+Database.count() does have the general caveat that is it not
+guaranteed to be accurate when there concurrent updates. This miscount
+has been fixed. [#17770] (4.0.61)
+</li><br>
+
+<li>
+In JE 4.0.60, read operations such as Database.get(), when executed on
+a replicated environment, and used with a null transaction parameter,
+did not properly obey the default environment replica read consistency
+policy. This has been fixed. [#16513] (4.0.70)
+</li><br>
+
+<li>
+Fixed a bug that sometimes caused a NullPointerException in a
+replicated environment, when a database was renamed on the Master.  If
+a secondary database was renamed, the app running on the Replica could
+see a NullPointerException rather than the intended
+DatabasePreemptedException.  [#17015] (4.0.70)
+</li><br>
+
+<li>
+Fixed a bug where a LogFileNotFoundException could be seen in an
+environment which had repeated inserts and deletes of records with the
+same key and repeated environment recoveries.
+[#17879] (4.0.70)
+</li><br>
+<li>
+A bug could cause replicated environments which contain
+ databases with duplicates to see the following exception with
+ this distinctive stacktrace:
+<pre>
+(JE 4.0.60)... LOG_FILE_NOT_FOUND: Log file missing, log is likely
+ invalid. Environment is invalid and must be closed.
+	at com.sleepycat.je.tree.ChildReference.
+fetchTarget(ChildReference.java:147)
+	at com.sleepycat.je.tree.DIN.getDupCountLN(DIN.java:155)
+	at com.sleepycat.je.dbi.CursorImpl.lockDupCountLN(CursorImpl.java:2596)
+	at com.sleepycat.je.tree.Tree.insertDuplicate(Tree.java:2705)
+	at com.sleepycat.je.tree.Tree.insert(Tree.java:2652)
+	at com.sleepycat.je.dbi.CursorImpl.put(CursorImpl.java:1076)
+	at com.sleepycat.je.Cursor.putAllowPhantoms(Cursor.java:1769)
+	at com.sleepycat.je.Cursor.putNoNotify(Cursor.java:1726)
+	at com.sleepycat.je.Cursor.putNotify(Cursor.java:1659)
+	at com.sleepycat.je.Cursor.putLN(Cursor.java:1609)
+	at com.sleepycat.je.DbInternal.putLN(DbInternal.java:125)
+	at com.sleepycat.je.rep.impl.node.Replay.applyLN(Replay.java:738)
+	at com.sleepycat.je.rep.impl.node.Replay.replayEntry(Replay.java:483)
+	at com.sleepycat.je.rep.impl.node.Replica.doRunReplicaLoopInternalWork(Replica.java:414)
+	at com.sleepycat.je.rep.impl.node.Replica.runReplicaLoopInternal(Replica.java:341)
+	at com.sleepycat.je.rep.impl.node.Replica.runReplicaLoop(Replica.java:283)
+	at com.sleepycat.je.rep.impl.node.RepNode.run(RepNode.java:886)
+</pre>
+The problem would only occur in a fairly tight timing window, and has
+been fixed. [#17879] (4.0.70)
+</li><br>
+<li>
+A replicated environment which had been running in a replication group
+and restarted as a replica could see this exception at startup time:
+<pre>
+
+ (JE 4.0.60) ... GroupCBVLSN: 231,655 is outside VLSN range: first=231,700 last=583,909 sync=583,909 txnEnd=583,909
+UNEXPECTED_STATE_FATAL: Unexpected internal state, unable to continue. Environment is invalid and must be closed.
+Problem seen replaying entry ...
+	at com.sleepycat.je.EnvironmentFailureException.unexpectedState(EnvironmentFailureException.java:392)
+	at com.sleepycat.je.rep.impl.node.GlobalCBVLSN.recalculate(GlobalCBVLSN.java:179)
+	at com.sleepycat.je.rep.impl.node.RepNode.recalculateGlobalCBVLSN(RepNode.java:650)
+	at com.sleepycat.je.rep.impl.node.Replay.replayEntry(Replay.java:444)
+	at com.sleepycat.je.rep.impl.node.Replica.doRunReplicaLoopInternalWork(Replica.java:414)
+	at com.sleepycat.je.rep.impl.node.Replica.runReplicaLoopInternal(Replica.java:341)
+	at com.sleepycat.je.rep.impl.node.Replica.runReplicaLoop(Replica.java:283)
+	at com.sleepycat.je.rep.impl.node.RepNode.run(RepNode.java:886)
+
+</pre>
+This has been fixed. [#17885] (4.0.70)
+</li><br>
+
+
+<li><code>Database.preload(PreloadConfig)</code> no longer throws
+<code>NullPointerException</code> if null is passed for an argument.  Instead,
+it uses a default <code>PreloadConfig</code>. [#17784] (4.0.72)
+</li>
+</ol>
+<!-- ----------------------------------------------------------------- -->
+<h3><a name="DPL"Direct Persistence Layer (DPL), Collections and Bind packages</a></h3>
+<ol>
+
+<li>Report a meaningful IllegalArgumentException when @Persistent is
+incorrectly declared on an enum class.  Before, the confusing message
+<code>Persistent class has non-persistent superclass: java.lang.Enum</code> was
+reported.
+Thanks to Lowell for <a
+href="http://forums.oracle.com/forums/thread.jspa?forumID=273&threadID=532104">reporting</a>
+this problem on OTN.
+[#15623]
+</li><br>
+
+<li>Report a meaningful IllegalArgumentException when @Persistent is
+incorrectly declared on an interface.  Before, a NullPointerException was
+reported.
+Thanks to Tony Clifton for <a
+href="http://forums.oracle.com/forums/thread.jspa?threadID=580259">reporting</a>
+this problem on OTN.
+[#15841]
+</li><br>
+
+
+<li>Report a meaningful IllegalArgumentException when @Persistent or @Entity is
+incorrectly used on an inner class (a non-static nested class).  Before, the
+confusing message <code>No default constructor</code> was reported.
+[#16279]
+</li><br>
+
+<li>Entity subclasses that define secondary keys must now be
+registered prior to storing an instance of the class.  This can be done in
+two ways:<p>
+<ul>
+    <li>The <code>EntityModel.registerClass</code> method may be
+    called to register the subclass before opening the entity store.</li>
+    <li>The <code>EntityStore.getSubclassIndex</code> method may be called to
+    implicitly register the subclass after opening the entity store.</li>
+</ul>
+<p>Failure to register the entity subclass will result in an
+<code>IllegalArgumentException</code> the first time an attempt is made to
+store an instance of the subclass.  An exception will not occur if instances of
+the subclass have previously been stored, which allows existing applications to
+run unmodified in most cases.
+<p>This behavioral change was made to increase reliability.  In several cases,
+registering an entity subclass has been necessary as a workaround, as described
+<a
+href="http://forums.oracle.com/forums/thread.jspa?messageID=2701142">here</a>,
+for example.  The requirement to register the subclass will ensure that such
+errors do not occur in deployed applications. [#16399]
+</li><br>
+
+<li>When a secondary index database is opened, it is now auto-populated only
+if it did not previously exist, rather than if it is empty.  This
+prevents repeated auto-population of the secondary from occurring when
+the secondary keys for all entities in the primary index happen to be
+null.  This problem was reported by jhalex on
+<a href="http://forums.oracle.com/forums/thread.jspa?threadID=691646">OTN</a>.
+Note that the workaround mentioned in the OTN thread -- to create a dummy
+record that contains a non-null value for each secondary key -- is no longer
+necessary.
+<p>To go along with this change, the <code>EntityStore.truncateClass</code>
+method now removes all secondary databases rather than truncating them, so that
+they will be auto-populated if they are accessed again.  The primary database
+is truncated, as before. [#16399]
+</li><br>
+
+<li>The
+<code>com.sleepycat.collections.TransactionRunner.handleException</code> method
+has been added to allow overriding the default transaction retry policy.  See
+the javadoc for this method for more information.  [#16574]
+</li><br>
+
+
+<li>Fixed a bug that causes an assertion to fire or a
+NullPointerException (when assertions are disabled) from the
+EntityStore constructor.  The problem occurs only when the previously
+created EntityStore contains an entity with a secondary key definition
+in which the key name has been overridden and is different than the
+field name.  The key name can be overridden with the name property of
+the SecondaryKey annotation.  Below are examples of the assertion and
+exception.
+<pre>
+java.lang.NullPointerException
+    at com.sleepycat.persist.impl.ComplexFormat.checkSecKeyMetadata(ComplexFormat.java:1143)
+    at com.sleepycat.persist.impl.ComplexFormat.evolveFieldList(ComplexFormat.java:1428)
+    at com.sleepycat.persist.impl.ComplexFormat.evolveAllFields(ComplexFormat.java:1245)
+    at com.sleepycat.persist.impl.ComplexFormat.evolve(ComplexFormat.java:1019)
+    at com.sleepycat.persist.impl.Evolver.evolveFormatInternal(Evolver.java:440)
+    at com.sleepycat.persist.impl.Evolver.evolveFormat(Evolver.java:248)
+    at com.sleepycat.persist.impl.PersistCatalog.<init>(PersistCatalog.java:357)
+    at com.sleepycat.persist.impl.Store.<init>(Store.java:180)
+    at com.sleepycat.persist.EntityStore.<init>(EntityStore.java:165)
+</pre>
+<pre>
+java.lang.AssertionError
+    at com.sleepycat.persist.impl.ComplexFormat.evolveFieldList(ComplexFormat.java:1327)
+    at com.sleepycat.persist.impl.ComplexFormat.evolveAllFields(ComplexFormat.java:1245)
+    at com.sleepycat.persist.impl.ComplexFormat.evolve(ComplexFormat.java:1019)
+    at com.sleepycat.persist.impl.Evolver.evolveFormatInternal(Evolver.java:440)
+    at com.sleepycat.persist.impl.Evolver.evolveFormat(Evolver.java:248)
+    at com.sleepycat.persist.impl.PersistCatalog.<init>(PersistCatalog.java:357)
+    at com.sleepycat.persist.impl.Store.<init>(Store.java:180)
+    at com.sleepycat.persist.EntityStore.<init>(EntityStore.java:165)
+</pre>
+Thanks to Lukasz Antoniak for <a
+href="http://forums.oracle.com/forums/thread.jspa?threadID=849533">reporting</a>
+this bug accurately and clearly on OTN. [#16819]
+</li><br>
+
+<li>Key cursors have been optimized to significantly reduce I/O when the
+<code>READ_UNCOMMITTED</code> isolation mode is used.  See
+<code>EntityIndex.keys</code> for more information. [#16859]
+</li><br>
+
+
+<li>Report a meaningful IllegalArgumentException when NULLIFY is used with a
+@SecondaryKey and the field is a primitive type.  Before, the confusing message
+<code>Key field object may not be null</code> was reported.
+Thanks to Erick for <a
+href="http://forums.oracle.com/forums/message.jspa?messageID=3348223#3348223">reporting</a>
+this problem on OTN.
+[#17011]
+</li><br>
+
+
+<li>Enum fields may now be used as DPL keys, including primary keys, secondary
+keys, and fields of composite key classes.  Comparators are supported for
+composite key classes containing enum fields.
+<p>A bug was also fixed that prevented enum values from being inserted before
+existing values in an enum declaration. Now, new values may be inserted before
+existing values in the declaration, as well as appended to the end of the
+declaration.  However, note that renaming and deletion of enum values is not
+supported.
+[#17140]
+</li><br>
+
+<li>Fixed a bug that prevented the use of custom key comparisons (composite key
+classes that implement <code>Comparable</code>) for secondary keys defined as
+<code>ONE_TO_MANY</code> or <code>MANY_TO_MANY</code>.  An example stack trace
+is below.
+<pre>java.lang.IllegalArgumentException: Key class is not a simple type or a composite key class (composite keys must include @KeyField annotations): java.util.Set
+at com.sleepycat.persist.impl.PersistKeyBinding.<init>(PersistKeyBinding.java:38)
+at com.sleepycat.persist.impl.Store.getKeyBinding(Store.java:1294)
+at com.sleepycat.persist.impl.Store.setBtreeComparator(Store.java:1312)
+at com.sleepycat.persist.impl.Store.getSecondaryConfig(Store.java:1115)
+at com.sleepycat.persist.impl.Store.openSecondaryIndex(Store.java:666)
+at com.sleepycat.persist.impl.Store.openSecondaryIndexes(Store.java:636)
+at com.sleepycat.persist.impl.Store.getPrimaryIndex(Store.java:384)
+at com.sleepycat.persist.EntityStore.getPrimaryIndex(EntityStore.java:259)</pre>
+[#17207]
+</li><br>
+<li>Improve performance of <code>StoredCollection.removeAll</code>.  This
+method no longer iterates over all records in the stored collection.  Thanks to
+ambber on OTN for suggesting and testing this improvement.  [#17727]
+</li><br/>
+
+<li>
+A hot upgrade of an application (without taking down the replication
+group) is now allowed when persistent DPL classes have been
+changed. Such changes take place when the DPL schema has been updated
+and class evolution is required.  Before, to deploy such a change, the
+entire replication group had to be bought down.  For more information
+see "Upgrading a Replication Group" in the javadoc package summary for
+the <code>com.sleepycat.persist.evolve</code> package.  [#16655]
+(4.0.70)
+</li><br>
+</ol>
+
+<!-- ------------------------------------------------------------------->
+<h3><a name="Utilities">Utility Changes:</a></h3>
+<ol>
+<li>
+Changed DbPrintLog -S so that it can display values in the trillions.  Fixed
+a bug that didn't allow -S or -q to come before any other flags on the command
+line.  [#16370]
+</li><br>
+<li>
+Fixed a bug which caused an <code>InvocationTargetException</code> to be
+displayed (masking the real exception) when invoking a utility with the je.jar
+file in this way:
+<pre>
+  java -jar je.jar &LT;UtilityName&GT;
+</pre>
+[#16649]
+</li>
+</ol>
+<!-- ----------------------------------------------------------------- -->
+<h3><a name="IandI">Documentation, Installation and Integration:</a></h3>
+<ol>
+<li>
+JE support in Android has been improved by the addition of a
+<code>lib/je-android.M.N.P.jar</code> file.  Rather than requiring the Android
+application developer to modify and recompile the JE sources so that references
+to <code>javax.transaction.xa.*</code> classes are removed, the jar file
+can be simply included in the project's <code>libs</code> directory.  The
+<a href="HOWTO-Android.html">JE and Android</a> directions reflect these
+changes. (4.0.70)
+</li><br>
+<li>
+The <a href="jconsole/JConsole-plugin.html">Monitoring JE with
+JConsole and JMX</a> directions had a small typo. The sentence
+"(e.g. using -DJEMonitor-true on the command line)" has been corrected
+to say "-DJEMonitor=true". (4.0.70)
+</li>
+</ol>
+</body>
+</html>
