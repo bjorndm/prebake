@@ -12,6 +12,12 @@ import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+/**
+ * A JSON parser that generates generic collection classes instead of
+ * introducing new collection classes.
+ *
+ * @author mikesamuel@gmail.com
+ */
 public final class JsonSource implements Closeable {
   private final Reader in;
   private String pushback;
@@ -47,8 +53,8 @@ public final class JsonSource implements Closeable {
   public Object nextValue() throws IOException {
     String tok = next();
     switch (tok.charAt(0)) {
-      case '[': return nextArray();
-      case '{': return nextObject();
+      case '[': pushback = "["; return nextArray();
+      case '{': pushback = "{"; return nextObject();
       case '"': return decodeString(tok);
       case 'f': return Boolean.FALSE;
       case 'n': return null;
@@ -81,14 +87,14 @@ public final class JsonSource implements Closeable {
   private static final Pattern REGEX_TOKENS = Pattern.compile(
       ""
       + "[ \r\n\t\ufeff]+"
-      + "|\"(?:\\(?:[\"/\\\\bnfrt]|u[0-9a-fA-F]{4})|[^\\\\\"])*\""
-      + "|-?(?:[1-9][0-9]*)?[0-9])(?:\\.[0-9]+)?(?:[eE][+-]?[0-9]+)?"
-      + "|false|true|null"
+      + "|\"(?:\\\\(?:[\"/\\\\bnfrt]|u[0-9a-fA-F]{4})|[^\"\\\\\\r\\n])*\""
+      + "|-?\\b(?:[1-9][0-9]*)?[0-9](?:\\.[0-9]+)?(?:[eE][+-]?[0-9]+)?\\b"
+      + "|\\bfalse\\b|\\btrue\\b|\\bnull\\b"
       + "|[,:\\{\\}\\[\\]]");
 
   private void tokenize() throws IOException {
     if (toks != null) { return; }
-    Matcher m;
+    String json;
     {
       StringBuilder sb = new StringBuilder();
       char[] buf = new char[1024];
@@ -96,16 +102,23 @@ public final class JsonSource implements Closeable {
         sb.append(buf, 0, n);
       }
       in.close();
-      m = REGEX_TOKENS.matcher(sb.toString());
+      json = sb.toString();
     }
+    Matcher m = REGEX_TOKENS.matcher(json);
     List<String> toks = new ArrayList<String>();
+    int last = 0;
     while (m.find()) {
       String s = m.group();
+      if (m.start() != last) {
+        throw new IOException(json.substring(last, m.start()));
+      }
+      last = m.end();
       switch (s.charAt(0)) {
         case ' ': case '\t': case '\r': case '\n': case '\ufeff': continue;
       }
       toks.add(s);
     }
+    if (last != json.length()) { throw new IOException(json.substring(last)); }
     this.toks = toks.iterator();
   }
 
@@ -127,8 +140,8 @@ public final class JsonSource implements Closeable {
         case 'r': sb.append('\r'); break;
         case 't': sb.append('\t'); break;
         case 'u':
-          sb.append((char) Integer.parseInt(s.substring(esc + 1, esc + 5), 16));
-          pos = esc + 5;
+          sb.append((char) Integer.parseInt(s.substring(esc + 2, esc + 6), 16));
+          pos = esc + 6;
           break;
         default: sb.append(c); break;
       }
@@ -138,6 +151,7 @@ public final class JsonSource implements Closeable {
   }
 
   public List<Object> nextArray() throws IOException {
+    expect("[");
     List<Object> els = new ArrayList<Object>();
     if (!check("]")) {
       do {
@@ -149,6 +163,7 @@ public final class JsonSource implements Closeable {
   }
 
   public Map<String, Object> nextObject() throws IOException {
+    expect("{");
     Map<String, Object> els = new LinkedHashMap<String, Object>();
     if (!check("}")) {
       do {

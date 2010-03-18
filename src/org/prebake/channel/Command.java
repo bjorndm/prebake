@@ -24,6 +24,7 @@ public abstract class Command {
     GRAPH,
     SHUTDOWN,
     FILES_CHANGED,
+    SYNC,
     ;
 
     public final String ident;
@@ -70,11 +71,24 @@ public abstract class Command {
       case HANDSHAKE:     return new HandshakeCommand((String) args.get(0));
       case PLAN:          return new PlanCommand(toProducts(args));
       case SHUTDOWN:      return new ShutdownCommand();
-      default: throw new Error(v.name());
+      case SYNC:          return new SyncCommand();
     }
+    throw new Error(v.name());
   }
 
-  public abstract void toJson(JsonSink out) throws IOException;
+  public final void toJson(JsonSink out) throws IOException {
+    out.write("[").writeValue(verb.ident).write(",");
+    out.writeValue(getOptions());
+    for (Object o : getParams()) {
+      out.write(",").writeValue(o);
+    }
+    out.write("]");
+  }
+
+  public Map<String, ?> getOptions() {
+    return Collections.<String, Object>emptyMap();
+  }
+  public List<?> getParams() { return Collections.emptyList(); }
 
   @Override
   public String toString() {
@@ -126,23 +140,14 @@ public abstract class Command {
     }
 
     @Override
-    public void toJson(JsonSink out) throws IOException {
-      out.write("[").writeValue(verb.ident).write(",").write("{").write("}");
-      for (String product : products) {
-        out.write(",").writeValue(product);
-      }
-      out.write("]");
+    public List<?> getParams() {
+      return new ArrayList<String>(products);
     }
   }
 
   public static final class ChangesCommand extends Command {
     public ChangesCommand() { super(Verb.CHANGES); }
 
-    @Override
-    public void toJson(JsonSink out) throws IOException {
-      out.write("[").writeValue(verb.ident).write(",").write("{").write("}")
-         .write("]");
-    }
   }
 
   public static final class FilesChangedCommand extends Command {
@@ -155,12 +160,10 @@ public abstract class Command {
     }
 
     @Override
-    public void toJson(JsonSink out) throws IOException {
-      out.write("[").writeValue(verb.ident).write(",").write("{").write("}");
-      for (Path path : paths) {
-        out.write(",").writeValue(path);
-      }
-      out.write("]");
+    public List<String> getParams() {
+      List<String> params = new ArrayList<String>();
+      for (Path p : paths) { params.add(p.toString()); }
+      return params;
     }
   }
 
@@ -168,18 +171,14 @@ public abstract class Command {
     public final Set<String> products;
 
     public GraphCommand(Set<String> products) {
-      super(Verb.BUILD);
+      super(Verb.GRAPH);
       this.products = Collections.unmodifiableSet(
           new LinkedHashSet<String>(products));
     }
 
     @Override
-    public void toJson(JsonSink out) throws IOException {
-      out.write("[").writeValue(verb.ident).write(",").write("{").write("}");
-      for (String product : products) {
-        out.write(",").writeValue(product);
-      }
-      out.write("]");
+    public List<?> getParams() {
+      return new ArrayList<String>(products);
     }
   }
 
@@ -192,9 +191,8 @@ public abstract class Command {
     }
 
     @Override
-    public void toJson(JsonSink out) throws IOException {
-      out.write("[").writeValue(verb.ident).write(",").write("{").write("}")
-          .write(",").writeValue(token).write("]");
+    public List<String> getParams() {
+      return Collections.singletonList(token);
     }
   }
 
@@ -202,28 +200,22 @@ public abstract class Command {
     public final Set<String> products;
 
     public PlanCommand(Set<String> products) {
-      super(Verb.BUILD);
+      super(Verb.PLAN);
       this.products = Collections.unmodifiableSet(
           new LinkedHashSet<String>(products));
     }
 
     @Override
-    public void toJson(JsonSink out) throws IOException {
-      out.write("[").writeValue(verb.ident).write(",").write("{").write("}");
-      for (String product : products) {
-        out.write(",").writeValue(product);
-      }
-      out.write("]");
+    public List<?> getParams() {
+      return new ArrayList<String>(products);
     }
   }
 
   public static final class ShutdownCommand extends Command {
     public ShutdownCommand() { super(Verb.SHUTDOWN); }
+  }
 
-    @Override
-    public void toJson(JsonSink out) throws IOException {
-      out.write("[").writeValue(verb.ident).write(",").write("{").write("}")
-          .write("]");
-    }
+  public static final class SyncCommand extends Command {
+    public SyncCommand() { super(Verb.SYNC); }
   }
 }
