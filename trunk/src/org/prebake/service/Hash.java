@@ -39,7 +39,7 @@ final class Hash {
       return this;
     }
 
-    HashBuilder withData(byte[] bytes) throws IOException {
+    HashBuilder withData(byte[] bytes) {
       md5.Update(ZERO_BYTE, 0, 1);
       md5.Update(bytes, 0, bytes.length);
       return this;
