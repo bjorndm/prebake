@@ -1,9 +1,8 @@
 package org.prebake.fs;
 
-import java .io.Closeable;
+import java.io.Closeable;
 import java.io.IOError;
 import java.io.IOException;
-import java.nio.file.FileSystems;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
@@ -14,6 +13,8 @@ import java.nio.file.WatchEvent;
 import java.nio.file.WatchKey;
 import java.nio.file.WatchService;
 import java.nio.file.attribute.Attributes;
+import java.nio.file.attribute.BasicFileAttributes;
+
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
@@ -46,14 +47,15 @@ public class DirectoryHooks implements Closeable {
     this.root = root;
   }
 
+  public BlockingQueue<Path> getUpdates() { return q; }
+
   public void start() throws IOException {
     final Map<WatchKey, Path> keys;
     final WatchService ws;
     synchronized (this) {
       if (this.watcher != null) { return; }
       keys = new HashMap<WatchKey, Path>();
-      // TODO: Take filesystem as input.
-      ws = FileSystems.getDefault().newWatchService();
+      ws = root.getFileSystem().newWatchService();
       this.watcher = new Thread(new Runnable() {
         public void run() {
           while (true) {
@@ -82,7 +84,6 @@ public class DirectoryHooks implements Closeable {
   }
 
   private void processEvent(WatchService ws, Map<WatchKey, Path> keys) {
-
     WatchKey key;
     try {
       key = ws.take();
@@ -139,6 +140,7 @@ public class DirectoryHooks implements Closeable {
       throws IOException {
     try {
       Files.walkFileTree(p, new SimpleFileVisitor<Path>() {
+        // TODO: implement other visitor methods
         @Override
         public FileVisitResult preVisitDirectory(Path dir) {
           try {
@@ -150,6 +152,15 @@ public class DirectoryHooks implements Closeable {
             keys.put(key, dir);
           } catch (IOException x) {
             throw new IOError(x);
+          }
+          return FileVisitResult.CONTINUE;
+        }
+        @Override
+        public FileVisitResult visitFile(Path p, BasicFileAttributes attrs) {
+          try {
+            q.put(p);
+          } catch (InterruptedException ex) {
+            return FileVisitResult.TERMINATE;
           }
           return FileVisitResult.CONTINUE;
         }

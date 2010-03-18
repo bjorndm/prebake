@@ -1,14 +1,18 @@
 package org.prebake.service;
 
 import org.prebake.channel.Command;
+import org.prebake.fs.DirectoryHooks;
 
-import java.io.ByteArrayOutputStream;
+import com.sleepycat.je.Environment;
+
+import java.io.Closeable;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
+import java.io.Reader;
 import java.io.Writer;
-import java.nio.ByteBuffer;
-import java.nio.channels.ReadableByteChannel;
 import java.nio.file.FileSystem;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
@@ -19,6 +23,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.logging.Logger;
 import java.util.regex.Pattern;
 
 /**
@@ -26,26 +31,67 @@ import java.util.regex.Pattern;
  *
  * @author mikesamuel@gmail.com
  */
-public abstract class Prebakery {
+public abstract class Prebakery implements Closeable {
   private final Config config;
   private final String token;
-  private final LinkedBlockingQueue<Command> cmdQueue;
+  private final LinkedBlockingQueue<Commands> cmdQueue;
+  private final Logger logger;
+  private Environment env;
+  private FileHashes fileHashes;
+  private Runnable onClose;
+  private Consumer<Path> pathConsumer;
+  private Consumer<Commands> commandConsumer;
 
-  public Prebakery(Config config) {
+  public Prebakery(Config config, Logger logger) {
     assert config != null;
-    this.config = staticCopy(config);
+    config = staticCopy(config);
+    this.logger = logger;
+    this.config = config;
     this.token = makeToken();
-    this.cmdQueue = new LinkedBlockingQueue<Command>(4);
+    this.cmdQueue = new LinkedBlockingQueue<Commands>(4);
+  }
+
+  public synchronized void close() {
+    try {
+      // Close input channels first.
+      if (commandConsumer != null) {
+        commandConsumer.close();
+        commandConsumer = null;
+      }
+      if (pathConsumer != null) {
+        pathConsumer.close();
+        pathConsumer = null;
+      }
+      // Close stores next
+      if (fileHashes != null) {
+        fileHashes.close();
+        fileHashes = null;
+      }
+      // Close the DB environment after DB users.
+      if (env != null) {
+        env.close();
+        env = null;
+      }
+    } finally {
+      Runnable onClose = this.onClose;
+      this.onClose = null;
+      if (onClose != null) { onClose.run(); }
+    }
   }
 
   public Config getConfig() { return config; }
 
-  protected abstract int openChannel(int portHint, BlockingQueue<Command> q)
+  protected abstract int openChannel(int portHint, BlockingQueue<Commands> q)
       throws IOException;
 
   protected abstract String makeToken();
 
-  public void start(Runnable onShutdown) {
+  protected abstract Environment createDbEnv(Path dir) throws IOException;
+
+  public synchronized void start(Runnable onClose) {
+    if (this.onClose != null) { throw new IllegalStateException(); }
+    if (onClose == null) { onClose = new Runnable() { public void run() {} }; }
+    this.onClose = onClose;
     boolean setupSucceeded = false;
     try {
       try {
@@ -58,7 +104,7 @@ public abstract class Prebakery {
             Thread.currentThread(), th);
       }
     } finally {
-      if (!setupSucceeded && onShutdown != null) { onShutdown.run(); }
+      if (!setupSucceeded) { close(); }
     }
   }
 
@@ -94,14 +140,53 @@ public abstract class Prebakery {
       tokenFile.createFile();  // TODO umask and delete on exit
     }
     write(tokenFile, token);
+
+    this.env = createDbEnv(dir);
+    this.fileHashes = new FileHashes(env, clientRoot);
   }
 
   private void setupFileSystemWatcher() {
-    // TODO
+    DirectoryHooks hooks = new DirectoryHooks(config.getClientRoot());
+    pathConsumer = new Consumer<Path>(hooks.getUpdates()) {
+      @Override
+      protected void consume(BlockingQueue<? extends Path> q, Path x) {
+        List<Path> updates = new ArrayList<Path>();
+        updates.add(x);
+        q.drainTo(updates, 64);
+        fileHashes.update(updates);
+      }
+    };
+    pathConsumer.start();
   }
 
   private void setupCommandHandler() {
-    // TODO
+    commandConsumer = new Consumer<Commands>(cmdQueue) {
+      @Override
+      protected void consume(BlockingQueue<? extends Commands> q, Commands c) {
+        boolean authed = false;
+        for (Command cmd : c) {
+          if (cmd.verb != Command.Verb.HANDSHAKE && !authed) {
+            logger.warning("Unauthorized command " + cmd);
+            return;
+          }
+          switch (cmd.verb) {
+            case HANDSHAKE:
+              authed = ((Command.HandshakeCommand) cmd).token.equals(token);
+              continue;
+            case SHUTDOWN: Prebakery.this.close(); break;
+            case SYNC:
+              try {
+                pathConsumer.waitUntilEmpty();
+              } catch (InterruptedException ex) {
+                logger.warning("Sync command interrupted " + cmd);
+                return;
+              }
+              break;
+          }
+        }
+      }
+    };
+    commandConsumer.start();
   }
 
   /**
@@ -129,7 +214,8 @@ public abstract class Prebakery {
 
   private static void write(Path p, String content) throws IOException {
     OutputStream out = p.newOutputStream(
-        StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
+        StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING,
+        StandardOpenOption.WRITE);
     try {
       Writer w = new OutputStreamWriter(out, "UTF-8");
       w.write(content);
@@ -140,13 +226,19 @@ public abstract class Prebakery {
   }
 
   private static String read(Path p) throws IOException {
-    ReadableByteChannel in = p.newByteChannel(StandardOpenOption.READ);
-    ByteBuffer bb = ByteBuffer.allocate(1024);
-    ByteArrayOutputStream out = new ByteArrayOutputStream();
-    for (int n; (n = in.read(bb)) >= 0;) {
-      out.write(bb.array(), 0, n);
-      bb.clear();
+    // TODO: this is not efficient for large files.  Maybe check whether
+    // the input stream is buffered, and use the file size to preallocate
+    // the StringBuilder.
+    // Or just use the byte buffer stuff.
+    StringBuilder out = new StringBuilder();
+    InputStream in = p.newInputStream(StandardOpenOption.READ);
+    try {
+      Reader r = new InputStreamReader(in, "UTF-8");
+      char[] buf = new char[4096];
+      for (int n; (n = r.read(buf)) > 0;) { out.append(buf, 0, n); }
+    } finally {
+      in.close();
     }
-    return out.toString("UTF-8");
+    return out.toString();
   }
 }
