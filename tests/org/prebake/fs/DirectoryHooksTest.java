@@ -1,15 +1,19 @@
 package org.prebake.fs;
 
+import java.net.URI;
+import java.nio.file.FileSystem;
 import java.nio.file.Path;
-import java.nio.file.StubFileSystem;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
+
+import org.prebake.service.StubFileSystemProvider;
 
 import junit.framework.TestCase;
 
 public class DirectoryHooksTest extends TestCase {
   public final void testInit() throws Exception {
-    StubFileSystem fs = new StubFileSystem();
+    FileSystem fs = new StubFileSystemProvider("mfs")
+        .getFileSystem(URI.create("mfs://#/foo/bar"));
     Path p = fs.getPath("/foo/bar");
     fs.getPath("/foo/bar/baz").createDirectory();
     fs.getPath("/foo/bar/baz/boo.cc").createFile();

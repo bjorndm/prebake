@@ -97,7 +97,7 @@ public final class Main {
       }
 
       @Override
-      protected Environment createDbEnv(Path dir) throws IOException {
+      protected Environment createDbEnv(Path dir) {
         EnvironmentConfig envConfig = new EnvironmentConfig();
         envConfig.setAllowCreate(true);
         return new Environment(new File(dir.toUri()), envConfig);
