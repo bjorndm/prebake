@@ -1,0 +1,81 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+
+<head>
+  <title>Berkeley DB Java Edition Release Notes</title>
+</head>
+
+<body>
+
+<div class="docMain">
+<center>
+<h1>Berkeley DB Java Edition<br>
+Release Notes</h1>
+</center>
+
+<!-- Note: RELEASE_VERSION and DATE are set by ant -->
+<p class="releaseInfo">4.0.92, January 29, 2010</p>
+
+<h2><a name="overview">Overview</a></h2>
+<p>
+Berkeley DB Java Edition (JE) is a 100% pure Java embedded,
+transactional data store. It supplies a key/object data model with
+indexing, full transactional ACID support, POJO APIs and High Availability/Replication.
+</p>
+<p>
+This is release 4.0.92 of Berkeley DB Java Edition.
+Key changes since version JE 4.0.71 are summarized below; the complete
+list of changes can also be found in <a href="changelog.html">the
+change log page</a>.<br>
+</p>
+<ul>
+<li>
+Enhancements have been added for <b>JE High Availability</b>,
+which supports the use of JE with replication. 
+<p>
+The monitor package has several new event types which help a
+replicated application track replication group changes. A new example
+has been added to the replication example group to illustrate the use
+of RMI in replication write request forwarding. 
+<p>
+New properties have been added to help administer a replication group
+in the face of major hardware failure.
+<p>
+A new RMI based example has been added to the set of 
+<a href="examples/je/rep/quote/package-summary.html">JE HA
+ Examples.</a>
+<p>
+See the <a href="ReplicationGuide/index.html">High Availability
+Guide</a> for an introduction to the product, and
+the <a href="java/com/sleepycat/je/rep/package-summary.html">com.sleepycat.je.rep</a>
+
+
+javadoc for API specifications.
+</li><br>
+<li>
+JE's MBeans and JConsole plugin have several new methods and capabilities
+to improve the ability to monitor an application. See
+the <a href="jconsole/JConsole-plugin.html">how-to</a> for more
+information.
+</li><br>
+<li>
+Changes were made to make it easier to control JE's use of
+java.util.logging through programmatic means. 
+</li></br>
+<li>
+A number of bug fixes were made to work around problems in the Dvalvik
+libraries used by Android applications.
+</li><br>
+<li>
+A number of general bug fixes, performance improvements, and
+documentation improvements were made.
+</li><br>
+</ul>
+See the <a href="changelog.html">change log</a> for the complete and
+detailed description of all changes.
+</p>
+<font size="1">Copyright (c) 1996-2010 Oracle.  All rights reserved.</font>
+</div>
+<!-- end docMain -->
+</body>
+</html>
