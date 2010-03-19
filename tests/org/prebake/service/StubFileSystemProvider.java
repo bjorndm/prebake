@@ -167,6 +167,7 @@ class MemPath extends Path {
     return fs.__write(this, openOptions);
   }
 
+  @Override
   public InputStream newInputStream(OpenOption...openOptions)
       throws IOException {
     return fs.__read(this, openOptions);
@@ -187,6 +188,11 @@ class MemPath extends Path {
   @Override
   public int hashCode() {
     return (isAbs ? 1 : 0) + Arrays.hashCode(parts);
+  }
+
+  @Override
+  public Path getName() {
+    return parts.length == 0 ? this : new MemPath(fs, parts[parts.length - 1]);
   }
 
   @Override
@@ -250,6 +256,11 @@ class MemPath extends Path {
     MemPath that = (MemPath) other;
     if (that.isAbs) { return that; }
     return new MemPath(fs, this + fs.getSeparator() + that);
+  }
+
+  @Override
+  public MemPath resolve(String other) {
+    return resolve(getFileSystem().getPath(other));
   }
 
   @Override
@@ -361,11 +372,6 @@ class MemPath extends Path {
   }
 
   @Override
-  public Path getName() {
-    return parts.length == 0 ? this : new MemPath(fs, parts[parts.length - 1]);
-  }
-
-  @Override
   public Path getParent() {
     return normalize().subpath(0, Math.max(0, getNameCount() - 1));
   }
@@ -380,18 +386,17 @@ class MemPath extends Path {
 
   @Override
   public boolean isSameFile(Path other) {
-    return this.toAbsolutePath().equals(other.toAbsolutePath());
+    return this.fs == other.getFileSystem()
+        && this.toAbsolutePath().equals(((MemPath) other).toAbsolutePath());
   }
 
   @Override
-  public Iterator<Path> iterator() {
+  public final Iterator<Path> iterator() {
     return new Iterator<Path>() {
       int i = 0;
-      @Override
-      public boolean hasNext() { return i < parts.length; }
-      @Override
+
+      public boolean hasNext() { return i < getNameCount(); }
       public Path next() { return getName(i++); }
-      @Override
       public void remove() { throw new UnsupportedOperationException(); }
     };
   }
@@ -435,7 +440,6 @@ class MemPath extends Path {
       throws IOException {
     final PathMatcher matcher = fs.getPathMatcher("glob:" + glob);
     return newDirectoryStream(new DirectoryStream.Filter<Path>() {
-      @Override
       public boolean accept(Path entry) { return matcher.matches(entry); }
     });
   }
@@ -485,11 +489,6 @@ class MemPath extends Path {
   }
 
   @Override
-  public Path resolve(String other) {
-    return resolve(new MemPath(fs, other));
-  }
-
-  @Override
   public <V extends FileAttributeView> V getFileAttributeView(
       Class<V> type, final LinkOption... options) {
     if (!BasicFileAttributeView.class.equals(type)) {
@@ -502,35 +501,34 @@ class MemPath extends Path {
       public BasicFileAttributes readAttributes() throws IOException {
         final Map<String, ?> attrs = MemPath.this.readAttributes("*", options);
         return new BasicFileAttributes() {
-          @Override public FileTime creationTime() {
+          public FileTime creationTime() {
             return (FileTime) attrs.get("creationTime");
           }
-          @Override public Object fileKey() {
+          public Object fileKey() {
             return attrs.get("fileKey");
           }
-          @Override public boolean isDirectory() {
+          public boolean isDirectory() {
             return (Boolean) attrs.get("isDirectory");
           }
-          @Override public boolean isOther() {
+          public boolean isOther() {
             return (Boolean) attrs.get("isOther");
           }
-          @Override public boolean isRegularFile() {
+          public boolean isRegularFile() {
             return (Boolean) attrs.get("isRegularFile");
           }
-          @Override public boolean isSymbolicLink() {
+          public boolean isSymbolicLink() {
             return (Boolean) attrs.get("isSymbolicLink");
           }
-          @Override public FileTime lastAccessTime() {
+          public FileTime lastAccessTime() {
             return (FileTime) attrs.get("lastAccessTime");
           }
-          @Override public FileTime lastModifiedTime() {
+          public FileTime lastModifiedTime() {
             return (FileTime) attrs.get("lastModifiedTime");
           }
-          @Override public long size() { return (Long) attrs.get("size"); }
+          public long size() { return (Long) attrs.get("size"); }
         };
       }
 
-      @Override
       public void setTimes(
           FileTime lastModifiedTime, FileTime lastAccessTime,
           FileTime createTime) {
@@ -879,8 +877,7 @@ class MemFileSystem extends FileSystem {
 
   @Override
   public UserPrincipalLookupService getUserPrincipalLookupService() {
-    // TODO Auto-generated method stub
-    return null;
+    throw new UnsupportedOperationException();
   }
 }
 
