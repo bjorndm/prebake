@@ -168,7 +168,6 @@ class MemPath extends Path {
     return fs.__write(this, openOptions);
   }
 
-  @Override
   public InputStream newInputStream(OpenOption...openOptions)
       throws IOException {
     return fs.__read(this, openOptions);
@@ -489,7 +488,6 @@ class MemPath extends Path {
     return register(watcher, events);
   }
 
-  @Override
   public <V extends FileAttributeView> V getFileAttributeView(
       Class<V> type, final LinkOption... options) {
     if (!BasicFileAttributeView.class.equals(type)) {
@@ -540,7 +538,6 @@ class MemPath extends Path {
     });
   }
 
-  @Override
   public Map<String, ?> readAttributes(String attributes, LinkOption... options)
       throws IOException {
     Map<String, Object> attrs = new LinkedHashMap<String, Object>();
@@ -554,7 +551,6 @@ class MemPath extends Path {
     return attrs;
   }
 
-  @Override
   public void setAttribute(
       String attribute, Object value, LinkOption... options) {
     throw new UnsupportedOperationException();
