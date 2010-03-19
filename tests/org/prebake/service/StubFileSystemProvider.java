@@ -1,20 +1,28 @@
 package org.prebake.service;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.FileNotFoundException;
+import java.io.FilterInputStream;
+import java.io.FilterOutputStream;
+import java.io.IOError;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URI;
-import java.net.URISyntaxException;
 import java.nio.channels.SeekableByteChannel;
 import java.nio.file.AccessMode;
 import java.nio.file.CopyOption;
 import java.nio.file.DirectoryStream;
 import java.nio.file.FileStore;
 import java.nio.file.FileSystem;
+import java.nio.file.InvalidPathException;
 import java.nio.file.LinkOption;
 import java.nio.file.OpenOption;
 import java.nio.file.Path;
 import java.nio.file.PathMatcher;
+import java.nio.file.StandardOpenOption;
+import java.nio.file.WatchEvent;
 import java.nio.file.WatchKey;
 import java.nio.file.WatchService;
 import java.nio.file.DirectoryStream.Filter;
@@ -27,13 +35,22 @@ import java.nio.file.attribute.FileAttributeView;
 import java.nio.file.attribute.FileTime;
 import java.nio.file.attribute.UserPrincipalLookupService;
 import java.nio.file.spi.FileSystemProvider;
-
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.ConcurrentModificationException;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.Set;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 
 public class StubFileSystemProvider extends FileSystemProvider {
@@ -75,254 +92,144 @@ public class StubFileSystemProvider extends FileSystemProvider {
 
 class MemPath extends Path {
   final MemFileSystem fs;
-  final String path;
   final String[] parts;
+  final boolean isAbs;
 
   MemPath(MemFileSystem fs, String path) {
-    assert path != null;
+    String sep = fs.getSeparator();
     this.fs = fs;
-    this.path = path;
-    this.parts = path.replace("([^/])/+$", "$1").split("/+");
-  }
-
-  @Override
-  public void checkAccess(AccessMode... modes) throws IOException {
-    fs.check(this, modes);
-  }
-
-  @Override
-  public int compareTo(Path other) {
-    return path.compareTo(((MemPath) other).path);
-  }
-
-  @Override
-  public Path copyTo(Path target, CopyOption... options) throws IOException {
-    throw new IOException();
-  }
-
-  @Override
-  public Path createDirectory(FileAttribute<?>... attrs) throws IOException {
-    fs.mkdir(toAbsolutePath());
-    return this;
-  }
-
-  @Override
-  public Path createFile(FileAttribute<?>... attrs) throws IOException {
-    fs.createFile(toAbsolutePath());
-    return this;
-  }
-
-  @Override
-  public Path createLink(Path existing) throws IOException {
-    throw new IOException();
-  }
-
-  @Override
-  public Path createSymbolicLink(Path target, FileAttribute<?>... attrs)
-      throws IOException {
-    throw new IOException();
-  }
-
-  @Override
-  public void delete() throws IOException {
-    fs.delete(this);
-  }
-
-  @Override
-  public void deleteIfExists() throws IOException {
-    if (!this.notExists()) { delete(); }
-  }
-
-  @Override
-  public boolean endsWith(Path other) {
-    int m = other.getNameCount(), n = getNameCount();
-    if (n < m) { return false; }
-    return subpath(n - m, n).equals(other);
-  }
-
-  @Override
-  public boolean equals(Object other) {
-    if (!(other instanceof MemPath)) { return false; }
-    MemPath that = (MemPath) other;
-    return this.fs == that.fs && this.path.equals(that.path);
-  }
-
-  @Override
-  public boolean exists() {
-    return fs.exists(this);
-  }
-
-  @Override
-  public FileStore getFileStore() throws IOException {
-    throw new IOException();
+    this.isAbs = path.startsWith(sep);
+    String[] parts = path.split(Pattern.quote(sep) + "+");
+    if (isAbs && parts.length != 0) {
+      String[] newParts = new String[parts.length - 1];
+      System.arraycopy(parts, 1, newParts, 0, parts.length - 1);
+      parts = newParts;
+    }
+    this.parts = parts;
   }
 
   @Override
   public FileSystem getFileSystem() { return fs; }
 
   @Override
-  public Path getName() {
-    int n = getNameCount();
-    return n == 0 ? new MemPath(fs, "") : getName(getNameCount() - 1);
+  public void checkAccess(AccessMode... modes) throws IOException {
+    if (!fs.__hasAccess(this, modes)) {
+      throw new IOException();
+    }
   }
 
   @Override
-  public Path getName(int index) {
-    return new MemPath(fs, parts[index]);
+  public boolean exists() {
+    try {
+      checkAccess();
+      return true;
+    } catch (IOException ex) {
+      return false;
+    }
   }
 
   @Override
-  public int getNameCount() {
-    return parts.length;
+  public boolean notExists() { return !exists(); }
+
+  @Override
+  public void delete() throws IOException {
+    fs.__delete(this);
   }
 
   @Override
-  public MemPath getParent() {
-    int n = getNameCount();
-    if (n == 0) { return null; }
-    return subpath(0, n - 1);
+  public int compareTo(Path other) {
+    MemPath that = (MemPath) other;
+    int delta = (isAbs ? 1 : 0) - (that.isAbs ? 1 : 0);
+    if (delta != 0) { return delta; }
+    int n = Math.min(parts.length, that.parts.length);
+    for (int i = 0; i < n; ++i) {
+      delta = parts[i].compareTo(that.parts[i]);
+      if (delta != 0) { return delta; }
+    }
+    return parts.length - that.parts.length;
   }
 
   @Override
-  public Path getRoot() {
-    return fs.getPath("/");
+  public Path createDirectory(FileAttribute<?>... attrs) throws IOException {
+    fs.__mkdir(this);
+    return this;
+  }
+
+  @Override
+  public Path createFile(FileAttribute<?>... attrs) throws IOException {
+    fs.__touch(this);
+    return this;
+  }
+
+  @Override
+  public OutputStream newOutputStream(OpenOption...openOptions)
+      throws IOException {
+    return fs.__write(this, openOptions);
+  }
+
+  public InputStream newInputStream(OpenOption...openOptions)
+      throws IOException {
+    return fs.__read(this, openOptions);
+  }
+
+  @Override
+  public DirectoryStream<Path> newDirectoryStream() throws IOException {
+    return newDirectoryStream((Filter<Path>) null);
+  }
+
+  @Override
+  public boolean equals(Object other) {
+    if (!(other instanceof Path)) { return false; }
+    MemPath that = (MemPath) other;
+    return isAbs == that.isAbs && Arrays.equals(parts, that.parts);
   }
 
   @Override
   public int hashCode() {
-    return path.hashCode();
+    return (isAbs ? 1 : 0) + Arrays.hashCode(parts);
   }
 
   @Override
-  public boolean isAbsolute() {
-    return path.startsWith("/");
+  public Path getName(int i) {
+    return new MemPath(fs, parts[i]);
   }
 
   @Override
-  public boolean isHidden() {
-    return getName().toString().startsWith(".");
-  }
+  public int getNameCount() { return parts.length; }
 
   @Override
-  public boolean isSameFile(Path other) throws IOException {
-    return this.toRealPath(true).equals(other.toRealPath(true));
-  }
+  public boolean isAbsolute() { return isAbs; }
 
   @Override
-  public Iterator<Path> iterator() {
-    final int n = getNameCount();
-    return new Iterator<Path>() {
-      int i = 0;
-      @Override
-      public boolean hasNext() { return i < n; }
-      @Override
-      public Path next() { return subpath(i, ++i); }
-      @Override
-      public void remove() { throw new UnsupportedOperationException(); }
-    };
-  }
-
-  @Override
-  public Path moveTo(Path target, CopyOption... options) throws IOException {
-    throw new IOException();
-  }
-
-  @Override
-  public SeekableByteChannel newByteChannel(OpenOption... options)
-      throws IOException {
-    throw new IOException();
-  }
-
-  @Override
-  public SeekableByteChannel newByteChannel(Set<? extends OpenOption> options,
-      FileAttribute<?>... attrs) throws IOException {
-    throw new IOException();
-  }
-
-  @Override
-  public DirectoryStream<Path> newDirectoryStream() {
-    return newDirectoryStream("*");
-  }
-
-  @Override
-  public DirectoryStream<Path> newDirectoryStream(String glob) {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public DirectoryStream<Path> newDirectoryStream(Filter<? super Path> filter) {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public OutputStream newOutputStream(OpenOption... options)
-      throws IOException {
-    throw new IOException();
-  }
-
-  @Override
-  public MemPath normalize() {
-    String path = this.path.replaceAll("/{2,}", "/");
-    if (path.length() > 1) { path = path.replaceAll("/$", ""); }
-    return !path.equals(this.path) ? new MemPath(fs, path) : this;
-  }
-
-  @Override
-  public boolean notExists() {
-    return !exists();
-  }
-
-  @Override
-  public Path readSymbolicLink() throws IOException {
-    throw new IOException();
-  }
-
-  @Override
-  public WatchKey register(WatchService watcher, Kind<?>... events)
-      throws IOException {
-    return register(watcher, events, new Modifier[0]);
-  }
-
-  @Override
-  public WatchKey register(
-      WatchService watcher, Kind<?>[] events, Modifier... modifiers)
-      throws IOException {
-    throw new IOException();
-  }
-
-  @Override
-  public Path relativize(Path other) {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public MemPath resolve(Path other) {
-    if (other.isAbsolute()) { return (MemPath) other; }
-    return new MemPath(fs, this.path + "/" + ((MemPath) other).path)
-        .normalize();
-  }
-
-  @Override
-  public Path resolve(String p) {
-    return resolve(fs.getPath(p));
-  }
-
-  @Override
-  public boolean startsWith(Path other) {
-    int m = other.getNameCount(), n = getNameCount();
-    if (n < m) { return false; }
-    return subpath(0, m).equals(other);
-  }
-
-  @Override
-  public MemPath subpath(int beginIndex, int endIndex) {
-    if (beginIndex == endIndex) { return new MemPath(fs, ""); }
-    if (beginIndex + 1 == endIndex) {
-      return new MemPath(fs, parts[beginIndex]);
+  public Path relativize(Path p) {
+    Path base = this.toRealPath(false);
+    p = ((MemPath) p).toRealPath(false);
+    int n = Math.min(p.getNameCount(), base.getNameCount());
+    int nCommon = 0;
+    while (nCommon < n && p.getName(nCommon).equals(base.getName(nCommon))) {
+      ++nCommon;
     }
+    Path dots = p.getFileSystem().getPath("..");
+    Path relBase = null;
+    for (int i = nCommon, end = base.getNameCount(); i < end; ++i) {
+      if (relBase == null) {
+        relBase = dots;
+      } else {
+        relBase = relBase.resolve(dots);
+      }
+    }
+    Path diffPart = p.subpath(nCommon, p.getNameCount());
+    return relBase == null ? diffPart : relBase.resolve(diffPart);
+  }
+
+  @Override
+  public MemPath subpath(int start, int end) {
     StringBuilder sb = new StringBuilder();
-    for (int i = beginIndex; i < endIndex; ++i) {
-      if (i != beginIndex) { sb.append('/'); }
+    if (isAbs && start == 0 && end != 0) { sb.append(fs.getSeparator()); }
+    for (int i = start; i < end; ++i) {
+      String part = parts[i];
+      if ("".equals(part)) { continue; }
+      if (sb.length() != 0) { sb.append(fs.getSeparator()); }
       sb.append(parts[i]);
     }
     return new MemPath(fs, sb.toString());
@@ -335,92 +242,317 @@ class MemPath extends Path {
 
   @Override
   public MemPath toRealPath(boolean resolveLinks) {
-    return fs.cwd.resolve(this);
+    return fs.__toRealPath(this);
   }
 
   @Override
-  public String toString() {
-    return path;
+  public MemPath resolve(Path other) {
+    MemPath that = (MemPath) other;
+    if (that.isAbs) { return that; }
+    return new MemPath(fs, this + fs.getSeparator() + that);
+  }
+
+  @Override
+  public boolean startsWith(Path path) {
+    MemPath p = (MemPath) path;
+    if (this.isAbs != p.isAbs) { return false; }
+    int n = p.parts.length;
+    if (parts.length < n) { return false; }
+    return Arrays.asList(p.parts).equals(Arrays.asList(parts).subList(0, n));
   }
 
   @Override
   public URI toUri() {
-    try {
-      return new URI(fs.p.scheme, null, null, 0, path, null, null);
-    } catch (URISyntaxException ex) {
-      throw new RuntimeException(ex);
+    return fs.__toUri(this);
+  }
+
+  @Override
+  public String toString() {
+    int n = parts.length;
+    String sep = fs.getSeparator();
+    switch (n) {
+      case 0: return isAbs ? sep : "";
+      case 1: return isAbs ? sep + parts[0] : parts[0];
+      default:
+        StringBuilder sb = new StringBuilder();
+      if (isAbs) { sb.append(sep); }
+      if (n != 0) {
+        sb.append(parts[0]);
+        for (int i = 1; i < n; ++i) {
+          sb.append(sep).append(parts[i]);
+        }
+      }
+      return sb.toString();
     }
   }
 
   @Override
-  public Object getAttribute(String attribute, LinkOption... options) {
+  public WatchKey register(WatchService ws, WatchEvent.Kind<?>... kinds)
+      throws IOException {
+    return fs.__register(this, ws, kinds);
+  }
+
+  public Object getAttribute(String attribute, LinkOption... options)
+      throws IOException {
+    Node n = fs.lookup(this);
+    if (n == null) { throw new FileNotFoundException(toString()); }
+    if ("size".equals(attribute)) {
+      return n.isDir() ? 0L : Long.valueOf(n.content.size());
+    } else if ("isRegularFile".equals(attribute)) {
+      return n.isDir() ? Boolean.FALSE : Boolean.TRUE;
+    } else if ("isDirectory".equals(attribute)) {
+      return n.isDir() ? Boolean.TRUE : Boolean.FALSE;
+    } else if ("isSymbolicLink".equals(attribute)) {
+      return Boolean.FALSE;
+    } else if ("isOther".equals(attribute)) {
+      return Boolean.FALSE;
+    } else {
+      // TODO fileKey, timestamps
+      throw new IllegalArgumentException(attribute);
+    }
+  }
+
+  @Override
+  public Path copyTo(Path target, CopyOption... options) throws IOException {
+    Node a = fs.lookup(this);
+    Node b = fs.lookup((MemPath) target);
+    if (a == b) { return target; }
+    if (a == null) { throw new IOException(); }
+    if (a.isDir()) { throw new IOException(); }
+    if (b == null) {
+      target.createFile();
+      b = fs.lookup((MemPath) target);
+    }
+    if (b.isDir()) { throw new IOException(); }
+    Node a2 = new Node(b.getName(), b.getParent(), a.isDir());
+    a2.content.write(a.content.toByteArray());
+    return target;
+  }
+
+  @Override
+  public Path createLink(Path existing) throws IOException {
+    throw new IOException(existing.toString());
+  }
+
+  @Override
+  public Path createSymbolicLink(Path target, FileAttribute<?>... attrs)
+      throws IOException {
+    throw new IOException(target.toString());
+  }
+
+  @Override
+  public void deleteIfExists() throws IOException {
+    if (exists()) { delete(); }
+  }
+
+  @Override
+  public boolean endsWith(Path other) {
+    MemPath p = (MemPath) other;
+    int n = p.parts.length;
+    int m = parts.length;
+    if (m < n) { return false; }
+    return Arrays.asList(p.parts)
+        .equals(Arrays.asList(parts).subList(m - n, m));
+  }
+
+  @Override
+  public FileStore getFileStore() {
     throw new UnsupportedOperationException();
   }
 
-  @SuppressWarnings("unchecked")
   @Override
-  public <V extends FileAttributeView> V getFileAttributeView(
-      Class<V> type, LinkOption... options) {
-    final MemFileSystem.Node node = fs.root.lookup(this);
-    if (BasicFileAttributeView.class.isAssignableFrom(type)) {
-      return (V) new BasicFileAttributeView() {
-        @Override
-        public String name() { return "basic"; }
-        @Override
-        public BasicFileAttributes readAttributes() {
-          return new BasicFileAttributes() {
-            @Override
-            public FileTime creationTime() {
-              return FileTime.fromMillis(0);
-            }
-            @Override
-            public Object fileKey() {
-              throw new UnsupportedOperationException();
-            }
-            @Override
-            public boolean isDirectory() {
-              return node != null && node.children != null;
-            }
-            @Override
-            public boolean isOther() { return false; }
-            @Override
-            public boolean isRegularFile() {
-              return node != null && node.children == null;
-            }
-            @Override
-            public boolean isSymbolicLink() { return false; }
-            @Override
-            public FileTime lastAccessTime() { return FileTime.fromMillis(0); }
-            @Override
-            public FileTime lastModifiedTime() {
-              return FileTime.fromMillis(0);
-            }
-            @Override
-            public long size() { return 0; }
-          };
-        }
-        @Override
-        public void setTimes(
-            FileTime lastModifiedTime, FileTime lastAccessTime,
-            FileTime createTime)
-            throws IOException {
-          throw new IOException();
-        }
-      };
-    } else {
-      throw new UnsupportedOperationException();
-    }
+  public Path getName() {
+    return parts.length == 0 ? this : new MemPath(fs, parts[parts.length - 1]);
   }
 
   @Override
-  public InputStream newInputStream(OpenOption... options) throws IOException {
+  public Path getParent() {
+    return normalize().subpath(0, Math.max(0, getNameCount() - 1));
+  }
+
+  @Override
+  public Path getRoot() { return fs.getRootDirectories().iterator().next(); }
+
+  @Override
+  public boolean isHidden() {
+    return getName().toString().startsWith(".");
+  }
+
+  @Override
+  public boolean isSameFile(Path other) {
+    return this.toAbsolutePath().equals(other.toAbsolutePath());
+  }
+
+  @Override
+  public Iterator<Path> iterator() {
+    return new Iterator<Path>() {
+      int i = 0;
+      @Override
+      public boolean hasNext() { return i < parts.length; }
+      @Override
+      public Path next() { return getName(i++); }
+      @Override
+      public void remove() { throw new UnsupportedOperationException(); }
+    };
+  }
+
+  @Override
+  public Path moveTo(Path target, CopyOption... options) throws IOException {
+    Node a = fs.lookup(this);
+    Node b = fs.lookup((MemPath) target);
+    if (a == b) { return target; }
+    if (a == null) { throw new IOException(); }
+    if (b == null) {
+      if (a.isDir()) {
+        target.createDirectory();
+      } else {
+        target.createFile();
+      }
+      b = fs.lookup((MemPath) target);
+    }
+    if (a.isDir() != b.isDir()) { throw new IOException(); }
+    a.delete();
+    a.rename(b.getName());
+    a.reparent(b.getParent());
+    return target;
+  }
+
+  @Override
+  public SeekableByteChannel newByteChannel(OpenOption... options) {
+    return newByteChannel(
+        new LinkedHashSet<OpenOption>(Arrays.asList(options)),
+        new FileAttribute<?>[0]);
+  }
+
+  @Override
+  public SeekableByteChannel newByteChannel(
+      Set<? extends OpenOption> options, FileAttribute<?>... attrs) {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
+  public DirectoryStream<Path> newDirectoryStream(String glob)
+      throws IOException {
+    final PathMatcher matcher = fs.getPathMatcher("glob:" + glob);
+    return newDirectoryStream(new DirectoryStream.Filter<Path>() {
+      @Override
+      public boolean accept(Path entry) { return matcher.matches(entry); }
+    });
+  }
+
+  @Override
+  public DirectoryStream<Path> newDirectoryStream(Filter<? super Path> filter)
+      throws IOException {
+    return fs.__children(this, filter);
+  }
+
+  @Override
+  public Path normalize() {
+    List<String> norm = new ArrayList<String>();
+    for (String part : parts) {
+      if (".".equals(part)) { continue; }
+      if ("..".equals(part)) {
+        int last = norm.size() - 1;
+        if (last >= 0 && !"..".equals(norm.get(last))) {
+          norm.remove(last);
+          continue;
+        }
+        if (isAbs) { continue; }
+      }
+      norm.add(part);
+    }
+    StringBuilder sb = new StringBuilder();
+    if (isAbs) { sb.append('/'); }
+    String sep = "";
+    for (String p : norm) {
+      sb.append(sep).append(p);
+      sep = "/";
+    }
+    return new MemPath(fs, sb.toString());
+  }
+
+  @Override
+  public Path readSymbolicLink() throws IOException {
     throw new IOException();
   }
 
   @Override
-  public Map<String, ?> readAttributes(
-      String attributes, LinkOption... options) {
-    throw new UnsupportedOperationException();
+  public WatchKey register(
+      WatchService watcher, Kind<?>[] events, Modifier... modifiers)
+      throws IOException {
+    // TODO: modifiers
+    return register(watcher, events);
+  }
+
+  @Override
+  public Path resolve(String other) {
+    return resolve(new MemPath(fs, other));
+  }
+
+  @Override
+  public <V extends FileAttributeView> V getFileAttributeView(
+      Class<V> type, final LinkOption... options) {
+    if (!BasicFileAttributeView.class.equals(type)) {
+      throw new IllegalArgumentException();
+    }
+    return type.cast(new BasicFileAttributeView() {
+
+      public String name() { return getName().toString(); }
+
+      public BasicFileAttributes readAttributes() throws IOException {
+        final Map<String, ?> attrs = MemPath.this.readAttributes("*", options);
+        return new BasicFileAttributes() {
+          @Override public FileTime creationTime() {
+            return (FileTime) attrs.get("creationTime");
+          }
+          @Override public Object fileKey() {
+            return attrs.get("fileKey");
+          }
+          @Override public boolean isDirectory() {
+            return (Boolean) attrs.get("isDirectory");
+          }
+          @Override public boolean isOther() {
+            return (Boolean) attrs.get("isOther");
+          }
+          @Override public boolean isRegularFile() {
+            return (Boolean) attrs.get("isRegularFile");
+          }
+          @Override public boolean isSymbolicLink() {
+            return (Boolean) attrs.get("isSymbolicLink");
+          }
+          @Override public FileTime lastAccessTime() {
+            return (FileTime) attrs.get("lastAccessTime");
+          }
+          @Override public FileTime lastModifiedTime() {
+            return (FileTime) attrs.get("lastModifiedTime");
+          }
+          @Override public long size() { return (Long) attrs.get("size"); }
+        };
+      }
+
+      @Override
+      public void setTimes(
+          FileTime lastModifiedTime, FileTime lastAccessTime,
+          FileTime createTime) {
+        MemPath.this.setAttribute("lastModifiedTime", lastModifiedTime);
+        MemPath.this.setAttribute("lastAccessTime", lastModifiedTime);
+        MemPath.this.setAttribute("createTime", lastModifiedTime);
+      }
+    });
+  }
+
+  @Override
+  public Map<String, ?> readAttributes(String attributes, LinkOption... options)
+      throws IOException {
+    Map<String, Object> attrs = new LinkedHashMap<String, Object>();
+    for (String attr : attributes.split(",")) {
+      if ("*".equals(attr)) {
+        return readAttributes(
+            "size,isRegularFile,isDirectory,isSymbolicLink,isOther", options);
+      }
+      attrs.put(attr, getAttribute(attr, options));
+    }
+    return attrs;
   }
 
   @Override
@@ -431,106 +563,289 @@ class MemPath extends Path {
 }
 
 class MemFileSystem extends FileSystem {
-  final StubFileSystemProvider p;
-  final MemPath cwd;
-  Node root;
-
-  static class Node {
-    final Node parent;
-    final String name;
-    final Map<String, Node> children;
-
-    Node(Node parent, String name, boolean isDir) {
-      this.parent = parent;
-      this.name = name;
-      this.children = isDir ? new LinkedHashMap<String, Node>() : null;
-      if (isDir) {
-        children.put(".", this);
-        if (parent != null) { children.put("..", parent); }
-      }
-      if (parent != null) { parent.children.put(name, this); }
-    }
-
-    @Override
-    public String toString() {
-      return parent == null ? name : parent.toString() + "/" + name;
-    }
-
-    Node lookup(Iterable<Path> paths) {
-      Node n = this;
-      for (Path p : paths) {
-        if (n == null || n.children == null) { return null; }
-        String s = p.toString();
-        if ("".equals(s)) { continue; }
-        n = n.children.get(s);
-      }
-      return n;
-    }
-  }
+  private Node root = new Node("", null, true);
+  private final StubFileSystemProvider p;
+  private final MemPath cwd;
 
   MemFileSystem(StubFileSystemProvider p, String cwd) {
     this.p = p;
-    this.cwd = new MemPath(this, cwd);
-    root = new Node(null, "", true);
-  }
-
-  void delete(MemPath p) throws IOException {
-    Node node = root.lookup(p);
-    if (node == null || node.parent == null) {
-      throw new IOException(p.toString());
-    }
-    Node removed = node.parent.children.remove(node.name);
-    assert removed == node;
-  }
-
-  boolean exists(MemPath p) {
-    return root.lookup(p) != null;
-  }
-
-  /** @param modes unused. */
-  void check(MemPath path, AccessMode... modes) throws IOException {
-    Node node = root.lookup(path);
-    if (node == null) { throw new IOException(path.toString()); }
-  }
-
-  void mkdir(MemPath path) throws IOException {
-    Node n = root;
-    for (Path p : path) {
-      if (n.children == null) { throw new IOException(); }
-      String s = p.toString();
-      if ("".equals(s)) { continue; }
-      Node child = n.children.get(s);
-      if (child == null) { child = new Node(n, s, true); }
-      n = child;
-    }
-  }
-
-  void createFile(MemPath path) throws IOException {
-    String s = path.getName().toString();
-    if ("".equals(s)) { throw new IOException(path.toString()); }
-    MemPath parent = path.getParent();
-    Node parentNode = parent == null ? root : root.lookup(parent);
-    if (parentNode == null || parentNode.children == null) {
-      throw new IOException(path.toString());
-    }
-    Node child = parentNode.children.get(s);
-    if (child == null) {
-      child = new Node(parentNode, s, false);
-    } else if (child.children != null) {
-      throw new IOException(path.toString());
+    this.cwd = getPath(cwd);
+    try {
+      __mkdir(this.cwd);
+    } catch (IOException ex) {
+      throw new IOError(ex);
     }
   }
 
   @Override
-  public void close() { root = null; }
+  public FileSystemProvider provider() { return p; }
+
+  void __mkdir(Path dir) throws IOException {
+    dir = dir.toAbsolutePath();
+    Node n = root;
+    for (Path part : dir) {
+      String name = part.toString();
+      if ("".equals(name)) { continue; }
+      Node child = n.getChild(name);
+      if (child == null) {
+        child = new Node(name, n, true);
+      } else if (!child.isDir()) {
+        throw new IOException();
+      }
+      n = child;
+    }
+  }
+
+  void __touch(MemPath file) throws IOException {
+    file = file.toAbsolutePath();
+    Node parent = root;
+    Node n = root;
+    String name = null;
+    for (Path part : file) {
+      String partName = part.toString();
+      if ("".equals(partName)) { continue; }
+      if (n == null) {
+        System.err.println("file=" + file);
+        System.err.println(root.toTree(0, new StringBuilder()));
+        throw new IOException(); }
+      if (!n.isDir()) { throw new IOException(); }
+      Node child = n.getChild(partName);
+      parent = n;
+      n = child;
+      name = partName;
+    }
+    if (name != null) {
+      if (n == null) {
+        n = new Node(name, parent, false);
+      }
+    }
+  }
+
+  Node lookup(MemPath p) {
+    assert p.fs == this;
+    p = __toRealPath(p);
+    Node n = root;
+    for (Path part : p) {
+      Node child = n.getChild(part.toString());
+      if (child == null) { return null; }
+      n = child;
+    }
+    return n;
+  }
+
+  /** @param modes TODO ignored */
+  boolean __hasAccess(MemPath p, AccessMode... modes) {
+    Node node = lookup(p);
+    return node != null;
+  }
+
+  boolean __isDirectory(MemPath p) {
+    Node node = lookup(p);
+    return node != null && node.isDir();
+  }
+
+  boolean __isRegularFile(MemPath p) {
+    Node node = lookup(p);
+    return node != null && !node.isDir();
+  }
+
+  MemPath __toRealPath(MemPath p) {
+    assert p.fs == this;
+    if (p.isAbs) { return p; }
+    return new MemPath(this, cwd + "/" + p);
+  }
+
+  URI __toUri(MemPath p) {
+    return URI.create("file://" + __toRealPath(p));
+  }
+
+  @Override
+  public MemPath getPath(String path) throws InvalidPathException {
+    return new MemPath(this, path);
+  }
+
+  @Override
+  public String getSeparator() {
+    return "/";
+  }
+
+  @Override
+  public boolean isOpen() {
+    return root != null;
+  }
+
+  @Override
+  public void close() {
+    root = null;
+  }
+
+  @Override
+  public WatchService newWatchService() {
+    return new StubWatchService();
+  }
+
+  InputStream __read(final MemPath p, OpenOption... opts) throws IOException {
+    final EnumSet<StandardOpenOption> options = EnumSet.noneOf(
+        StandardOpenOption.class);
+    for (OpenOption opt : opts) { options.add((StandardOpenOption) opt); }
+    if (options.contains(StandardOpenOption.WRITE)
+        || options.contains(StandardOpenOption.CREATE)
+        || options.contains(StandardOpenOption.CREATE_NEW)
+        || options.contains(StandardOpenOption.TRUNCATE_EXISTING)) {
+      throw new IllegalArgumentException();
+    }
+    final Node node = lookup(p);
+    if (node == null) { throw new FileNotFoundException(p.toString()); }
+    if (node.isDir()) { throw new IOException(); }
+    synchronized (node) {
+      if (node.openCount < 0) { throw new IOException("file clash"); }
+      ++node.openCount;
+      return new FilterInputStream(
+          new ByteArrayInputStream(node.content.toByteArray())) {
+        @Override
+        public void close() throws IOException {
+          synchronized (node) { --node.openCount; }
+          super.close();
+          if (options.contains(StandardOpenOption.DELETE_ON_CLOSE)) {
+            p.delete();
+          }
+        }
+      };
+    }
+  }
+
+  OutputStream __write(final MemPath p, OpenOption... opts) throws IOException {
+    final EnumSet<StandardOpenOption> options = EnumSet.noneOf(
+        StandardOpenOption.class);
+    for (OpenOption opt : opts) { options.add((StandardOpenOption) opt); }
+    if (options.contains(StandardOpenOption.READ)) {
+      throw new IllegalArgumentException();
+    }
+    Node n = lookup(p);
+    if (n == null) {
+      if (options.contains(StandardOpenOption.CREATE)
+          || options.contains(StandardOpenOption.CREATE_NEW)) {
+        Node parent = lookup(p.subpath(0, p.getNameCount() - 1));
+        if (parent == null || !parent.isDir()) {
+          throw new IOException(p.toString());
+        }
+        n = new Node(p.getName().toString(), parent, false);
+      } else {
+        throw new IOException(p.toString());
+      }
+    } else if (!options.contains(StandardOpenOption.CREATE_NEW)) {
+      throw new IOException(p.toString());
+    } else if (n.isDir()) {
+      throw new IOException(p.toString());
+    }
+    final Node node = n;
+    synchronized (node) {
+      if (node.openCount != 0) { throw new IOException("file clash"); }
+      --node.openCount;
+      if (options.contains(StandardOpenOption.TRUNCATE_EXISTING)) {
+        node.content.reset();
+      }
+      return new FilterOutputStream(node.content) {
+        @Override
+        public void close() throws IOException {
+          synchronized (node) { ++node.openCount; }
+          super.close();
+          if (options.contains(StandardOpenOption.DELETE_ON_CLOSE)) {
+            p.delete();
+          }
+        }
+      };
+    }
+  }
+
+  void __delete(MemPath p) throws IOException {
+    Node n = lookup(p);
+    if (n == null) { throw new FileNotFoundException(); }
+    if (n.getParent() == null) { throw new IOException(); }
+    n.delete();
+  }
+
+  /** @param kinds TODO */
+  WatchKey __register(MemPath p, WatchService ws, Kind<?>... kinds)
+      throws IOException {
+    Node n = lookup(p);
+    if (n.isDir()) {
+      StubWatchKey key = new StubWatchKey(n, (StubWatchService) ws, p);
+      n.watchers.add(key);
+      return key;
+    } else {
+      throw new IOException();
+    }
+  }
+
+  DirectoryStream<Path> __children(
+      final MemPath p, final DirectoryStream.Filter<? super Path> filter)
+      throws IOException {
+    final Node n = lookup(p);
+    if (n == null || !n.isDir()) { throw new IOException(); }
+    return new DirectoryStream<Path>() {
+      Node node = n;
+
+      public void close() { node = null; }
+
+      public Iterator<Path> iterator() {
+        if (node == null) { throw new IllegalStateException(); }
+        final Iterator<String> it = new ArrayList<String>(
+            node.getChildren().keySet()).iterator();
+        return new Iterator<Path>() {
+          Path pending = null;
+
+          public boolean hasNext() {
+            fetch();
+            return pending != null;
+          }
+
+          public Path next() {
+            fetch();
+            Path p = pending;
+            if (p == null) { throw new NoSuchElementException(); }
+            pending = null;
+            return p;
+          }
+
+          public void remove() { throw new UnsupportedOperationException(); }
+
+          private void fetch() {
+            if (pending != null) { return; }
+            if (node != null) {
+              while (it.hasNext()) {
+                String name = it.next();
+                Node child = node.getChild(name);
+                if (child != null) {
+                  Path p = child.toPath(MemFileSystem.this);
+                  try {
+                    if (filter == null || filter.accept(p)) {
+                      pending = p;
+                      return;
+                    }
+                  } catch (IOException ex) {
+                    ConcurrentModificationException cme
+                        = new ConcurrentModificationException();
+                    cme.initCause(ex);
+                    throw cme;
+                  }
+                }
+              }
+              node = null;
+            }
+          }
+        };
+      }
+    };
+  }
+
+  @Override
+  public boolean isReadOnly() { return false; }
 
   @Override
   public Iterable<FileStore> getFileStores() {
     throw new UnsupportedOperationException();
   }
-
-  @Override
-  public MemPath getPath(String path) { return new MemPath(this, path); }
 
   @Override
   public PathMatcher getPathMatcher(String syntaxAndPattern) {
@@ -545,46 +860,188 @@ class MemFileSystem extends FileSystem {
     }
     final Pattern p = Pattern.compile(pattern);
     return new PathMatcher() {
-      @Override
       public boolean matches(Path path) {
-        return path instanceof MemPath
-            && p.matcher(((MemPath) path).path).matches();
+        return path instanceof MemPath && p.matcher(path.toString()).matches();
       }
     };
   }
 
   @Override
   public Iterable<Path> getRootDirectories() {
-    if (root == null) { return Collections.emptySet(); }
-    return Collections.singleton((Path) getPath(root.toString()));
-  }
-
-  @Override
-  public String getSeparator() { return "/"; }
-
-  @Override
-  public UserPrincipalLookupService getUserPrincipalLookupService() {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public boolean isOpen() { return root != null; }
-
-  @Override
-  public boolean isReadOnly() { return false; }
-
-  @Override
-  public WatchService newWatchService() throws IOException {
-    throw new IOException();
-  }
-
-  @Override
-  public FileSystemProvider provider() {
-    return p;
+    if (null == root) { return Collections.<Path>emptyList(); }
+    return Collections.<Path>singletonList(getPath("/"));
   }
 
   @Override
   public Set<String> supportedFileAttributeViews() {
     return Collections.singleton("basic");
   }
+
+  @Override
+  public UserPrincipalLookupService getUserPrincipalLookupService() {
+    // TODO Auto-generated method stub
+    return null;
+  }
+}
+
+class StubWatchService extends WatchService {
+  BlockingQueue<WatchKey> q = new LinkedBlockingQueue<WatchKey>();
+
+  @Override
+  public void close() {
+    q.clear();
+    q = null;
+  }
+
+  @Override
+  public WatchKey poll() {
+    return q.poll();
+  }
+
+  @Override
+  public WatchKey take() throws InterruptedException {
+    return q.take();
+  }
+
+  boolean isClosed() { return q == null; }
+
+  @Override
+  public WatchKey poll(long timeout, TimeUnit unit)
+      throws InterruptedException {
+    return q.poll(timeout, unit);
+  }
+}
+
+class StubWatchKey extends WatchKey {
+  final Node n;
+  final StubWatchService ws;
+  final MemPath p;
+  final Set<WatchEvent.Kind<Path>> kinds
+      = new LinkedHashSet<WatchEvent.Kind<Path>>();
+
+  StubWatchKey(Node n, StubWatchService ws, MemPath p) {
+    this.n = n;
+    this.ws = ws;
+    this.p = p;
+  }
+
+  @Override
+  public void cancel() {
+    n.watchers.remove(this);
+  }
+
+  @Override
+  public boolean isValid() {
+    return ((MemFileSystem) p.getFileSystem()).lookup(p) == n;
+  }
+
+  @Override
+  public List<WatchEvent<?>> pollEvents() {
+    List<WatchEvent<?>> events = new ArrayList<WatchEvent<?>>();
+    for (final WatchEvent.Kind<Path> kind : kinds) {
+      events.add(new WatchEvent<Path>() {
+        @Override
+        public Path context() { return p.getName(); }
+
+        @Override
+        public int count() { return 1; }
+
+        @Override
+        public WatchEvent.Kind<Path> kind() { return kind; }
+      });
+    }
+    return events;
+  }
+
+  @Override
+  public boolean reset() {
+    kinds.clear();
+    return isValid();
+  }
+}
+
+final class Node {
+  private String name;
+  private Node parent;
+  private final Map<String, Node> children;
+  final ByteArrayOutputStream content;
+  final List<StubWatchKey> watchers;
+  int openCount;
+
+  Node(String name, Node parent, boolean isDir) {
+    this.name = name;
+    if (isDir) {
+      children = new LinkedHashMap<String, Node>();
+      content = null;
+      watchers = new ArrayList<StubWatchKey>();
+    } else {
+      children = null;
+      content = new ByteArrayOutputStream();
+      watchers = null;
+    }
+    if (parent != null) {
+      reparent(parent);
+    }
+  }
+
+  void delete() {
+    reparent(null);
+  }
+
+  void reparent(Node newParent) {
+    if (parent == newParent) { return; }
+    if (parent != null) {
+      parent.children.remove(name);
+      parent = null;
+    }
+    if (newParent != null) {
+      Node old = newParent.children.put(name, this);
+      parent = newParent;
+      if (old != null) { old.reparent(null); }
+    }
+  }
+
+  Node getParent() { return parent; }
+  Node getChild(String name) {
+    if (".".equals(name)) { return this; }
+    if ("..".equals(name)) { return parent; }
+    return children.get(name);
+  }
+  Map<String, Node> getChildren() {
+    return Collections.unmodifiableMap(children);
+  }
+  String getName() { return name; }
+
+  void rename(String newName) {
+    if (name.equals(newName)) { return; }
+    Node parent = this.parent;
+    delete();
+    this.name = newName;
+    reparent(parent);
+  }
+
+  StringBuilder toTree(int depth, StringBuilder out) {
+    for (int i = depth; --i >= 0;) { out.append("  "); }
+    out.append(name);
+    if (isDir()) {
+      out.append("/");
+      for (Node n : children.values()) {
+        out.append("\n");
+        n.toTree(depth + 1, out);
+      }
+    }
+    return out;
+  }
+
+  @Override
+  public String toString() {
+    if (parent == null) { return name; }
+    return parent + "/" + name;
+  }
+
+  Path toPath(MemFileSystem fs) {
+    return fs.getPath("/" + toString());
+  }
+
+  boolean isDir() { return children != null; }
 }
