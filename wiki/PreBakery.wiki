@@ -9,6 +9,7 @@ It can be started by following the instructions under [Usage usage].
 JDK1.7 is required because the PreBakery makes extensive use of {{{java.nio.file}}} to satisfy its efficiency [Goals goals].
 The {{{prebakery}}} is an ExtTool outside the ClientRoot so the caveats there apply to upgrading the PreBakery.
 
+As of this writing (March 2010), JDK1.7 is available for most platforms, but for Mac you have to build it yourself.  These [http://confluence.concord.org/display/CCTR/Build+OpenJDK+Java+1.7.0+on+Mac+OS+X+10.5 instructions] can help.
 
 = Responsibilities =
 The PreBakery watches the ClientRoot and sees when files change so it can determine which files to rebuild without {{{stat}}}ing every file.
