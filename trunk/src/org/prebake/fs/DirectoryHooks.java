@@ -12,7 +12,6 @@ import java.nio.file.StandardWatchEventKind;
 import java.nio.file.WatchEvent;
 import java.nio.file.WatchKey;
 import java.nio.file.WatchService;
-import java.nio.file.attribute.Attributes;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.HashMap;
 import java.util.Map;
@@ -94,7 +93,7 @@ public class DirectoryHooks implements Closeable {
     if (dir == null) { return; }
 
     try {
-      for (WatchEvent<?> event: key.pollEvents()) {
+      for (WatchEvent<?> event : key.pollEvents()) {
         WatchEvent.Kind<?> kind = event.kind();
 
         if (kind == StandardWatchEventKind.OVERFLOW) {
@@ -106,24 +105,35 @@ public class DirectoryHooks implements Closeable {
         Path name = (Path) event.context();
         Path child = dir.resolve(name);
 
-        // If directory is created, and watching recursively, then
-        // register it and its sub-directories
-        if (kind == StandardWatchEventKind.ENTRY_CREATE) {
-          // TODO: What about permission changes that make it readable?
+        boolean isDir = false;
+        if (kind != StandardWatchEventKind.ENTRY_DELETE) {
           try {
-            if (Attributes.readBasicFileAttributes(
-                    child, LinkOption.NOFOLLOW_LINKS)
-                .isDirectory()) {
-              register(child, ws, keys);
-            }
-          } catch (IOException x) {
+            isDir = (Boolean) child.getAttribute(
+                "isDirectory", LinkOption.NOFOLLOW_LINKS);
+          } catch (IOException ex) {
             // TODO: handle
+            ex.printStackTrace();
           }
         }
-        try {
-          q.put(child);
-        } catch (InterruptedException ex) {
-          return;
+
+        // If directory is created, and watching recursively, then
+        // register it and its sub-directories
+        if (isDir) {
+          if (kind == StandardWatchEventKind.ENTRY_CREATE) {
+            // TODO: What about permission changes that make it readable?
+            try {
+              register(child, ws, keys);
+            } catch (IOException ex) {
+              // TODO: handle
+              ex.printStackTrace();
+            }
+          }
+        } else {
+          try {
+            q.put(child);
+          } catch (InterruptedException ex) {
+            return;
+          }
         }
       }
     } finally {

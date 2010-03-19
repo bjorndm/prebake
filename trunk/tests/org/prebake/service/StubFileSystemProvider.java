@@ -22,6 +22,7 @@ import java.nio.file.OpenOption;
 import java.nio.file.Path;
 import java.nio.file.PathMatcher;
 import java.nio.file.StandardOpenOption;
+import java.nio.file.StandardWatchEventKind;
 import java.nio.file.WatchEvent;
 import java.nio.file.WatchKey;
 import java.nio.file.WatchService;
@@ -679,7 +680,7 @@ class MemFileSystem extends FileSystem {
 
   @Override
   public WatchService newWatchService() {
-    return new StubWatchService();
+    return new StubWatchService(this);
   }
 
   InputStream __read(final MemPath p, OpenOption... opts) throws IOException {
@@ -696,13 +697,17 @@ class MemFileSystem extends FileSystem {
     if (node == null) { throw new FileNotFoundException(p.toString()); }
     if (node.isDir()) { throw new IOException(); }
     synchronized (node) {
-      if (node.openCount < 0) { throw new IOException("file clash"); }
-      ++node.openCount;
+      if (!node.forRead()) { throw new IOException("file clash"); }
       return new FilterInputStream(
           new ByteArrayInputStream(node.content.toByteArray())) {
+        boolean closed = false;
         @Override
         public void close() throws IOException {
-          synchronized (node) { --node.openCount; }
+          synchronized (this) {
+            if (closed) { return; }
+            closed = true;
+          }
+          node.releaseRead();
           super.close();
           if (options.contains(StandardOpenOption.DELETE_ON_CLOSE)) {
             p.delete();
@@ -731,22 +736,26 @@ class MemFileSystem extends FileSystem {
       } else {
         throw new IOException(p.toString());
       }
-    } else if (!options.contains(StandardOpenOption.CREATE_NEW)) {
+    } else if (options.contains(StandardOpenOption.CREATE_NEW)) {
       throw new IOException(p.toString());
     } else if (n.isDir()) {
       throw new IOException(p.toString());
     }
     final Node node = n;
     synchronized (node) {
-      if (node.openCount != 0) { throw new IOException("file clash"); }
-      --node.openCount;
+      if (!node.forWrite()) { throw new IOException("file clash"); }
       if (options.contains(StandardOpenOption.TRUNCATE_EXISTING)) {
         node.content.reset();
       }
       return new FilterOutputStream(node.content) {
+        boolean closed = false;
         @Override
         public void close() throws IOException {
-          synchronized (node) { ++node.openCount; }
+          synchronized (this) {
+            if (closed) { return; }
+            closed = true;
+          }
+          node.releaseWrite();
           super.close();
           if (options.contains(StandardOpenOption.DELETE_ON_CLOSE)) {
             p.delete();
@@ -768,7 +777,7 @@ class MemFileSystem extends FileSystem {
       throws IOException {
     Node n = lookup(p);
     if (n.isDir()) {
-      StubWatchKey key = new StubWatchKey(n, (StubWatchService) ws, p);
+      StubWatchKey key = new StubWatchKey(n, (StubWatchService) ws);
       n.watchers.add(key);
       return key;
     } else {
@@ -883,6 +892,9 @@ class MemFileSystem extends FileSystem {
 
 class StubWatchService extends WatchService {
   BlockingQueue<WatchKey> q = new LinkedBlockingQueue<WatchKey>();
+  final MemFileSystem fs;
+
+  StubWatchService(MemFileSystem fs) { this.fs = fs; }
 
   @Override
   public void close() {
@@ -912,14 +924,13 @@ class StubWatchService extends WatchService {
 class StubWatchKey extends WatchKey {
   final Node n;
   final StubWatchService ws;
-  final MemPath p;
-  final Set<WatchEvent.Kind<Path>> kinds
-      = new LinkedHashSet<WatchEvent.Kind<Path>>();
+  final Map<String, Set<WatchEvent.Kind<Path>>> events
+      = new LinkedHashMap<String, Set<WatchEvent.Kind<Path>>>();
+  boolean valid = true;
 
-  StubWatchKey(Node n, StubWatchService ws, MemPath p) {
+  StubWatchKey(Node n, StubWatchService ws) {
     this.n = n;
     this.ws = ws;
-    this.p = p;
   }
 
   @Override
@@ -929,31 +940,59 @@ class StubWatchKey extends WatchKey {
 
   @Override
   public boolean isValid() {
-    return ((MemFileSystem) p.getFileSystem()).lookup(p) == n;
+    return valid;
   }
 
   @Override
   public List<WatchEvent<?>> pollEvents() {
-    List<WatchEvent<?>> events = new ArrayList<WatchEvent<?>>();
-    for (final WatchEvent.Kind<Path> kind : kinds) {
-      events.add(new WatchEvent<Path>() {
-        @Override
-        public Path context() { return p.getName(); }
+    List<WatchEvent<?>> eventList = new ArrayList<WatchEvent<?>>();
+    synchronized (events) {
+      for (Map.Entry<String,Set<WatchEvent.Kind<Path>>> e : events.entrySet()) {
+        final String name = e.getKey();
+        for (final WatchEvent.Kind<Path> k : e.getValue()) {
+          eventList.add(new WatchEvent<Path>() {
+            @Override
+            public Path context() { return ws.fs.getPath(name); }
 
-        @Override
-        public int count() { return 1; }
+            @Override
+            public int count() { return 1; }
 
-        @Override
-        public WatchEvent.Kind<Path> kind() { return kind; }
-      });
+            @Override
+            public WatchEvent.Kind<Path> kind() { return k; }
+          });
+        }
+      }
     }
-    return events;
+    return eventList;
   }
 
   @Override
   public boolean reset() {
-    kinds.clear();
+    synchronized (events) {
+      events.clear();
+    }
     return isValid();
+  }
+
+  synchronized boolean notify(WatchEvent.Kind<Path> k, String name) {
+    BlockingQueue<WatchKey> q = ws.q;
+    if (q == null) { return false; }
+    synchronized (events) {
+      boolean enqueue =  events.isEmpty();
+      Set<WatchEvent.Kind<Path>> kinds = events.get(name);
+      if (kinds == null) {
+        events.put(name, kinds = new LinkedHashSet<WatchEvent.Kind<Path>>());
+      }
+      kinds.add(k);
+      if (enqueue) {
+        try {
+          q.put(this);
+        } catch (InterruptedException ex) {
+          // Queue closed.  Nothing to do here.
+        }
+      }
+    }
+    return true;
   }
 }
 
@@ -963,7 +1002,7 @@ final class Node {
   private final Map<String, Node> children;
   final ByteArrayOutputStream content;
   final List<StubWatchKey> watchers;
-  int openCount;
+  private int openCount;
 
   Node(String name, Node parent, boolean isDir) {
     this.name = name;
@@ -989,13 +1028,23 @@ final class Node {
     if (parent == newParent) { return; }
     if (parent != null) {
       parent.children.remove(name);
+      parent.bcast(StandardWatchEventKind.ENTRY_DELETE, name);
       parent = null;
+      invalidate();
     }
     if (newParent != null) {
       Node old = newParent.children.put(name, this);
       parent = newParent;
+      parent.bcast(StandardWatchEventKind.ENTRY_CREATE, name);
       if (old != null) { old.reparent(null); }
     }
+  }
+
+  private void invalidate() {
+    if (!isDir()) { return; }
+    for (StubWatchKey k : watchers) { k.valid = false; }
+    watchers.clear();
+    for (Node c : children.values()) { c.invalidate(); }
   }
 
   Node getParent() { return parent; }
@@ -1028,6 +1077,37 @@ final class Node {
       }
     }
     return out;
+  }
+
+  synchronized void releaseWrite() {
+    if (openCount != -1) { throw new IllegalStateException(); }
+    openCount = 0;
+    parent.bcast(StandardWatchEventKind.ENTRY_CREATE, name);
+  }
+  synchronized void releaseRead() {
+    if (openCount <= 0) { throw new IllegalStateException(); }
+    --openCount;
+  }
+  synchronized boolean forRead() {
+    if (openCount >= 0) {
+      ++openCount;
+      return true;
+    }
+    return false;
+  }
+  synchronized boolean forWrite() {
+    if (openCount == 0) {
+      openCount = -1;
+      return true;
+    }
+    return false;
+  }
+
+  synchronized void bcast(WatchEvent.Kind<Path> kind, String name) {
+    Iterator<StubWatchKey> it = watchers.iterator();
+    while (it.hasNext()) {
+      if (!it.next().notify(kind, name)) { it.remove(); }
+    }
   }
 
   @Override
