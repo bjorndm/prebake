@@ -27,8 +27,8 @@ The PreBakery maintains a hidden [PrebakeDirectory directory] in the client root
 
 
 = [http://en.wikipedia.org/wiki/Cryptographic_hash_function Hashes] and Caches =
-|| *Key* || *Value* || *Use* ||
-|| Path under ClientRoot || (hash(path), ChangeIndex) || Tracking file changes ||
+|| *Key* || *Value* ||
+|| Path under ClientRoot || hash(file content) ||
 || [Product] name || hash(inputs, [BuildAction]s, intersect(ToolsFile, actions)) || 
 || PlanFile path || hash(PlanFile content, loadedJsFiles) ||
 
