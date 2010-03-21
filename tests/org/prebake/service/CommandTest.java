@@ -32,12 +32,6 @@ public class CommandTest extends TestCase {
     reparse(c);
   }
 
-  public final void testChangesCommand() throws IOException {
-    Command.ChangesCommand c = new Command.ChangesCommand();
-    assertEquals("[\"changes\",{}]", c.toString());
-    reparse(c);
-  }
-
   public final void testFilesChangedCommand() throws IOException {
     Command.FilesChangedCommand c = new Command.FilesChangedCommand(
         new LinkedHashSet<Path>(Arrays.asList(

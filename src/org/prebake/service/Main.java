@@ -1,5 +1,6 @@
 package org.prebake.service;
 
+import org.prebake.channel.Commands;
 import org.prebake.channel.JsonSource;
 import org.prebake.core.MessageQueue;
 
@@ -81,7 +82,7 @@ public final class Main {
                 try {
                   JsonSource src = new JsonSource(
                       new StringReader(commandText));
-                  q.put(Commands.fromJsonSource(getFileSystem(), src));
+                  q.put(Commands.fromJson(getFileSystem(), src));
                 } catch (InterruptedException ex) {
                   continue;
                 }
