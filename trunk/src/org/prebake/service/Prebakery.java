@@ -1,6 +1,8 @@
 package org.prebake.service;
 
 import org.prebake.channel.Command;
+import org.prebake.channel.Commands;
+import org.prebake.channel.FileNames;
 import org.prebake.fs.DirectoryHooks;
 
 import com.sleepycat.je.Environment;
@@ -115,13 +117,13 @@ public abstract class Prebakery implements Closeable {
   private void setupChannel() throws IOException {
     Path clientRoot = config.getClientRoot();
     FileSystem fs = clientRoot.getFileSystem();
-    Path dir = clientRoot.resolve(fs.getPath(".prebake"));
+    Path dir = clientRoot.resolve(fs.getPath(FileNames.DIR));
     if (!dir.exists()) {
       dir.createDirectory();  // TODO umask
     }
-    Path cmdlineFile = dir.resolve(fs.getPath("cmdline"));
-    Path portFile = dir.resolve(fs.getPath("port"));
-    Path tokenFile = dir.resolve(fs.getPath("token"));
+    Path cmdlineFile = dir.resolve(fs.getPath(FileNames.CMD_LINE));
+    Path portFile = dir.resolve(fs.getPath(FileNames.PORT));
+    Path tokenFile = dir.resolve(fs.getPath(FileNames.TOKEN));
     if (!cmdlineFile.exists()) {
       cmdlineFile.createFile();  // TODO umask
     }
@@ -165,16 +167,16 @@ public abstract class Prebakery implements Closeable {
       protected void consume(BlockingQueue<? extends Commands> q, Commands c) {
         boolean authed = false;
         for (Command cmd : c) {
-          if (cmd.verb != Command.Verb.HANDSHAKE && !authed) {
+          if (cmd.verb != Command.Verb.handshake && !authed) {
             logger.warning("Unauthorized command " + cmd);
             return;
           }
           switch (cmd.verb) {
-            case HANDSHAKE:
+            case handshake:
               authed = ((Command.HandshakeCommand) cmd).token.equals(token);
               continue;
-            case SHUTDOWN: Prebakery.this.close(); break;
-            case SYNC:
+            case shutdown: Prebakery.this.close(); break;
+            case sync:
               try {
                 pathConsumer.waitUntilEmpty();
               } catch (InterruptedException ex) {

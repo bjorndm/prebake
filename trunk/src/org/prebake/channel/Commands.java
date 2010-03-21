@@ -1,7 +1,4 @@
-package org.prebake.service;
-
-import org.prebake.channel.Command;
-import org.prebake.channel.JsonSource;
+package org.prebake.channel;
 
 import java.io.IOException;
 import java.nio.file.FileSystem;
@@ -15,7 +12,7 @@ import java.util.List;
  *
  * @author mikesamuel@gmail.com
  */
-final class Commands implements Iterable<Command> {
+public final class Commands implements Iterable<Command> {
   private final List<Command> commands = new ArrayList<Command>();
 
   private Commands() {}
@@ -24,7 +21,7 @@ final class Commands implements Iterable<Command> {
     return Collections.unmodifiableList(commands).iterator();
   }
 
-  static Commands fromJsonSource(FileSystem fs, JsonSource src)
+  public static Commands fromJson(FileSystem fs, JsonSource src)
       throws IOException {
     Commands c = new Commands();
     src.expect("[");
@@ -35,5 +32,24 @@ final class Commands implements Iterable<Command> {
       src.expect("]");
     }
     return c;
+  }
+
+  public static Commands valueOf(Iterable<Command> cmds) {
+    Commands out = new Commands();
+    for (Command c : cmds) { out.commands.add(c); }
+    return out;
+  }
+
+  public void toJson(JsonSink out) throws IOException {
+    out.write("[");
+    Iterator<Command> it = commands.iterator();
+    if (it.hasNext()) {
+      it.next().toJson(out);
+      while (it.hasNext()) {
+        out.write(",");
+        it.next().toJson(out);
+      }
+    }
+    out.write("]");
   }
 }

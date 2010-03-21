@@ -8,27 +8,28 @@ import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
 public abstract class Command {
   public enum Verb {
-    HANDSHAKE,
-    BUILD,
-    PLAN,
-    CHANGES,
-    GRAPH,
-    SHUTDOWN,
-    FILES_CHANGED,
-    SYNC,
+    handshake,
+    build,
+    files_changed,
+    graph,
+    plan,
+    shutdown,
+    sync,
     ;
+  }
 
-    public final String ident;
-    Verb() { this.ident = name().toLowerCase(Locale.ENGLISH); }
+  public static final List<String> VERB_NAMES;
+  static {
+    List<String> names = new ArrayList<String>();
+    for (Verb v : Verb.values()) { names.add(v.name()); }
+    VERB_NAMES = Collections.unmodifiableList(names);
   }
 
   public final Verb verb;
@@ -37,24 +38,14 @@ public abstract class Command {
     this.verb = verb;
   }
 
-  private static final Map<String, Verb> STRING_TO_VERB;
-  static {
-    Map<String, Verb> stringToVerb = new LinkedHashMap<String, Verb>();
-    for (Verb v : Verb.values()) {
-      stringToVerb.put(v.ident, v);
-    }
-    STRING_TO_VERB = Collections.unmodifiableMap(stringToVerb);
-  }
-
   public static Command fromJson(JsonSource src, FileSystem fs)
       throws IOException {
     src.expect("[");
     String verb = src.expectString();
-    Verb v = STRING_TO_VERB.get(verb);
+    Verb v = Verb.valueOf(verb);
     if (v == null) {
       throw new IOException(DidYouMean.toMessage(
-          "Unknown verb " + verb, verb,
-          STRING_TO_VERB.keySet().toArray(new String[0])));
+          "Unknown verb " + verb, verb, VERB_NAMES.toArray(new String[0])));
     }
     src.expect(",");
     /*Map<String, Object> options =*/ src.nextObject();
@@ -64,20 +55,19 @@ public abstract class Command {
     }
     src.expect("]");
     switch (v) {
-      case BUILD:         return new BuildCommand(toProducts(args));
-      case CHANGES:       return new ChangesCommand();
-      case FILES_CHANGED: return new FilesChangedCommand(toPaths(args, fs));
-      case GRAPH:         return new GraphCommand(toProducts(args));
-      case HANDSHAKE:     return new HandshakeCommand((String) args.get(0));
-      case PLAN:          return new PlanCommand(toProducts(args));
-      case SHUTDOWN:      return new ShutdownCommand();
-      case SYNC:          return new SyncCommand();
+      case build:         return new BuildCommand(toProducts(args));
+      case files_changed: return new FilesChangedCommand(toPaths(args, fs));
+      case graph:         return new GraphCommand(toProducts(args));
+      case handshake:     return new HandshakeCommand((String) args.get(0));
+      case plan:          return new PlanCommand(toProducts(args));
+      case shutdown:      return new ShutdownCommand();
+      case sync:          return new SyncCommand();
     }
     throw new Error(v.name());
   }
 
   public final void toJson(JsonSink out) throws IOException {
-    out.write("[").writeValue(verb.ident).write(",");
+    out.write("[").writeValue(verb.name()).write(",");
     out.writeValue(getOptions());
     for (Object o : getParams()) {
       out.write(",").writeValue(o);
@@ -134,7 +124,7 @@ public abstract class Command {
     public final Set<String> products;
 
     public BuildCommand(Set<String> products) {
-      super(Verb.BUILD);
+      super(Verb.build);
       this.products = Collections.unmodifiableSet(
           new LinkedHashSet<String>(products));
     }
@@ -145,16 +135,11 @@ public abstract class Command {
     }
   }
 
-  public static final class ChangesCommand extends Command {
-    public ChangesCommand() { super(Verb.CHANGES); }
-
-  }
-
   public static final class FilesChangedCommand extends Command {
     public final Set<Path> paths;
 
     public FilesChangedCommand(Set<Path> paths) {
-      super(Verb.FILES_CHANGED);
+      super(Verb.files_changed);
       this.paths = Collections.unmodifiableSet(
           new LinkedHashSet<Path>(paths));
     }
@@ -171,7 +156,7 @@ public abstract class Command {
     public final Set<String> products;
 
     public GraphCommand(Set<String> products) {
-      super(Verb.GRAPH);
+      super(Verb.graph);
       this.products = Collections.unmodifiableSet(
           new LinkedHashSet<String>(products));
     }
@@ -186,7 +171,7 @@ public abstract class Command {
     public final String token;
 
     public HandshakeCommand(String token) {
-      super(Verb.HANDSHAKE);
+      super(Verb.handshake);
       this.token = token;
     }
 
@@ -200,7 +185,7 @@ public abstract class Command {
     public final Set<String> products;
 
     public PlanCommand(Set<String> products) {
-      super(Verb.PLAN);
+      super(Verb.plan);
       this.products = Collections.unmodifiableSet(
           new LinkedHashSet<String>(products));
     }
@@ -212,10 +197,10 @@ public abstract class Command {
   }
 
   public static final class ShutdownCommand extends Command {
-    public ShutdownCommand() { super(Verb.SHUTDOWN); }
+    public ShutdownCommand() { super(Verb.shutdown); }
   }
 
   public static final class SyncCommand extends Command {
-    public SyncCommand() { super(Verb.SYNC); }
+    public SyncCommand() { super(Verb.sync); }
   }
 }

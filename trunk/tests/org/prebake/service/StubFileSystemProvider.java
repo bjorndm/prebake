@@ -373,6 +373,9 @@ class MemPath extends Path {
 
   @Override
   public Path getParent() {
+    if (parts.length == 0 || parts.length == 1 && "".equals(parts[0])) {
+      return null;
+    }
     return normalize().subpath(0, Math.max(0, getNameCount() - 1));
   }
 
