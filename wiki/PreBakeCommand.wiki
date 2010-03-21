@@ -2,7 +2,7 @@
 
 = Commands =
 
-The [PreBake bake] client sends commands to the PreBakery over a [PrebakeDirectory port].
+The [Bake bake] client sends commands to the PreBakery over a [PrebakeDirectory port].
 
 Commands are strings of JSON and the structures below is in the [http://jsonml.org/ JSON ML] subset of JSON.
 
