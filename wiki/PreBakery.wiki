@@ -1,6 +1,6 @@
 #summary a service that watches files and maintains plans
 
-The {{{prebakery}}} is a persistent service that services [PreBakeCommand commands] from the PreBake client.
+The {{{prebakery}}} is a persistent service that services [PreBakeCommand commands] from the [Bake bake] client.
 
 It can be started by following the instructions under [Usage usage].
 
