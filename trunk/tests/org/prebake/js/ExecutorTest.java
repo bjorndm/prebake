@@ -13,7 +13,15 @@ import java.nio.file.FileSystem;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.nio.file.attribute.PosixFilePermissions;
+import java.text.MessageFormat;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.Iterator;
+import java.util.List;
+import java.util.logging.Handler;
+import java.util.logging.Level;
+import java.util.logging.LogRecord;
 import java.util.logging.Logger;
 
 import junit.framework.TestCase;
@@ -128,6 +136,59 @@ public class ExecutorTest extends TestCase {
     }
   }
 
+  public final void testConsole() throws Exception {
+    assertConsole("1 + 1");
+    assertConsole("console.log(1 + 1)", "/testConsole.js:1:INFO: 2");
+    assertConsole("console.log(5 / 2)", "/testConsole.js:1:INFO: 2.5");
+    assertConsole(
+        ""
+        + "function f(x) {\n"
+        + "  console.log('x=%d', x);\n"
+        + "}\n"
+        + "f(2)",
+        "/testConsole.js:2:INFO: x=2");
+    assertConsole(
+        ""
+        + "var x = 2.5;\n"
+        + "console.log('x=%.2f', x)",
+        "/testConsole.js:2:INFO: x=2.50");
+    assertConsole("console.warn('foo')", "/testConsole.js:1:WARNING: foo");
+    assertConsole("console.error('foo')", "/testConsole.js:1:SEVERE: foo");
+    assertConsole(
+        Level.FINE, "console.info('Hello, %s!', 'World')",
+        "org.prebake.js.RhinoExecutor$LoadFn:FINE: Loading /testConsole.js",
+        "org.prebake.js.RhinoExecutor$LoadFn:FINE: Done    /testConsole.js",
+        "/testConsole.js:1:FINE: Hello, World!");
+    assertConsole(
+        "console.dir({ a: 1, b: 'Hello, World!', c: null, d: [1,2,3] })",
+        ""
+        + "/testConsole.js:1:INFO: \n"
+        + "| Name | Value         |\n"
+        + "| a    | 1             |\n"
+        + "| b    | Hello, World! |\n"
+        + "| c    | null          |\n"
+        + "| d    | 1,2,3         |");
+    assertConsole(
+        ""
+        + "console.group('foo');\n"
+        + "console.log('hi');\n"
+        + "console.groupEnd();",
+        "/testConsole.js:1:INFO: Enter foo",
+        "/testConsole.js:2:INFO:   hi",
+        "/testConsole.js:3:INFO: Exit  foo");
+    assertConsole(
+        ""
+        + "console.time('foo');\n"
+        + "for (var i = 4; --i > 0;) { console.log(i); }\n"
+        + "console.timeEnd('foo');",
+        "/testConsole.js:2:INFO: 3",
+        "/testConsole.js:2:INFO: 2",
+        "/testConsole.js:2:INFO: 1",
+        "/testConsole.js:3:INFO: Timer foo took <normalized>ns");
+
+    // console.assert
+  }
+
   private void assertResult(Object result, String src) throws Exception {
     FileSystem fs = new StubFileSystemProvider("mfs").getFileSystem(
         URI.create("mfs:///#/foo"));
@@ -195,5 +256,65 @@ public class ExecutorTest extends TestCase {
           }
         });
     return output;
+  }
+
+  private void assertConsole(String src, String... logStmts)
+      throws Exception {
+    assertConsole(Level.INFO, src, logStmts);
+  }
+
+  private void assertConsole(Level lvl, String src, String... logStmts)
+      throws Exception {
+    final List<String> actualLog = new ArrayList<String>();
+    Handler handler = new Handler() {
+      List<String> log = actualLog;
+
+      @Override
+      public void close() throws SecurityException { log = null; }
+
+      @Override
+      public void flush() {}
+
+      @Override
+      public void publish(LogRecord r) {
+        log.add(r.getSourceClassName() + ":" + r.getLevel() + ": "
+                + MessageFormat.format(r.getMessage(), r.getParameters()));
+      }
+    };
+
+    FileSystem fs = new StubFileSystemProvider("mfs").getFileSystem(
+        URI.create("mfs:///#/foo"));
+    Executor executor = Executor.Factory.createJsExecutor(new Executor.Input(
+        new StringReader(src), fs.getPath("/" + getName() + ".js")));
+    Logger logger = Logger.getLogger(getName());
+    logger.setLevel(lvl);
+    logger.addHandler(handler);
+    try {
+      executor.run(
+          Collections.<String, Object>emptyMap(),
+          Object.class,
+          logger,
+          new Loader() {
+            public Reader load(Path p) throws IOException {
+              throw new IOException("Not testing load");
+            }
+          });
+    } finally {
+      logger.removeHandler(handler);
+    }
+    assertEquals(
+        src, join("\n", Arrays.asList(logStmts)),
+        join("\n", actualLog).replaceAll(
+            "(:INFO: Timer \\w+ took )\\d+(ns)$", "$1<normalized>$2"));
+  }
+
+  private static String join(String sep, Iterable<?> coll) {
+    StringBuilder sb = new StringBuilder();
+    Iterator<?> it = coll.iterator();
+    if (it.hasNext()) {
+      sb.append(it.next());
+      while (it.hasNext()) { sb.append(sep).append(it.next()); }
+    }
+    return sb.toString();
   }
 }
