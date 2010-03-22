@@ -19,6 +19,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Locale;
 import java.util.logging.Handler;
 import java.util.logging.Level;
 import java.util.logging.LogRecord;
@@ -137,56 +138,67 @@ public class ExecutorTest extends TestCase {
   }
 
   public final void testConsole() throws Exception {
-    assertConsole("1 + 1");
-    assertConsole("console.log(1 + 1)", "/testConsole.js:1:INFO: 2");
-    assertConsole("console.log(5 / 2)", "/testConsole.js:1:INFO: 2.5");
-    assertConsole(
-        ""
-        + "function f(x) {\n"
-        + "  console.log('x=%d', x);\n"
-        + "}\n"
-        + "f(2)",
-        "/testConsole.js:2:INFO: x=2");
-    assertConsole(
-        ""
-        + "var x = 2.5;\n"
-        + "console.log('x=%.2f', x)",
-        "/testConsole.js:2:INFO: x=2.50");
-    assertConsole("console.warn('foo')", "/testConsole.js:1:WARNING: foo");
-    assertConsole("console.error('foo')", "/testConsole.js:1:SEVERE: foo");
-    assertConsole(
-        Level.FINE, "console.info('Hello, %s!', 'World')",
-        "org.prebake.js.RhinoExecutor$LoadFn:FINE: Loading /testConsole.js",
-        "org.prebake.js.RhinoExecutor$LoadFn:FINE: Done    /testConsole.js",
-        "/testConsole.js:1:FINE: Hello, World!");
-    assertConsole(
-        "console.dir({ a: 1, b: 'Hello, World!', c: null, d: [1,2,3] })",
-        ""
-        + "/testConsole.js:1:INFO: \n"
-        + "| Name | Value         |\n"
-        + "| a    | 1             |\n"
-        + "| b    | Hello, World! |\n"
-        + "| c    | null          |\n"
-        + "| d    | 1,2,3         |");
-    assertConsole(
-        ""
-        + "console.group('foo');\n"
-        + "console.log('hi');\n"
-        + "console.groupEnd();",
-        "/testConsole.js:1:INFO: Enter foo",
-        "/testConsole.js:2:INFO:   hi",
-        "/testConsole.js:3:INFO: Exit  foo");
-    assertConsole(
-        ""
-        + "console.time('foo');\n"
-        + "for (var i = 4; --i > 0;) { console.log(i); }\n"
-        + "console.timeEnd('foo');",
-        "/testConsole.js:2:INFO: 3",
-        "/testConsole.js:2:INFO: 2",
-        "/testConsole.js:2:INFO: 1",
-        "/testConsole.js:3:INFO: Timer foo took <normalized>ns");
+    // We use logging for the default locale, but the command line test runner
+    // runs tests in the Turkish locale to flush out case folding problems.
+    // We want to use the default locale for logging, but for these tests, we
+    // switch to a consistent locale so that our test results are consistent
+    // between an English IDE and our command line test environment.
+    Locale defaultLocale = Locale.getDefault();
+    Locale.setDefault(Locale.ENGLISH);
+    try {
+      assertConsole("1 + 1");
+      assertConsole("console.log(1 + 1)", "/testConsole.js:1:INFO: 2");
+      assertConsole("console.log(5 / 2)", "/testConsole.js:1:INFO: 2.5");
+      assertConsole(
+          ""
+          + "function f(x) {\n"
+          + "  console.log('x=%d', x);\n"
+          + "}\n"
+          + "f(2)",
+          "/testConsole.js:2:INFO: x=2");
+      assertConsole(
+          ""
+          + "var x = 2.5;\n"
+          + "console.log('x=%.2f', x)",
+          "/testConsole.js:2:INFO: x=2.50");
+      assertConsole("console.warn('foo')", "/testConsole.js:1:WARNING: foo");
+      assertConsole("console.error('foo')", "/testConsole.js:1:SEVERE: foo");
+      assertConsole(
+          Level.FINE, "console.info('Hello, %s!', 'World')",
+          "org.prebake.js.RhinoExecutor$LoadFn:FINE: Loading /testConsole.js",
+          "org.prebake.js.RhinoExecutor$LoadFn:FINE: Done    /testConsole.js",
+          "/testConsole.js:1:FINE: Hello, World!");
+      assertConsole(
+          "console.dir({ a: 1, b: 'Hello, World!', c: null, d: [1,2,3] })",
+          ""
+          + "/testConsole.js:1:INFO: \n"
+          + "| Name | Value         |\n"
+          + "| a    | 1             |\n"
+          + "| b    | Hello, World! |\n"
+          + "| c    | null          |\n"
+          + "| d    | 1,2,3         |");
+      assertConsole(
+          ""
+          + "console.group('foo');\n"
+          + "console.log('hi');\n"
+          + "console.groupEnd();",
+          "/testConsole.js:1:INFO: Enter foo",
+          "/testConsole.js:2:INFO:   hi",
+          "/testConsole.js:3:INFO: Exit  foo");
+      assertConsole(
+          ""
+          + "console.time('foo');\n"
+          + "for (var i = 4; --i > 0;) { console.log(i); }\n"
+          + "console.timeEnd('foo');",
+          "/testConsole.js:2:INFO: 3",
+          "/testConsole.js:2:INFO: 2",
+          "/testConsole.js:2:INFO: 1",
+          "/testConsole.js:3:INFO: Timer foo took <normalized>ns");
 
-    // console.assert
+      // console.assert
+    } finally {
+      Locale.setDefault(defaultLocale);
+    }
   }
 
   private void assertResult(Object result, String src) throws Exception {
