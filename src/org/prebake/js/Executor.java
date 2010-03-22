@@ -86,7 +86,7 @@ public interface Executor {
     public final Reader input;
     public final String source;
     public final Path base;
-    /** @param source file path or URL from which the JavaScript came. */
+
     public Input(Reader input, Path base) {
       this(input, base.toString(), base);
     }

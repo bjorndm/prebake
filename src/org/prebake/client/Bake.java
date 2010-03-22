@@ -52,8 +52,7 @@ abstract class Bake {
         + "  Please run the prebakery first.");
   }
 
-  Commands decodeArgv(Path prebakeDir, Path cwd, String... argv)
-      throws IOException {
+  Commands decodeArgv(Path cwd, String... argv) throws IOException {
     int n = argv.length;
     Command cmd = null;
     if (n != 0) {

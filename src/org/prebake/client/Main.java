@@ -73,7 +73,7 @@ public final class Main {
     int result;
     try {
       Path prebakeDir = bake.findPrebakeDir(cwd);
-      Commands commands = bake.decodeArgv(prebakeDir, cwd, argv);
+      Commands commands = bake.decodeArgv(cwd, argv);
       result = bake.issueCommands(prebakeDir, commands, System.out);
     } catch (IOException ex) {
       ex.printStackTrace();

@@ -29,7 +29,7 @@ import java.util.logging.Logger;
 import java.util.regex.Pattern;
 
 /**
- * A service that services requests by the {@link org.prebake.client.Bake}.
+ * A service that services requests by the {@link org.prebake.client.Main}.
  *
  * @author mikesamuel@gmail.com
  */
