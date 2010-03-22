@@ -24,6 +24,7 @@
     <pathelement path="${third_party}/junit/junit.jar"/>
   </path>
   <path id="classpath.tests.run">
+    <path refid="classpath.tests.compile"/>
     <pathelement path="${lib}"/>
     <pathelement path="${third_party}/junit/junit.jar"/>
   </path>
