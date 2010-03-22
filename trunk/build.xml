@@ -85,12 +85,13 @@
      if="runtests.failure"/>
   </target>
 
-  <target name="docs" description="Builds javadoc documentation.">
+  <target name="docs" description="Builds javadoc documentation."
+   depends="dirs">
     <javadoc sourcepath="${src}" destdir="${docs}" access="private"
      author="true"
      docencoding="utf-8"
      packagenames="org/prebake/*"
-     classpathref="classpath"
+     classpathref="classpath.compile"
      includenosourcepackages="true"
      linksource="yes"/>
   </target>
