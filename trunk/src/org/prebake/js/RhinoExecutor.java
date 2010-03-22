@@ -285,7 +285,20 @@ public final class RhinoExecutor implements Executor {
       this.logger = logger;
     }
 
+    private static boolean requiresFloatingPoint(char ch) {
+      switch (ch) {
+        case 'e': case 'E': case 'f': case 'g': case 'G': case 'a': case 'A':
+          return true;
+        default:
+          return false;
+      }
+    }
+
+    private static final Pattern FORMAT_SPECIFIER = Pattern.compile(
+        "%(?:(?:\\d+\\$)?(?:[\\-#+ 0,(]+)?(?:\\d+)?(?:\\.\\d+)?([a-zA-Z])|%)");
+
     private void log(Level level, String format, Object... args) {
+      char[] fmtChars = null;
       for (int i = args.length; --i >= 0;) {
         Object o = args[i];
         if (o instanceof Double
@@ -293,15 +306,21 @@ public final class RhinoExecutor implements Executor {
           // Convert Doubles to Longs when doing so does not lose information.
           // This solves the problem of console.log("%s", 1) logging "1.0",
           // and fixes "%d".
-          args = args.clone();
-          args[i] = Long.valueOf(((Double) o).longValue());
-          while (--i >= 0) {
-            o = args[i];
-            if (o instanceof Double
-                && ((Double) o).doubleValue() == ((Double) o).longValue()) {
-              args[i] = Long.valueOf(((Double) o).longValue());
+          if (fmtChars == null) {
+            fmtChars = new char[args.length];
+            Matcher m = FORMAT_SPECIFIER.matcher(format);
+            int f = 0;
+            while (m.find() && f < fmtChars.length) {
+              String s = m.group(1);
+              if (s != null) { fmtChars[f++] = s.charAt(0); }
             }
+            System.err.println("fmtChars=" + Arrays.toString(fmtChars));
+            if (requiresFloatingPoint(fmtChars[i])) { continue; }
+            args = args.clone();
+          } else if (requiresFloatingPoint(fmtChars[i])) {
+            continue;
           }
+          args[i] = Long.valueOf(((Double) o).longValue());
         }
       }
       StringBuilder sb = new StringBuilder();

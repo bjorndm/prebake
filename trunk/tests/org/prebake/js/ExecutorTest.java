@@ -161,6 +161,11 @@ public class ExecutorTest extends TestCase {
           + "var x = 2.5;\n"
           + "console.log('x=%.2f', x)",
           "/testConsole.js:2:INFO: x=2.50");
+      assertConsole(
+          ""
+          + "var x = 20;\n"
+          + "console.log('x=%.1f x=%a x=%G x=%+.1e x=%d', x, x, x, x, x)",
+          "/testConsole.js:2:INFO: x=20.0 x=0x1.4p4 x=20.0000 x=+2.0e+01 x=20");
       assertConsole("console.warn('foo')", "/testConsole.js:1:WARNING: foo");
       assertConsole("console.error('foo')", "/testConsole.js:1:SEVERE: foo");
       assertConsole(
@@ -195,7 +200,7 @@ public class ExecutorTest extends TestCase {
           "/testConsole.js:2:INFO: 1",
           "/testConsole.js:3:INFO: Timer foo took <normalized>ns");
 
-      // console.assert
+      // TEST console.assert, profile, profileEnd, etc.
     } finally {
       Locale.setDefault(defaultLocale);
     }

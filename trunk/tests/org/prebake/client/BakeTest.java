@@ -41,7 +41,7 @@ public class BakeTest extends TestCase {
         .expectConnClosed();
   }
 
-  public final void testNoPrebakeDir() throws IOException {
+  public final void testNoPrebakeDir() {
     try {
       new BakeTestRunner()
           .withCwd("/foo/bar/baz/boo")
@@ -77,7 +77,7 @@ public class BakeTest extends TestCase {
         .expectConnClosed();
   }
 
-  public final void testMalformedArgv() throws IOException {
+  public final void testMalformedArgv() {
     try {
       new BakeTestRunner()
           .withCwd("/foo/bar/baz/boo")
@@ -296,17 +296,16 @@ public class BakeTest extends TestCase {
 
     BakeTestRunner withArgv(String... argv) throws IOException {
       this.prebakeDir = bake.findPrebakeDir(this.cwd);
-      this.commands = bake.decodeArgv(prebakeDir, cwd, argv);
+      this.commands = bake.decodeArgv(cwd, argv);
       return this;
     }
 
-    BakeTestRunner expectSleep(int millis, boolean interrupted)
-        throws IOException {
+    BakeTestRunner expectSleep(int millis, boolean interrupted) {
       expectations.add(new Expectation("sleep", millis, !interrupted));
       return this;
     }
 
-    BakeTestRunner expectConnect(int port, boolean fails) throws IOException {
+    BakeTestRunner expectConnect(int port, boolean fails) {
       expectations.add(new Expectation("conn", port, !fails));
       return this;
     }
@@ -337,7 +336,7 @@ public class BakeTest extends TestCase {
       return this;
      }
 
-    BakeTestRunner expectResult(int result) throws IOException {
+    BakeTestRunner expectResult(int result) {
       assertEquals(result, this.result);
       assertTrue(expectations.toString(), expectations.isEmpty());
       return this;
