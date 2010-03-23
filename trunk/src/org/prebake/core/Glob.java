@@ -173,19 +173,11 @@ public final class Glob implements Comparable<Glob> {
 
   @Override
   public boolean equals(Object o) {
-    if (!(o instanceof Glob)) { return false; }
-    Glob that = (Glob) o;
-    return Arrays.equals(this.parts, that.parts);
+    return o instanceof Glob && Arrays.equals(this.parts, ((Glob) o).parts);
   }
 
   @Override
-  public int hashCode() {
-    int hc = 0;
-    for (String part : parts) {
-      hc = hc * 31 + part.hashCode();
-    }
-    return hc;
-  }
+  public int hashCode() { return Arrays.hashCode(parts); }
 
   public List<String> parts() {
     return Collections.unmodifiableList(Arrays.asList(parts));

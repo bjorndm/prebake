@@ -3,6 +3,7 @@ package org.prebake.service;
 import org.prebake.channel.JsonSink;
 import org.prebake.core.DidYouMean;
 import org.prebake.core.MessageQueue;
+import org.prebake.util.CommandLineArgs;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
@@ -66,55 +67,36 @@ final class CommandLineConfig implements Config {
     FlagName(String flag) { this.flag = flag; }
   }
 
-  CommandLineConfig(FileSystem fs, MessageQueue mq, String... argv) {
+  CommandLineConfig(FileSystem fs, MessageQueue mq, CommandLineArgs args) {
     this.fs = fs;
     {
-      int argi;
-      int argc = argv.length;
       Path clientRoot = null;
       Pattern ignorePattern = null;
       Integer umask = null;
       Set<Path> planFiles = Sets.newLinkedHashSet();
       List<Path> toolDirs = Lists.newArrayList();
-      for (argi = 0; argi < argc; ++argi) {
-        String arg = argv[argi];
-        if (!arg.startsWith("-")) { break; }
-        if ("--".equals(arg)) {
-          ++argi;
-          break;
-        }
-        int eq = arg.indexOf('=');
-        String value;
-        if (eq >= 0) {
-          value = arg.substring(eq + 1);
-          arg = arg.substring(0, eq);
-        } else if (argi + 1 < argc) {
-          value = argv[++argi];
-        } else {
-          mq.error("No value for arg " + arg);
-          break;
-        }
+      for (CommandLineArgs.Flag flag : args.getFlags()) {
         FlagName name = null;
         for (FlagName fn : FlagName.values()) {
-          if (fn.flag.equals(arg)) { name = fn; }
+          if (fn.flag.equals(flag.name)) { name = fn; }
         }
         if (name != null) {
           switch (name)  {
             case ROOT:
               if (clientRoot == null) {
                 try {
-                  clientRoot = fs.getPath(value).toRealPath(false);
+                  clientRoot = fs.getPath(flag.value).toRealPath(false);
                 } catch (IOException ex) {
-                  mq.error("Bad root " + value);
+                  mq.error("Bad root " + flag.value);
                 }
               } else {
-                mq.error("Dupe arg " + arg);
+                mq.error("Dupe arg " + flag.name);
               }
               break;
             case IGNORE:
               if (ignorePattern == null) {
                 try {
-                  ignorePattern = Pattern.compile(value, Pattern.DOTALL);
+                  ignorePattern = Pattern.compile(flag.value, Pattern.DOTALL);
                 } catch (PatternSyntaxException ex) {
                   String msg = ex.getMessage();
                   mq.error(msg);
@@ -124,22 +106,24 @@ final class CommandLineConfig implements Config {
                   }
                 }
               } else {
-                mq.error("Dupe arg " + arg);
+                mq.error("Dupe arg " + flag.name);
               }
               break;
             case UMASK:
               if (umask == null) {
                 try {
-                  umask = Integer.valueOf(value, 8);
+                  umask = Integer.valueOf(flag.value, 8);
                 } catch (NumberFormatException ex) {
-                  mq.error("umask " + value + " is not a valid octal number");
+                  mq.error(
+                      "umask " + flag.value + " is not a valid octal number");
                 }
               } else {
-                mq.error("Dupe arg " + arg);
+                mq.error("Dupe arg " + flag.name);
               }
               break;
             case TOOLS:
-              for (String d : value.split(Pattern.quote(getPathSeparator()))) {
+              String pathSeparatorRegex = Pattern.quote(getPathSeparator());
+              for (String d : flag.value.split(pathSeparatorRegex)) {
                 if (!"".equals(d)) {
                   Path p = fs.getPath(d);
                   try {
@@ -155,7 +139,7 @@ final class CommandLineConfig implements Config {
                 }
               }
               break;
-            default: throw new RuntimeException(arg);
+            default: throw new RuntimeException(flag.name);
           }
         } else {
           FlagName[] flagNames = FlagName.values();
@@ -163,13 +147,14 @@ final class CommandLineConfig implements Config {
           for (int i = flags.length; --i >= 0;) {
             flags[i] = flagNames[i].flag;
           }
-          DidYouMean.toMessageQueue("Unrecognized flag " + arg, arg, mq, flags);
+          DidYouMean.toMessageQueue(
+              "Unrecognized flag " + flag.name, flag.name, mq, flags);
         }
       }
-      if (argi < argc) {
-        for (; argi < argc; ++argi) {
-          String arg = argv[argi];
-          Path p = fs.getPath(arg);
+      List<String> values = args.getValues();
+      if (!values.isEmpty()) {
+        for (String value : values) {
+          Path p = fs.getPath(value);
           try {
             p = p.toRealPath(false);
             if (!planFiles.add(p)) {

@@ -1,6 +1,9 @@
 package org.prebake.client;
 
 import org.prebake.channel.Commands;
+import org.prebake.util.CommandLineArgs;
+
+import com.google.common.base.Joiner;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -9,11 +12,11 @@ import java.net.InetAddress;
 import java.net.Socket;
 import java.nio.file.FileSystems;
 import java.nio.file.Path;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
- * Wires the bake command to the file system and network.
+ * An executable class that wires the bake command to the file system and
+ * network.
  *
  * @author mikesamuel@gmail.com
  */
@@ -21,22 +24,24 @@ public final class Main {
 
   public static void main(String... argv) {
     Logger logger = Logger.getLogger(Main.class.getName());
-    {
-      int i = 0;
-      for (int n = argv.length; i < n; ++i) {
-        String arg = argv[i];
-        if ("-v".equals(arg)) {
-          logger.setLevel(Level.FINE);
-        } else if ("--logLevel".equals(arg)) {
-          logger.setLevel(Level.parse(argv[++i]));
-        } else {
-          break;
-        }
-        // TODO: dump usage and exit on -?, -h, etc.
+    CommandLineArgs args = new CommandLineArgs(argv);
+    if (!CommandLineArgs.setUpLogger(args, logger)) {
+      System.out.println(USAGE);
+      System.exit(0);
+    }
+
+    if (!args.getFlags().isEmpty()
+        || !args.getValues().isEmpty()) {
+      System.err.println(USAGE);
+      if (!args.getFlags().isEmpty()) {
+        System.err.println(
+            "Unused flags : " + Joiner.on(' ').join(args.getFlags()));
       }
-      String[] unusedArgv = new String[argv.length - i];
-      System.arraycopy(argv, i, unusedArgv, 0, unusedArgv.length);
-      argv = unusedArgv;
+      if (!args.getValues().isEmpty()) {
+        System.err.println(
+            "Unused values : " + Joiner.on(' ').join(args.getValues()));
+      }
+      System.exit(-1);
     }
 
     Bake bake = new Bake(logger) {
@@ -81,4 +86,14 @@ public final class Main {
     }
     System.exit(result);
   }
+
+  public static final String USAGE = (
+      ""
+      + "bake [-v | -vv | -q | -qq | --logLevel=<level]\n"
+      + "\n"
+      + "    -qq         extra quiet : errors only\n"
+      + "    -q          quiet : warnings and errors only\n"
+      + "    -v          verbose\n"
+      + "    -vv         extra verbose\n"
+      + "    --logLevel  see java.util.logging.Level for value names");
 }

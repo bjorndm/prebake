@@ -1,6 +1,7 @@
 package org.prebake.service;
 
 import org.prebake.core.MessageQueue;
+import org.prebake.util.CommandLineArgs;
 
 import com.google.common.base.Joiner;
 
@@ -200,7 +201,7 @@ public class CommandLineConfigTest extends TestCase {
 
   public final void testMisspelledParams() throws IOException {
     assertConfig(
-        new String[] { "-root", "project" },
+        new String[] { "-root=project" },
         false,
         "Unrecognized flag -root. Did you mean \"--root\"?",
         "Please specify --root");
@@ -220,7 +221,8 @@ public class CommandLineConfigTest extends TestCase {
     fs.getPath("/foo/bar/project/src/main.cc").createFile();
     fs.getPath("/foo/bar/project/src/main.h").createFile();
 
-    CommandLineConfig config = new CommandLineConfig(fs, mq, argv);
+    CommandLineConfig config = new CommandLineConfig(
+        fs, mq, new CommandLineArgs(argv));
     assertEquals(Joiner.on('\n').join(msgs),
                  Joiner.on('\n').join(mq.getMessages()));
     assertEquals(ok, !mq.hasErrors());
