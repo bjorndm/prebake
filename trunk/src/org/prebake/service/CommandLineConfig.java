@@ -4,6 +4,11 @@ import org.prebake.channel.JsonSink;
 import org.prebake.core.DidYouMean;
 import org.prebake.core.MessageQueue;
 
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
+
 import java.io.IOException;
 import java.nio.file.AccessMode;
 import java.nio.file.FileSystem;
@@ -11,9 +16,6 @@ import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.attribute.Attributes;
 import java.nio.file.attribute.BasicFileAttributes;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.regex.Pattern;
@@ -28,8 +30,8 @@ final class CommandLineConfig implements Config {
   private final FileSystem fs;
   private final Path clientRoot;
   private final Pattern ignorePattern;
-  private final Set<Path> planFiles = new LinkedHashSet<Path>();
-  private final List<Path> toolDirs = new ArrayList<Path>();
+  private final Set<Path> planFiles;
+  private final List<Path> toolDirs;
   private final int umask;
 
   private static final short DEFAULT_UMASK = 0x1a0 /* octal 0640 */;
@@ -72,6 +74,8 @@ final class CommandLineConfig implements Config {
       Path clientRoot = null;
       Pattern ignorePattern = null;
       Integer umask = null;
+      Set<Path> planFiles = Sets.newLinkedHashSet();
+      List<Path> toolDirs = Lists.newArrayList();
       for (argi = 0; argi < argc; ++argi) {
         String arg = argv[argi];
         if (!arg.startsWith("-")) { break; }
@@ -178,6 +182,8 @@ final class CommandLineConfig implements Config {
       } else if (clientRoot != null) {
         planFiles.add(clientRoot.resolve("recipe.js"));
       }
+      this.planFiles = ImmutableSet.copyOf(planFiles);
+      this.toolDirs = ImmutableList.copyOf(toolDirs);
       this.clientRoot = clientRoot;
       this.ignorePattern = ignorePattern;
       this.umask = umask != null ? umask.intValue() : DEFAULT_UMASK;
@@ -233,7 +239,7 @@ final class CommandLineConfig implements Config {
   }
 
   public static String toArgv(Config config) {
-    List<String> argv = new ArrayList<String>();
+    List<String> argv = Lists.newArrayList();
     Path root = config.getClientRoot();
     if (root != null) {
       argv.add(FlagName.ROOT.flag);
@@ -283,13 +289,9 @@ final class CommandLineConfig implements Config {
 
   public Pattern getIgnorePattern() { return ignorePattern; }
 
-  public Set<Path> getPlanFiles() {
-    return Collections.unmodifiableSet(planFiles);
-  }
+  public Set<Path> getPlanFiles() { return planFiles; }
 
-  public List<Path> getToolDirs() {
-    return Collections.unmodifiableList(toolDirs);
-  }
+  public List<Path> getToolDirs() { return toolDirs; }
 
   public int getUmask() { return umask; }
 

@@ -15,13 +15,13 @@ import java.nio.file.Path;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.nio.file.attribute.FileAttribute;
 import java.nio.file.attribute.PosixFilePermissions;
-import java.util.Arrays;
-import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
 
 import org.prebake.service.StubFileSystemProvider;
+
+import com.google.common.collect.Sets;
 
 import junit.framework.TestCase;
 
@@ -114,8 +114,8 @@ public class DirectoryHooksTest extends TestCase {
   private static void assertChanged(
       BlockingQueue<Path> q, int delayMillis, Path... expected)
       throws InterruptedException {
-    Set<Path> golden = new HashSet<Path>(Arrays.asList(expected));
-    Set<Path> actual = new HashSet<Path>();
+    Set<Path> golden = Sets.newHashSet(expected);
+    Set<Path> actual = Sets.newHashSet();
     long t = System.currentTimeMillis();
     long te = t + delayMillis;
     do {

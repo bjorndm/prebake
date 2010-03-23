@@ -3,13 +3,12 @@ package org.prebake.service;
 import org.prebake.channel.Command;
 import org.prebake.channel.JsonSource;
 
+import com.google.common.collect.ImmutableSet;
+
 import java.io.IOException;
 import java.io.StringReader;
 import java.net.URI;
 import java.nio.file.FileSystem;
-import java.nio.file.Path;
-import java.util.Arrays;
-import java.util.LinkedHashSet;
 
 import junit.framework.TestCase;
 
@@ -26,24 +25,23 @@ public class CommandTest extends TestCase {
   protected void tearDown() { fs = null; }
 
   public final void testBuildCommand() throws IOException {
-    Command.BuildCommand c = new Command.BuildCommand(
-        new LinkedHashSet<String>(Arrays.asList("foo", "bar")));
+    Command.BuildCommand c = new Command.BuildCommand(ImmutableSet.of(
+        "foo", "bar"));
     assertEquals("[\"build\",{},\"foo\",\"bar\"]", c.toString());
     reparse(c);
   }
 
   public final void testFilesChangedCommand() throws IOException {
     Command.FilesChangedCommand c = new Command.FilesChangedCommand(
-        new LinkedHashSet<Path>(Arrays.asList(
-            fs.getPath("/foo/bar/baz"), fs.getPath("/boo"))));
+        ImmutableSet.of(fs.getPath("/foo/bar/baz"), fs.getPath("/boo")));
     assertEquals(
         "[\"files_changed\",{},\"/foo/bar/baz\",\"/boo\"]", c.toString());
     reparse(c);
   }
 
   public final void testGraphCommand() throws IOException {
-    Command.GraphCommand c = new Command.GraphCommand(
-        new LinkedHashSet<String>(Arrays.asList("foo", "bar")));
+    Command.GraphCommand c = new Command.GraphCommand(ImmutableSet.of(
+        "foo", "bar"));
     assertEquals("[\"graph\",{},\"foo\",\"bar\"]", c.toString());
     reparse(c);
   }
@@ -56,8 +54,8 @@ public class CommandTest extends TestCase {
   }
 
   public final void testPlanCommand() throws IOException {
-    Command.PlanCommand c = new Command.PlanCommand(
-        new LinkedHashSet<String>(Arrays.asList("bar", "foo")));
+    Command.PlanCommand c = new Command.PlanCommand(ImmutableSet.of(
+        "bar", "foo"));
     assertEquals("[\"plan\",{},\"bar\",\"foo\"]", c.toString());
     reparse(c);
   }

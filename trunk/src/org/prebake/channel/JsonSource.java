@@ -1,12 +1,13 @@
 package org.prebake.channel;
 
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+
 import java.io.Closeable;
 import java.io.IOException;
 import java.io.Reader;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
@@ -105,7 +106,7 @@ public final class JsonSource implements Closeable {
       json = sb.toString();
     }
     Matcher m = REGEX_TOKENS.matcher(json);
-    List<String> toks = new ArrayList<String>();
+    List<String> toks = Lists.newArrayList();
     int last = 0;
     while (m.find()) {
       String s = m.group();
@@ -152,7 +153,7 @@ public final class JsonSource implements Closeable {
 
   public List<Object> nextArray() throws IOException {
     expect("[");
-    List<Object> els = new ArrayList<Object>();
+    List<Object> els = Lists.newArrayList();
     if (!check("]")) {
       do {
         els.add(nextValue());
@@ -164,7 +165,7 @@ public final class JsonSource implements Closeable {
 
   public Map<String, Object> nextObject() throws IOException {
     expect("{");
-    Map<String, Object> els = new LinkedHashMap<String, Object>();
+    Map<String, Object> els = Maps.newLinkedHashMap();
     if (!check("}")) {
       do {
         String key = expectString();

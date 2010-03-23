@@ -3,6 +3,8 @@ package org.prebake.client;
 import org.prebake.channel.Commands;
 import org.prebake.service.StubFileSystemProvider;
 
+import com.google.common.collect.Lists;
+
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.FileNotFoundException;
@@ -15,9 +17,7 @@ import java.net.URISyntaxException;
 import java.nio.file.FileSystem;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.logging.Logger;
 
@@ -180,7 +180,7 @@ public class BakeTest extends TestCase {
     final String type;
     final Object value;
     final Object result;
-    final List<Action> actions = new ArrayList<Action>();
+    final List<Action> actions = Lists.newArrayList();
 
     Expectation(String type, Object value, Object result) {
       this.type = type;
@@ -194,8 +194,7 @@ public class BakeTest extends TestCase {
   }
 
   private final class BakeTestRunner {
-    private final List<Expectation> expectations
-        = new LinkedList<Expectation>();
+    private final List<Expectation> expectations = Lists.newLinkedList();
     private Path cwd;
     private Path prebakeDir;
     private Commands commands;

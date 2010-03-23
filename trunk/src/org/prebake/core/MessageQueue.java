@@ -1,6 +1,7 @@
 package org.prebake.core;
 
-import java.util.ArrayList;
+import com.google.common.collect.Lists;
+
 import java.util.List;
 
 public class MessageQueue {
@@ -12,7 +13,7 @@ public class MessageQueue {
     this.messages = messages;
   }
 
-  public MessageQueue() { this(new ArrayList<String>()); }
+  public MessageQueue() { this(Lists.<String>newArrayList()); }
 
   public void error(String message) {
     this.hasErrors = true;

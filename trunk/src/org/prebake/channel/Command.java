@@ -2,13 +2,16 @@ package org.prebake.channel;
 
 import org.prebake.core.DidYouMean;
 
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
+
 import java.io.IOException;
 import java.nio.file.FileSystem;
 import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
-import java.util.ArrayList;
 import java.util.Collections;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -27,9 +30,9 @@ public abstract class Command {
 
   public static final List<String> VERB_NAMES;
   static {
-    List<String> names = new ArrayList<String>();
+    ImmutableList.Builder<String> names = ImmutableList.builder();
     for (Verb v : Verb.values()) { names.add(v.name()); }
-    VERB_NAMES = Collections.unmodifiableList(names);
+    VERB_NAMES = names.build();
   }
 
   public final Verb verb;
@@ -49,7 +52,7 @@ public abstract class Command {
     }
     src.expect(",");
     /*Map<String, Object> options =*/ src.nextObject();
-    List<Object> args = new ArrayList<Object>();
+    List<Object> args = Lists.newArrayList();
     while (src.check(",")) {
       args.add(src.nextValue());
     }
@@ -78,7 +81,7 @@ public abstract class Command {
   public Map<String, ?> getOptions() {
     return Collections.<String, Object>emptyMap();
   }
-  public List<?> getParams() { return Collections.emptyList(); }
+  public Iterable<?> getParams() { return Collections.emptyList(); }
 
   @Override
   public String toString() {
@@ -92,7 +95,7 @@ public abstract class Command {
   }
 
   private static Set<String> toProducts(List<?> json) throws IOException {
-    Set<String> products = new LinkedHashSet<String>();
+    Set<String> products = Sets.newLinkedHashSet();
     for (Object o : json) {
       if (o == null) { throw new IOException("Null product"); }
       if (!(o instanceof String)) {
@@ -105,7 +108,7 @@ public abstract class Command {
 
   private static Set<Path> toPaths(List<?> json, FileSystem fs)
       throws IOException {
-    Set<Path> paths = new LinkedHashSet<Path>();
+    Set<Path> paths = Sets.newLinkedHashSet();
     for (Object o : json) {
       if (o == null) { throw new IOException("Null path"); }
       if (!(o instanceof String)) {
@@ -125,14 +128,10 @@ public abstract class Command {
 
     public BuildCommand(Set<String> products) {
       super(Verb.build);
-      this.products = Collections.unmodifiableSet(
-          new LinkedHashSet<String>(products));
+      this.products = ImmutableSet.copyOf(products);
     }
 
-    @Override
-    public List<?> getParams() {
-      return new ArrayList<String>(products);
-    }
+    @Override public Iterable<?> getParams() { return products; }
   }
 
   public static final class FilesChangedCommand extends Command {
@@ -140,13 +139,12 @@ public abstract class Command {
 
     public FilesChangedCommand(Set<Path> paths) {
       super(Verb.files_changed);
-      this.paths = Collections.unmodifiableSet(
-          new LinkedHashSet<Path>(paths));
+      this.paths = ImmutableSet.copyOf(paths);
     }
 
     @Override
-    public List<String> getParams() {
-      List<String> params = new ArrayList<String>();
+    public Iterable<String> getParams() {
+      List<String> params = Lists.newArrayList();
       for (Path p : paths) { params.add(p.toString()); }
       return params;
     }
@@ -157,14 +155,11 @@ public abstract class Command {
 
     public GraphCommand(Set<String> products) {
       super(Verb.graph);
-      this.products = Collections.unmodifiableSet(
-          new LinkedHashSet<String>(products));
+      this.products = ImmutableSet.copyOf(products);
     }
 
     @Override
-    public List<?> getParams() {
-      return new ArrayList<String>(products);
-    }
+    public Iterable<?> getParams() { return products; }
   }
 
   public static final class HandshakeCommand extends Command {
@@ -176,7 +171,7 @@ public abstract class Command {
     }
 
     @Override
-    public List<String> getParams() {
+    public Iterable<String> getParams() {
       return Collections.singletonList(token);
     }
   }
@@ -186,14 +181,11 @@ public abstract class Command {
 
     public PlanCommand(Set<String> products) {
       super(Verb.plan);
-      this.products = Collections.unmodifiableSet(
-          new LinkedHashSet<String>(products));
+      this.products = ImmutableSet.copyOf(products);
     }
 
     @Override
-    public List<?> getParams() {
-      return new ArrayList<String>(products);
-    }
+    public Iterable<?> getParams() { return products; }
   }
 
   public static final class ShutdownCommand extends Command {

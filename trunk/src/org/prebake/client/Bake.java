@@ -7,6 +7,8 @@ import org.prebake.channel.JsonSink;
 import org.prebake.channel.JsonSource;
 import org.prebake.service.Prebakery;
 
+import com.google.common.collect.Lists;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -16,7 +18,6 @@ import java.io.Reader;
 import java.io.StringReader;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.logging.Level;
@@ -73,7 +74,7 @@ abstract class Bake {
           new JsonSource(new StringReader(sb.toString())), cwd.getFileSystem());
     }
 
-    List<Command> commands = new ArrayList<Command>();
+    List<Command> commands = Lists.newArrayList();
     if (isSubList(Arrays.asList(/*bake*/ "me", "a", "pie"),
                   Arrays.asList(argv))) {
       logger.log(Level.INFO, "Killing Kenny and restarting",
@@ -161,7 +162,7 @@ abstract class Bake {
     logger.log(Level.FINER, "Reading token file {0}", tokenFile);
     String token = read(tokenFile);
     {
-      List<Command> commandList = new ArrayList<Command>();
+      List<Command> commandList = Lists.newArrayList();
       commandList.add(new Command.HandshakeCommand(token));
       for (Command command : commands) { commandList.add(command); }
       commands = Commands.valueOf(commandList);

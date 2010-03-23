@@ -1,6 +1,7 @@
 package org.prebake.core;
 
-import java.util.ArrayList;
+import com.google.common.collect.Lists;
+
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -237,7 +238,7 @@ public final class Glob implements Comparable<Glob> {
       if (j < n) {
         b = q[j];
       } else if (alen == 0) {
-        return new ArrayList<String>(i + j);  // Success
+        return Lists.newArrayListWithCapacity(i + j);  // Success
       } else {
         b = "";
       }
