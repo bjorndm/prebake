@@ -2,10 +2,11 @@ package org.prebake.service;
 
 import org.prebake.core.MessageQueue;
 
+import com.google.common.base.Joiner;
+
 import java.io.IOException;
 import java.net.URI;
 import java.nio.file.FileSystem;
-import java.util.Arrays;
 import java.util.regex.Pattern;
 
 import junit.framework.TestCase;
@@ -220,26 +221,9 @@ public class CommandLineConfigTest extends TestCase {
     fs.getPath("/foo/bar/project/src/main.h").createFile();
 
     CommandLineConfig config = new CommandLineConfig(fs, mq, argv);
-    assertEquals(join("\n", msgs), join("\n", mq.getMessages()));
+    assertEquals(Joiner.on('\n').join(msgs),
+                 Joiner.on('\n').join(mq.getMessages()));
     assertEquals(ok, !mq.hasErrors());
     return config;
-  }
-
-  private static String join(String sep, String... els) {
-    return join(sep, Arrays.asList(els));
-  }
-
-  private static String join(String sep, Iterable<?> els) {
-    StringBuilder sb = new StringBuilder();
-    boolean first = true;
-    for (Object o : els) {
-      if (first) {
-        first = false;
-      } else {
-        sb.append(sep);
-      }
-      sb.append(o);
-    }
-    return sb.toString();
   }
 }

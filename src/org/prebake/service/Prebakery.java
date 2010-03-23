@@ -5,6 +5,9 @@ import org.prebake.channel.Commands;
 import org.prebake.channel.FileNames;
 import org.prebake.fs.DirectoryHooks;
 
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Lists;
 import com.sleepycat.je.Environment;
 
 import java.io.Closeable;
@@ -18,9 +21,6 @@ import java.io.Writer;
 import java.nio.file.FileSystem;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.BlockingQueue;
@@ -152,7 +152,7 @@ public abstract class Prebakery implements Closeable {
     pathConsumer = new Consumer<Path>(hooks.getUpdates()) {
       @Override
       protected void consume(BlockingQueue<? extends Path> q, Path x) {
-        List<Path> updates = new ArrayList<Path>();
+        List<Path> updates = Lists.newArrayList();
         updates.add(x);
         q.drainTo(updates, 64);
         fileHashes.update(updates);
@@ -199,10 +199,8 @@ public abstract class Prebakery implements Closeable {
     final Path clientRoot = config.getClientRoot();
     final Pattern ignorePattern = config.getIgnorePattern();
     final String pathSep = config.getPathSeparator();
-    final Set<Path> planFiles = Collections.unmodifiableSet(
-        new LinkedHashSet<Path>(config.getPlanFiles()));
-    final List<Path> toolDirs = Collections.unmodifiableList(
-        new ArrayList<Path>(config.getToolDirs()));
+    final Set<Path> planFiles = ImmutableSet.copyOf(config.getPlanFiles());
+    final List<Path> toolDirs = ImmutableList.copyOf(config.getToolDirs());
     final int umask = config.getUmask();
     return new Config() {
       public Path getClientRoot() { return clientRoot; }

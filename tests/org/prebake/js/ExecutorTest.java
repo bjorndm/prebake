@@ -1,7 +1,9 @@
 package org.prebake.js;
 
-import org.mozilla.javascript.Undefined;
 import org.prebake.service.StubFileSystemProvider;
+
+import com.google.common.base.Joiner;
+import com.google.common.collect.Lists;
 
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -14,10 +16,7 @@ import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.text.MessageFormat;
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
 import java.util.logging.Handler;
@@ -26,6 +25,8 @@ import java.util.logging.LogRecord;
 import java.util.logging.Logger;
 
 import junit.framework.TestCase;
+
+import org.mozilla.javascript.Undefined;
 
 public class ExecutorTest extends TestCase {
   public final void testResult() throws Exception {
@@ -282,7 +283,7 @@ public class ExecutorTest extends TestCase {
 
   private void assertConsole(Level lvl, String src, String... logStmts)
       throws Exception {
-    final List<String> actualLog = new ArrayList<String>();
+    final List<String> actualLog = Lists.newArrayList();
     Handler handler = new Handler() {
       List<String> log = actualLog;
 
@@ -320,18 +321,8 @@ public class ExecutorTest extends TestCase {
       logger.removeHandler(handler);
     }
     assertEquals(
-        src, join("\n", Arrays.asList(logStmts)),
-        join("\n", actualLog).replaceAll(
+        src, Joiner.on('\n').join(logStmts),
+        Joiner.on('\n').join(actualLog).replaceAll(
             "(:INFO: Timer \\w+ took )\\d+(ns)$", "$1<normalized>$2"));
-  }
-
-  private static String join(String sep, Iterable<?> coll) {
-    StringBuilder sb = new StringBuilder();
-    Iterator<?> it = coll.iterator();
-    if (it.hasNext()) {
-      sb.append(it.next());
-      while (it.hasNext()) { sb.append(sep).append(it.next()); }
-    }
-    return sb.toString();
   }
 }

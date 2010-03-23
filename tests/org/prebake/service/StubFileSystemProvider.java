@@ -1,5 +1,12 @@
 package org.prebake.service;
 
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
+
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.FileNotFoundException;
@@ -36,15 +43,11 @@ import java.nio.file.attribute.FileAttributeView;
 import java.nio.file.attribute.FileTime;
 import java.nio.file.attribute.UserPrincipalLookupService;
 import java.nio.file.spi.FileSystemProvider;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.ConcurrentModificationException;
 import java.util.EnumSet;
-import java.util.HashMap;
 import java.util.Iterator;
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
@@ -56,7 +59,7 @@ import java.util.regex.Pattern;
 
 public class StubFileSystemProvider extends FileSystemProvider {
   final Map<String, MemFileSystem> cwdToFs = Collections.synchronizedMap(
-      new HashMap<String, MemFileSystem>());
+      Maps.<String, MemFileSystem>newHashMap());
   final String scheme;
 
   public StubFileSystemProvider(String scheme) { this.scheme = scheme; }
@@ -362,8 +365,8 @@ class MemPath extends Path {
     int n = p.parts.length;
     int m = parts.length;
     if (m < n) { return false; }
-    return Arrays.asList(p.parts)
-        .equals(Arrays.asList(parts).subList(m - n, m));
+    return Arrays.asList(p.parts).equals(
+        Arrays.asList(parts).subList(m - n, m));
   }
 
   @Override
@@ -427,9 +430,7 @@ class MemPath extends Path {
 
   @Override
   public SeekableByteChannel newByteChannel(OpenOption... options) {
-    return newByteChannel(
-        new LinkedHashSet<OpenOption>(Arrays.asList(options)),
-        new FileAttribute<?>[0]);
+    return newByteChannel(ImmutableSet.of(options), new FileAttribute<?>[0]);
   }
 
   @Override
@@ -455,7 +456,7 @@ class MemPath extends Path {
 
   @Override
   public Path normalize() {
-    List<String> norm = new ArrayList<String>();
+    List<String> norm = Lists.newArrayList();
     for (String part : parts) {
       if (".".equals(part)) { continue; }
       if ("..".equals(part)) {
@@ -543,7 +544,7 @@ class MemPath extends Path {
 
   public Map<String, ?> readAttributes(String attributes, LinkOption... options)
       throws IOException {
-    Map<String, Object> attrs = new LinkedHashMap<String, Object>();
+    ImmutableMap.Builder<String, Object> attrs = ImmutableMap.builder();
     for (String attr : attributes.split(",")) {
       if ("*".equals(attr)) {
         return readAttributes(
@@ -551,7 +552,7 @@ class MemPath extends Path {
       }
       attrs.put(attr, getAttribute(attr, options));
     }
-    return attrs;
+    return attrs.build();
   }
 
   public void setAttribute(
@@ -796,7 +797,7 @@ class MemFileSystem extends FileSystem {
 
       public Iterator<Path> iterator() {
         if (node == null) { throw new IllegalStateException(); }
-        final Iterator<String> it = new ArrayList<String>(
+        final Iterator<String> it = ImmutableList.copyOf(
             node.getChildren().keySet()).iterator();
         return new Iterator<Path>() {
           Path pending = null;
@@ -924,7 +925,7 @@ class StubWatchKey extends WatchKey {
   final Node n;
   final StubWatchService ws;
   final Map<String, Set<WatchEvent.Kind<Path>>> events
-      = new LinkedHashMap<String, Set<WatchEvent.Kind<Path>>>();
+      = Maps.newLinkedHashMap();
   boolean valid = true;
 
   StubWatchKey(Node n, StubWatchService ws) {
@@ -944,7 +945,7 @@ class StubWatchKey extends WatchKey {
 
   @Override
   public List<WatchEvent<?>> pollEvents() {
-    List<WatchEvent<?>> eventList = new ArrayList<WatchEvent<?>>();
+    ImmutableList.Builder<WatchEvent<?>> eventList = ImmutableList.builder();
     synchronized (events) {
       for (Map.Entry<String,Set<WatchEvent.Kind<Path>>> e : events.entrySet()) {
         final String name = e.getKey();
@@ -962,7 +963,7 @@ class StubWatchKey extends WatchKey {
         }
       }
     }
-    return eventList;
+    return eventList.build();
   }
 
   @Override
@@ -980,7 +981,7 @@ class StubWatchKey extends WatchKey {
       boolean enqueue =  events.isEmpty();
       Set<WatchEvent.Kind<Path>> kinds = events.get(name);
       if (kinds == null) {
-        events.put(name, kinds = new LinkedHashSet<WatchEvent.Kind<Path>>());
+        events.put(name, kinds = Sets.newLinkedHashSet());
       }
       kinds.add(k);
       if (enqueue) {
@@ -1006,9 +1007,9 @@ final class Node {
   Node(String name, Node parent, boolean isDir) {
     this.name = name;
     if (isDir) {
-      children = new LinkedHashMap<String, Node>();
+      children = Maps.newLinkedHashMap();
       content = null;
-      watchers = new ArrayList<StubWatchKey>();
+      watchers = Lists.newArrayList();
     } else {
       children = null;
       content = new ByteArrayOutputStream();

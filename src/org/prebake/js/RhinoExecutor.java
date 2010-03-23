@@ -1,16 +1,19 @@
 package org.prebake.js;
 
+import com.google.common.base.Predicate;
+import com.google.common.base.Predicates;
+import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
+
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.Reader;
 import java.net.URI;
 import java.nio.file.Path;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Formatter;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -34,7 +37,6 @@ import org.mozilla.javascript.Scriptable;
 import org.mozilla.javascript.ScriptableObject;
 import org.mozilla.javascript.WrapFactory;
 import org.mozilla.javascript.WrappedException;
-import org.prebake.core.Predicate;
 
 /**
  * Do not instantiate directly.  Use {@link Executor.Factory} instead.
@@ -48,35 +50,33 @@ public final class RhinoExecutor implements Executor {
 
   public RhinoExecutor(Executor.Input[] srcs) { this.srcs = srcs.clone(); }
 
-  private static final Set<String> OBJECT_CLASS_MEMBERS = new HashSet<String>(
-      Arrays.asList(
-          // We allow toString since that is part of JS as well, typically has
-          // no side effect, and returns a JS primitive type.
-          "class", "clone", "equals", "finalize", "getClass", "hashCode",
-          "notify", "notifyAll", "wait"));
+  private static final Set<String> OBJECT_CLASS_MEMBERS = ImmutableSet.of(
+      // We allow toString since that is part of JS as well, typically has
+      // no side effect, and returns a JS primitive type.
+      "class", "clone", "equals", "finalize", "getClass", "hashCode",
+      "notify", "notifyAll", "wait");
 
-  private static final Set<String> CLASS_WHITELIST = new HashSet<String>(
-      Arrays.asList(
-          Boolean.class.getName(),
-          ByteArrayInputStream.class.getName(),
-          Character.class.getName(),
-          Double.class.getName(),
-          EcmaError.class.getName(),
-          EvaluatorException.class.getName(),
-          Float.class.getName(),
-          Integer.class.getName(),
-          JavaScriptException.class.getName(),
-          Long.class.getName(),
-          RhinoException.class.getName(),
-          Short.class.getName(),
-          String.class.getName(),
-          URI.class.getName(),
-          WrappedException.class.getName(),
-          // Provided extensions.
-          Console.class.getName(),
-          NonDeterminismRecorder.class.getName(),
-          LoadFn.class.getName()
-          ));
+  private static final Set<String> CLASS_WHITELIST = ImmutableSet.of(
+      Boolean.class.getName(),
+      ByteArrayInputStream.class.getName(),
+      Character.class.getName(),
+      Double.class.getName(),
+      EcmaError.class.getName(),
+      EvaluatorException.class.getName(),
+      Float.class.getName(),
+      Integer.class.getName(),
+      JavaScriptException.class.getName(),
+      Long.class.getName(),
+      RhinoException.class.getName(),
+      Short.class.getName(),
+      String.class.getName(),
+      URI.class.getName(),
+      WrappedException.class.getName(),
+      // Provided extensions.
+      Console.class.getName(),
+      NonDeterminismRecorder.class.getName(),
+      LoadFn.class.getName()
+      );
 
   private static final ContextFactory SANDBOXINGFACTORY = new ContextFactory() {
     @Override
@@ -194,7 +194,7 @@ public final class RhinoExecutor implements Executor {
       Logger logger, Loader loader)
       throws AbnormalExitException {
     ScriptableObject globalScope = context.initStandardObjects();
-    Set<Path> dynamicLoads = new LinkedHashSet<Path>();
+    Set<Path> dynamicLoads = Sets.newLinkedHashSet();
     NonDeterminism nonDeterminism = new NonDeterminism();
     {
       Scriptable math = (Scriptable) ScriptableObject.getProperty(
@@ -205,18 +205,12 @@ public final class RhinoExecutor implements Executor {
           math, "random",
           new NonDeterminismRecorder(
               (Function) ScriptableObject.getProperty(math, "random"),
-              new Predicate<Object[]>() {
-                public boolean apply(Object[] args) { return true; }
-              },
-              nonDeterminism));
+              Predicates.<Object[]>alwaysTrue(), nonDeterminism));
       ScriptableObject.putProperty(
           date, "now",
           new NonDeterminismRecorder(
               (Function) ScriptableObject.getProperty(date, "now"),
-              new Predicate<Object[]>() {
-                public boolean apply(Object[] args) { return true; }
-              },
-              nonDeterminism));
+              Predicates.<Object[]>alwaysTrue(), nonDeterminism));
       ScriptableObject.putProperty(
           globalScope, "Date",
           new NonDeterminismRecorder(
@@ -278,8 +272,8 @@ public final class RhinoExecutor implements Executor {
 
   public static class Console {
     private final Logger logger;
-    private final List<Group> groups = new ArrayList<Group>();
-    private final Map<String, Long> timers = new HashMap<String, Long>();
+    private final List<Group> groups = Lists.newArrayList();
+    private final Map<String, Long> timers = Maps.newHashMap();
 
     Console(Logger logger) {
       this.logger = logger;
@@ -374,9 +368,7 @@ public final class RhinoExecutor implements Executor {
     }
 
     public void dir(Object obj) {
-      List<String> pairs = new ArrayList<String>();
-      pairs.add("Name");
-      pairs.add("Value");
+      List<String> pairs = Lists.newArrayList("Name", "Value");
       if (obj instanceof Scriptable) {
         Scriptable s = (Scriptable) obj;
         for (Object id : s.getIds()) {
