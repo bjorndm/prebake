@@ -3,7 +3,9 @@ package org.prebake.service;
 import org.prebake.channel.Commands;
 import org.prebake.channel.JsonSource;
 import org.prebake.core.MessageQueue;
+import org.prebake.util.CommandLineArgs;
 
+import com.google.common.base.Joiner;
 import com.sleepycat.je.Environment;
 import com.sleepycat.je.EnvironmentConfig;
 
@@ -11,7 +13,6 @@ import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.PrintStream;
 import java.io.StringReader;
 import java.math.BigInteger;
 import java.net.ServerSocket;
@@ -31,21 +32,37 @@ import java.util.logging.Logger;
  */
 public final class Main {
   public static final void main(String[] argv) {
-    MessageQueue mq = new MessageQueue();
-    if (argv.length == 1 && argv[0].matches("^-+(?:[?hH]|help)$")) {
-      dumpUsage(System.out);
+    Logger logger = Logger.getLogger(Main.class.getName());
+    CommandLineArgs args = new CommandLineArgs(argv);
+    if (!CommandLineArgs.setUpLogger(args, logger)) {
+      System.out.println(USAGE);
       System.exit(0);
     }
-    Config config = new CommandLineConfig(FileSystems.getDefault(), mq, argv);
+
+    if (!args.getFlags().isEmpty()
+        || !args.getValues().isEmpty()) {
+      System.err.println(USAGE);
+      if (!args.getFlags().isEmpty()) {
+        System.err.println(
+            "Unused flags : " + Joiner.on(' ').join(args.getFlags()));
+      }
+      if (!args.getValues().isEmpty()) {
+        System.err.println(
+            "Unused values : " + Joiner.on(' ').join(args.getValues()));
+      }
+      System.exit(-1);
+    }
+
+    MessageQueue mq = new MessageQueue();
+    Config config = new CommandLineConfig(FileSystems.getDefault(), mq, args);
     if (mq.hasErrors()) {
-      dumpUsage(System.err);
+      System.err.println(USAGE);
       System.err.println();
       for (String msg : mq.getMessages()) {
         System.err.println(msg);
       }
       System.exit(-1);
     }
-    Logger logger = Logger.getLogger(Main.class.getName());
     final Prebakery pb = new Prebakery(config, logger) {
       @Override
       protected String makeToken() {
@@ -114,11 +131,9 @@ public final class Main {
     });
   }
 
-  private static void dumpUsage(PrintStream out) {
-    out.println(
-        "Usage: prebakery --root <dir> [--ignore <pattern>] [--tools <dirs>]");
-    out.println(
-        "       [--umask <octal>] [<plan-file> ...]");
-    out.println();
-  }
+  public static final String USAGE = (
+      ""
+      + "Usage: prebakery --root <dir> [--ignore <pattern>] [--tools <dirs>]\n"
+      + "       [--umask <octal>] [<plan-file> ...]\n"
+      + "       [-v | -vv | -q | -qq | --logLevel=<level]");
 }
