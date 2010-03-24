@@ -1,4 +1,4 @@
-package org.prebake.service;
+package org.prebake.util;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;

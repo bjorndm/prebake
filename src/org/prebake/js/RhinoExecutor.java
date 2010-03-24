@@ -485,24 +485,29 @@ public final class RhinoExecutor implements Executor {
     @Override
     public String getClassName() { return null; }
 
+    /**
+     * @throws RhinoException when load fails due to IE problems, or the JS file
+     *     is syntactically invalid.
+     */
     public Object call(
-        Context context, Scriptable scope, Scriptable thisObj, Object[] args) {
-      LoadFn subLoadFn;
-      Path realPath;
-      String src;
-      String srcName;
+        Context context, Scriptable scope, Scriptable thisObj, Object[] args)
+        throws RhinoException {
+      LoadFn subLoadFn;  // The loaded module
+      String src;  // The source code.
+      String srcName;  // The name that will appear in stack traces.
       try {
-        Path p = base.getParent().resolve(args[0].toString());
-        realPath = p.toRealPath(true);
+        Path p = base.getParent().resolve(args[0].toString()).normalize();
+        // The caller of load can recover from a failed load using try/catch,
+        // so we want to record the dependency so that if the file comes into
+        // existence, we know to invalidate the output.
+        dynamicLoads.add(p.toRealPath(true));
         src = drain(loader.load(p));
         subLoadFn = new LoadFn(globalScope, loader, logger, p, dynamicLoads);
         srcName = p.toString();
       } catch (IOException ex) {
         throw new WrappedException(ex);
       }
-      Function module = subLoadFn.load(context, src, srcName);
-      dynamicLoads.add(realPath);
-      return module;
+      return subLoadFn.load(context, src, srcName);
     }
 
     private Function load(Context context, String src, String srcName) {

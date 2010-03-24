@@ -1,6 +1,6 @@
 package org.prebake.js;
 
-import org.prebake.service.StubFileSystemProvider;
+import org.prebake.util.StubFileSystemProvider;
 
 import com.google.common.base.Joiner;
 import com.google.common.collect.Lists;
@@ -30,7 +30,7 @@ import org.mozilla.javascript.Undefined;
 
 public class ExecutorTest extends TestCase {
   public final void testResult() throws Exception {
-    assertResult(Undefined.instance, "1 + 1");
+    assertResult(Undefined.instance, "1 + 1");  // Need an explicit return.
     assertResult(2.0, "return 1 + 1");
     assertResult("Hello, World!", "return 'Hello, World!'");
   }
@@ -41,7 +41,43 @@ public class ExecutorTest extends TestCase {
         "bar.js", "return 1 + 1;");
     assertEquals("function", out.result);
     assertFalse(out.usedSourceOfKnownNondeterminism);
+    // Even if not used, so we can track dependencies on missing files and
+    // invalidate hashes for computations that recover from missing files
+    // using try/catch.  Tested in more detail below.
     assertEquals("[/foo/bar.js]", out.dynamicLoads.toString());
+  }
+
+  public final void testFailedLoadRecovery() throws Exception {
+    // More detailed check of the scenario described in the comment above.
+    Executor.Output<?> out = doLoad(
+        ""
+        + "try {\n"
+        + "  return load('nosuchfile.js')();\n"
+        + "} catch (ex) {\n"
+        + "  return ex.message;\n"
+        + "}");
+    assertEquals(
+        "java.io.FileNotFoundException: /foo/nosuchfile.js",
+        (String) out.result);
+    assertFalse(out.usedSourceOfKnownNondeterminism);
+    assertEquals("[/foo/nosuchfile.js]", out.dynamicLoads.toString());
+  }
+
+  public final void testMalformedModule() throws Exception {
+    // More detailed check of the scenario described in the comment above.
+    Executor.Output<?> out = doLoad(
+        ""
+        + "try {\n"
+        + "  return load('../bar/malformed.js')();\n"
+        + "} catch (ex) {\n"
+        + "  return ex.message;\n"
+        + "}",
+        "/bar/malformed.js", "NOT VALID JAVASCRIPT!!!");
+    assertEquals(
+        "missing ; before statement (/bar/malformed.js#1)",
+        (String) out.result);
+    assertFalse(out.usedSourceOfKnownNondeterminism);
+    assertEquals("[/bar/malformed.js]", out.dynamicLoads.toString());
   }
 
   public final void testModuleResult() throws Exception {
@@ -205,6 +241,10 @@ public class ExecutorTest extends TestCase {
     } finally {
       Locale.setDefault(defaultLocale);
     }
+  }
+
+  public final void testJsWithBOM() throws Exception {
+    assertResult(Undefined.instance, "\ufeff1 + 1");
   }
 
   private void assertResult(Object result, String src) throws Exception {

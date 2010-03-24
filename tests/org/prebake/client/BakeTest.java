@@ -1,7 +1,7 @@
 package org.prebake.client;
 
 import org.prebake.channel.Commands;
-import org.prebake.service.StubFileSystemProvider;
+import org.prebake.util.StubFileSystemProvider;
 
 import com.google.common.collect.Lists;
 
