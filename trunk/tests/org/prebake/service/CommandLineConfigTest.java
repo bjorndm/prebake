@@ -2,6 +2,7 @@ package org.prebake.service;
 
 import org.prebake.core.MessageQueue;
 import org.prebake.util.CommandLineArgs;
+import org.prebake.util.StubFileSystemProvider;
 
 import com.google.common.base.Joiner;
 

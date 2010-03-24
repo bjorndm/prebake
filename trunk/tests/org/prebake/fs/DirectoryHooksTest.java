@@ -1,5 +1,9 @@
 package org.prebake.fs;
 
+import org.prebake.util.StubFileSystemProvider;
+
+import com.google.common.collect.Sets;
+
 import java.io.File;
 import java.io.IOException;
 import java.io.OutputStream;
@@ -18,10 +22,6 @@ import java.nio.file.attribute.PosixFilePermissions;
 import java.util.Set;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
-
-import org.prebake.service.StubFileSystemProvider;
-
-import com.google.common.collect.Sets;
 
 import junit.framework.TestCase;
 

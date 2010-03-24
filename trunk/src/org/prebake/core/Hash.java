@@ -1,4 +1,4 @@
-package org.prebake.service;
+package org.prebake.core;
 
 import com.twmacinta.util.MD5;
 
@@ -7,21 +7,21 @@ import java.io.InputStream;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 
-final class Hash {
+public final class Hash {
   private final byte[] bytes;
 
   private Hash(byte[] bytes) {
     this.bytes = bytes;
   }
 
-  byte[] getBytes() { return bytes; }
+  public byte[] getBytes() { return bytes; }
 
   private static final byte[] ZERO_BYTE = new byte[1];
 
-  static class HashBuilder {
+  public static class HashBuilder {
     private MD5 md5 = new MD5();
 
-    HashBuilder withFile(Path p) throws IOException {
+    public HashBuilder withFile(Path p) throws IOException {
       md5.Update(ZERO_BYTE, 0, 1);
       byte[] bytes = new byte[4096];
       InputStream in = p.newInputStream(StandardOpenOption.READ);
@@ -33,19 +33,19 @@ final class Hash {
       return this;
     }
 
-    HashBuilder withString(String s) throws IOException {
+    public HashBuilder withString(String s) throws IOException {
       md5.Update(ZERO_BYTE, 0, 1);
       md5.Update(s, "UTF-8");
       return this;
     }
 
-    HashBuilder withData(byte[] bytes) {
+    public HashBuilder withData(byte[] bytes) {
       md5.Update(ZERO_BYTE, 0, 1);
       md5.Update(bytes, 0, bytes.length);
       return this;
     }
 
-    Hash toHash() {
+    public Hash toHash() {
       Hash h = new Hash(md5.Final());
       md5 = new MD5();
       return h;

@@ -1,5 +1,7 @@
 package org.prebake.service;
 
+import org.prebake.core.Hash;
+
 import com.sleepycat.je.Cursor;
 import com.sleepycat.je.Database;
 import com.sleepycat.je.DatabaseConfig;
