@@ -31,9 +31,15 @@ If the ignore pattern is not specified, it is the union of the below.
 || `\.pyc` || generated python ||
 || `~$` || emacs backup ||
 || `\.bak$` || other backup files ||
-|| `(^|/)#[^/]+#$` || emacs unsaved ||
+|| `/#[^/]+#$` || emacs unsaved ||
+|| `/%[^/]*%$` || more backup files  ||
+|| `/\.(#+|_+)$` || temporary files ||
 || `\.rej$` || {{{patch}}} reject file ||
 || `\.prej$` || more reject files ||
 || `\.tmp$` || common temp file suffix ||
+|| `/(CVS|SCCS|\.svn)(/|$)` || revision control bookkeeping files ||
+|| `/\.cvsignore$` || CVS metadata ||
+|| `/vssver.scc$` || more revision control metadata ||
+|| `/\.DS_Store$` || Macintosh droppings ||
 
-TODO: look at common .gitignore and subversion and CVS default ignore patterns.
+This is based, in part, on ANT's [http://ant.apache.org/manual/dirtasks.html default excludes].
