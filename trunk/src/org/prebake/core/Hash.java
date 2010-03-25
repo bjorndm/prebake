@@ -6,15 +6,24 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
+import java.util.Arrays;
 
 public final class Hash {
   private final byte[] bytes;
 
-  private Hash(byte[] bytes) {
-    this.bytes = bytes;
-  }
+  private Hash(byte[] bytes) { this.bytes = bytes; }
 
   public byte[] getBytes() { return bytes; }
+
+  @Override
+  public boolean equals(Object o) {
+    return o instanceof Hash && Arrays.equals(bytes, ((Hash) o).bytes);
+  }
+
+  @Override public int hashCode() { return Arrays.hashCode(bytes); }
+
+  @Override
+  public String toString() { return "[Hash " + Arrays.toString(bytes) + "]"; }
 
   private static final byte[] ZERO_BYTE = new byte[1];
 
@@ -45,10 +54,6 @@ public final class Hash {
       return this;
     }
 
-    public Hash toHash() {
-      Hash h = new Hash(md5.Final());
-      md5 = new MD5();
-      return h;
-    }
+    public Hash toHash() { return new Hash(md5.Final()); }
   }
 }
