@@ -455,7 +455,7 @@ class MemPath extends Path {
   }
 
   @Override
-  public Path normalize() {
+  public MemPath normalize() {
     List<String> norm = Lists.newArrayList();
     for (String part : parts) {
       if (".".equals(part)) { continue; }
@@ -650,8 +650,8 @@ class MemFileSystem extends FileSystem {
 
   MemPath __toRealPath(MemPath p) {
     assert p.fs == this;
-    if (p.isAbs) { return p; }
-    return new MemPath(this, cwd + "/" + p);
+    if (p.isAbs) { return p.normalize(); }
+    return new MemPath(this, cwd + "/" + p).normalize();
   }
 
   URI __toUri(MemPath p) {
@@ -822,6 +822,7 @@ class MemFileSystem extends FileSystem {
             if (node != null) {
               while (it.hasNext()) {
                 String name = it.next();
+                if ("".equals(name)) { continue; }
                 Node child = node.getChild(name);
                 if (child != null) {
                   Path p = child.toPath(MemFileSystem.this);

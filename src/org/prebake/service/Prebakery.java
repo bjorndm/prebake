@@ -4,6 +4,7 @@ import org.prebake.channel.Command;
 import org.prebake.channel.Commands;
 import org.prebake.channel.FileNames;
 import org.prebake.fs.DirectoryHooks;
+import org.prebake.fs.FileHashes;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
@@ -144,7 +145,7 @@ public abstract class Prebakery implements Closeable {
     write(tokenFile, token);
 
     this.env = createDbEnv(dir);
-    this.fileHashes = new FileHashes(env, clientRoot);
+    this.fileHashes = new FileHashes(env, clientRoot, logger);
   }
 
   private void setupFileSystemWatcher() {

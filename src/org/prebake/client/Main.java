@@ -25,6 +25,8 @@ public final class Main {
   public static void main(String... argv) {
     Logger logger = Logger.getLogger(Main.class.getName());
     CommandLineArgs args = new CommandLineArgs(argv);
+    // TODO: should we use the global logger here since that's the one with the
+    // handlers?
     if (!CommandLineArgs.setUpLogger(args, logger)) {
       System.out.println(USAGE);
       System.exit(0);
