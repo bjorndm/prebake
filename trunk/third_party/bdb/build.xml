@@ -370,7 +370,7 @@
     </target>
 
     <!-- JE jar -->
-    <target name="jar" depends="compile, clean-package">
+    <target name="jar" depends="compile-src, clean-package">
         <jar jarfile="${jarfile}">
 	<fileset refid="jarclasses"/>
         <manifest>

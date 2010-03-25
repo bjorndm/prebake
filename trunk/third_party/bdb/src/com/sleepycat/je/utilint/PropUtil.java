@@ -76,7 +76,7 @@ public class PropUtil {
      */
     public static int parseDuration(final String property) {
         StringTokenizer tokens =
-            new StringTokenizer(property.toUpperCase(), " \t");
+            new StringTokenizer(property.toUpperCase(java.util.Locale.ENGLISH), " \t");
         if (!tokens.hasMoreTokens()) {
             throw new IllegalArgumentException("Duration argument is empty");
         }
