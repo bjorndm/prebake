@@ -79,6 +79,7 @@ public class ToolBox implements Closeable {
           return tools.get(name).impls.get(index);
         }
       };
+  private final Future<?> updater;
 
   public ToolBox(FileHashes fh, Iterable<Path> toolDirs, Logger logger,
                  ScheduledExecutorService execer)
@@ -108,11 +109,14 @@ public class ToolBox implements Closeable {
             StandardWatchEventKind.ENTRY_MODIFY);
         keyToDir.put(key, toolDir);
         b.put(toolDir, index++);
+      }
+      dirIndices = b.build();
+      for (Path toolDir : this.toolDirs) {
+        logger.log(Level.FINE, "Looking in {0}", toolDir);
         for (Path child : toolDir.newDirectoryStream("*.js")) {
           checkUserProvided(toolDir, child.getName());
         }
       }
-      dirIndices = b.build();
       Runnable r = new Runnable() {
         public void run() {
           WatchKey key;
@@ -146,6 +150,7 @@ public class ToolBox implements Closeable {
           }
         }
       };
+      logger.log(Level.FINE, "Starting watcher");
       Thread th = new Thread(r);
       th.setDaemon(true);
       th.start();
@@ -167,7 +172,7 @@ public class ToolBox implements Closeable {
       }
     }
 
-    execer.scheduleWithFixedDelay(new Runnable() {
+    this.updater = execer.scheduleWithFixedDelay(new Runnable() {
       public void run() { getAvailableToolSignatures(); }
     }, 1000, 1000, TimeUnit.MILLISECONDS);
   }
@@ -412,6 +417,7 @@ public class ToolBox implements Closeable {
     if (watcher != null) { watcher.close(); }
     synchronized (tools) { tools.clear(); }
     tools.clear();
+    updater.cancel(true);
   }
 
   private static String toolName(String fileName) {
@@ -442,13 +448,12 @@ public class ToolBox implements Closeable {
     } else {
       exists = false;
     }
-    String toolName = toolName(fileName);
-    check(dirIndices.size(), exists, toolName);
+    check(dirIndices.size(), exists, fs.getPath(fileName));
   }
 
   private void checkUserProvided(Path dir, Path file) {
-    String toolName = toolName(file.toString());
     Path fullPath = dir.resolve(file);
+    logger.log(Level.FINE, "checking file {0}", fullPath);
     boolean exists = fullPath.exists();
     if (exists) {
       BasicFileAttributes attrs;
@@ -461,16 +466,16 @@ public class ToolBox implements Closeable {
     }
     Integer dirIndex = dirIndices.get(dir);
     if (dirIndex == null) { return; }
-    check(dirIndex, exists, toolName);
+    check(dirIndex, exists, file.getName());
   }
 
-  private void check(int dirIndex, boolean exists, String toolName) {
+  private void check(int dirIndex, boolean exists, Path localName) {
+    String toolName = toolName(localName.toString());
     synchronized (tools) {
       Tool tool = tools.get(toolName);
       if (exists) {
         if (tool == null) {
-          tool = new Tool(fs.getPath(toolName));
-          tools.put(toolName, tool);
+          tools.put(toolName, tool = new Tool(localName));
         }
         if (!tool.impls.containsKey(dirIndex)) {
           tool.impls.put(dirIndex, new ToolImpl(toolName, dirIndex));

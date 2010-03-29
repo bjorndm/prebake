@@ -15,11 +15,15 @@ import java.net.URI;
 import java.nio.file.FileSystem;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
+import java.text.MessageFormat;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.logging.Handler;
+import java.util.logging.Level;
+import java.util.logging.LogRecord;
 import java.util.logging.Logger;
 
 import junit.framework.TestCase;
@@ -27,6 +31,17 @@ import junit.framework.TestCase;
 public class ToolBoxTest extends TestCase {
   public final void testToolBox() throws Exception {
     Logger logger = Logger.getLogger(getName());
+    logger.addHandler(new Handler() {
+      @Override public void close() throws SecurityException {}
+      @Override public void flush() {}
+      @Override
+      public void publish(LogRecord r) {
+        System.err.println(
+            r.getLevel() + " : "
+            + MessageFormat.format(r.getMessage(), r.getParameters()));
+      }
+    });
+    logger.setLevel(Level.FINER);
     FileSystem fs = new StubFileSystemProvider("mfs")
         .getFileSystem(URI.create("mfs:///#/root/cwd"));
     Path root = fs.getPath("/root");
