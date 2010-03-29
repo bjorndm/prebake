@@ -1,6 +1,7 @@
 package org.prebake.service.tools;
 
 import org.prebake.fs.FileHashes;
+import org.prebake.util.PbTestCase;
 import org.prebake.util.StubFileSystemProvider;
 
 import com.google.common.base.Joiner;
@@ -9,73 +10,78 @@ import com.sleepycat.je.Environment;
 import com.sleepycat.je.EnvironmentConfig;
 
 import java.io.File;
-import java.io.IOException;
-import java.io.OutputStream;
 import java.net.URI;
 import java.nio.file.FileSystem;
 import java.nio.file.Path;
-import java.nio.file.StandardOpenOption;
-import java.text.MessageFormat;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
-import java.util.logging.Handler;
 import java.util.logging.Level;
-import java.util.logging.LogRecord;
 import java.util.logging.Logger;
 
-import junit.framework.TestCase;
+public class ToolBoxTest extends PbTestCase {
+  private FileSystem fs;
+  private Path root;
+  private Environment env;
+  private FileHashes fh;
+  private ScheduledExecutorService execer;
+  private ToolBox tb;
+  private File tempFile;
 
-public class ToolBoxTest extends TestCase {
-  public final void testToolBox() throws Exception {
-    Logger logger = Logger.getLogger(getName());
-    logger.addHandler(new Handler() {
-      @Override public void close() throws SecurityException {}
-      @Override public void flush() {}
-      @Override
-      public void publish(LogRecord r) {
-        System.err.println(
-            r.getLevel() + " : "
-            + MessageFormat.format(r.getMessage(), r.getParameters()));
-      }
-    });
-    logger.setLevel(Level.FINER);
-    FileSystem fs = new StubFileSystemProvider("mfs")
+  @Override
+  protected void setUp() throws Exception {
+    super.setUp();
+    Logger logger = getLogger(Level.INFO);
+    fs = new StubFileSystemProvider("mfs")
         .getFileSystem(URI.create("mfs:///#/root/cwd"));
-    Path root = fs.getPath("/root");
+    root = fs.getPath("/root");
     EnvironmentConfig envConfig = new EnvironmentConfig();
     envConfig.setAllowCreate(true);
-    File tempFile = File.createTempFile(getName(), ".bdb");
+    tempFile = File.createTempFile(getName(), ".bdb");
     tempFile.delete();
     tempFile.mkdirs();
-    Environment env = new Environment(tempFile, envConfig);
-    FileHashes fh = new FileHashes(env, root, logger);
+    env = new Environment(tempFile, envConfig);
+    fh = new FileHashes(env, root, logger);
+    execer = new ScheduledThreadPoolExecutor(4);
+  }
+
+  @Override
+  protected void tearDown() throws Exception {
+    if (tb != null) { tb.close(); }
+    execer.shutdown();
+    fh.close();
+    env.close();
+    fs.close();
+    rmDirTree(tempFile);
+    super.tearDown();
+  }
+
+  public final void testToolBox() throws Exception {
+    mkdirs(fs.getPath("/tools"));
+    mkdirs(fs.getPath("/root/cwd/tools"));
     List<Path> toolDirs = Arrays.asList(
         fs.getPath("/tools"), fs.getPath("/root/cwd/tools"));
-    ScheduledExecutorService execer = new ScheduledThreadPoolExecutor(4);
-    fs.getPath("/tools").createDirectory();
     writeFile(
         fs.getPath("/tools/bar.js"),
         "({ help: 'an example tool', check: function (product) { } })");
     writeFile(fs.getPath("/tools/foo.js"), "({ help: 'foo1' })");
-    fs.getPath("/root").createDirectory();
-    fs.getPath("/root/cwd").createDirectory();
-    fs.getPath("/root/cwd/tools").createDirectory();
     writeFile(fs.getPath("/root/cwd/tools/baz.js"), "({})");
     writeFile(fs.getPath("/root/cwd/tools/foo.js"), "({ help: 'foo2' })");
     fh.update(Arrays.asList(
         fs.getPath("/tools/bar.js"), fs.getPath("/tools/foo.js"),
         fs.getPath("/root/cwd/tools/baz.js"),
         fs.getPath("/root/cwd/tools/foo.js")));
-    ToolBox tb = new ToolBox(fh, toolDirs, logger, execer);
+    tb = new ToolBox(fh, toolDirs, getLogger(Level.FINE), execer) {
+      @Override protected Iterable<String> getBuiltinToolNames() {
+        return Collections.<String>emptyList();
+      }
+    };
+
     List<Future<ToolSignature>> sigs;
-    try {
-      sigs = tb.getAvailableToolSignatures();
-    } finally {
-      tb.close();
-    }
+    sigs = tb.getAvailableToolSignatures();
     List<ToolSignature> actualSigs = Lists.newArrayList();
     for (Future<ToolSignature> sig : sigs) {
       ToolSignature actualSig = sig.get();
@@ -87,17 +93,6 @@ public class ToolBoxTest extends TestCase {
         + " ; {\"name\":\"baz.js\",\"doc\":null}",
         Joiner.on(" ; ").join(actualSigs));
   }
-
-  private void writeFile(Path p, String content) throws IOException {
-    OutputStream out = p.newOutputStream(
-        StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
-    try {
-      out.write(content.getBytes("UTF-8"));
-    } finally {
-      out.close();
-    }
-  }
-
 
   // TODO: test directories that initially don't exist, are created, deleted,
   // recreated.

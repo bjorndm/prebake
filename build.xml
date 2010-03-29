@@ -106,6 +106,20 @@
       <compilerarg line="-Xlint:deprecation"/>
       <compilerarg line="-Xlint:unchecked"/>
     </javac>
+    <copy todir="${lib}">
+      <fileset dir="${src}">
+        <include name="org/prebake/service/tools/*.js"/>
+      </fileset>
+    </copy>
+    <fileset dir="${lib}/org/prebake/service/tools" id="builtin.tools">
+      <include name="*.js"/>
+    </fileset>
+    <pathconvert pathsep="&#10;" property="builtin.tools.list"
+     refid="builtin.tools">
+      <map from="${lib}/org/prebake/service/tools/" to=""/>
+    </pathconvert>
+    <echo message="${builtin.tools.list}"
+     file="${lib}/org/prebake/service/tools/tools.txt"/>
   </target>
 
   <target name="tests" depends="classes">

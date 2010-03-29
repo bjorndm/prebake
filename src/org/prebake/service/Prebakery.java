@@ -5,6 +5,7 @@ import org.prebake.channel.Commands;
 import org.prebake.channel.FileNames;
 import org.prebake.fs.DirectoryHooks;
 import org.prebake.fs.FileHashes;
+import org.prebake.fs.FilePerms;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
@@ -19,6 +20,7 @@ import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.io.Reader;
 import java.io.Writer;
+import java.nio.charset.Charset;
 import java.nio.file.FileSystem;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
@@ -120,13 +122,14 @@ public abstract class Prebakery implements Closeable {
     FileSystem fs = clientRoot.getFileSystem();
     Path dir = clientRoot.resolve(fs.getPath(FileNames.DIR));
     if (!dir.exists()) {
-      dir.createDirectory();  // TODO umask
+      dir.createDirectory(FilePerms.perms(config.getUmask(), true, dir));
     }
     Path cmdlineFile = dir.resolve(fs.getPath(FileNames.CMD_LINE));
     Path portFile = dir.resolve(fs.getPath(FileNames.PORT));
     Path tokenFile = dir.resolve(fs.getPath(FileNames.TOKEN));
     if (!cmdlineFile.exists()) {
-      cmdlineFile.createFile();  // TODO umask
+      cmdlineFile.createFile(
+          FilePerms.perms(config.getUmask(), false, cmdlineFile));
     }
     write(cmdlineFile, CommandLineConfig.toArgv(config));
     int port = -1;
@@ -136,11 +139,16 @@ public abstract class Prebakery implements Closeable {
       } catch (NumberFormatException ex) {
         port = -1;
       }
+    } else {
+      portFile.createFile(
+          FilePerms.perms(config.getUmask(), false, portFile));
     }
     port = openChannel(port, cmdQueue);
     write(portFile, "" + port);
     if (!tokenFile.exists()) {
-      tokenFile.createFile();  // TODO umask and delete on exit
+      // TODO delete on exit
+      tokenFile.createFile(
+          FilePerms.perms(config.getUmask(), false, tokenFile));
     }
     write(tokenFile, token);
 
@@ -215,10 +223,9 @@ public abstract class Prebakery implements Closeable {
 
   private static void write(Path p, String content) throws IOException {
     OutputStream out = p.newOutputStream(
-        StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING,
-        StandardOpenOption.WRITE);
+        StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.WRITE);
     try {
-      Writer w = new OutputStreamWriter(out, "UTF-8");
+      Writer w = new OutputStreamWriter(out, UTF8);
       w.write(content);
       w.close();
     } finally {
@@ -234,7 +241,7 @@ public abstract class Prebakery implements Closeable {
     StringBuilder out = new StringBuilder();
     InputStream in = p.newInputStream(StandardOpenOption.READ);
     try {
-      Reader r = new InputStreamReader(in, "UTF-8");
+      Reader r = new InputStreamReader(in, UTF8);
       char[] buf = new char[4096];
       for (int n; (n = r.read(buf)) > 0;) { out.append(buf, 0, n); }
     } finally {
@@ -242,4 +249,6 @@ public abstract class Prebakery implements Closeable {
     }
     return out.toString();
   }
+
+  private static final Charset UTF8 = Charset.forName("UTF-8");
 }

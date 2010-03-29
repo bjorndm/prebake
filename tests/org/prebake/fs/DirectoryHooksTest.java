@@ -1,5 +1,6 @@
 package org.prebake.fs;
 
+import org.prebake.util.PbTestCase;
 import org.prebake.util.StubFileSystemProvider;
 
 import com.google.common.collect.Sets;
@@ -18,32 +19,21 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.nio.file.attribute.FileAttribute;
-import java.nio.file.attribute.PosixFilePermissions;
 import java.util.Set;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
 
-import junit.framework.TestCase;
+public class DirectoryHooksTest extends PbTestCase {
 
-public class DirectoryHooksTest extends TestCase {
-
-  private static final FileAttribute<?>[] DIR_ATTRS = new FileAttribute<?>[] {
-    PosixFilePermissions.asFileAttribute(
-        PosixFilePermissions.fromString("rwx------"))
-  };
-
-  private static final FileAttribute<?>[] FILE_ATTRS = new FileAttribute<?>[] {
-    PosixFilePermissions.asFileAttribute(
-        PosixFilePermissions.fromString("rw-------"))
-  };
+  private static final FileAttribute<?>[] FILE_ATTRS = FilePerms.perms(
+      0600, false, null);
 
   public final void testOnStubFileSystem() throws Exception {
     int delay = 100;
     FileSystem fs = new StubFileSystemProvider("mfs")
         .getFileSystem(URI.create("mfs://#/foo/bar"));
-    fs.getPath("/foo").createDirectory();
     Path dir = fs.getPath("/foo/bar");
-    dir.createDirectory();
+    mkdirs(dir);
     runTests(delay, fs, dir);
   }
 
@@ -53,9 +43,7 @@ public class DirectoryHooksTest extends TestCase {
     Path dir = fs.getPath("" + File.createTempFile("temp", "dir"));
     try {
       dir.delete();
-      if (dir.notExists()) {
-        dir.createDirectory(DIR_ATTRS);
-      }
+      mkdirs(dir);
       runTests(delay, fs, fs.getPath(dir.toString()));
     } finally {
       rmTree(dir);
@@ -66,7 +54,7 @@ public class DirectoryHooksTest extends TestCase {
       throws IOException, InterruptedException {
     Path baz = dir.resolve(fs.getPath("baz"));
     dir.resolve(fs.getPath("README")).createFile(FILE_ATTRS);
-    baz.createDirectory(DIR_ATTRS);
+    mkdirs(baz);
     baz.resolve(fs.getPath("boo.cc")).createFile(FILE_ATTRS);
     baz.resolve(fs.getPath("boo.h")).createFile(FILE_ATTRS);
     DirectoryHooks dh = new DirectoryHooks(dir);
@@ -101,7 +89,7 @@ public class DirectoryHooksTest extends TestCase {
 
     // Create a directory and put a file in it.
     Path noo = dir.resolve(fs.getPath("noo"));
-    noo.createDirectory(DIR_ATTRS);
+    mkdirs(noo);
     Path footxt = noo.resolve(fs.getPath("foo.txt"));
     footxt.createFile(FILE_ATTRS);
     assertChanged(q, delay, footxt);

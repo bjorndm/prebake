@@ -1,9 +1,10 @@
 package org.prebake.js;
 
+import org.prebake.fs.FilePerms;
+import org.prebake.util.PbTestCase;
 import org.prebake.util.StubFileSystemProvider;
 
 import com.google.common.base.Joiner;
-import com.google.common.collect.Lists;
 
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -14,19 +15,13 @@ import java.net.URI;
 import java.nio.file.FileSystem;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
-import java.nio.file.attribute.PosixFilePermissions;
-import java.text.MessageFormat;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
-import java.util.logging.Handler;
 import java.util.logging.Level;
-import java.util.logging.LogRecord;
 import java.util.logging.Logger;
 
-import junit.framework.TestCase;
-
-public class ExecutorTest extends TestCase {
+public class ExecutorTest extends PbTestCase {
   public final void testResult() throws Exception {
     assertResult(2.0, "1 + 1");
     assertResult("Hello, World!", "'Hello, World!'");
@@ -120,7 +115,7 @@ public class ExecutorTest extends TestCase {
     Executor.Output<?> output = executor.run(
         Collections.singletonMap("x", 1),
         Object.class,
-        Logger.getLogger(getName()),
+        getLogger(Level.INFO),
         new Loader() {
           public Reader load(Path p) throws IOException {
             throw new IOException("Not testing load");
@@ -135,7 +130,7 @@ public class ExecutorTest extends TestCase {
     output = executor.run(
         Collections.singletonMap("x", 1),
         Object.class,
-        Logger.getLogger(getName()),
+        getLogger(Level.INFO),
         new Loader() {
           public Reader load(Path p) throws IOException {
             return new StringReader("typeof x !== 'undefined' ? x : 2");
@@ -150,7 +145,7 @@ public class ExecutorTest extends TestCase {
     output = executor.run(
         Collections.singletonMap("x", 1),
         Object.class,
-        Logger.getLogger(getName()),
+        getLogger(Level.INFO),
         new Loader() {
           public Reader load(Path p) throws IOException {
             return new StringReader("typeof x !== 'undefined' ? x : 2");
@@ -165,7 +160,7 @@ public class ExecutorTest extends TestCase {
     output = executor.run(
         Collections.singletonMap("x", 1),
         Object.class,
-        Logger.getLogger(getName()),
+        getLogger(Level.INFO),
         new Loader() {
           public Reader load(Path p) throws IOException {
             return new StringReader("typeof x !== 'undefined' ? x : 2");
@@ -181,7 +176,7 @@ public class ExecutorTest extends TestCase {
     output = executor.run(
         Collections.singletonMap("x", 1),
         Object.class,
-        Logger.getLogger(getName()),
+        getLogger(Level.INFO),
         new Loader() {
           public Reader load(Path p) throws IOException {
             return new StringReader("++x");
@@ -344,7 +339,7 @@ public class ExecutorTest extends TestCase {
     Executor.Output<String> out = executor.run(
         Collections.<String, Object>emptyMap(),
         String.class,
-        Logger.getLogger(getName()),
+        getLogger(Level.INFO),
         new Loader() {
           public Reader load(Path p) throws IOException {
             throw new IOException("Should not laod");
@@ -358,7 +353,7 @@ public class ExecutorTest extends TestCase {
         new StringReader("typeof load"), getName(), null));
     Executor.Output<?> output = executor.run(
         Collections.<String, Object>emptyMap(), Object.class,
-        Logger.getLogger(getName()), null);
+        getLogger(Level.INFO), null);
     assertEquals("undefined", output.result);
   }
 
@@ -371,7 +366,7 @@ public class ExecutorTest extends TestCase {
     Executor.Output<?> output = executor.run(
         Collections.<String, Object>emptyMap(),
         Object.class,
-        Logger.getLogger(getName()),
+        getLogger(Level.INFO),
         new Loader() {
           public Reader load(Path p) throws IOException {
             throw new IOException("Not testing load");
@@ -390,7 +385,7 @@ public class ExecutorTest extends TestCase {
     Executor.Output<?> output = executor.run(
         Collections.<String, Object>emptyMap(),
         Object.class,
-        Logger.getLogger(getName()),
+        getLogger(Level.INFO),
         new Loader() {
           public Reader load(Path p) throws IOException {
             throw new IOException("Not testing load");
@@ -405,10 +400,8 @@ public class ExecutorTest extends TestCase {
         URI.create("mfs:///#/foo"));
     for (int i = 0, n = files.length; i < n; i += 2) {
       Path p = fs.getPath(files[i]).toRealPath(true);
-      p.getParent().createDirectory(PosixFilePermissions.asFileAttribute(
-          PosixFilePermissions.fromString("rwx------")));
-      p.createFile(PosixFilePermissions.asFileAttribute(
-          PosixFilePermissions.fromString("rw-------")));
+      mkdirs(p.getParent());
+      p.createFile(FilePerms.perms(0600, false, p));
       OutputStream out = p.newOutputStream(StandardOpenOption.CREATE);
       try {
         out.write(files[i + 1].getBytes("UTF-8"));
@@ -422,7 +415,7 @@ public class ExecutorTest extends TestCase {
     Executor.Output<?> output = executor.run(
         Collections.<String, Object>emptyMap(),
         Object.class,
-        Logger.getLogger(getName()),
+        getLogger(Level.INFO),
         new Loader() {
           public Reader load(Path p) throws IOException {
             return new InputStreamReader(p.newInputStream(), "UTF-8");
@@ -438,43 +431,23 @@ public class ExecutorTest extends TestCase {
 
   private void assertConsole(Level lvl, String src, String... logStmts)
       throws Exception {
-    final List<String> actualLog = Lists.newArrayList();
-    Handler handler = new Handler() {
-      List<String> log = actualLog;
-
-      @Override
-      public void close() throws SecurityException { log = null; }
-
-      @Override
-      public void flush() {}
-
-      @Override
-      public void publish(LogRecord r) {
-        log.add(r.getSourceClassName() + ":" + r.getLevel() + ": "
-                + MessageFormat.format(r.getMessage(), r.getParameters()));
-      }
-    };
+    Logger logger = getLogger(lvl);
+    final List<String> actualLog = getLog();
+    actualLog.clear();
 
     FileSystem fs = new StubFileSystemProvider("mfs").getFileSystem(
         URI.create("mfs:///#/foo"));
     Executor executor = Executor.Factory.createJsExecutor(new Executor.Input(
         new StringReader(src), fs.getPath("/" + getName() + ".js")));
-    Logger logger = Logger.getLogger(getName());
-    logger.setLevel(lvl);
-    logger.addHandler(handler);
-    try {
-      executor.run(
-          Collections.<String, Object>emptyMap(),
-          Object.class,
-          logger,
-          new Loader() {
-            public Reader load(Path p) throws IOException {
-              throw new IOException("Not testing load");
-            }
-          });
-    } finally {
-      logger.removeHandler(handler);
-    }
+    executor.run(
+        Collections.<String, Object>emptyMap(),
+        Object.class,
+        logger,
+        new Loader() {
+          public Reader load(Path p) throws IOException {
+            throw new IOException("Not testing load");
+          }
+        });
     assertEquals(
         src, Joiner.on('\n').join(logStmts),
         Joiner.on('\n').join(actualLog).replaceAll(
