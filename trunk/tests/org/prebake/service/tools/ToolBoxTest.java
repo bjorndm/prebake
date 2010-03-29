@@ -65,6 +65,10 @@ public class ToolBoxTest extends TestCase {
     fs.getPath("/root/cwd/tools").createDirectory();
     writeFile(fs.getPath("/root/cwd/tools/baz.js"), "({})");
     writeFile(fs.getPath("/root/cwd/tools/foo.js"), "({ help: 'foo2' })");
+    fh.update(Arrays.asList(
+        fs.getPath("/tools/bar.js"), fs.getPath("/tools/foo.js"),
+        fs.getPath("/root/cwd/tools/baz.js"),
+        fs.getPath("/root/cwd/tools/foo.js")));
     ToolBox tb = new ToolBox(fh, toolDirs, logger, execer);
     List<Future<ToolSignature>> sigs;
     try {
@@ -78,7 +82,9 @@ public class ToolBoxTest extends TestCase {
       if (actualSig != null) { actualSigs.add(actualSig); }
     }
     assertEquals(
-        "TODO",
+        "{\"name\":\"bar.js\",\"doc\":\"an example tool\"}"
+        + " ; {\"name\":\"foo.js\",\"doc\":\"foo1\"}"
+        + " ; {\"name\":\"baz.js\",\"doc\":null}",
         Joiner.on(" ; ").join(actualSigs));
   }
 
@@ -95,4 +101,5 @@ public class ToolBoxTest extends TestCase {
 
   // TODO: test directories that initially don't exist, are created, deleted,
   // recreated.
+  // TODO: figure out why updater doesn't stop after 4 tries.
 }
