@@ -28,7 +28,7 @@ The ignored files will match against paths normalized to use POSIX style file se
 If the ignore pattern is not specified, it is the union of the below.
 
 || *Regexp* || *Reason* ||
-|| `\.pyc` || generated python ||
+|| `\.pyc$` || generated python ||
 || `~$` || emacs backup ||
 || `\.bak$` || other backup files ||
 || `/#[^/]+#$` || emacs unsaved ||
