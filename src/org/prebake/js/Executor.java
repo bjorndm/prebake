@@ -1,12 +1,13 @@
 package org.prebake.js;
 
+import org.prebake.core.Hash;
+
 import java.io.PrintWriter;
 import java.io.Reader;
 import java.io.StringWriter;
 import java.lang.reflect.InvocationTargetException;
 import java.nio.file.Path;
 import java.util.Map;
-import java.util.Set;
 import java.util.logging.Logger;
 
 /**
@@ -105,10 +106,10 @@ public interface Executor {
   /** The results of script execution. */
   public static final class Output<T> {
     public final T result;
-    public final Set<Path> dynamicLoads;
+    public final Map<Path, Hash> dynamicLoads;
     public final boolean usedSourceOfKnownNondeterminism;
 
-    public Output(T result, Set<Path> dynamicLoads,
+    public Output(T result, Map<Path, Hash> dynamicLoads,
                   boolean usedSourceOfKnownNondeterminism) {
       this.result = result;
       this.dynamicLoads = dynamicLoads;

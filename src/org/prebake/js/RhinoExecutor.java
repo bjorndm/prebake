@@ -1,11 +1,12 @@
 package org.prebake.js;
 
+import org.prebake.core.Hash;
+
 import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.google.common.collect.Sets;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -32,7 +33,9 @@ import org.mozilla.javascript.Function;
 import org.mozilla.javascript.JavaScriptException;
 import org.mozilla.javascript.NativeArray;
 import org.mozilla.javascript.NativeJavaObject;
+import org.mozilla.javascript.NativeObject;
 import org.mozilla.javascript.RhinoException;
+import org.mozilla.javascript.Script;
 import org.mozilla.javascript.Scriptable;
 import org.mozilla.javascript.ScriptableObject;
 import org.mozilla.javascript.WrapFactory;
@@ -172,6 +175,7 @@ public final class RhinoExecutor implements Executor {
     ContextFactory.initGlobal(SANDBOXINGFACTORY);
   }
 
+  private final Map<Path, Function> loadedModules = Maps.newHashMap();
   public <T> Output<T> run(Map<String, ?> actuals, Class<T> expectedResultType,
                            Logger logger, Loader loader)
       throws AbnormalExitException {
@@ -179,8 +183,7 @@ public final class RhinoExecutor implements Executor {
       throw new IllegalStateException();
     }
     Context context = SANDBOXINGFACTORY.enterContext();
-    // Don't bother to compile tests to a class file.  Removing this causes
-    // a 5x slow-down in Rhino-heavy tests.
+    // TODO: figure out appropriate optimization level
     context.setOptimizationLevel(-1);
     try {
       return runInContext(context, actuals, expectedResultType, logger, loader);
@@ -194,7 +197,7 @@ public final class RhinoExecutor implements Executor {
       Logger logger, Loader loader)
       throws AbnormalExitException {
     ScriptableObject globalScope = context.initStandardObjects();
-    Set<Path> dynamicLoads = Sets.newLinkedHashSet();
+    Map<Path, Hash> dynamicLoads = Maps.newLinkedHashMap();
     NonDeterminism nonDeterminism = new NonDeterminism();
     {
       Scriptable math = (Scriptable) ScriptableObject.getProperty(
@@ -223,28 +226,37 @@ public final class RhinoExecutor implements Executor {
     try {
       globalScope.defineProperty(
           "console", new Console(logger), ScriptableObject.DONTENUM);
+
+      NativeObject actualsObj = new NativeObject();
       for (Map.Entry<String, ?> e : actuals.entrySet()) {
-        globalScope.defineProperty(
-            e.getKey(), Context.javaToJS(e.getValue(), globalScope),
-            ScriptableObject.DONTENUM);
+        ScriptableObject.putConstProperty(actualsObj, e.getKey(), e.getValue());
       }
+      Object[] actualsObjArr = new Object[] { actualsObj };
 
       Object result = null;
       synchronized (context) {
         for (Input src : srcs) {
           String inputRead = drain(src.input);
-          LoadFn loadFn = src.base != null
-              ? new LoadFn(globalScope, loader, logger, src.base, dynamicLoads)
-              : null;
+          LoadFn loadFn = new LoadFn(
+              globalScope, loader, logger, src.base, dynamicLoads);
           try {
             result = loadFn.load(context, inputRead, src.source)
-                .call(context, globalScope, globalScope, new Object[0]);
+                .call(context, globalScope, globalScope, actualsObjArr);
           } catch (EcmaError ex) {
             throw new AbnormalExitException(ex);
           }
           if (inputRead.length() > 500) { inputRead = "<ABBREVIATED>"; }
         }
         if (result == null) { return null; }
+        if (String.class.equals(expectedResultType)
+            && result instanceof Scriptable) {
+          Scriptable s = (Scriptable) result;
+          Object toSource = ScriptableObject.getProperty(s, "toSource");
+          if (toSource instanceof Function) {
+            result = ((Function) toSource).call(
+                context, globalScope, s, new Object[0]);
+          }
+        }
         if (!expectedResultType.isInstance(result)) {
           result = Context.jsToJava(result, expectedResultType);
         }
@@ -256,7 +268,8 @@ public final class RhinoExecutor implements Executor {
     }
   }
 
-  private static final String drain(Reader r) throws IOException {
+  private static final String drain(Reader r)
+      throws IOException {
     try {
       char[] buf = new char[4096];
       StringBuilder sb = new StringBuilder();
@@ -465,16 +478,16 @@ public final class RhinoExecutor implements Executor {
     Group(String name) { this.name = name; }
   }
 
-  public static class LoadFn extends ScriptableObject implements Function {
+  public class LoadFn extends ScriptableObject implements Function {
     private final Scriptable globalScope;
     private final Loader loader;
     private final Logger logger;
     private final Path base;
-    private final Set<Path> dynamicLoads;
+    private final Map<Path, Hash> dynamicLoads;
 
     LoadFn(
         Scriptable globalScope, Loader loader, Logger logger, Path base,
-        Set<Path> dynamicLoads) {
+        Map<Path, Hash> dynamicLoads) {
       this.globalScope = globalScope;
       this.loader = loader;
       this.logger = logger;
@@ -482,8 +495,17 @@ public final class RhinoExecutor implements Executor {
       this.dynamicLoads = dynamicLoads;
     }
 
+    @Override public String getTypeOf() { return "function"; }
+
     @Override
     public String getClassName() { return null; }
+
+    @Override
+    public Object getDefaultValue(Class<?> typeHint) {
+      if (Number.class.isAssignableFrom(typeHint)) { return Double.NaN; }
+      if (typeHint == Boolean.class) { return Boolean.TRUE; }
+      return this;
+    }
 
     /**
      * @throws RhinoException when load fails due to IE problems, or the JS file
@@ -495,39 +517,115 @@ public final class RhinoExecutor implements Executor {
       LoadFn subLoadFn;  // The loaded module
       String src;  // The source code.
       String srcName;  // The name that will appear in stack traces.
+      Path modulePath;  // The path to load
+      {
+        String relPath = args[0].toString();
+        String pathSep = base.getFileSystem().getSeparator();
+        // URI separator should always work.
+        if (!"/".equals(pathSep)) { relPath = relPath.replace("/", pathSep); }
+        modulePath = base.getParent().resolve(relPath).normalize();
+        Function fn = loadedModules.get(modulePath);
+        if (fn != null) { return fn; }
+        dynamicLoads.put(modulePath, null);
+      }
       try {
-        Path p = base.getParent().resolve(args[0].toString()).normalize();
         // The caller of load can recover from a failed load using try/catch,
         // so we want to record the dependency so that if the file comes into
         // existence, we know to invalidate the output.
-        dynamicLoads.add(p.toRealPath(true));
-        src = drain(loader.load(p));
-        subLoadFn = new LoadFn(globalScope, loader, logger, p, dynamicLoads);
-        srcName = p.toString();
+        src = drain(loader.load(modulePath));
+        dynamicLoads.put(
+            modulePath, Hash.builder().withString(src).toHash());
+        subLoadFn = new LoadFn(
+            globalScope, loader, logger, modulePath, dynamicLoads);
+        srcName = modulePath.toString();
       } catch (IOException ex) {
         throw new WrappedException(ex);
       }
-      return subLoadFn.load(context, src, srcName);
+      Function fn = subLoadFn.load(context, src, srcName);
+      loadedModules.put(modulePath, fn);
+      return fn;
     }
 
     private Function load(Context context, String src, String srcName) {
       logger.log(Level.FINE, "Loading {0}", srcName);
       try {
-        ScriptableObject localScope = new ScriptableObject(globalScope, null) {
-          @Override
-          public String getClassName() { return null; }
-        };
-        ScriptableObject.putProperty(localScope, "load", this);
-        return context.compileFunction(
-            localScope, "function () { " + src + " }", srcName, 1, null);
+        return freeze(
+            context,
+            new LoadedModule(
+                srcName, context.compileString(src, srcName, 1, null)));
       } finally {
         logger.log(Level.FINE, "Done    {0}", srcName);
       }
     }
 
+    private <T extends ScriptableObject> T freeze(Context cx, T obj) {
+      for (Object name : obj.getAllIds()) {
+        ScriptableObject desc = new NativeObject();
+        desc.put("value", obj.get(name));
+        desc.put("writable", Boolean.FALSE);
+        desc.put("configurable", Boolean.FALSE);
+        obj.defineOwnProperty(cx, name, desc);
+      }
+      obj.preventExtensions();
+      return obj;
+    }
+
     public Scriptable construct(
         Context context, Scriptable scoe, Object[] args) {
       throw new UnsupportedOperationException();
+    }
+
+    final class LoadedModule extends ScriptableObject implements Function {
+      private final String srcName;
+      private final Script body;
+
+      LoadedModule(String srcName, Script body) {
+        this.srcName = srcName;
+        this.body = body;
+      }
+
+      @Override public String getTypeOf() { return "function"; }
+
+      @Override public String getClassName() { return srcName; }
+
+      @Override
+      public Object getDefaultValue(Class<?> typeHint) {
+        if (Number.class.isAssignableFrom(typeHint)) { return Double.NaN; }
+        if (typeHint == Boolean.class) { return Boolean.TRUE; }
+        return this;
+      }
+
+      public Object call(
+          Context context, Scriptable scope, Scriptable thisObj, Object[] args)
+          throws RhinoException {
+        ScriptableObject localScope = new ScriptableObject(globalScope, null) {
+          @Override
+          public String getClassName() { return null; }
+        };
+        localScope.setPrototype(globalScope);
+        if (loader != null) {
+          ScriptableObject.putProperty(localScope, "load", LoadFn.this);
+        }
+        if (args.length >= 1 && args[0] instanceof Scriptable) {
+          Scriptable env = (Scriptable) args[0];
+          for (Object key : ScriptableObject.getPropertyIds(env)) {
+            if (key instanceof Number) {
+              int keyI = ((Number) key).intValue();
+              ScriptableObject.putProperty(
+                  localScope, keyI, ScriptableObject.getProperty(env, keyI));
+            } else {
+              String keyS = key.toString();
+              ScriptableObject.putProperty(
+                  localScope, keyS, ScriptableObject.getProperty(env, keyS));
+            }
+          }
+        }
+        return body.exec(context, localScope);
+      }
+
+      public Scriptable construct(Context c, Scriptable scope, Object[] args) {
+        throw new UnsupportedOperationException();
+      }
     }
   }
 
@@ -542,7 +640,7 @@ public final class RhinoExecutor implements Executor {
     final NonDeterminism nonDeterminism;
 
     NonDeterminismRecorder(Function fn, Predicate<Object[]> argPredicate,
-                         NonDeterminism nonDeterminism) {
+                           NonDeterminism nonDeterminism) {
       this.fn = fn;
       this.argPredicate = argPredicate;
       this.nonDeterminism = nonDeterminism;
