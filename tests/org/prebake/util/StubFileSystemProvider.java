@@ -861,15 +861,21 @@ class MemFileSystem extends FileSystem {
     String syntax = syntaxAndPattern.substring(0, colon);
     String pattern = syntaxAndPattern.substring(colon + 1);
     if ("glob".equals(syntax)) {
-      pattern = pattern.replaceAll("[.\\\\]", "\\\\$0")
+      boolean isAbs = pattern.startsWith("/");
+      pattern = pattern.replaceAll("[.\\\\\\[\\]\\(\\)\\{\\}\\+]", "\\\\$0")
           .replaceAll("\\*\\*", ".*")
           .replaceAll("\\*", "[^/]*")
           .replaceAll("\\?", ".");
+      if (isAbs) {
+        pattern = "(?:" + pattern + ")$";
+      } else {
+        pattern = "(?:(?:^|/)" + pattern + ")$";
+      }
     }
     final Pattern p = Pattern.compile(pattern);
     return new PathMatcher() {
       public boolean matches(Path path) {
-        return path instanceof MemPath && p.matcher(path.toString()).matches();
+        return path instanceof MemPath && p.matcher(path.toString()).find();
       }
     };
   }
