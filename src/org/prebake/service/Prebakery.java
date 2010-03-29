@@ -78,6 +78,19 @@ public abstract class Prebakery implements Closeable {
         env.close();
         env = null;
       }
+      // Make a best effort to delete the token and port but don't abort.
+      try {
+        config.getClientRoot().resolve(FileNames.DIR).resolve(FileNames.TOKEN)
+            .deleteIfExists();
+      } catch (IOException ex) {
+        // OK
+      }
+      try {
+        config.getClientRoot().resolve(FileNames.DIR).resolve(FileNames.PORT)
+            .deleteIfExists();
+      } catch (IOException ex) {
+        // OK
+      }
     } finally {
       Runnable onClose = this.onClose;
       this.onClose = null;
@@ -87,11 +100,27 @@ public abstract class Prebakery implements Closeable {
 
   public Config getConfig() { return config; }
 
+  /**
+   * @param portHint the port to use or -1 to let the system choose a port.
+   * @param q receives commands from the outside.
+   * @return the port opened
+   * @throws IOException if a port could not be opened.  Always thrown if
+   *     a port other than -1 was thrown and it could not be acquired.
+   */
   protected abstract int openChannel(int portHint, BlockingQueue<Commands> q)
       throws IOException;
 
+  /**
+   * Generates a string that clients have to echo back to demonstrate that they
+   * can reach the portion of the file system modifiable by the service.
+   * In non test environments should return an unguessable string.
+   */
   protected abstract String makeToken();
 
+  /**
+   * Creates a database environment rooted at the given directory.
+   * Test environments may create the database elsewhere.
+   */
   protected abstract Environment createDbEnv(Path dir) throws IOException;
 
   public synchronized void start(Runnable onClose) {
@@ -138,7 +167,7 @@ public abstract class Prebakery implements Closeable {
       try {
         port = Integer.parseInt(read(portFile));
       } catch (NumberFormatException ex) {
-        port = -1;
+        port = -1;  // Let openChannel choose a port.
       }
     } else {
       portFile.createFile(FilePerms.perms(config.getUmask(), false));
@@ -146,7 +175,6 @@ public abstract class Prebakery implements Closeable {
     port = openChannel(port, cmdQueue);
     write(portFile, "" + port);
     if (!tokenFile.exists()) {
-      // TODO delete on exit
       tokenFile.createFile(FilePerms.perms(config.getUmask(), false));
     }
     write(tokenFile, token);

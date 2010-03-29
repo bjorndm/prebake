@@ -39,8 +39,7 @@ public final class Main {
       System.exit(0);
     }
 
-    if (!args.getFlags().isEmpty()
-        || !args.getValues().isEmpty()) {
+    if (!args.getFlags().isEmpty() || !args.getValues().isEmpty()) {
       System.err.println(USAGE);
       if (!args.getFlags().isEmpty()) {
         System.err.println(
