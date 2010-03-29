@@ -3,6 +3,7 @@ package org.prebake.fs;
 import org.prebake.util.PbTestCase;
 import org.prebake.util.StubFileSystemProvider;
 
+import com.google.common.base.Predicate;
 import com.google.common.collect.Sets;
 
 import java.io.File;
@@ -13,11 +14,7 @@ import java.io.Writer;
 import java.net.URI;
 import java.nio.file.FileSystem;
 import java.nio.file.FileSystems;
-import java.nio.file.FileVisitResult;
-import java.nio.file.FileVisitor;
-import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.attribute.BasicFileAttributes;
 import java.nio.file.attribute.FileAttribute;
 import java.util.Set;
 import java.util.concurrent.BlockingQueue;
@@ -46,7 +43,7 @@ public class DirectoryHooksTest extends PbTestCase {
       mkdirs(dir);
       runTests(delay, fs, dir);
     } finally {
-      rmTree(dir);
+      rmDirTree(new File(dir.toString()));
     }
   }
 
@@ -57,7 +54,13 @@ public class DirectoryHooksTest extends PbTestCase {
     mkdirs(baz);
     baz.resolve(fs.getPath("boo.cc")).createFile(FILE_ATTRS);
     baz.resolve(fs.getPath("boo.h")).createFile(FILE_ATTRS);
-    DirectoryHooks dh = new DirectoryHooks(dir);
+    DirectoryHooks dh = new DirectoryHooks(
+        dir,
+        new Predicate<Path>() {
+          public boolean apply(Path p) {
+            return p.getName().toString().equals("ignored");
+          }
+        });
     dh.start();
     BlockingQueue<Path> q = dh.getUpdates();
 
@@ -97,6 +100,11 @@ public class DirectoryHooksTest extends PbTestCase {
     // Recreate the deleted file
     README.createFile(FILE_ATTRS);
     assertChanged(q, delay, README);
+
+    // Create an ignored file
+    dir.resolve("ignored").createFile(FILE_ATTRS);
+    dir.resolve("notIgnored").createFile(FILE_ATTRS);
+    assertChanged(q, delay, dir.resolve("notIgnored"));
   }
 
   private static void assertChanged(
@@ -115,43 +123,5 @@ public class DirectoryHooksTest extends PbTestCase {
       t = System.currentTimeMillis();
     } while (t < te);
     assertEquals(golden, actual);
-  }
-
-  private static void rmTree(Path p) {
-    Files.walkFileTree(p, new FileVisitor<Path>() {
-      public FileVisitResult postVisitDirectory(Path p, IOException ex) {
-        if (ex != null) { ex.printStackTrace(); }
-        try {
-          p.delete();
-        } catch (IOException ex2) {
-          ex2.printStackTrace();
-        }
-        return FileVisitResult.CONTINUE;
-      }
-
-      public FileVisitResult preVisitDirectory(Path p) {
-        return FileVisitResult.CONTINUE;
-      }
-
-      public FileVisitResult preVisitDirectoryFailed(Path p, IOException ex) {
-        return FileVisitResult.CONTINUE;
-      }
-
-      public FileVisitResult visitFile(Path p, BasicFileAttributes attrs) {
-        if (!attrs.isDirectory()) {
-          try {
-            p.deleteIfExists();
-          } catch (IOException ex) {
-            ex.printStackTrace();
-          }
-        }
-        return FileVisitResult.CONTINUE;
-      }
-
-      public FileVisitResult visitFileFailed(Path p, IOException ex) {
-        ex.printStackTrace();
-        return FileVisitResult.CONTINUE;
-      }
-    });
   }
 }

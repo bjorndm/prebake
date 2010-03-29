@@ -1,5 +1,6 @@
 package org.prebake.fs;
 
+import com.google.common.base.Predicate;
 import com.google.common.collect.Maps;
 
 import java.io.Closeable;
@@ -40,10 +41,12 @@ public class DirectoryHooks implements Closeable {
 
   private final Path root;
   private final BlockingQueue<Path> q = new LinkedBlockingQueue<Path>(1 << 12);
+  private final Predicate<Path> toIgnore;
   private Thread watcher;
 
-  public DirectoryHooks(Path root) {
+  public DirectoryHooks(Path root, Predicate<Path> toIgnore) {
     this.root = root;
+    this.toIgnore = toIgnore;
   }
 
   public BlockingQueue<Path> getUpdates() { return q; }
@@ -131,7 +134,7 @@ public class DirectoryHooks implements Closeable {
           }
         } else {
           try {
-            q.put(child);
+            maybePut(child);
           } catch (InterruptedException ex) {
             return;
           }
@@ -168,7 +171,7 @@ public class DirectoryHooks implements Closeable {
         @Override
         public FileVisitResult visitFile(Path p, BasicFileAttributes attrs) {
           try {
-            q.put(p);
+            maybePut(p);
           } catch (InterruptedException ex) {
             return FileVisitResult.TERMINATE;
           }
@@ -178,5 +181,9 @@ public class DirectoryHooks implements Closeable {
     } catch (IOError err) {
       throw (IOException) err.getCause();
     }
+  }
+
+  private void maybePut(Path p) throws InterruptedException {
+    if (!toIgnore.apply(p)) { q.put(p); }
   }
 }
