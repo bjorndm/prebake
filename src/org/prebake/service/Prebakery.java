@@ -24,6 +24,7 @@ import java.nio.charset.Charset;
 import java.nio.file.FileSystem;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
+import java.nio.file.attribute.DosFileAttributeView;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.BlockingQueue;
@@ -122,14 +123,14 @@ public abstract class Prebakery implements Closeable {
     FileSystem fs = clientRoot.getFileSystem();
     Path dir = clientRoot.resolve(fs.getPath(FileNames.DIR));
     if (!dir.exists()) {
-      dir.createDirectory(FilePerms.perms(config.getUmask(), true, dir));
+      dir.createDirectory(FilePerms.perms(config.getUmask(), true));
+      dir.getFileAttributeView(DosFileAttributeView.class).setHidden(true);
     }
     Path cmdlineFile = dir.resolve(fs.getPath(FileNames.CMD_LINE));
     Path portFile = dir.resolve(fs.getPath(FileNames.PORT));
     Path tokenFile = dir.resolve(fs.getPath(FileNames.TOKEN));
     if (!cmdlineFile.exists()) {
-      cmdlineFile.createFile(
-          FilePerms.perms(config.getUmask(), false, cmdlineFile));
+      cmdlineFile.createFile(FilePerms.perms(config.getUmask(), false));
     }
     write(cmdlineFile, CommandLineConfig.toArgv(config));
     int port = -1;
@@ -140,15 +141,13 @@ public abstract class Prebakery implements Closeable {
         port = -1;
       }
     } else {
-      portFile.createFile(
-          FilePerms.perms(config.getUmask(), false, portFile));
+      portFile.createFile(FilePerms.perms(config.getUmask(), false));
     }
     port = openChannel(port, cmdQueue);
     write(portFile, "" + port);
     if (!tokenFile.exists()) {
       // TODO delete on exit
-      tokenFile.createFile(
-          FilePerms.perms(config.getUmask(), false, tokenFile));
+      tokenFile.createFile(FilePerms.perms(config.getUmask(), false));
     }
     write(tokenFile, token);
 

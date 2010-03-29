@@ -132,7 +132,7 @@ public class ExecutorTest extends PbTestCase {
         Object.class,
         getLogger(Level.INFO),
         new Loader() {
-          public Reader load(Path p) throws IOException {
+          public Reader load(Path p) {
             return new StringReader("typeof x !== 'undefined' ? x : 2");
           }
         });
@@ -147,7 +147,7 @@ public class ExecutorTest extends PbTestCase {
         Object.class,
         getLogger(Level.INFO),
         new Loader() {
-          public Reader load(Path p) throws IOException {
+          public Reader load(Path p) {
             return new StringReader("typeof x !== 'undefined' ? x : 2");
           }
         });
@@ -162,7 +162,7 @@ public class ExecutorTest extends PbTestCase {
         Object.class,
         getLogger(Level.INFO),
         new Loader() {
-          public Reader load(Path p) throws IOException {
+          public Reader load(Path p) {
             return new StringReader("typeof x !== 'undefined' ? x : 2");
           }
         });
@@ -178,7 +178,7 @@ public class ExecutorTest extends PbTestCase {
         Object.class,
         getLogger(Level.INFO),
         new Loader() {
-          public Reader load(Path p) throws IOException {
+          public Reader load(Path p) {
             return new StringReader("++x");
           }
         });
@@ -401,7 +401,7 @@ public class ExecutorTest extends PbTestCase {
     for (int i = 0, n = files.length; i < n; i += 2) {
       Path p = fs.getPath(files[i]).toRealPath(true);
       mkdirs(p.getParent());
-      p.createFile(FilePerms.perms(0600, false, p));
+      p.createFile(FilePerms.perms(0600, false));
       OutputStream out = p.newOutputStream(StandardOpenOption.CREATE);
       try {
         out.write(files[i + 1].getBytes("UTF-8"));
