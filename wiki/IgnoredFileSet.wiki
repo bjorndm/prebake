@@ -28,15 +28,16 @@ The ignored files will match against paths normalized to use POSIX style file se
 If the ignore pattern is not specified, it is the union of the below.
 
 || *Regexp* || *Reason* ||
-|| `\.pyc$` || generated python ||
-|| `~$` || emacs backup ||
-|| `\.bak$` || other backup files ||
-|| `/#[^/]+#$` || emacs unsaved ||
-|| `/%[^/]*%$` || more backup files  ||
-|| `/\.(#+|_+)$` || temporary files ||
+|| `\.pyc$` || cached compiled Python ||
+|| `\.elc$` || cached compiled ELISP ||
 || `\.rej$` || {{{patch}}} reject file ||
 || `\.prej$` || more reject files ||
 || `\.tmp$` || common temp file suffix ||
+|| `\.bak$` || other backup files ||
+|| `~$` || emacs backup ||
+|| `/#[^/]+#$` || emacs unsaved ||
+|| `/%[^/]*%$` || more backup files  ||
+|| `/\.(#+|_+)$` || temporary files ||
 || `/(CVS|SCCS|\.svn)(/|$)` || revision control bookkeeping files ||
 || `/\.cvsignore$` || CVS metadata ||
 || `/vssver.scc$` || more revision control metadata ||
