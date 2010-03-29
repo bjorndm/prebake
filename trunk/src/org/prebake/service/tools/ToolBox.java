@@ -159,25 +159,27 @@ public class ToolBox implements Closeable {
       dirIndices = ImmutableMap.of();
     }
     // Load the builtin tools from a tools.txt file in this same directory.
-    {
-      InputStream builtinFiles = getClass().getResourceAsStream("tools.txt");
-      try {
-        BufferedReader in = new BufferedReader(
-            new InputStreamReader(builtinFiles, "UTF-8"));
-        for (String line; (line = in.readLine()) != null;) {
-          checkBuiltin(line);
-        }
-      } finally {
-        builtinFiles.close();
-      }
-    }
+    for (String builtin : getBuiltinToolNames()) { checkBuiltin(builtin); }
 
     this.updater = execer.scheduleWithFixedDelay(new Runnable() {
       public void run() { getAvailableToolSignatures(); }
     }, 1000, 1000, TimeUnit.MILLISECONDS);
   }
 
-  public List<Future<ToolSignature>> getAvailableToolSignatures() {
+  protected Iterable<String> getBuiltinToolNames() throws IOException {
+    List<String> builtins = Lists.newArrayList();
+    InputStream builtinFiles = getClass().getResourceAsStream("tools.txt");
+    try {
+      BufferedReader in = new BufferedReader(
+          new InputStreamReader(builtinFiles, UTF8));
+      for (String line; (line = in.readLine()) != null;) { builtins.add(line); }
+    } finally {
+      builtinFiles.close();
+    }
+    return builtins;
+  }
+
+  public final List<Future<ToolSignature>> getAvailableToolSignatures() {
     List<Future<ToolSignature>> promises = Lists.newArrayList();
     for (Tool t : tools.values()) { promises.add(requireToolValid(t)); }
     return promises;
@@ -298,8 +300,7 @@ public class ToolBox implements Closeable {
           Executor.Output<String> result;
           try {
             result = executor.run(
-                Collections.singletonMap(
-                    "tool", new ToolInterfaceSandBoxSafe(name)),
+                Collections.<String, Object>emptyMap(),
                 String.class, logger, new Loader() {
                   public Reader load(Path p) throws IOException {
                     // The name "next" resolves to the next instance of the
@@ -410,10 +411,10 @@ public class ToolBox implements Closeable {
           : getClass().getResourceAsStream(t.localName.toString());
     }
     if (in == null) { throw new FileNotFoundException(path.toString()); }
-    return new InputStreamReader(in, "UTF-8");
+    return new InputStreamReader(in, UTF8);
   }
 
-  public void close() throws IOException {
+  public final void close() throws IOException {
     if (watcher != null) { watcher.close(); }
     synchronized (tools) { tools.clear(); }
     tools.clear();

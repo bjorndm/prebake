@@ -2,6 +2,7 @@ package org.prebake.service;
 
 import org.prebake.core.MessageQueue;
 import org.prebake.util.CommandLineArgs;
+import org.prebake.util.PbTestCase;
 import org.prebake.util.StubFileSystemProvider;
 
 import com.google.common.base.Joiner;
@@ -11,9 +12,7 @@ import java.net.URI;
 import java.nio.file.FileSystem;
 import java.util.regex.Pattern;
 
-import junit.framework.TestCase;
-
-public class CommandLineConfigTest extends TestCase {
+public class CommandLineConfigTest extends PbTestCase {
   public final void testClientRoot() throws IOException {
     Config c;
     c = assertConfig(new String[0], false, "Please specify --root");
@@ -213,10 +212,9 @@ public class CommandLineConfigTest extends TestCase {
     MessageQueue mq = new MessageQueue();
     FileSystem fs = new StubFileSystemProvider("mfs")
         .getFileSystem(URI.create("mfs://#/foo/bar"));
-    fs.getPath("/foo/bar").createDirectory();
-    fs.getPath("/foo/bar/project/src").createDirectory();
-    fs.getPath("/foo/bar/tools").createDirectory();
-    fs.getPath("/foo/bar/project/ptools").createDirectory();
+    mkdirs(fs.getPath("/foo/bar/project/src"));
+    mkdirs(fs.getPath("/foo/bar/tools"));
+    mkdirs(fs.getPath("/foo/bar/project/ptools"));
     fs.getPath("/foo/bar/project/recipe.js").createFile();
     fs.getPath("/foo/bar/project/recipe2.js").createFile();
     fs.getPath("/foo/bar/project/src/main.cc").createFile();

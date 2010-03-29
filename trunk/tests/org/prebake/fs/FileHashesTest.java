@@ -1,6 +1,7 @@
 package org.prebake.fs;
 
 import org.prebake.core.Hash;
+import org.prebake.util.PbTestCase;
 import org.prebake.util.StubFileSystemProvider;
 
 import com.google.common.collect.Maps;
@@ -10,38 +11,33 @@ import com.twmacinta.util.MD5;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.OutputStream;
 import java.net.URI;
 import java.nio.file.FileSystem;
 import java.nio.file.Path;
-import java.nio.file.StandardOpenOption;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
-import java.util.logging.Logger;
+import java.util.logging.Level;
 
-import junit.framework.TestCase;
-
-public class FileHashesTest extends TestCase {
+public class FileHashesTest extends PbTestCase {
   private FileSystem fs;
   private Environment env;
-  private Logger logger;
   private File tempFile;
   private FileHashes fh;
 
   @Override
   protected void setUp() throws Exception {
-    logger = Logger.getLogger(getName());
+    super.setUp();
     fs = new StubFileSystemProvider("mfs").getFileSystem(
         URI.create("mfs:///#/cwd"));
-    fs.getPath("/cwd/root").createDirectory();
+    mkdirs(fs.getPath("/cwd/root"));
     EnvironmentConfig envConfig = new EnvironmentConfig();
     envConfig.setAllowCreate(true);
     tempFile = File.createTempFile(getName(), ".bdb");
     tempFile.delete();
     tempFile.mkdirs();
     env = new Environment(tempFile, envConfig);
-    fh = new FileHashes(env, fs.getPath("/cwd/root"), logger);
+    fh = new FileHashes(env, fs.getPath("/cwd/root"), getLogger(Level.INFO));
   }
 
   @Override
@@ -54,7 +50,7 @@ public class FileHashesTest extends TestCase {
     fs = null;
     rmDirTree(tempFile);
     tempFile = null;
-    logger = null;
+    super.tearDown();
   }
 
   public final void testUpdates() throws Exception {
@@ -265,16 +261,6 @@ public class FileHashesTest extends TestCase {
     assertEquals(golden, getHashStr(paths));
   }
 
-  private void writeFile(Path p, String content) throws IOException {
-    OutputStream out = p.newOutputStream(
-        StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
-    try {
-      out.write(content.getBytes("UTF-8"));
-    } finally {
-      out.close();
-    }
-  }
-
   private List<Path> paths(String... s) {
     Path[] paths = new Path[s.length];
     for (int i = paths.length; --i >= 0;) {
@@ -284,11 +270,4 @@ public class FileHashesTest extends TestCase {
   }
 
   private List<Path> paths(Path... paths) { return Arrays.asList(paths); }
-
-  private static void rmDirTree(File f) throws IOException {
-    if (f.isDirectory()) {
-      for (File c : f.listFiles()) { rmDirTree(c); }
-    }
-    f.delete();
-  }
 }

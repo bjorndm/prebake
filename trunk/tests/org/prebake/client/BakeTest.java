@@ -1,6 +1,7 @@
 package org.prebake.client;
 
 import org.prebake.channel.Commands;
+import org.prebake.util.PbTestCase;
 import org.prebake.util.StubFileSystemProvider;
 
 import com.google.common.collect.Lists;
@@ -16,14 +17,11 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.file.FileSystem;
 import java.nio.file.Path;
-import java.nio.file.StandardOpenOption;
 import java.util.Arrays;
 import java.util.List;
 import java.util.logging.Logger;
 
-import junit.framework.TestCase;
-
-public class BakeTest extends TestCase {
+public class BakeTest extends PbTestCase {
 
   public final void testEverythingWorksFirstTime() throws IOException {
     new BakeTestRunner()
@@ -276,13 +274,7 @@ public class BakeTest extends TestCase {
         public void run() throws IOException {
           Path p = cwd.getFileSystem().getPath(path);
           mkdirs(p.getParent());
-          OutputStream out = p.newOutputStream(
-              StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
-          try {
-            out.write(content.getBytes("UTF-8"));
-          } finally {
-            out.close();
-          }
+          writeFile(p, content);
         }
       };
       if (expectations.isEmpty()) {
@@ -344,14 +336,6 @@ public class BakeTest extends TestCase {
     BakeTestRunner expectOutput(String content) throws IOException {
       assertEquals(content, out.toString("UTF-8"));
       return this;
-    }
-  }
-
-  private static void mkdirs(Path p) throws IOException {
-    if (!p.exists()) {
-      Path parent = p.getParent();
-      if (parent != null) { mkdirs(parent); }
-      p.createDirectory();
     }
   }
 }
