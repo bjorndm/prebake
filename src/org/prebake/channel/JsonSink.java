@@ -29,6 +29,10 @@ public final class JsonSink implements Closeable {
   }
 
   public JsonSink writeValue(String s) throws IOException {
+    if (s == null) {
+      out.append("null");
+      return this;
+    }
     out.append('"');
     int pos = 0, n = s.length();
     for (int i = 0; i < n; ++i) {

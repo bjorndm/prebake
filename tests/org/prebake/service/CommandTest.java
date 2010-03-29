@@ -73,6 +73,12 @@ public class CommandTest extends TestCase {
     reparse(c);
   }
 
+  public final void testToolHelpCommand() throws IOException {
+    Command.ToolHelpCommand c = new Command.ToolHelpCommand();
+    assertEquals("[\"tool_help\",{}]", c.toString());
+    reparse(c);
+  }
+
   private Command reparse(Command c) throws IOException {
     Command c2 = Command.fromJson(jss(c.toString()), fs);
     assertEquals(c2.getClass(), c.getClass());

@@ -25,6 +25,7 @@ public abstract class Command {
     plan,
     shutdown,
     sync,
+    tool_help,
     ;
   }
 
@@ -65,6 +66,7 @@ public abstract class Command {
       case plan:          return new PlanCommand(toProducts(args));
       case shutdown:      return new ShutdownCommand();
       case sync:          return new SyncCommand();
+      case tool_help:     return new ToolHelpCommand();
     }
     throw new Error(v.name());
   }
@@ -194,5 +196,9 @@ public abstract class Command {
 
   public static final class SyncCommand extends Command {
     public SyncCommand() { super(Verb.sync); }
+  }
+
+  public static final class ToolHelpCommand extends Command {
+    public ToolHelpCommand() { super(Verb.tool_help); }
   }
 }
