@@ -64,6 +64,7 @@
       <assertions><enable/></assertions>  <!-- ignored unless fork="yes" -->
       <classpath refid="classpath.tests.run"/>
       <formatter type="xml" usefile="true"/>
+      <!--formatter type="brief" usefile="false"/-->
       <batchtest todir="${reports}/tests">
         <fileset dir="${tests}">
           <include name="**/*Test.java"/>
@@ -71,7 +72,6 @@
       </batchtest>
       <sysproperty key="user.language" value="tr"/>
       <sysproperty key="user.region" value="TR"/>
-      <sysproperty key="test.filter" value="${test.filter}"/>
     </junit>
     <!-- Generate the test results report. -->
     <junitreport todir="${reports}/tests">
