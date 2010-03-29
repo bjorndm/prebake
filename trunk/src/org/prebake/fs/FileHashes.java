@@ -15,6 +15,7 @@ import com.sleepycat.je.OperationStatus;
 import java.io.Closeable;
 import java.io.IOException;
 import java.nio.charset.Charset;
+import java.nio.file.FileSystem;
 import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.BitSet;
@@ -67,6 +68,8 @@ public final class FileHashes implements Closeable {
     fileDerivatives = env.openDatabase(null, "fileDerivatives", derivConfig);
   }
 
+  public FileSystem getFileSystem() { return root.getFileSystem(); }
+
   private Path toKeyPath(Path p) {
     try {
       Path relPath = root.relativize(p.toRealPath(false));
@@ -103,7 +106,7 @@ public final class FileHashes implements Closeable {
       try {
         if (!p.notExists()) {
           logger.log(Level.FINE, "Hashing file {0}", p);
-          Hash hash = new Hash.HashBuilder().withFile(p).toHash();
+          Hash hash = Hash.builder().withFile(p).toHash();
           hashes[i] = new DatabaseEntry(hash.getBytes());
         }
       } catch (IOException ex) {
@@ -253,7 +256,7 @@ public final class FileHashes implements Closeable {
     }
   }
 
-  private static final Hash NO_FILE_HASH = new Hash.HashBuilder().toHash();
+  private static final Hash NO_FILE_HASH = Hash.builder().toHash();
   /**
    * @param artifact a newly valid non file artifact.
    * @param as the address space for item.
@@ -309,7 +312,7 @@ public final class FileHashes implements Closeable {
       String address = index + ":" + as.addressFor(artifact);
       DatabaseEntry value = new DatabaseEntry(bytes(address));
 
-      Hash.HashBuilder rehash = new Hash.HashBuilder();
+      Hash.HashBuilder rehash = Hash.builder();
       getHashes(prerequisites, rehash);
       if (!prereqHash.equals(rehash.toHash())) {
         logger.log(Level.INFO, "Version skew.  Cannot validate {0}", address);

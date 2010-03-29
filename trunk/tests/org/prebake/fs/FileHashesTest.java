@@ -256,7 +256,7 @@ public class FileHashesTest extends TestCase {
   }
 
   private Hash getHash(List<Path> paths) throws IOException {
-    Hash.HashBuilder hb = new Hash.HashBuilder();
+    Hash.HashBuilder hb = Hash.builder();
     fh.getHashes(paths, hb);
     return hb.toHash();
   }

@@ -26,25 +26,22 @@ import java.util.logging.Logger;
 
 import junit.framework.TestCase;
 
-import org.mozilla.javascript.Undefined;
-
 public class ExecutorTest extends TestCase {
   public final void testResult() throws Exception {
-    assertResult(Undefined.instance, "1 + 1");  // Need an explicit return.
-    assertResult(2.0, "return 1 + 1");
-    assertResult("Hello, World!", "return 'Hello, World!'");
+    assertResult(2.0, "1 + 1");
+    assertResult("Hello, World!", "'Hello, World!'");
   }
 
   public final void testModuleIsDelayed() throws Exception {
     Executor.Output<?> out = doLoad(
-        "return typeof load('bar.js');",
-        "bar.js", "return 1 + 1;");
+        "typeof load('bar.js');",
+        "bar.js", "1 + 1;");
     assertEquals("function", out.result);
     assertFalse(out.usedSourceOfKnownNondeterminism);
     // Even if not used, so we can track dependencies on missing files and
     // invalidate hashes for computations that recover from missing files
     // using try/catch.  Tested in more detail below.
-    assertEquals("[/foo/bar.js]", out.dynamicLoads.toString());
+    assertEquals("[/foo/bar.js]", out.dynamicLoads.keySet().toString());
   }
 
   public final void testFailedLoadRecovery() throws Exception {
@@ -52,15 +49,15 @@ public class ExecutorTest extends TestCase {
     Executor.Output<?> out = doLoad(
         ""
         + "try {\n"
-        + "  return load('nosuchfile.js')();\n"
+        + "  load('nosuchfile.js')();\n"
         + "} catch (ex) {\n"
-        + "  return ex.message;\n"
+        + "  ex.message;\n"
         + "}");
     assertEquals(
         "java.io.FileNotFoundException: /foo/nosuchfile.js",
         (String) out.result);
     assertFalse(out.usedSourceOfKnownNondeterminism);
-    assertEquals("[/foo/nosuchfile.js]", out.dynamicLoads.toString());
+    assertEquals("[/foo/nosuchfile.js]", out.dynamicLoads.keySet().toString());
   }
 
   public final void testMalformedModule() throws Exception {
@@ -68,57 +65,57 @@ public class ExecutorTest extends TestCase {
     Executor.Output<?> out = doLoad(
         ""
         + "try {\n"
-        + "  return load('../bar/malformed.js')();\n"
+        + "  load('../bar/malformed.js')();\n"
         + "} catch (ex) {\n"
-        + "  return ex.message;\n"
+        + "  ex.message;\n"
         + "}",
         "/bar/malformed.js", "NOT VALID JAVASCRIPT!!!");
     assertEquals(
         "missing ; before statement (/bar/malformed.js#1)",
         (String) out.result);
     assertFalse(out.usedSourceOfKnownNondeterminism);
-    assertEquals("[/bar/malformed.js]", out.dynamicLoads.toString());
+    assertEquals("[/bar/malformed.js]", out.dynamicLoads.keySet().toString());
   }
 
   public final void testModuleResult() throws Exception {
     Executor.Output<?> out = doLoad(
-        "return load('baz.js')();",
-        "baz.js", "return 1 + 1;");
+        "load('baz.js')();",
+        "baz.js", "1 + 1;");
     assertEquals(2.0, out.result);
     assertFalse(out.usedSourceOfKnownNondeterminism);
-    assertEquals("[/foo/baz.js]", out.dynamicLoads.toString());
+    assertEquals("[/foo/baz.js]", out.dynamicLoads.keySet().toString());
   }
 
   public final void testDeterministicModuleUnused() throws Exception {
     Executor.Output<?> out = doLoad(
-        "return load('bar/baz.js')();",
-        "bar/baz.js", "return 1 + 0 * load('boo.js');",
-        "bar/boo.js", "return Math.random()");
+        "load('bar/baz.js')();",
+        "bar/baz.js", "1 + 0 * load('boo.js');",
+        "bar/boo.js", "Math.random()");
     assertTrue(Double.isNaN((Double) out.result));
     assertFalse(out.usedSourceOfKnownNondeterminism);
     assertEquals(
         "[/foo/bar/baz.js, /foo/bar/boo.js]",
-        out.dynamicLoads.toString());
+        out.dynamicLoads.keySet().toString());
   }
 
   public final void testDeterministicModuleUsed() throws Exception {
     Executor.Output<?> out = doLoad(
-        "return load('bar/baz.js')();",
+        "load('bar/baz.js')();",
         // boo.js loaded relative to bar/baz.js
-        "bar/baz.js", "return 1 + 0 * load('boo.js')();",
-        "bar/boo.js", "return Math.random()");
+        "bar/baz.js", "1 + 0 * load('boo.js')();",
+        "bar/boo.js", "Math.random()");
     assertEquals(1.0, out.result);
     assertTrue(out.usedSourceOfKnownNondeterminism);
     assertEquals(
         "[/foo/bar/baz.js, /foo/bar/boo.js]",
-        out.dynamicLoads.toString());
+        out.dynamicLoads.keySet().toString());
   }
 
   public final void testActuals() throws Exception {
     FileSystem fs = new StubFileSystemProvider("mfs").getFileSystem(
         URI.create("mfs:///#/foo"));
     Executor executor = Executor.Factory.createJsExecutor(new Executor.Input(
-        new StringReader("return x + 1"),
+        new StringReader("x + 1"),
         fs.getPath("/foo/" + getName() + ".js")));
     Executor.Output<?> output = executor.run(
         Collections.singletonMap("x", 1),
@@ -130,6 +127,67 @@ public class ExecutorTest extends TestCase {
           }
         });
     assertEquals(2.0, output.result);
+
+    // They shouldn't by default be visible to loaded modules.
+    executor = Executor.Factory.createJsExecutor(new Executor.Input(
+        new StringReader("load('x')() + 1"),
+        fs.getPath("/foo/" + getName() + ".js")));
+    output = executor.run(
+        Collections.singletonMap("x", 1),
+        Object.class,
+        Logger.getLogger(getName()),
+        new Loader() {
+          public Reader load(Path p) throws IOException {
+            return new StringReader("typeof x !== 'undefined' ? x : 2");
+          }
+        });
+    assertEquals(3.0, output.result);
+
+    // But a module can always elect to forward its scope.
+    executor = Executor.Factory.createJsExecutor(new Executor.Input(
+        new StringReader("load('x')(this) + 1"),
+        fs.getPath("/foo/" + getName() + ".js")));
+    output = executor.run(
+        Collections.singletonMap("x", 1),
+        Object.class,
+        Logger.getLogger(getName()),
+        new Loader() {
+          public Reader load(Path p) throws IOException {
+            return new StringReader("typeof x !== 'undefined' ? x : 2");
+          }
+        });
+    assertEquals(2.0, output.result);
+
+    // Or substitute its own.
+    executor = Executor.Factory.createJsExecutor(new Executor.Input(
+        new StringReader("load('x')({ x: 3 }) + 1"),
+        fs.getPath("/foo/" + getName() + ".js")));
+    output = executor.run(
+        Collections.singletonMap("x", 1),
+        Object.class,
+        Logger.getLogger(getName()),
+        new Loader() {
+          public Reader load(Path p) throws IOException {
+            return new StringReader("typeof x !== 'undefined' ? x : 2");
+          }
+        });
+    assertEquals(4.0, output.result);
+
+    // But in any case, changes to the module's scope don't affect the loader's.
+    // But a module can always elect to forward its scope.
+    executor = Executor.Factory.createJsExecutor(new Executor.Input(
+        new StringReader("load('x')(this) + x"),
+        fs.getPath("/foo/" + getName() + ".js")));
+    output = executor.run(
+        Collections.singletonMap("x", 1),
+        Object.class,
+        Logger.getLogger(getName()),
+        new Loader() {
+          public Reader load(Path p) throws IOException {
+            return new StringReader("++x");
+          }
+        });
+    assertEquals(3.0, output.result);
   }
 
   public final void testSourcesOfNonDeterminism() throws Exception {
@@ -179,7 +237,8 @@ public class ExecutorTest extends TestCase {
     // runs tests in the Turkish locale to flush out case folding problems.
     // We want to use the default locale for logging, but for these tests, we
     // switch to a consistent locale so that our test results are consistent
-    // between an English IDE and our command line test environment.
+    // between an English IDE and our command line test environment when
+    // formatting %d output below.
     Locale defaultLocale = Locale.getDefault();
     Locale.setDefault(Locale.ENGLISH);
     try {
@@ -244,7 +303,63 @@ public class ExecutorTest extends TestCase {
   }
 
   public final void testJsWithBOM() throws Exception {
-    assertResult(Undefined.instance, "\ufeff1 + 1");
+    assertResult(2.0, "\ufeff1 + 1");
+  }
+
+  public final void testGlobalsAvailable() throws Exception {
+    Executor.Output<?> out;
+    out = doLoad(
+        "load('foo.js')({});",
+        "foo.js", "typeof Function");
+    assertEquals("function", out.result);
+    out = doLoad(
+        "load('foo.js')({});",
+        "foo.js", "typeof this.Function");
+    assertEquals("function", out.result);
+  }
+
+  public final void testModuleEnvironment() throws Exception {
+    Executor.Output<?> out;
+    out = doLoad(
+        "load('foo.js')({ x: 2, y: 3 });",
+        "foo.js", "x * y");
+    assertEquals(6d, out.result);
+    out = doLoad(
+        "load('foo.js')({ x: 2, y: 3 });",
+        "foo.js", "this.x * this.y");
+    assertEquals(6d, out.result);
+    out = doLoad(
+        "load('fooDelegate.js')({ x: 2, y: 3 });",
+        "fooDelegate.js", "load('foo.js')(this)",
+        "foo.js", "this.x * this.y");
+    assertEquals(6d, out.result);
+  }
+
+  public final void testToSource() throws Exception {
+    FileSystem fs = new StubFileSystemProvider("mfs").getFileSystem(
+        URI.create("mfs:///#/foo"));
+    Executor executor = Executor.Factory.createJsExecutor(new Executor.Input(
+        new StringReader("({ x: 1, y: function () { return 4; }, z: [2] })"),
+        fs.getPath("/foo/" + getName() + ".js")));
+    Executor.Output<String> out = executor.run(
+        Collections.<String, Object>emptyMap(),
+        String.class,
+        Logger.getLogger(getName()),
+        new Loader() {
+          public Reader load(Path p) throws IOException {
+            throw new IOException("Should not laod");
+          }
+        });
+    assertEquals("({x:1, y:(function () {return 4;}), z:[2]})", out.result);
+  }
+
+  public final void testNoBase() throws Exception {
+    Executor executor = Executor.Factory.createJsExecutor(new Executor.Input(
+        new StringReader("typeof load"), getName(), null));
+    Executor.Output<?> output = executor.run(
+        Collections.<String, Object>emptyMap(), Object.class,
+        Logger.getLogger(getName()), null);
+    assertEquals("undefined", output.result);
   }
 
   private void assertResult(Object result, String src) throws Exception {
