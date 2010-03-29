@@ -7,6 +7,7 @@ import org.prebake.fs.DirectoryHooks;
 import org.prebake.fs.FileHashes;
 import org.prebake.fs.FilePerms;
 
+import com.google.common.base.Predicate;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
@@ -47,6 +48,22 @@ public abstract class Prebakery implements Closeable {
   private Runnable onClose;
   private Consumer<Path> pathConsumer;
   private Consumer<Commands> commandConsumer;
+
+  /**
+   * @see
+   *   <a href="http://code.google.com/p/prebake/wiki/IgnoredFileSet">wiki</a>
+   */
+  private static final Pattern DEFAULT_IGNORE_PATTERN = Pattern.compile(
+      ""
+      + "\\.(?:pyc|elc|bak|rej|prej|tmp)$"
+      + "|~$"
+      + "|/#[^/]*#$"
+      + "|/%[^/]*%$"
+      + "|/\\.(?:#+|_+)$"
+      + "|/(?:CVS|SCCS|\\.svn)(?:/|$)"
+      + "|/\\.cvsignore$|/vssver.scc$"
+      + "|/\\.DS_Store$",
+      Pattern.DOTALL);
 
   public Prebakery(Config config, Logger logger) {
     assert config != null;
@@ -184,7 +201,15 @@ public abstract class Prebakery implements Closeable {
   }
 
   private void setupFileSystemWatcher() {
-    DirectoryHooks hooks = new DirectoryHooks(config.getClientRoot());
+    DirectoryHooks hooks = new DirectoryHooks(
+        config.getClientRoot(), new Predicate<Path>() {
+          final Pattern regex = config.getIgnorePattern() != null
+              ? config.getIgnorePattern()
+              : DEFAULT_IGNORE_PATTERN;
+          public boolean apply(Path p) {
+            return !regex.matcher(p.toString()).find();
+          }
+        });
     pathConsumer = new Consumer<Path>(hooks.getUpdates()) {
       @Override
       protected void consume(BlockingQueue<? extends Path> q, Path x) {
