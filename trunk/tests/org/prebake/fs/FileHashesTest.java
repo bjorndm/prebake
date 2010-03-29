@@ -10,7 +10,6 @@ import com.sleepycat.je.EnvironmentConfig;
 import com.twmacinta.util.MD5;
 
 import java.io.File;
-import java.io.IOException;
 import java.net.URI;
 import java.nio.file.FileSystem;
 import java.nio.file.Path;
@@ -239,25 +238,25 @@ public class FileHashesTest extends PbTestCase {
     assertFalse(docsp.valid);
   }
 
-  private String getHashStr(Path... paths) throws IOException {
+  private String getHashStr(Path... paths) {
     return getHashStr(paths(paths));
   }
 
-  private String getHashStr(List<Path> paths) throws IOException {
+  private String getHashStr(List<Path> paths) {
     return MD5.asHex(getHash(paths).getBytes());
   }
 
-  private Hash getHash(Path... paths) throws IOException {
+  private Hash getHash(Path... paths) {
     return getHash(paths(paths));
   }
 
-  private Hash getHash(List<Path> paths) throws IOException {
+  private Hash getHash(List<Path> paths) {
     Hash.HashBuilder hb = Hash.builder();
     fh.getHashes(paths, hb);
     return hb.toHash();
   }
 
-  private void assertHash(String golden, List<Path> paths) throws IOException {
+  private void assertHash(String golden, List<Path> paths) {
     assertEquals(golden, getHashStr(paths));
   }
 

@@ -68,7 +68,7 @@ public abstract class PbTestCase extends TestCase {
   }
 
   private static final FileAttribute<?>[] DIR_ATTRS
-      = FilePerms.perms(0700, true, null);
+      = FilePerms.perms(0700, true);
 
   protected static void mkdirs(Path p) throws IOException {
     if (!p.exists()) {

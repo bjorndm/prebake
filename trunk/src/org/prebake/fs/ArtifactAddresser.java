@@ -1,7 +1,7 @@
 package org.prebake.fs;
 
 /**
- * A reversible mapping from {@link NonFileArtifacts} to addresses.
+ * A reversible mapping from {@link NonFileArtifact}s to addresses.
  *
  * @author mikesamuel@gmail.com
  */

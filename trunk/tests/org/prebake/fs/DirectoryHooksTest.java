@@ -26,7 +26,7 @@ import java.util.concurrent.TimeUnit;
 public class DirectoryHooksTest extends PbTestCase {
 
   private static final FileAttribute<?>[] FILE_ATTRS = FilePerms.perms(
-      0600, false, null);
+      0600, false);
 
   public final void testOnStubFileSystem() throws Exception {
     int delay = 100;
@@ -44,7 +44,7 @@ public class DirectoryHooksTest extends PbTestCase {
     try {
       dir.delete();
       mkdirs(dir);
-      runTests(delay, fs, fs.getPath(dir.toString()));
+      runTests(delay, fs, dir);
     } finally {
       rmTree(dir);
     }
