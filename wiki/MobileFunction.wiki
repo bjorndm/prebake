@@ -1,0 +1,5 @@
+#summary A JavaScript function with no free variables besides intrinsics.
+
+= Mobile Functions =
+
+A function with no free variables besides the JavaScript intrinsics : `Object`, `Function`, `Date`, `Math`, etc.
