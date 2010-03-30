@@ -1,0 +1,21 @@
+#summary JSON like data structures with powerless methods.
+
+= ΛSON <font size="1">[http://code.google.com/p/prebake/source/browse/trunk/src/org/prebake/js/YSON.java (src)]</font> =
+
+Objects that are structurally similar to JSON but that allow embedding of code.
+
+== Relationship to JSON ==
+
+This is not a document format and is not meant for communication between in different trust domains.  Merely an object message format useful within the same trust domain.
+
+== Structure ==
+Like JSON, the format includes several primitive types
+  * strings
+  * booleans
+  * numbers
+  * `null`
+several collection types
+  * `[` serial arrays `]`
+  * `{` associative arrays `}`
+and adds an additional type
+  * [MobileFunction]s
