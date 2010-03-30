@@ -336,16 +336,73 @@ public class ExecutorTest extends PbTestCase {
     Executor executor = Executor.Factory.createJsExecutor(new Executor.Input(
         new StringReader("({ x: 1, y: function () { return 4; }, z: [2] })"),
         fs.getPath("/foo/" + getName() + ".js")));
-    Executor.Output<String> out = executor.run(
+    Executor.Output<YSON> out = executor.run(
         Collections.<String, Object>emptyMap(),
-        String.class,
+        YSON.class,
         getLogger(Level.INFO),
         new Loader() {
           public Reader load(Path p) throws IOException {
             throw new IOException("Should not laod");
           }
         });
-    assertEquals("({x:1, y:(function () {return 4;}), z:[2]})", out.result);
+    assertEquals(
+        "({\"x\": 1.0, \"y\": (function() {\n  return 4;\n}), \"z\": [2.0]})",
+        out.result.toSource());
+  }
+
+  public final void testToSourceFiltered1() throws Exception {
+    FileSystem fs = new StubFileSystemProvider("mfs").getFileSystem(
+        URI.create("mfs:///#/foo"));
+    Executor executor = Executor.Factory.createJsExecutor(new Executor.Input(
+        new StringReader(
+            ""
+            + "({"
+            + "  x: 1,"
+            + "  y: [function () { return Math.abs(-1); },"
+            + "      (function (i) { return function () { return i+1; } })(0)],"
+            + "  z: [2]"
+            + "})"),
+        fs.getPath("/foo/" + getName() + ".js")));
+    Executor.Output<YSON> out = executor.run(
+        Collections.<String, Object>emptyMap(),
+        YSON.class,
+        getLogger(Level.INFO),
+        new Loader() {
+          public Reader load(Path p) throws IOException {
+            throw new IOException("Should not laod");
+          }
+        });
+    assertEquals(
+        ""
+        + "({"
+        + "\"x\": 1.0, "
+        + "\"y\": [(function() {\n  return Math.abs(-1);\n}), null], "
+        + "\"z\": [2.0]})",
+        out.result.toSource());
+  }
+
+  public final void testToSourceFiltered2() throws Exception {
+    FileSystem fs = new StubFileSystemProvider("mfs").getFileSystem(
+        URI.create("mfs:///#/foo"));
+    Executor executor = Executor.Factory.createJsExecutor(new Executor.Input(
+        new StringReader(
+            ""
+            + "({"
+            + "  x: 1,"
+            + "  y: (function (i) { return function () { return i+1; } })(0),"
+            + "  z: [2]"
+            + "})"),
+        fs.getPath("/foo/" + getName() + ".js")));
+    Executor.Output<YSON> out = executor.run(
+        Collections.<String, Object>emptyMap(),
+        YSON.class,
+        getLogger(Level.INFO),
+        new Loader() {
+          public Reader load(Path p) throws IOException {
+            throw new IOException("Should not laod");
+          }
+        });
+    assertEquals("({\"x\": 1.0, \"z\": [2.0]})", out.result.toSource());
   }
 
   public final void testNoBase() throws Exception {
