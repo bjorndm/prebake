@@ -97,4 +97,6 @@ public class ToolBoxTest extends PbTestCase {
   // TODO: test directories that initially don't exist, are created, deleted,
   // recreated.
   // TODO: figure out why updater doesn't stop after 4 tries.
+  // TODO: test builtins.
+  // TODO: test implementation chaining using load('next')
 }

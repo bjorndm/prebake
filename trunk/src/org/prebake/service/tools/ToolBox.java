@@ -11,7 +11,6 @@ import org.prebake.js.Loader;
 import org.prebake.js.YSON;
 
 import com.google.common.base.Joiner;
-import com.google.common.base.Predicate;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
@@ -36,7 +35,6 @@ import java.nio.file.WatchService;
 import java.nio.file.attribute.Attributes;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.text.Normalizer;
-import java.text.ParseException;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
@@ -297,11 +295,11 @@ public class ToolBox implements Closeable {
             logger.log(Level.SEVERE, "Bad tool file " + toolPath, ex);
             return null;
           }
-          Executor.Output<String> result;
+          Executor.Output<YSON> result;
           try {
             result = executor.run(
                 Collections.<String, Object>emptyMap(),
-                String.class, logger, new Loader() {
+                YSON.class, logger, new Loader() {
                   public Reader load(Path p) throws IOException {
                     // The name "next" resolves to the next instance of the
                     // same tool in the search path.
@@ -325,27 +323,8 @@ public class ToolBox implements Closeable {
           MessageQueue mq = new MessageQueue();
           // We need content that we can safely serialize and load into a plan
           // file.
-          YSON ysonSig;
-          try {
-            ysonSig = YSON.requireYSON(
-                // Filter out the "fire" property since it is not meant to be
-                // transportable.
-                YSON.filterProperties(
-                    YSON.parseExpr(result.result),
-                    new Predicate<String>() {
-                      public boolean apply(String propName) {
-                        return propName.equals(ToolDefProperty.help.name())
-                            || propName.equals(ToolDefProperty.check.name());
-                      }
-                    }),
-                YSON.DEFAULT_YSON_ALLOWED, mq);
-          } catch (ParseException ex) {
-            logger.log(
-                Level.SEVERE,
-                "Tool " + name + " produced malformed output " + result.result,
-                ex);
-            return null;
-          }
+          YSON ysonSig = YSON.requireYSON(
+              result.result, YSON.DEFAULT_YSON_ALLOWED, mq);
 
           Object ysonSigObj = ysonSig != null ? ysonSig.toJavaObject() : null;
           if (!(ysonSigObj instanceof Map<?, ?>)) {

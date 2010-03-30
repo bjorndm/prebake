@@ -3,7 +3,6 @@ package org.prebake.js;
 import org.prebake.core.MessageQueue;
 
 import com.google.common.base.Joiner;
-import com.google.common.base.Predicate;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
@@ -35,6 +34,7 @@ import org.mozilla.javascript.ast.NumberLiteral;
 import org.mozilla.javascript.ast.ObjectLiteral;
 import org.mozilla.javascript.ast.ObjectProperty;
 import org.mozilla.javascript.ast.ParenthesizedExpression;
+import org.mozilla.javascript.ast.PropertyGet;
 import org.mozilla.javascript.ast.ScriptNode;
 import org.mozilla.javascript.ast.StringLiteral;
 import org.mozilla.javascript.ast.UnaryExpression;
@@ -71,8 +71,17 @@ public final class YSON {
     return vsd;
   }
 
+  /** Makes a best effort to convert to JavaScript source code. */
   public String toSource() { return root.toSource(); }
 
+  /**
+   * Converts the JavaScript values in a YSON representation into Java objects.
+   * JavaScript arrays are coerced to {@link java.util.List}s, object
+   * constructors are converted to {@link java.util.Map}s, JavaScript primitives
+   * are converted to the corresponding Java primitive wrapper types, JavaScript
+   * functions are converted to {@link Lambda}s, and other values are converted
+   * to {@code null}.
+   */
   public Object toJavaObject() {
     return YSON.toJavaObject(root);
   }
@@ -228,42 +237,6 @@ public final class YSON {
     return yson;
   }
 
-  public static YSON filterProperties(YSON yson, Predicate<String> allow) {
-    filterProperties(yson.root, allow);
-    return yson;
-  }
-
-  private static void filterProperties(AstNode ast, Predicate<String> allow) {
-    while (true) {
-      switch (ast.getType()) {
-        case Token.SCRIPT:
-          for (Node child : (ScriptNode) ast) {
-            filterProperties((AstNode) child, allow);
-          }
-          return;
-        case Token.EXPR_RESULT:
-          ast = ((ExpressionStatement) ast).getExpression();
-          continue;
-        case Token.LP:
-          ast = ((ParenthesizedExpression) ast).getExpression();
-          continue;
-        case Token.OBJECTLIT:
-          ObjectLiteral obj = (ObjectLiteral) ast;
-          for (ObjectProperty prop: ImmutableList.copyOf(obj.getElements())) {
-            boolean remove;
-            if (prop.isGetter() || prop.isSetter()) {
-              remove = true;
-            } else {
-              remove = !allow.apply(propertyKeyToString(prop.getLeft()));
-            }
-            if (remove) { obj.getElements().remove(prop); }
-          }
-          break;
-      }
-      break;
-    }
-  }
-
   private static String propertyKeyToString(AstNode key) {
     if (key instanceof Name) {
       return ((Name) key).getIdentifier();
@@ -292,6 +265,7 @@ public final class YSON {
           if (init != null) { rn(init, names); }
         }
         return;
+      case Token.GETPROP: rn(((PropertyGet) node).getTarget(), names); return;
       case Token.FUNCTION: {
         Set<String> declared = Sets.newHashSet();
         declared.add("this");

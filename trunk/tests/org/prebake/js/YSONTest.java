@@ -3,7 +3,6 @@ package org.prebake.js;
 import org.prebake.core.MessageQueue;
 
 import com.google.common.base.Joiner;
-import com.google.common.base.Predicate;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -105,6 +104,7 @@ public class YSONTest extends TestCase {
     withCode("eval('alert(\"foo\")')").rn("eval").fn("eval").run();
     withCode("eval('alert(\"foo\")', bar)").rn("bar", "eval").fn("bar", "eval")
         .run();
+    withCode("a[b] + c.d").rn("a", "b", "c").fn("a", "b", "c").run();
   }
 
   public final void testIsYSON() {
@@ -126,31 +126,6 @@ public class YSONTest extends TestCase {
         "Disallowed free variables: y");
     assertNotYson(
         "{ foo: 0 }), ({ bar: 4 }", "Not YSON: ({foo: 0}) , ({bar: 4})");
-  }
-
-  public final void testFilter() throws Exception {
-    YSON yson;
-
-    yson = YSON.parseExpr("{ 'x': 'y', y: 2, z: { y: 4 } }");
-    yson = YSON.filterProperties(
-        yson, new Predicate<String>() {
-          public boolean apply(String key) { return !"y".equals(key); }
-        });
-    assertEquals("({'x': 'y', z: {y: 4}})", yson.toSource());
-
-    yson = YSON.parseExpr("{ 'x': 'y', y: 2, z: { y: 4 } }");
-    yson = YSON.filterProperties(
-        yson, new Predicate<String>() {
-          public boolean apply(String key) { return "y".equals(key); }
-        });
-    assertEquals("({y: 2})", yson.toSource());
-
-    yson = YSON.parseExpr("{ 'x': 'y', 2: 'two', '2.0': { y: 4 } }");
-    yson = YSON.filterProperties(
-        yson, new Predicate<String>() {
-          public boolean apply(String key) { return !"2".equals(key); }
-        });
-    assertEquals("({'x': 'y', '2.0': {y: 4}})", yson.toSource());
   }
 
   public final void testToJava() throws Exception {

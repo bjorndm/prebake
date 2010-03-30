@@ -1,5 +1,6 @@
 package org.prebake.js;
 
+import org.prebake.channel.JsonSink;
 import org.prebake.core.Hash;
 
 import com.google.common.base.Predicate;
@@ -13,6 +14,7 @@ import java.io.IOException;
 import java.io.Reader;
 import java.net.URI;
 import java.nio.file.Path;
+import java.text.ParseException;
 import java.util.Arrays;
 import java.util.Formatter;
 import java.util.List;
@@ -248,13 +250,13 @@ public final class RhinoExecutor implements Executor {
           if (inputRead.length() > 500) { inputRead = "<ABBREVIATED>"; }
         }
         if (result == null) { return null; }
-        if (String.class.equals(expectedResultType)
+        if (YSON.class.isAssignableFrom(expectedResultType)
             && result instanceof Scriptable) {
           Scriptable s = (Scriptable) result;
-          Object toSource = ScriptableObject.getProperty(s, "toSource");
-          if (toSource instanceof Function) {
-            result = ((Function) toSource).call(
-                context, globalScope, s, new Object[0]);
+          try {
+            result = toYSON(context, s);
+          } catch (ParseException ex) {
+            logger.log(Level.SEVERE, "Failed to convert output " + result, ex);
           }
         }
         if (!expectedResultType.isInstance(result)) {
@@ -268,8 +270,7 @@ public final class RhinoExecutor implements Executor {
     }
   }
 
-  private static final String drain(Reader r)
-      throws IOException {
+  private static final String drain(Reader r) throws IOException {
     try {
       char[] buf = new char[4096];
       StringBuilder sb = new StringBuilder();
@@ -598,11 +599,7 @@ public final class RhinoExecutor implements Executor {
       public Object call(
           Context context, Scriptable scope, Scriptable thisObj, Object[] args)
           throws RhinoException {
-        ScriptableObject localScope = new ScriptableObject(globalScope, null) {
-          @Override
-          public String getClassName() { return null; }
-        };
-        localScope.setPrototype(globalScope);
+        ScriptableObject localScope = new LoadedModuleScope(globalScope);
         if (loader != null) {
           ScriptableObject.putProperty(localScope, "load", LoadFn.this);
         }
@@ -627,6 +624,17 @@ public final class RhinoExecutor implements Executor {
         throw new UnsupportedOperationException();
       }
     }
+  }
+
+  private static class LoadedModuleScope extends ScriptableObject {
+    public LoadedModuleScope(Scriptable globalScope) {
+      super(globalScope, null);
+      // We set the prototype instead of the parent scope so that
+      // this.foo is properly aliased to foo.
+      setPrototype(globalScope);
+    }
+    @Override
+    public String getClassName() { return null; }
   }
 
   private static class NonDeterminism {
@@ -695,5 +703,96 @@ public final class RhinoExecutor implements Executor {
       }
       return fn.construct(arg0, arg1, args);
     }
+  }
+
+  private static YSON toYSON(Context context, Object o) throws ParseException {
+    StringBuilder sb = new StringBuilder();
+    JsonSink sink = new JsonSink(sb);
+    try {
+      writeYSON(context, o, sink);
+    } catch (IOException ex) {
+      throw new RuntimeException(ex);  // Writing to StringBuilder
+    }
+    return YSON.parseExpr(sb.toString());
+  }
+
+  private static void writeYSON(Context context, Object o, JsonSink out)
+      throws IOException {
+    if (o instanceof Scriptable) {
+      if (o instanceof Function) {
+        Function f = (Function) o;
+        String src = functionSource(context, f);
+        out.write(src == null || !isYSONFunction(src, f) ? "null" : src);
+      } else if (o instanceof NativeArray) {
+        NativeArray a = (NativeArray) o;
+        out.write("[");
+        for (int i = 0, n = (int) (Math.min(Integer.MAX_VALUE, a.getLength()));
+             i < n; ++i) {
+          if (i != 0) { out.write(","); }
+          writeYSON(context, ScriptableObject.getProperty(a, i), out);
+        }
+        out.write("]");
+      } else {
+        Scriptable s = (Scriptable) o;
+        boolean firstKey = true;
+        out.write("{");
+        for (Object key : ScriptableObject.getPropertyIds(s)) {
+          Object value;
+          if (key instanceof Number) {
+            value = ScriptableObject.getProperty(s, ((Number) key).intValue());
+          } else {
+            value = ScriptableObject.getProperty(s, key.toString());
+          }
+          if (value instanceof Function) {
+            Function f = (Function) value;
+            String src = functionSource(context, f);
+            if (src == null || !isYSONFunction(src, f)) { continue; }
+            if (!firstKey) { out.write(","); }
+            out.writeValue(key.toString());
+            out.write(":");
+            out.write(src);
+          } else {
+            if (!firstKey) { out.write(","); }
+            out.writeValue(key.toString());
+            out.write(":");
+            writeYSON(context, value, out);
+          }
+          firstKey = false;
+        }
+        out.write("}");
+      }
+    } else {
+      out.writeValue(o);
+    }
+  }
+
+  private static String functionSource(Context context, Function f) {
+    Object toSource = ScriptableObject.getProperty(
+        f.getPrototype(), "toSource");
+    if (!(toSource instanceof Function)) { return null; }
+    Object source = ((Function) toSource).call(
+        context, f.getParentScope(), f, new Object[0]);
+    return source instanceof String ? (String) source : null;
+  }
+
+  private static boolean isYSONFunction(String source, Function f) {
+    YSON yson;
+    try {
+      yson = YSON.parseExpr(source);
+    } catch (ParseException ex) {
+      return false;  // Happens for function () { [native function] }
+    }
+    // If any of the free names are not global, then f is not a YSON function.
+    for (String freeName : yson.getFreeNames()) {
+      for (Scriptable scope = f.getParentScope();
+           scope != null; scope = scope.getParentScope()) {
+        boolean isModuleScope = scope instanceof LoadedModuleScope;
+        if (scope.has(freeName, scope)) {  // hasOwnProperty check
+          if (!isModuleScope || !"load".equals(freeName)) { return false; }
+        }
+        if (isModuleScope) { break; }
+      }
+    }
+    return true;
   }
 }
