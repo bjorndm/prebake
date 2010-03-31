@@ -20,7 +20,7 @@ import java.util.logging.Level;
 public class FileHashesTest extends PbTestCase {
   private FileSystem fs;
   private Environment env;
-  private File tempFile;
+  private File tempDir;
   private FileHashes fh;
 
   @Override
@@ -31,10 +31,8 @@ public class FileHashesTest extends PbTestCase {
     mkdirs(fs.getPath("/cwd/root"));
     EnvironmentConfig envConfig = new EnvironmentConfig();
     envConfig.setAllowCreate(true);
-    tempFile = File.createTempFile(getName(), ".bdb");
-    tempFile.delete();
-    tempFile.mkdirs();
-    env = new Environment(tempFile, envConfig);
+    tempDir = makeTempDir();
+    env = new Environment(tempDir, envConfig);
     fh = new FileHashes(env, fs.getPath("/cwd/root"), getLogger(Level.INFO));
   }
 
@@ -46,8 +44,8 @@ public class FileHashesTest extends PbTestCase {
     env = null;
     fs.close();
     fs = null;
-    rmDirTree(tempFile);
-    tempFile = null;
+    rmDirTree(tempDir);
+    tempDir = null;
     super.tearDown();
   }
 

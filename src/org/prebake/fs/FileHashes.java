@@ -110,7 +110,7 @@ public final class FileHashes implements Closeable {
           hashes[i] = hash.toDatabaseEntry();
         }
       } catch (IOException ex) {
-        ex.printStackTrace();
+        logger.log(Level.WARNING, "Failed to hash " + p, ex);
       }
     }
 

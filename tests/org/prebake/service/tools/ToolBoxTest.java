@@ -11,7 +11,6 @@ import com.sleepycat.je.EnvironmentConfig;
 
 import java.io.File;
 import java.io.IOException;
-import java.lang.Thread.UncaughtExceptionHandler;
 import java.net.URI;
 import java.nio.file.FileSystem;
 import java.nio.file.Path;
@@ -29,7 +28,7 @@ public class ToolBoxTest extends PbTestCase {
   private Environment env;
   private FileHashes fh;
   private ScheduledExecutorService execer;
-  private File tempFile;
+  private File tempDir;
 
   @Override
   protected void setUp() throws Exception {
@@ -40,10 +39,8 @@ public class ToolBoxTest extends PbTestCase {
     root = fs.getPath("/root");
     EnvironmentConfig envConfig = new EnvironmentConfig();
     envConfig.setAllowCreate(true);
-    tempFile = File.createTempFile(getName(), ".bdb");
-    tempFile.delete();
-    tempFile.mkdirs();
-    env = new Environment(tempFile, envConfig);
+    tempDir = makeTempDir();
+    env = new Environment(tempDir, envConfig);
     fh = new FileHashes(env, root, logger);
     execer = new ScheduledThreadPoolExecutor(4);
   }
@@ -54,7 +51,7 @@ public class ToolBoxTest extends PbTestCase {
     fh.close();
     env.close();
     fs.close();
-    rmDirTree(tempFile);
+    rmDirTree(tempDir);
     super.tearDown();
   }
 
@@ -99,9 +96,12 @@ public class ToolBoxTest extends PbTestCase {
                 "({ help: 'foo1', fire: function () { return exec('foo') } })"))
         .withBuiltinTools("cp.js")
         .assertSigs(
+            ("{"
+               + "\"name\":\"cp.js\","
+               + "\"doc\":\"Copies files to a directory tree.  TODO usage\""
+             + "}"),
             "{\"name\":\"bar.js\",\"doc\":\"an example tool\"}",
-            "{\"name\":\"foo.js\",\"doc\":\"foo1\"}",
-            "{\"name\":\"cp.js\",\"doc\":\"\"}");
+            "{\"name\":\"foo.js\",\"doc\":\"foo1\"}");
   }
 
   class TestRunner {

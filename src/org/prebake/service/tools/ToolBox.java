@@ -295,8 +295,10 @@ public class ToolBox implements Closeable {
           }
           List<Path> paths = Lists.newArrayList();
           List<Hash> hashes = Lists.newArrayList();
-          if (base != null) { paths.add(toolPath); }
-          hashes.add(Hash.builder().withString(js).toHash());
+          if (base != null) {
+            paths.add(toolPath);
+            hashes.add(Hash.builder().withString(js).toHash());
+          }
           Executor executor;
           try {
             executor = Executor.Factory.createJsExecutor(new Executor.Input(
@@ -305,9 +307,10 @@ public class ToolBox implements Closeable {
             logger.log(Level.SEVERE, "Bad tool file " + toolPath, ex);
             return null;
           }
-          Executor.Output<YSON> result;
+          Object ysonSigObj;
+          Map<Path, Hash> dynamicLoads;
           try {
-            result = executor.run(
+            Executor.Output<YSON> result = executor.run(
                 Collections.<String, Object>emptyMap(),
                 YSON.class, logger, new Loader() {
                   public Reader load(Path p) throws IOException {
@@ -320,6 +323,25 @@ public class ToolBox implements Closeable {
                     return new InputStreamReader(p.newInputStream(), UTF8);
                   }
                 });
+            MessageQueue mq = new MessageQueue();
+            // We need content that we can safely serialize and load into a plan
+            // file.
+            YSON ysonSig = YSON.requireYSON(
+                result.result, YSON.DEFAULT_YSON_ALLOWED, mq);
+
+            ysonSigObj = ysonSig != null ? ysonSig.toJavaObject() : null;
+            if (!(ysonSigObj instanceof Map<?, ?>)) {
+              logger.log(
+                  Level.INFO,
+                  "Tool {0} yielded result {1}.  Expected YSON.  {2}",
+                  new Object[] {
+                    name,
+                    result.result != null ? result.result.toSource() : null,
+                    Joiner.on("; ").join(mq.getMessages())
+                  });
+              return null;
+            }
+            dynamicLoads = result.dynamicLoads;
           } catch (Executor.AbnormalExitException ex) {
             logger.log(
                 Level.INFO, "Tool " + name + " failed with exception", ex);
@@ -327,26 +349,6 @@ public class ToolBox implements Closeable {
           } catch (RuntimeException ex) {
             logger.log(
                 Level.INFO, "Tool " + name + " failed with exception", ex);
-            return null;
-          }
-
-          MessageQueue mq = new MessageQueue();
-          // We need content that we can safely serialize and load into a plan
-          // file.
-          YSON ysonSig = YSON.requireYSON(
-              result.result, YSON.DEFAULT_YSON_ALLOWED, mq);
-
-          Object ysonSigObj = ysonSig != null ? ysonSig.toJavaObject() : null;
-          if (!(ysonSigObj instanceof Map<?, ?>)) {
-            logger.log(
-                Level.INFO,
-                "Tool {0} yielded result {1} : {2}.  Expected YSON.  {3}",
-                new Object[] {
-                  name, result.result.toSource(),
-                  result.result != null
-                      ? result.result.getClass().getName() : "<null>",
-                  Joiner.on("; ").join(mq.getMessages())
-                });
             return null;
           }
 
@@ -362,8 +364,8 @@ public class ToolBox implements Closeable {
                 ? (YSON.Lambda) checkerValue : null;
           }
 
-          paths.addAll(result.dynamicLoads.keySet());
-          hashes.addAll(result.dynamicLoads.values());
+          paths.addAll(dynamicLoads.keySet());
+          hashes.addAll(dynamicLoads.values());
           Hash.HashBuilder hb = Hash.builder();
           for (Hash h : hashes) {
             if (h != null) { hb.withHash(h); }
