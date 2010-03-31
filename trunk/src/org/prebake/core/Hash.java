@@ -1,5 +1,6 @@
 package org.prebake.core;
 
+import com.sleepycat.je.DatabaseEntry;
 import com.twmacinta.util.MD5;
 
 import java.io.IOException;
@@ -14,7 +15,13 @@ public final class Hash {
 
   private Hash(byte[] bytes) { this.bytes = bytes; }
 
-  public byte[] getBytes() { return bytes; }
+  //public byte[] getBytes() { return bytes; }
+
+  public DatabaseEntry toDatabaseEntry() {
+    return new DatabaseEntry(bytes);
+  }
+
+  public String toHexString() { return MD5.asHex(bytes); }
 
   @Override
   public boolean equals(Object o) {
@@ -60,6 +67,11 @@ public final class Hash {
     public HashBuilder withData(byte[] bytes) {
       md5.Update(ZERO_BYTE, 0, 1);
       md5.Update(bytes, 0, bytes.length);
+      return this;
+    }
+
+    public HashBuilder withHash(Hash h) {
+      withData(h.bytes);
       return this;
     }
 

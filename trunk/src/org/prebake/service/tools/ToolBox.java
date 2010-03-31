@@ -98,6 +98,22 @@ public class ToolBox implements Closeable {
       this.watcher = fs.newWatchService();
       ImmutableMap.Builder<Path, Integer> b = ImmutableMap.builder();
       int index = 0;
+      for (Path toolDir : this.toolDirs) { b.put(toolDir, index++); }
+      dirIndices = b.build();
+    } else {
+      watcher = null;
+      dirIndices = ImmutableMap.of();
+    }
+    // Load the builtin tools from a tools.txt file in this same directory.
+    for (String builtin : getBuiltinToolNames()) { checkBuiltin(builtin); }
+
+    this.updater = execer.scheduleWithFixedDelay(new Runnable() {
+      public void run() { getAvailableToolSignatures(); }
+    }, 1000, 1000, TimeUnit.MILLISECONDS);
+  }
+
+  public void start() throws IOException {
+    if (watcher != null) {
       final Map<WatchKey, Path> keyToDir = Maps.newHashMap();
       for (Path toolDir : this.toolDirs) {
         WatchKey key = toolDir.register(
@@ -106,15 +122,14 @@ public class ToolBox implements Closeable {
             StandardWatchEventKind.ENTRY_DELETE,
             StandardWatchEventKind.ENTRY_MODIFY);
         keyToDir.put(key, toolDir);
-        b.put(toolDir, index++);
       }
-      dirIndices = b.build();
       for (Path toolDir : this.toolDirs) {
         logger.log(Level.FINE, "Looking in {0}", toolDir);
         for (Path child : toolDir.newDirectoryStream("*.js")) {
           checkUserProvided(toolDir, child.getName());
         }
       }
+
       Runnable r = new Runnable() {
         public void run() {
           WatchKey key;
@@ -152,34 +167,29 @@ public class ToolBox implements Closeable {
       Thread th = new Thread(r);
       th.setDaemon(true);
       th.start();
-    } else {
-      watcher = null;
-      dirIndices = ImmutableMap.of();
     }
-    // Load the builtin tools from a tools.txt file in this same directory.
-    for (String builtin : getBuiltinToolNames()) { checkBuiltin(builtin); }
-
-    this.updater = execer.scheduleWithFixedDelay(new Runnable() {
-      public void run() { getAvailableToolSignatures(); }
-    }, 1000, 1000, TimeUnit.MILLISECONDS);
   }
 
   protected Iterable<String> getBuiltinToolNames() throws IOException {
     List<String> builtins = Lists.newArrayList();
-    InputStream builtinFiles = getClass().getResourceAsStream("tools.txt");
+    InputStream builtinFiles = ToolBox.class.getResourceAsStream("tools.txt");
+    BufferedReader in = new BufferedReader(
+        new InputStreamReader(builtinFiles, UTF8));
     try {
-      BufferedReader in = new BufferedReader(
-          new InputStreamReader(builtinFiles, UTF8));
       for (String line; (line = in.readLine()) != null;) { builtins.add(line); }
     } finally {
-      builtinFiles.close();
+      in.close();
     }
     return builtins;
   }
 
   public final List<Future<ToolSignature>> getAvailableToolSignatures() {
     List<Future<ToolSignature>> promises = Lists.newArrayList();
-    for (Tool t : tools.values()) { promises.add(requireToolValid(t)); }
+    for (Tool t : tools.values()) {
+      synchronized (t) {
+        promises.add(t.validator = requireToolValid(t));
+      }
+    }
     return promises;
   }
 
@@ -247,7 +257,7 @@ public class ToolBox implements Closeable {
       }
 
       private ToolSignature tryToValidate(int nTriesRemaining) {
-        synchronized (impl) {
+        synchronized (impl.tool) {
           if (impl.isValid()) { return makeSig(); }
         }
         while (nTriesRemaining >= 0) {
@@ -259,22 +269,22 @@ public class ToolBox implements Closeable {
             if (index == toolDirs.size()) {  // builtin
               base = null;
               toolPath = t.localName;
-              jsIn = getClass().getResourceAsStream(t.localName.toString());
+              jsIn = ToolBox.class.getResourceAsStream(t.localName.toString());
               if (jsIn == null) { return null; }
             } else {
               base = toolDirs.get(index);
               toolPath = base.resolve(t.localName);
               jsIn = toolPath.newInputStream();
             }
+            Reader r = new InputStreamReader(jsIn, UTF8);
             try {
-              Reader r = new InputStreamReader(jsIn, UTF8);
               char[] buf = new char[4096];
               StringBuilder sb = new StringBuilder();
               for (int n; (n = r.read(buf)) > 0;) { sb.append(buf, 0, n); }
               js = sb.toString();
             } finally {
               try {
-                jsIn.close();
+                r.close();
               } catch (IOException ex) {
                 logger.log(Level.WARNING, "Closing " + toolPath, ex);
               }
@@ -285,7 +295,7 @@ public class ToolBox implements Closeable {
           }
           List<Path> paths = Lists.newArrayList();
           List<Hash> hashes = Lists.newArrayList();
-          if (toolPath != null) { paths.add(toolPath); }
+          if (base != null) { paths.add(toolPath); }
           hashes.add(Hash.builder().withString(js).toHash());
           Executor executor;
           try {
@@ -356,10 +366,10 @@ public class ToolBox implements Closeable {
           hashes.addAll(result.dynamicLoads.values());
           Hash.HashBuilder hb = Hash.builder();
           for (Hash h : hashes) {
-            if (h != null) { hb.withData(h.getBytes()); }
+            if (h != null) { hb.withHash(h); }
           }
 
-          synchronized (impl) {
+          synchronized (impl.tool) {
             impl.productChecker = checker != null ? checker.getSource() : null;
             impl.doc = help;
             if (fh.update(addresser, impl, paths, hb.toHash())) {
@@ -387,7 +397,7 @@ public class ToolBox implements Closeable {
     if (nextIndex != null) {
       in = nextIndex < toolDirs.size()
           ? toolDirs.get(nextIndex).resolve(t.localName).newInputStream()
-          : getClass().getResourceAsStream(t.localName.toString());
+          : ToolBox.class.getResourceAsStream(t.localName.toString());
     }
     if (in == null) { throw new FileNotFoundException(path.toString()); }
     return new InputStreamReader(in, UTF8);
@@ -416,7 +426,7 @@ public class ToolBox implements Closeable {
   }
 
   private void checkBuiltin(String fileName) {
-    InputStream in = getClass().getResourceAsStream(fileName);
+    InputStream in = ToolBox.class.getResourceAsStream(fileName);
     boolean exists;
     if (in != null) {
       try {
@@ -440,6 +450,7 @@ public class ToolBox implements Closeable {
       try {
         attrs = Attributes.readBasicFileAttributes(fullPath);
       } catch (IOException ex) {
+        // If we can't read the attributes, then we can't hash it either.
         return;
       }
       if (!attrs.isRegularFile()) { return; }
@@ -458,7 +469,7 @@ public class ToolBox implements Closeable {
           tools.put(toolName, tool = new Tool(localName));
         }
         if (!tool.impls.containsKey(dirIndex)) {
-          tool.impls.put(dirIndex, new ToolImpl(toolName, dirIndex));
+          tool.impls.put(dirIndex, new ToolImpl(tool, toolName, dirIndex));
         }
       } else if (tool != null) {
         tool.impls.remove(dirIndex);
@@ -473,32 +484,36 @@ public class ToolBox implements Closeable {
 final class Tool {
   final Path localName;
   final SortedMap<Integer, ToolImpl> impls = Maps.newTreeMap();
+  Future<ToolSignature> validator;
 
   Tool(Path localName) { this.localName = localName; }
 }
 
 final class ToolImpl implements NonFileArtifact {
+  final Tool tool;
   final String name;
   final int index;
   String productChecker, doc;
   boolean deterministic;
   private boolean valid;
-  Future<ToolSignature> validator;
 
-  ToolImpl(String name, int index) {
+  ToolImpl(Tool tool, String name, int index) {
+    this.tool = tool;
     this.name = name;
     this.index = index;
   }
 
   public boolean isValid() { return valid; }
 
-  public synchronized void markValid(boolean valid) {
-    this.valid = valid;
-    if (!valid) {
-      productChecker = null;
-      if (validator != null) {
-        validator.cancel(false);
-        validator = null;
+  public void markValid(boolean valid) {
+    synchronized (tool) {
+      this.valid = valid;
+      if (!valid) {
+        productChecker = null;
+        if (tool.validator != null) {
+          tool.validator.cancel(false);
+          tool.validator = null;
+        }
       }
     }
   }

@@ -55,7 +55,7 @@ public final class RhinoExecutor implements Executor {
 
   public RhinoExecutor(Executor.Input[] srcs) { this.srcs = srcs.clone(); }
 
-  private static final Set<String> OBJECT_CLASS_MEMBERS = ImmutableSet.of(
+  static final Set<String> OBJECT_CLASS_MEMBERS = ImmutableSet.of(
       // We allow toString since that is part of JS as well, typically has
       // no side effect, and returns a JS primitive type.
       "class", "clone", "equals", "finalize", "getClass", "hashCode",
@@ -108,56 +108,7 @@ public final class RhinoExecutor implements Executor {
           return false;
         }
       });
-      context.setWrapFactory(new WrapFactory() {
-        @SuppressWarnings("unchecked")  // Overridden method is not generic
-        @Override
-        public Object wrap(
-            Context cx, Scriptable scope, Object javaObject, Class staticType) {
-          // Deny reflective access up front.  This should not be triggered due
-          // to getter filtering, but let's be paranoid.
-          if (javaObject != null
-              && (javaObject instanceof Class
-                  || javaObject instanceof ClassLoader
-                  || "java.lang.reflect".equals(
-                      javaObject.getClass().getPackage().getName()))) {
-            return Context.getUndefinedValue();
-          }
-          // Make java arrays behave like native JS arrays.
-          // This breaks EQ, but is better than the alternative.
-          if (javaObject instanceof Object[]) {
-            Object[] javaArray = (Object[]) javaObject;
-            int n = javaArray.length;
-            Object[] wrappedElements = new Object[n];
-            Class<?> compType = javaArray.getClass().getComponentType();
-            for (int i = n; --i >= 0;) {
-              wrappedElements[i] = wrap(cx, scope, javaArray[i], compType);
-            }
-            NativeArray jsArray = new NativeArray(wrappedElements);
-            jsArray.setPrototype(
-                ScriptableObject.getClassPrototype(scope, "Array"));
-            jsArray.setParentScope(scope);
-            return jsArray;
-          }
-          return super.wrap(cx, scope, javaObject, staticType);
-        }
-
-        @SuppressWarnings("unchecked")  // Overridden method is not generic
-        @Override
-        public Scriptable wrapAsJavaObject(
-            Context cx, Scriptable scope, Object javaObject, Class staticType) {
-          return new NativeJavaObject(scope, javaObject, staticType) {
-            @Override
-            public Object get(String name, Scriptable start) {
-              // Deny access to all members of the base Object class since
-              // some of them enable reflection, and the others are mostly for
-              // serialization and timing which should not be accessible.
-              // The codeutopia implementation only blacklists getClass.
-              if (OBJECT_CLASS_MEMBERS.contains(name)) { return NOT_FOUND; }
-              return super.get(name, start);
-            }
-          };
-        }
-      });
+      context.setWrapFactory(new SandboxingWrapFactory());
       return context;
     }
     @Override
@@ -794,5 +745,55 @@ public final class RhinoExecutor implements Executor {
       }
     }
     return true;
+  }
+}
+
+class SandboxingWrapFactory extends WrapFactory {
+  @Override
+  public Object wrap(
+      Context cx, Scriptable scope, Object javaObject, Class<?> staticType) {
+    // Deny reflective access up front.  This should not be triggered due
+    // to getter filtering, but let's be paranoid.
+    if (javaObject != null
+        && (javaObject instanceof Class
+            || javaObject instanceof ClassLoader
+            || "java.lang.reflect".equals(
+                javaObject.getClass().getPackage().getName()))) {
+      return Context.getUndefinedValue();
+    }
+    // Make java arrays behave like native JS arrays.
+    // This breaks EQ, but is better than the alternative.
+    if (javaObject instanceof Object[]) {
+      Object[] javaArray = (Object[]) javaObject;
+      int n = javaArray.length;
+      Object[] wrappedElements = new Object[n];
+      Class<?> compType = javaArray.getClass().getComponentType();
+      for (int i = n; --i >= 0;) {
+        wrappedElements[i] = wrap(cx, scope, javaArray[i], compType);
+      }
+      NativeArray jsArray = new NativeArray(wrappedElements);
+      jsArray.setPrototype(ScriptableObject.getClassPrototype(scope, "Array"));
+      jsArray.setParentScope(scope);
+      return jsArray;
+    }
+    return super.wrap(cx, scope, javaObject, staticType);
+  }
+
+  @Override
+  public Scriptable wrapAsJavaObject(
+      Context cx, Scriptable scope, Object javaObject, Class<?> staticType) {
+    return new NativeJavaObject(scope, javaObject, staticType) {
+      @Override
+      public Object get(String name, Scriptable start) {
+        // Deny access to all members of the base Object class since
+        // some of them enable reflection, and the others are mostly for
+        // serialization and timing which should not be accessible.
+        // The codeutopia implementation only blacklists getClass.
+        if (RhinoExecutor.OBJECT_CLASS_MEMBERS.contains(name)) {
+          return NOT_FOUND;
+        }
+        return super.get(name, start);
+      }
+    };
   }
 }

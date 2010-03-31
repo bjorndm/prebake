@@ -121,13 +121,33 @@ public final class Main {
       }
     };
 
+    // If an interrupt signal is received,
     Runtime.getRuntime().addShutdownHook(new Thread(new Runnable() {
       public void run() { pb.close(); }
     }));
 
-    pb.start(new Runnable() {
-      public void run() { System.exit(0); }
-    });
+    final Object exitMutex = new Object();
+    synchronized (exitMutex) {
+      // Start the prebakery with a handler that will cause the main thread to
+      // complete when it receives a shutdown command or is programatically
+      // closed.
+      pb.start(new Runnable() {
+        public void run() {
+          // When a shutdown command is received, signal the main thread so
+          // it can complete.
+          synchronized (exitMutex) { exitMutex.notify(); }
+        }
+      });
+      // The loop below gets findbugs to shut up about a wait outside a loop.
+      for (boolean needToWait = true; needToWait; needToWait = false) {
+        try {
+          exitMutex.wait();
+        } catch (InterruptedException ex) {
+          // just exit below if the main thread is interrupted
+        }
+      }
+    }
+    System.exit(0);
   }
 
   public static final String USAGE = (

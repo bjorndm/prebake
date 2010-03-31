@@ -38,21 +38,20 @@ final class CommandLineConfig implements Config {
   private static final short DEFAULT_UMASK = 0x1a0 /* octal 0640 */;
   private static final String DANGLING_MODIFIER_MSG;
 
+  private static String errorMessageForRegex(String regex) {
+    try {
+      Pattern.compile(regex);
+    } catch (PatternSyntaxException ex) {
+      return ex.getMessage();
+    }
+    throw new RuntimeException();
+  }
   static {
     // Find a way to detect misuse of * and ? in a RegExp that are commonly
     // misapplied by people who confuse RegExps and Globs.
-    String msga = null, msgb = null;
-    try {
-      Pattern.compile("*");
-    } catch (PatternSyntaxException ex) {
-      msga = ex.getMessage();
-    }
-    try {
-      Pattern.compile("foo.???");
-    } catch (PatternSyntaxException ex) {
-      msgb = ex.getMessage();
-    }
-    DANGLING_MODIFIER_MSG = commonPrefix(msga, msgb);
+    DANGLING_MODIFIER_MSG = commonPrefix(
+        errorMessageForRegex("*"),
+        errorMessageForRegex("foo.???"));
   }
 
   enum FlagName {

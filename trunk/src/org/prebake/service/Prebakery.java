@@ -292,12 +292,12 @@ public abstract class Prebakery implements Closeable {
     // Or just use the byte buffer stuff.
     StringBuilder out = new StringBuilder();
     InputStream in = p.newInputStream(StandardOpenOption.READ);
+    Reader r = new InputStreamReader(in, UTF8);
     try {
-      Reader r = new InputStreamReader(in, UTF8);
       char[] buf = new char[4096];
       for (int n; (n = r.read(buf)) > 0;) { out.append(buf, 0, n); }
     } finally {
-      in.close();
+      r.close();
     }
     return out.toString();
   }

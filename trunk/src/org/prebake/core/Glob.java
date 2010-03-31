@@ -264,7 +264,7 @@ public final class Glob implements Comparable<Glob> {
         } else if (jsuffix) {
           if (!a.endsWith(b)) { return null; }
           match = a;
-        } else if (a != b) {
+        } else if (!a.equals(b)) {
           return null;
         } else {
           match = a;

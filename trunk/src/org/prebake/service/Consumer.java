@@ -46,7 +46,7 @@ abstract class Consumer<T> implements Closeable {
 
   void waitUntilEmpty() throws InterruptedException {
     synchronized (mutex) {
-      if (q.peek() != null) { mutex.wait(); }
+      while (q.peek() != null) { mutex.wait(); }
     }
   }
 

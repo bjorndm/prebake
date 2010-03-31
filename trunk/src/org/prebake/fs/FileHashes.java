@@ -107,7 +107,7 @@ public final class FileHashes implements Closeable {
         if (!p.notExists()) {
           logger.log(Level.FINE, "Hashing file {0}", p);
           Hash hash = Hash.builder().withFile(p).toHash();
-          hashes[i] = new DatabaseEntry(hash.getBytes());
+          hashes[i] = hash.toDatabaseEntry();
         }
       } catch (IOException ex) {
         ex.printStackTrace();
