@@ -7,7 +7,6 @@ import org.prebake.util.StubFileSystemProvider;
 import com.google.common.collect.Maps;
 import com.sleepycat.je.Environment;
 import com.sleepycat.je.EnvironmentConfig;
-import com.twmacinta.util.MD5;
 
 import java.io.File;
 import java.net.URI;
@@ -243,7 +242,7 @@ public class FileHashesTest extends PbTestCase {
   }
 
   private String getHashStr(List<Path> paths) {
-    return MD5.asHex(getHash(paths).getBytes());
+    return getHash(paths).toHexString();
   }
 
   private Hash getHash(Path... paths) {

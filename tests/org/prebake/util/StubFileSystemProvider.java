@@ -615,7 +615,7 @@ class MemFileSystem extends FileSystem {
     }
     if (name != null) {
       if (n == null) {
-        n = new Node(name, parent, false);
+        new Node(name, parent, false);  // links itself to parent
       }
     }
   }

@@ -86,6 +86,19 @@
      if="runtests.failure"/>
   </target>
 
+  <target name="checks" depends="classes" description="Runs Findbugs">
+    <taskdef name="findbugs" classname="edu.umd.cs.findbugs.anttask.FindBugsTask"
+     classpath="${third_party}/findbugs/lib/findbugs-ant.jar"/>
+    <mkdir dir="${reports}/bugs"/>
+    <!-- See http://findbugs.sourceforge.net/manual/anttask.html -->
+    <findbugs home="${third_party}/findbugs" reportLevel="medium"
+     output="html" outputFile="${reports}/bugs/bugs.html" effort="max">
+      <auxClasspath refid="classpath.tests.run" />
+      <sourcePath path="${src}" />
+      <class location="${lib}" />
+    </findbugs>
+  </target>
+
   <target name="docs" description="Builds javadoc documentation."
    depends="dirs">
     <javadoc sourcepath="${src}" destdir="${docs}" access="private"

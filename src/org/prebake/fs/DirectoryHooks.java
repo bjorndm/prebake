@@ -70,9 +70,9 @@ public class DirectoryHooks implements Closeable {
           }
         }
       });
+      register(root, ws, keys);
+      watcher.start();
     }
-    register(root, ws, keys);
-    watcher.start();
   }
 
   public void close() {

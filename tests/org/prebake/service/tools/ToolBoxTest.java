@@ -79,6 +79,7 @@ public class ToolBoxTest extends PbTestCase {
         return Collections.<String>emptyList();
       }
     };
+    tb.start();
 
     List<Future<ToolSignature>> sigs;
     sigs = tb.getAvailableToolSignatures();

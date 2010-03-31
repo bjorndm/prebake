@@ -199,11 +199,11 @@ abstract class Bake {
     char[] buf = new char[1024];
     StringBuilder sb = new StringBuilder();
     InputStream in = p.newInputStream(StandardOpenOption.READ);
+    Reader r = new InputStreamReader(in, "UTF-8");
     try {
-      Reader r = new InputStreamReader(in, "UTF-8");
       for (int n; (n = r.read(buf)) > 0;) { sb.append(buf, 0, n); }
     } finally {
-      in.close();
+      r.close();
     }
     return sb.toString();
   }
@@ -230,13 +230,13 @@ abstract class Bake {
     return false;
   }
 
-  final class AuthoritahNotRespectedException extends Exception {
+  static final class AuthoritahNotRespectedException extends Exception {
     private AuthoritahNotRespectedException() {
       initCause(new IHateYouSoVeryVeryMuch());
     }
   }
 
-  final class IHateYouSoVeryVeryMuch extends Exception {
+  static final class IHateYouSoVeryVeryMuch extends Exception {
     private IHateYouSoVeryVeryMuch() {}
   }
 }
