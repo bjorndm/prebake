@@ -260,7 +260,7 @@ public class ToolBox implements Closeable {
         synchronized (impl.tool) {
           if (impl.isValid()) { return makeSig(); }
         }
-        while (nTriesRemaining >= 0) {
+        while (--nTriesRemaining >= 0) {
           Path toolPath = null;
           InputStream jsIn;
           final Path base;
@@ -342,9 +342,9 @@ public class ToolBox implements Closeable {
                 Level.INFO,
                 "Tool {0} yielded result {1} : {2}.  Expected YSON.  {3}",
                 new Object[] {
-                  name, result.result,
+                  name, result.result.toSource(),
                   result.result != null
-                      ? result.result.getClass() : "<null, null>",
+                      ? result.result.getClass().getName() : "<null>",
                   Joiner.on("; ").join(mq.getMessages())
                 });
             return null;
@@ -374,11 +374,13 @@ public class ToolBox implements Closeable {
             impl.doc = help;
             if (fh.update(addresser, impl, paths, hb.toHash())) {
               return makeSig();
-            } else {
-              continue;
             }
           }
+          logger.log(
+              Level.INFO, "Failed to update tool {0}.  {1} tries remaining",
+              new Object[] { impl.name, nTriesRemaining });
         }
+        logger.log(Level.INFO, "Giving up on {0}", impl.name);
         return null;
       }
     });
@@ -426,16 +428,18 @@ public class ToolBox implements Closeable {
   }
 
   private void checkBuiltin(String fileName) {
+    logger.log(Level.FINE, "checking builtin {0}", fileName);
     InputStream in = ToolBox.class.getResourceAsStream(fileName);
     boolean exists;
     if (in != null) {
       try {
         in.close();
       } catch (IOException ex) {
-        ex.printStackTrace();
+        logger.log(Level.SEVERE, "Failed to read builtin " + fileName, ex);
       }
       exists = true;
     } else {
+      logger.log(Level.WARNING, "Missing builtin {0}", fileName);
       exists = false;
     }
     check(dirIndices.size(), exists, fs.getPath(fileName));
@@ -465,9 +469,7 @@ public class ToolBox implements Closeable {
     synchronized (tools) {
       Tool tool = tools.get(toolName);
       if (exists) {
-        if (tool == null) {
-          tools.put(toolName, tool = new Tool(localName));
-        }
+        if (tool == null) { tools.put(toolName, tool = new Tool(localName)); }
         if (!tool.impls.containsKey(dirIndex)) {
           tool.impls.put(dirIndex, new ToolImpl(tool, toolName, dirIndex));
         }

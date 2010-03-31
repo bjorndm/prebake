@@ -680,7 +680,8 @@ public final class RhinoExecutor implements Executor {
         for (int i = 0, n = (int) (Math.min(Integer.MAX_VALUE, a.getLength()));
              i < n; ++i) {
           if (i != 0) { out.write(","); }
-          writeYSON(context, ScriptableObject.getProperty(a, i), out);
+          Object el = ScriptableObject.getProperty(a, i);
+          writeYSON(context, el, out);
         }
         out.write("]");
       } else {
@@ -735,14 +736,17 @@ public final class RhinoExecutor implements Executor {
     }
     // If any of the free names are not global, then f is not a YSON function.
     for (String freeName : yson.getFreeNames()) {
-      for (Scriptable scope = f.getParentScope();
-           scope != null; scope = scope.getParentScope()) {
-        boolean isModuleScope = scope instanceof LoadedModuleScope;
+      boolean found = false;
+      boolean sawModuleScope = false;
+      for (Scriptable scope = f; (scope = scope.getParentScope()) != null;) {
+        if (scope instanceof LoadedModuleScope) { sawModuleScope = true; }
         if (scope.has(freeName, scope)) {  // hasOwnProperty check
-          if (!isModuleScope || !"load".equals(freeName)) { return false; }
+          if (!sawModuleScope) { return false; }
+          found = true;
+          break;
         }
-        if (isModuleScope) { break; }
       }
+      if (!found) { return false; }
     }
     return true;
   }
