@@ -375,9 +375,10 @@ public class ExecutorTest extends PbTestCase {
     assertEquals(
         ""
         + "({"
-        + "\"x\": 1.0, "
-        + "\"y\": [(function() {\n  return Math.abs(-1);\n}), null], "
-        + "\"z\": [2.0]})",
+          + "\"x\": 1.0, "
+          + "\"y\": [(function() {\n  return Math.abs(-1);\n}), null], "
+          + "\"z\": [2.0]"
+        + "})",
         out.result.toSource());
   }
 

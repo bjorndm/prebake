@@ -10,11 +10,12 @@ import com.sleepycat.je.Environment;
 import com.sleepycat.je.EnvironmentConfig;
 
 import java.io.File;
+import java.io.IOException;
+import java.lang.Thread.UncaughtExceptionHandler;
 import java.net.URI;
 import java.nio.file.FileSystem;
 import java.nio.file.Path;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
@@ -28,7 +29,6 @@ public class ToolBoxTest extends PbTestCase {
   private Environment env;
   private FileHashes fh;
   private ScheduledExecutorService execer;
-  private ToolBox tb;
   private File tempFile;
 
   @Override
@@ -50,7 +50,6 @@ public class ToolBoxTest extends PbTestCase {
 
   @Override
   protected void tearDown() throws Exception {
-    if (tb != null) { tb.close(); }
     execer.shutdown();
     fh.close();
     env.close();
@@ -60,39 +59,103 @@ public class ToolBoxTest extends PbTestCase {
   }
 
   public final void testToolBox() throws Exception {
-    mkdirs(fs.getPath("/tools"));
-    mkdirs(fs.getPath("/root/cwd/tools"));
-    List<Path> toolDirs = Arrays.asList(
-        fs.getPath("/tools"), fs.getPath("/root/cwd/tools"));
-    writeFile(
-        fs.getPath("/tools/bar.js"),
-        "({ help: 'an example tool', check: function (product) { } })");
-    writeFile(fs.getPath("/tools/foo.js"), "({ help: 'foo1' })");
-    writeFile(fs.getPath("/root/cwd/tools/baz.js"), "({})");
-    writeFile(fs.getPath("/root/cwd/tools/foo.js"), "({ help: 'foo2' })");
-    fh.update(Arrays.asList(
-        fs.getPath("/tools/bar.js"), fs.getPath("/tools/foo.js"),
-        fs.getPath("/root/cwd/tools/baz.js"),
-        fs.getPath("/root/cwd/tools/foo.js")));
-    tb = new ToolBox(fh, toolDirs, getLogger(Level.FINE), execer) {
-      @Override protected Iterable<String> getBuiltinToolNames() {
-        return Collections.<String>emptyList();
-      }
-    };
-    tb.start();
+    new TestRunner()
+        .withToolDirs("/tools", "/root/cwd/tools")
+        .withToolFiles(
+            "/tools/bar.js", (
+                "({ help: 'an example tool', check: function (product) { } })"),
+            "/tools/foo.js", "({ help: 'foo1' })",
+            "/root/cwd/tools/baz.js", "({})",
+            "/root/cwd/tools/foo.js", "({ help: 'foo2' })")
+        .assertSigs(
+            "{\"name\":\"bar.js\",\"doc\":\"an example tool\"}",
+            "{\"name\":\"foo.js\",\"doc\":\"foo1\"}",
+            "{\"name\":\"baz.js\",\"doc\":null}");
+  }
 
-    List<Future<ToolSignature>> sigs;
-    sigs = tb.getAvailableToolSignatures();
-    List<ToolSignature> actualSigs = Lists.newArrayList();
-    for (Future<ToolSignature> sig : sigs) {
-      ToolSignature actualSig = sig.get();
-      if (actualSig != null) { actualSigs.add(actualSig); }
+  public final void testToolFileThrows() throws Exception {
+    new TestRunner()
+        .withToolDirs("/tools", "/root/cwd/tools")
+        .withToolFiles(
+            "/tools/bar.js", (
+                "({ help: 'an example tool', check: function (product) { } })"),
+            "/tools/foo.js", "({ help: 'foo1' })",
+            "/root/cwd/tools/baz.js", "throw 'Bad tool'",  // Bad
+            "/root/cwd/tools/foo.js", "({ help: 'foo2' })")
+        .assertSigs(
+            "{\"name\":\"bar.js\",\"doc\":\"an example tool\"}",
+            "{\"name\":\"foo.js\",\"doc\":\"foo1\"}"
+            // No tool baz
+            );
+  }
+
+  public final void testBuiltin() throws Exception {
+    new TestRunner()
+        .withToolDirs("/tools", "/root/cwd/tools")
+        .withToolFiles(
+            "/tools/bar.js", (
+                "({ help: 'an example tool', check: function (product) { } })"),
+            "/tools/foo.js", (
+                "({ help: 'foo1', fire: function () { return exec('foo') } })"))
+        .withBuiltinTools("cp.js")
+        .assertSigs(
+            "{\"name\":\"bar.js\",\"doc\":\"an example tool\"}",
+            "{\"name\":\"foo.js\",\"doc\":\"foo1\"}",
+            "{\"name\":\"cp.js\",\"doc\":\"\"}");
+  }
+
+  class TestRunner {
+    List<Path> toolDirs = Lists.newArrayList();
+    List<String> builtins = Lists.newArrayList();
+
+    TestRunner withToolDirs(String... dirs) throws IOException {
+      for (String dir : dirs) {
+        Path p = fs.getPath(dir);
+        toolDirs.add(p);
+        mkdirs(p);
+      }
+      return this;
     }
-    assertEquals(
-        "{\"name\":\"bar.js\",\"doc\":\"an example tool\"}"
-        + " ; {\"name\":\"foo.js\",\"doc\":\"foo1\"}"
-        + " ; {\"name\":\"baz.js\",\"doc\":null}",
-        Joiner.on(" ; ").join(actualSigs));
+
+    TestRunner withToolFiles(String... namesAndContent) throws IOException {
+      List<Path> toUpdate = Lists.newArrayList();
+      for (int i = 0, n = namesAndContent.length; i < n; i += 2) {
+        Path p = fs.getPath(namesAndContent[i]);
+        writeFile(p, namesAndContent[i + 1]);
+        toUpdate.add(p);
+      }
+      fh.update(toUpdate);
+      return this;
+    }
+
+    TestRunner withBuiltinTools(String... fileNames) {
+      builtins.addAll(Arrays.asList(fileNames));
+      return this;
+    }
+
+    void assertSigs(String... expectedSigs) throws Exception {
+      ToolBox tb = new ToolBox(fh, toolDirs, getLogger(Level.FINE), execer) {
+        @Override
+        protected Iterable<String> getBuiltinToolNames() { return builtins; }
+      };
+      List<ToolSignature> actualSigs = Lists.newArrayList();
+      try {
+        tb.start();
+
+        List<Future<ToolSignature>> sigs;
+        sigs = tb.getAvailableToolSignatures();
+        for (Future<ToolSignature> sig : sigs) {
+          ToolSignature actualSig = sig.get();
+          if (actualSig != null) { actualSigs.add(actualSig); }
+        }
+      } finally {
+        tb.close();
+      }
+
+      assertEquals(
+          Joiner.on(" ; ").join(expectedSigs),
+          Joiner.on(" ; ").join(actualSigs));
+    }
   }
 
   // TODO: test directories that initially don't exist, are created, deleted,
@@ -100,4 +163,5 @@ public class ToolBoxTest extends PbTestCase {
   // TODO: figure out why updater doesn't stop after 4 tries.
   // TODO: test builtins.
   // TODO: test implementation chaining using load('next')
+  // TODO: test tool file loops infinitely
 }
