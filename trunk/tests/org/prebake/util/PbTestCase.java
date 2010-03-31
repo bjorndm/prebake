@@ -64,7 +64,9 @@ public abstract class PbTestCase extends TestCase {
     if (f.isDirectory()) {
       for (File c : f.listFiles()) { rmDirTree(c); }
     }
-    f.delete();
+    if (!f.delete()) {
+      // We're just making a best effort.
+    }
   }
 
   private static final FileAttribute<?>[] DIR_ATTRS
@@ -86,5 +88,12 @@ public abstract class PbTestCase extends TestCase {
     } finally {
       out.close();
     }
+  }
+
+  protected File makeTempDir() throws IOException {
+    File tempFile = File.createTempFile(getName(), ".dir");
+    if (!tempFile.delete()) { throw new IOException(tempFile.toString()); }
+    if (!tempFile.mkdirs()) { throw new IOException(tempFile.toString()); }
+    return tempFile;
   }
 }
