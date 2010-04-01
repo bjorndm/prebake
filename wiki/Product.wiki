@@ -5,19 +5,19 @@
 A plan file declares zero or more products which are [YSON ΛSON] structures of the form:
 {{{
 {
-  "name": "...",  // required
-  "inputs": [  // required
+  "name": "...",                                              // required
+  "inputs": [                                                 // required
     "example/**/*.java"
   ],
-  "outputs": [  // required
+  "outputs": [                                                // required
     "example/**/*.class"
   ],
-  "actions": [  // required
+  "actions": [                                                // required
     ...
   ],
-  "help": "Documentation for this product",  // optional
+  "help": "Documentation for this product",                   // optional
   "contact": "Maintainer, Name <maintainer_email@host.tld>",  // optional
-  "intermediate": true // optional
+  "intermediate": true                                        // optional
 }
 }}}
 
