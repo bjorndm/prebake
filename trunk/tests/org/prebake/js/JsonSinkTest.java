@@ -1,4 +1,4 @@
-package org.prebake.channel;
+package org.prebake.js;
 
 import java.io.IOException;
 import java.util.Arrays;

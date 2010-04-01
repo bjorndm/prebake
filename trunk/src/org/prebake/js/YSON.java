@@ -10,6 +10,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 
+import java.io.IOException;
 import java.text.ParseException;
 import java.util.Collections;
 import java.util.Iterator;
@@ -400,11 +401,12 @@ public final class YSON {
     }
   }
 
-  public static final class Lambda {
+  public static final class Lambda implements JsonSerializable {
     private final String source;
 
     public Lambda(String source) {
-      assert source != null;
+      assert source != null && source.startsWith("function")
+          && source.endsWith("}") : source;
       this.source = source;
     }
 
@@ -420,5 +422,7 @@ public final class YSON {
 
     @Override
     public int hashCode() { return source.hashCode(); }
+
+    public void toJson(JsonSink sink) throws IOException { sink.write(source); }
   }
 }

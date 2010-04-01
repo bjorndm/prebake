@@ -1,4 +1,4 @@
-package org.prebake.channel;
+package org.prebake.js;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;

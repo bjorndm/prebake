@@ -1,8 +1,8 @@
 package org.prebake.service;
 
 import org.prebake.channel.Commands;
-import org.prebake.channel.JsonSource;
 import org.prebake.core.MessageQueue;
+import org.prebake.js.JsonSource;
 import org.prebake.util.CommandLineArgs;
 
 import com.google.common.base.Joiner;

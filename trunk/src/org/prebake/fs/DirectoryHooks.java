@@ -94,7 +94,7 @@ public class DirectoryHooks implements Closeable {
     }
 
     Path dir = keys.get(key);
-    if (dir == null) { return; }
+    if (dir == null) { key.cancel(); return; }
 
     try {
       for (WatchEvent<?> event : key.pollEvents()) {

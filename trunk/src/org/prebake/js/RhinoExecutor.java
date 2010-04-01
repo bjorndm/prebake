@@ -1,6 +1,5 @@
 package org.prebake.js;
 
-import org.prebake.channel.JsonSink;
 import org.prebake.core.Hash;
 
 import com.google.common.base.Predicate;
@@ -9,7 +8,6 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.Reader;
 import java.net.URI;
@@ -64,9 +62,9 @@ public final class RhinoExecutor implements Executor {
 
   private static final Set<String> CLASS_WHITELIST = ImmutableSet.of(
       Boolean.class.getName(),
-      ByteArrayInputStream.class.getName(),
       Character.class.getName(),
       Double.class.getName(),
+      // TODO: does exceptions expose non-determinism via stack details?
       EcmaError.class.getName(),
       EvaluatorException.class.getName(),
       Float.class.getName(),

@@ -1,8 +1,8 @@
 package org.prebake.service;
 
-import org.prebake.channel.JsonSink;
 import org.prebake.core.DidYouMean;
 import org.prebake.core.MessageQueue;
+import org.prebake.js.JsonSink;
 import org.prebake.util.CommandLineArgs;
 
 import com.google.common.collect.ImmutableList;
