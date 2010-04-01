@@ -46,6 +46,10 @@ public interface Executor {
     }
   }
 
+  public static class ScriptTimeoutException extends RuntimeException {
+    public ScriptTimeoutException() { super(""); }
+  }
+
   public static class MalformedSourceException extends Exception {
     public MalformedSourceException(String message) { super(message); }
     public MalformedSourceException(Throwable cause) { super(cause); }

@@ -219,7 +219,7 @@ public class ToolBox implements Closeable {
         final boolean deterministic = impl.deterministic;
         return new ToolSignature() {
           public String getDoc() { return doc; }
-          public String getName() { return t.localName.toString(); }
+          public String getName() { return impl.name; }
           public String getProductChecker() { return productChecker; }
           public boolean isDeterministic() { return deterministic; }
 
@@ -302,7 +302,7 @@ public class ToolBox implements Closeable {
           Executor executor;
           try {
             executor = Executor.Factory.createJsExecutor(new Executor.Input(
-                new StringReader(js), toolPath.toString(), base));
+                new StringReader(js), toolPath.toString(), toolPath));
           } catch (Executor.MalformedSourceException ex) {
             logger.log(Level.SEVERE, "Bad tool file " + toolPath, ex);
             return null;
@@ -313,14 +313,15 @@ public class ToolBox implements Closeable {
             Executor.Output<YSON> result = executor.run(
                 Collections.<String, Object>emptyMap(),
                 YSON.class, logger, new Loader() {
-                  public Reader load(Path p) throws IOException {
+                  public Executor.Input load(Path p) throws IOException {
                     // The name "next" resolves to the next instance of the
                     // same tool in the search path.
                     if ("next".equals(p.getName().toString())
                         && base.equals(p.getParent())) {
                       return nextTool(t, index, base.resolve("next"));
                     }
-                    return new InputStreamReader(p.newInputStream(), UTF8);
+                    return new Executor.Input(
+                        new InputStreamReader(p.newInputStream(), UTF8), p);
                   }
                 });
             MessageQueue mq = new MessageQueue();
@@ -388,7 +389,7 @@ public class ToolBox implements Closeable {
     });
   }
 
-  private Reader nextTool(Tool t, int prevIndex, Path path) throws IOException {
+  private Executor.Input nextTool(Tool t, int prevIndex, Path path) throws IOException {
     Integer nextIndex = null;
     for (Iterator<Integer> it = t.impls.keySet().iterator(); it.hasNext();) {
       int index = it.next();
@@ -398,13 +399,18 @@ public class ToolBox implements Closeable {
       }
     }
     InputStream in = null;
+    Path p = null;
     if (nextIndex != null) {
-      in = nextIndex < toolDirs.size()
-          ? toolDirs.get(nextIndex).resolve(t.localName).newInputStream()
-          : ToolBox.class.getResourceAsStream(t.localName.toString());
+      if (nextIndex < toolDirs.size()) {
+        p = toolDirs.get(nextIndex).resolve(t.localName);
+        in = p.newInputStream();
+      } else {
+        p = t.localName;
+        in = ToolBox.class.getResourceAsStream(t.localName.toString());
+      }
     }
     if (in == null) { throw new FileNotFoundException(path.toString()); }
-    return new InputStreamReader(in, UTF8);
+    return new Executor.Input(new InputStreamReader(in, UTF8), p);
   }
 
   public final void close() throws IOException {

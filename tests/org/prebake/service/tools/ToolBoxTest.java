@@ -1,6 +1,7 @@
 package org.prebake.service.tools;
 
 import org.prebake.fs.FileHashes;
+import org.prebake.js.Executor;
 import org.prebake.util.PbTestCase;
 import org.prebake.util.StubFileSystemProvider;
 
@@ -65,9 +66,9 @@ public class ToolBoxTest extends PbTestCase {
             "/root/cwd/tools/baz.js", "({})",
             "/root/cwd/tools/foo.js", "({ help: 'foo2' })")
         .assertSigs(
-            "{\"name\":\"bar.js\",\"doc\":\"an example tool\"}",
-            "{\"name\":\"foo.js\",\"doc\":\"foo1\"}",
-            "{\"name\":\"baz.js\",\"doc\":null}");
+            "{\"name\":\"bar\",\"doc\":\"an example tool\"}",
+            "{\"name\":\"foo\",\"doc\":\"foo1\"}",
+            "{\"name\":\"baz\",\"doc\":null}");
   }
 
   public final void testToolFileThrows() throws Exception {
@@ -80,8 +81,8 @@ public class ToolBoxTest extends PbTestCase {
             "/root/cwd/tools/baz.js", "throw 'Bad tool'",  // Bad
             "/root/cwd/tools/foo.js", "({ help: 'foo2' })")
         .assertSigs(
-            "{\"name\":\"bar.js\",\"doc\":\"an example tool\"}",
-            "{\"name\":\"foo.js\",\"doc\":\"foo1\"}"
+            "{\"name\":\"bar\",\"doc\":\"an example tool\"}",
+            "{\"name\":\"foo\",\"doc\":\"foo1\"}"
             // No tool baz
             );
   }
@@ -97,14 +98,69 @@ public class ToolBoxTest extends PbTestCase {
         .withBuiltinTools("cp.js")
         .assertSigs(
             ("{"
-               + "\"name\":\"cp.js\","
+               + "\"name\":\"cp\","
                + "\"doc\":\"Copies files to a directory tree.  TODO usage\""
              + "}"),
-            "{\"name\":\"bar.js\",\"doc\":\"an example tool\"}",
-            "{\"name\":\"foo.js\",\"doc\":\"foo1\"}");
+            "{\"name\":\"bar\",\"doc\":\"an example tool\"}",
+            "{\"name\":\"foo\",\"doc\":\"foo1\"}");
   }
 
-  class TestRunner {
+  public final void testChaining() throws Exception {
+    new TestRunner()
+        .withToolDirs("/root/cwd/tools", "/tools")
+        .withToolFiles(
+            "/root/cwd/tools/a.js", (
+                "var o = load('next')(this); o.help += 'bar'; o"),
+            "/tools/a.js", "({ help: 'foo' })")
+        .assertSigs("{\"name\":\"a\",\"doc\":\"foobar\"}");
+  }
+
+  public final void testRunawayScripts() throws Exception {
+    final Object[] result = new Object[1];
+    synchronized (result) {
+      Thread th = new Thread(new Runnable() {
+        public void run() {
+          result[0] = "starting";
+          try {
+            new TestRunner()
+                .withToolDirs("/tools")
+                .withToolFiles("/tools/tool.js", "while (1) {}")
+                .assertSigs();
+          } catch (Exception ex) {
+            synchronized (result) {
+              result[0] = ex.getMessage();
+              result.notify();
+            }
+          }
+          synchronized (result) {
+            result[0] = "done";
+            result.notify();
+          }
+        }
+      });
+      th.setDaemon(true);
+      th.setName(getName());
+      th.start();
+      while (!"done".equals(result[0])) {
+        result.wait(20000);
+        break;
+      }
+    }
+    assertEquals("done", result[0]);
+    boolean foundTimeout = false;
+    // The ToolBox executes the scripts in other threads so the timeout
+    // exceptions should be on the stack.
+    String timeoutName = Executor.ScriptTimeoutException.class.getName();
+    for (String logMsg : getLog()) {
+      if (logMsg.contains(timeoutName)) {
+        foundTimeout = true;
+        break;
+      }
+    }
+    assertTrue(foundTimeout);
+  }
+
+  private final class TestRunner {
     List<Path> toolDirs = Lists.newArrayList();
     List<String> builtins = Lists.newArrayList();
 
@@ -160,8 +216,4 @@ public class ToolBoxTest extends PbTestCase {
 
   // TODO: test directories that initially don't exist, are created, deleted,
   // recreated.
-  // TODO: figure out why updater doesn't stop after 4 tries.
-  // TODO: test builtins.
-  // TODO: test implementation chaining using load('next')
-  // TODO: test tool file loops infinitely
 }

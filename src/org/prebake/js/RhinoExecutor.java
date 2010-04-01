@@ -26,6 +26,7 @@ import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import org.mozilla.javascript.Callable;
 import org.mozilla.javascript.ClassShutter;
 import org.mozilla.javascript.Context;
 import org.mozilla.javascript.ContextFactory;
@@ -89,7 +90,10 @@ public final class RhinoExecutor implements Executor {
       // Implement Rhino sandboxing as explained at
       //     http://codeutopia.net/blog/2009/01/02/sandboxing-rhino-in-java/
       // plus a few extra checks.
-      Context context = super.makeContext();
+      CpuQuotaContext context = new CpuQuotaContext(this);
+      // Make Rhino runtime call observeInstructionCount every so often to check
+      // the CPU quota.
+      context.setInstructionObserverThreshold(10000);  // TODO: tuning param
       context.setClassShutter(new ClassShutter() {
         public boolean visibleToScripts(String fullClassName) {
           if (fullClassName.endsWith("SandBoxSafe")) { return true; }
@@ -122,6 +126,36 @@ public final class RhinoExecutor implements Executor {
         case Context.FEATURE_STRICT_EVAL: return true;
         default: return super.hasFeature(c, feature);
       }
+    }
+
+    // The below is adapted from the ContextFactory Javadoc to time out on
+    // infinite loops.
+    /** Custom Context to store execution time. */
+    final class CpuQuotaContext extends Context {
+      CpuQuotaContext(ContextFactory f) { super(f); }
+      long startTimeNanos = System.nanoTime();
+    }
+
+    @Override
+    protected void observeInstructionCount(Context cx, int instructionCount) {
+     CpuQuotaContext qcx = (CpuQuotaContext) cx;
+      long currentTime = System.nanoTime();
+      if (currentTime - qcx.startTimeNanos > 5000000000L) {
+        // More then 5 seconds from Context creation time:
+        // it is time to stop the script.
+        // Throw Error instance to ensure that script will never
+        // get control back through catch or finally.
+        throw new Executor.ScriptTimeoutException();
+      }
+    }
+
+    @Override
+    protected Object doTopCall(
+        Callable callable, Context cx, Scriptable scope,
+        Scriptable thisObj, Object[] args) {
+      CpuQuotaContext qcx = (CpuQuotaContext) cx;
+      qcx.startTimeNanos = System.nanoTime();
+      return super.doTopCall(callable, cx, scope, thisObj, args);
     }
   };
   static {
@@ -476,21 +510,28 @@ public final class RhinoExecutor implements Executor {
         // URI separator should always work.
         if (!"/".equals(pathSep)) { relPath = relPath.replace("/", pathSep); }
         modulePath = base.getParent().resolve(relPath).normalize();
-        Function fn = loadedModules.get(modulePath);
-        if (fn != null) { return fn; }
-        dynamicLoads.put(modulePath, null);
       }
       try {
         // The caller of load can recover from a failed load using try/catch,
         // so we want to record the dependency so that if the file comes into
         // existence, we know to invalidate the output.
-        src = drain(loader.load(modulePath));
+        Executor.Input loaded = loader.load(modulePath);
+        modulePath = loaded.base.normalize();
+        src = drain(loaded.input);
+
+        // See if we've already loaded it now that the loader has resolved the
+        // real path.
+        Function fn = loadedModules.get(modulePath);
+        // Don't possibly load two versions of the same path.
+        // We can't deal with version skew within a JS run.
+        if (fn != null) { return fn; }
         dynamicLoads.put(
             modulePath, Hash.builder().withString(src).toHash());
         subLoadFn = new LoadFn(
             globalScope, loader, logger, modulePath, dynamicLoads);
         srcName = modulePath.toString();
       } catch (IOException ex) {
+        dynamicLoads.put(modulePath, null);
         throw new WrappedException(ex);
       }
       Function fn = subLoadFn.load(context, src, srcName);
