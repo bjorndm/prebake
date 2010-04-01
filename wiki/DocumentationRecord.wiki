@@ -1,0 +1,27 @@
+#summary Structured documentation of a system artifact.
+
+= DocumentationRecord <font size="1">[http://code.google.com/p/prebake/source/browse/trunk/org/prebake/core/Documentation.java (src)]</font> =
+
+Human readable documentation for part of the system.
+
+It can be specified in two ways
+  # as a string of PreformattedStaticHtml
+  # as a JSON record with the structure shown below.
+
+{{{
+{
+  "summary": "optional short text",
+  "details": "required longer text",
+  "contact": "optional email address <maintainer@example.org>"
+}
+}}}
+
+== Summary ==
+Short human readable documentation treated as PreformattedStaticHtml format.
+If not provided, is inferred from the details.
+
+== Details ==
+Human readable documentation string treated as PreformattedStaticHtml format.
+
+== Contact ==
+Email address of the maintainer who can answer questions.
