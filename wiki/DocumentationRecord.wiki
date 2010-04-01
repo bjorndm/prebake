@@ -18,7 +18,13 @@ It can be specified in two ways
 
 == Summary ==
 Short human readable documentation treated as PreformattedStaticHtml format.
-If not provided, is inferred from the details.
+If not provided, it is inferred from the details using the same scheme that [http://java.sun.com/j2se/javadoc/writingdoccomments/ javadoc] uses to find the first sentence:
+
+        This sentence ends at the first period that is followed by a blank,
+        tab, or line terminator, or at the first tag (as defined below).
+        For example, this first sentence ends at "Prof.":
+
+        This is a simulation of Prof. Knuth's MIX computer.
 
 == Details ==
 Human readable documentation string treated as PreformattedStaticHtml format.
