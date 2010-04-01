@@ -1,5 +1,9 @@
 package org.prebake.channel;
 
+import org.prebake.js.JsonSerializable;
+import org.prebake.js.JsonSink;
+import org.prebake.js.JsonSource;
+
 import com.google.common.collect.ImmutableList;
 
 import java.io.IOException;
@@ -11,7 +15,7 @@ import java.util.Iterator;
  *
  * @author mikesamuel@gmail.com
  */
-public final class Commands implements Iterable<Command> {
+public final class Commands implements Iterable<Command>, JsonSerializable {
   private final ImmutableList<Command> commands;
 
   private Commands(ImmutableList<Command> commands) {

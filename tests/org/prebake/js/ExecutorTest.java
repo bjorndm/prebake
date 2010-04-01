@@ -417,6 +417,37 @@ public class ExecutorTest extends PbTestCase {
     assertEquals("undefined", output.result);
   }
 
+  public final void testRunawayScrits() throws Exception {
+    final Throwable[] th = new Throwable[1];
+    Thread scriptRunner = new Thread(new Runnable() {
+      public void run() {
+        try {
+          Executor.Factory.createJsExecutor(
+              new Executor.Input(
+                  new StringReader("var i = 0; while (1) { ++i; }"),
+                  getName(), null))
+              .run(Collections.<String, Object>emptyMap(), Void.TYPE,
+                   getLogger(Level.INFO), null);
+        } catch (Exception ex) {
+          synchronized (th) { th[0] = ex; }
+        }
+        synchronized (th) { th.notify(); }
+      }
+    }, getName());
+    synchronized (th) {
+      long t0 = System.nanoTime();
+      long oneSecondInNanos = 1000L * 1000L * 1000L;
+      long deadline = t0 + 10 * oneSecondInNanos;
+
+      scriptRunner.start();
+
+      while (th[0] == null && (System.nanoTime() < deadline)) {
+        th.wait(deadline - System.nanoTime());
+      }
+    }
+    assertTrue("" + th[0], th[0] instanceof Executor.ScriptTimeoutException);
+  }
+
   private void assertResult(Object result, String src) throws Exception {
     FileSystem fs = new StubFileSystemProvider("mfs").getFileSystem(
         URI.create("mfs:///#/foo"));

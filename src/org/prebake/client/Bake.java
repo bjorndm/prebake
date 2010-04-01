@@ -3,8 +3,8 @@ package org.prebake.client;
 import org.prebake.channel.Command;
 import org.prebake.channel.Commands;
 import org.prebake.channel.FileNames;
-import org.prebake.channel.JsonSink;
-import org.prebake.channel.JsonSource;
+import org.prebake.js.JsonSink;
+import org.prebake.js.JsonSource;
 import org.prebake.service.Prebakery;
 
 import com.google.common.collect.Lists;

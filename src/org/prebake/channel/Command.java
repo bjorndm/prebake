@@ -1,6 +1,9 @@
 package org.prebake.channel;
 
 import org.prebake.core.DidYouMean;
+import org.prebake.js.JsonSerializable;
+import org.prebake.js.JsonSink;
+import org.prebake.js.JsonSource;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
@@ -16,7 +19,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-public abstract class Command {
+public abstract class Command implements JsonSerializable {
   public enum Verb {
     handshake,
     build,

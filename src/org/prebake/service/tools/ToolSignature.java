@@ -1,13 +1,15 @@
 package org.prebake.service.tools;
 
+import org.prebake.js.JsonSerializable;
+
 /**
  * A description of a tool as seen by a plan file.
  *
  * @author mikesamuel@gmail.com
  */
-public interface ToolSignature {
+public interface ToolSignature extends JsonSerializable {
   String getName();
   String getProductChecker();
-  String getDoc();
+  String getHelp();
   boolean isDeterministic();
 }

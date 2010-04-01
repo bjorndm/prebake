@@ -1,12 +1,13 @@
 package org.prebake.service.tools;
 
-import org.prebake.channel.JsonSink;
 import org.prebake.core.Hash;
 import org.prebake.core.MessageQueue;
 import org.prebake.fs.ArtifactAddresser;
 import org.prebake.fs.FileHashes;
 import org.prebake.fs.NonFileArtifact;
 import org.prebake.js.Executor;
+import org.prebake.js.JsonSerializable;
+import org.prebake.js.JsonSink;
 import org.prebake.js.Loader;
 import org.prebake.js.YSON;
 
@@ -140,7 +141,7 @@ public class ToolBox implements Closeable {
           }
 
           Path dir = keyToDir.get(key);
-          if (dir == null) { return; }
+          if (dir == null) { key.cancel(); return; }
 
           try {
             for (WatchEvent<?> event : key.pollEvents()) {
@@ -214,40 +215,28 @@ public class ToolBox implements Closeable {
     }
     return execer.submit(new Callable<ToolSignature>() {
       private ToolSignature makeSig() {
-        final String doc = impl.doc;
+        final String help = impl.help;
         final String productChecker = impl.productChecker;
         final boolean deterministic = impl.deterministic;
         return new ToolSignature() {
-          public String getDoc() { return doc; }
+          public String getHelp() { return help; }
           public String getName() { return impl.name; }
           public String getProductChecker() { return productChecker; }
           public boolean isDeterministic() { return deterministic; }
 
+          public void toJson(JsonSink sink) throws IOException {
+            sink.write("{").writeValue("name").write(":").writeValue(getName())
+                .write(",").writeValue("help").write(":").writeValue(help);
+            if (productChecker != null) {
+              sink.write(",").writeValue("check").write(":")
+                  .write(productChecker);
+            }
+            sink.write("}");
+          }
+
           @Override
           public String toString() {
-            StringBuilder sb = new StringBuilder();
-            JsonSink sink = new JsonSink(sb);
-            try {
-              sink.write("{");
-              sink.writeValue("name");
-              sink.write(":");
-              sink.writeValue(getName());
-              sink.write(",");
-              sink.writeValue("doc");
-              sink.write(":");
-              sink.writeValue(doc);
-              if (productChecker != null) {
-                sink.write(",");
-                sink.writeValue("check");
-                sink.write(":");
-                sink.write(productChecker);
-              }
-              sink.write("}");
-              sink.close();
-            } catch (IOException ex) {
-              throw new RuntimeException(ex);  // writing to in-memory buffer
-            }
-            return sb.toString();
+            return JsonSerializable.StringUtil.toString(this);
           }
         };
       }
@@ -374,7 +363,7 @@ public class ToolBox implements Closeable {
 
           synchronized (impl.tool) {
             impl.productChecker = checker != null ? checker.getSource() : null;
-            impl.doc = help;
+            impl.help = help;
             if (fh.update(addresser, impl, paths, hb.toHash())) {
               return makeSig();
             }
@@ -503,7 +492,7 @@ final class ToolImpl implements NonFileArtifact {
   final Tool tool;
   final String name;
   final int index;
-  String productChecker, doc;
+  String productChecker, help;
   boolean deterministic;
   private boolean valid;
 

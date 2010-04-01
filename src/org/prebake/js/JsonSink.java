@@ -1,4 +1,4 @@
-package org.prebake.channel;
+package org.prebake.js;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -100,6 +100,9 @@ public final class JsonSink implements Closeable {
       return writeValue((Iterable<?>) o);
     } else if (o instanceof Boolean) {
       return writeValue(((Boolean) o).booleanValue());
+    } else if (o instanceof JsonSerializable) {
+      ((JsonSerializable) o).toJson(this);
+      return this;
     } else if (o.getClass().isArray()) {
       int n = Array.getLength(o);
       out.append('[');
@@ -119,6 +122,11 @@ public final class JsonSink implements Closeable {
 
   public JsonSink writeValue(boolean b) throws IOException {
     out.append(b ? "true" : "false");
+    return this;
+  }
+
+  public JsonSink writeValue(JsonSerializable o) throws IOException {
+    o.toJson(this);
     return this;
   }
 }

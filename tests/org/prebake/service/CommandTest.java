@@ -1,7 +1,7 @@
 package org.prebake.service;
 
 import org.prebake.channel.Command;
-import org.prebake.channel.JsonSource;
+import org.prebake.js.JsonSource;
 import org.prebake.util.StubFileSystemProvider;
 
 import com.google.common.collect.ImmutableSet;

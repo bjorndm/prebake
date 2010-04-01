@@ -66,9 +66,9 @@ public class ToolBoxTest extends PbTestCase {
             "/root/cwd/tools/baz.js", "({})",
             "/root/cwd/tools/foo.js", "({ help: 'foo2' })")
         .assertSigs(
-            "{\"name\":\"bar\",\"doc\":\"an example tool\"}",
-            "{\"name\":\"foo\",\"doc\":\"foo1\"}",
-            "{\"name\":\"baz\",\"doc\":null}");
+            "{\"name\":\"bar\",\"help\":\"an example tool\"}",
+            "{\"name\":\"foo\",\"help\":\"foo1\"}",
+            "{\"name\":\"baz\",\"help\":null}");
   }
 
   public final void testToolFileThrows() throws Exception {
@@ -81,8 +81,8 @@ public class ToolBoxTest extends PbTestCase {
             "/root/cwd/tools/baz.js", "throw 'Bad tool'",  // Bad
             "/root/cwd/tools/foo.js", "({ help: 'foo2' })")
         .assertSigs(
-            "{\"name\":\"bar\",\"doc\":\"an example tool\"}",
-            "{\"name\":\"foo\",\"doc\":\"foo1\"}"
+            "{\"name\":\"bar\",\"help\":\"an example tool\"}",
+            "{\"name\":\"foo\",\"help\":\"foo1\"}"
             // No tool baz
             );
   }
@@ -99,10 +99,10 @@ public class ToolBoxTest extends PbTestCase {
         .assertSigs(
             ("{"
                + "\"name\":\"cp\","
-               + "\"doc\":\"Copies files to a directory tree.  TODO usage\""
+               + "\"help\":\"Copies files to a directory tree.  TODO usage\""
              + "}"),
-            "{\"name\":\"bar\",\"doc\":\"an example tool\"}",
-            "{\"name\":\"foo\",\"doc\":\"foo1\"}");
+            "{\"name\":\"bar\",\"help\":\"an example tool\"}",
+            "{\"name\":\"foo\",\"help\":\"foo1\"}");
   }
 
   public final void testChaining() throws Exception {
@@ -112,7 +112,7 @@ public class ToolBoxTest extends PbTestCase {
             "/root/cwd/tools/a.js", (
                 "var o = load('next')(this); o.help += 'bar'; o"),
             "/tools/a.js", "({ help: 'foo' })")
-        .assertSigs("{\"name\":\"a\",\"doc\":\"foobar\"}");
+        .assertSigs("{\"name\":\"a\",\"help\":\"foobar\"}");
   }
 
   public final void testRunawayScripts() throws Exception {
