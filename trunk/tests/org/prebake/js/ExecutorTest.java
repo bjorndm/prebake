@@ -9,7 +9,6 @@ import com.google.common.base.Joiner;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
-import java.io.Reader;
 import java.io.StringReader;
 import java.net.URI;
 import java.nio.file.FileSystem;
@@ -117,7 +116,7 @@ public class ExecutorTest extends PbTestCase {
         Object.class,
         getLogger(Level.INFO),
         new Loader() {
-          public Reader load(Path p) throws IOException {
+          public Executor.Input load(Path p) throws IOException {
             throw new IOException("Not testing load");
           }
         });
@@ -132,8 +131,9 @@ public class ExecutorTest extends PbTestCase {
         Object.class,
         getLogger(Level.INFO),
         new Loader() {
-          public Reader load(Path p) {
-            return new StringReader("typeof x !== 'undefined' ? x : 2");
+          public Executor.Input load(Path p) {
+            return new Executor.Input(
+                new StringReader("typeof x !== 'undefined' ? x : 2"), p);
           }
         });
     assertEquals(3.0, output.result);
@@ -147,8 +147,9 @@ public class ExecutorTest extends PbTestCase {
         Object.class,
         getLogger(Level.INFO),
         new Loader() {
-          public Reader load(Path p) {
-            return new StringReader("typeof x !== 'undefined' ? x : 2");
+          public Executor.Input load(Path p) {
+            return new Executor.Input(
+                new StringReader("typeof x !== 'undefined' ? x : 2"), p);
           }
         });
     assertEquals(2.0, output.result);
@@ -162,8 +163,9 @@ public class ExecutorTest extends PbTestCase {
         Object.class,
         getLogger(Level.INFO),
         new Loader() {
-          public Reader load(Path p) {
-            return new StringReader("typeof x !== 'undefined' ? x : 2");
+          public Executor.Input load(Path p) {
+            return new Executor.Input(
+                new StringReader("typeof x !== 'undefined' ? x : 2"), p);
           }
         });
     assertEquals(4.0, output.result);
@@ -178,8 +180,8 @@ public class ExecutorTest extends PbTestCase {
         Object.class,
         getLogger(Level.INFO),
         new Loader() {
-          public Reader load(Path p) {
-            return new StringReader("++x");
+          public Executor.Input load(Path p) {
+            return new Executor.Input(new StringReader("++x"), p);
           }
         });
     assertEquals(3.0, output.result);
@@ -341,7 +343,7 @@ public class ExecutorTest extends PbTestCase {
         YSON.class,
         getLogger(Level.INFO),
         new Loader() {
-          public Reader load(Path p) throws IOException {
+          public Executor.Input load(Path p) throws IOException {
             throw new IOException("Should not laod");
           }
         });
@@ -368,7 +370,7 @@ public class ExecutorTest extends PbTestCase {
         YSON.class,
         getLogger(Level.INFO),
         new Loader() {
-          public Reader load(Path p) throws IOException {
+          public Executor.Input load(Path p) throws IOException {
             throw new IOException("Should not laod");
           }
         });
@@ -399,7 +401,7 @@ public class ExecutorTest extends PbTestCase {
         YSON.class,
         getLogger(Level.INFO),
         new Loader() {
-          public Reader load(Path p) throws IOException {
+          public Executor.Input load(Path p) throws IOException {
             throw new IOException("Should not laod");
           }
         });
@@ -426,7 +428,7 @@ public class ExecutorTest extends PbTestCase {
         Object.class,
         getLogger(Level.INFO),
         new Loader() {
-          public Reader load(Path p) throws IOException {
+          public Executor.Input load(Path p) throws IOException {
             throw new IOException("Not testing load");
           }
         });
@@ -445,7 +447,7 @@ public class ExecutorTest extends PbTestCase {
         Object.class,
         getLogger(Level.INFO),
         new Loader() {
-          public Reader load(Path p) throws IOException {
+          public Executor.Input load(Path p) throws IOException {
             throw new IOException("Not testing load");
           }
         });
@@ -475,8 +477,9 @@ public class ExecutorTest extends PbTestCase {
         Object.class,
         getLogger(Level.INFO),
         new Loader() {
-          public Reader load(Path p) throws IOException {
-            return new InputStreamReader(p.newInputStream(), "UTF-8");
+          public Executor.Input load(Path p) throws IOException {
+            return new Executor.Input(
+                new InputStreamReader(p.newInputStream(), "UTF-8"), p);
           }
         });
     return output;
@@ -502,7 +505,7 @@ public class ExecutorTest extends PbTestCase {
         Object.class,
         logger,
         new Loader() {
-          public Reader load(Path p) throws IOException {
+          public Executor.Input load(Path p) throws IOException {
             throw new IOException("Not testing load");
           }
         });

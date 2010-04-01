@@ -47,6 +47,9 @@ public abstract class PbTestCase extends TestCase {
         public void publish(LogRecord r) {
           log.add(r.getSourceClassName() + ":" + r.getLevel() + ": "
               + MessageFormat.format(r.getMessage(), r.getParameters()));
+          if (r.getThrown() != null) {
+            log.add(r.getThrown().toString());
+          }
           if (PbTestCase.this.logger.getLevel().intValue()
               < PbTestCase.this.logger.getParent().getLevel().intValue()) {
             System.err.println(
