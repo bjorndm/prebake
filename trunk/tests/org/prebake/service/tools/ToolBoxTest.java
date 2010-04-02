@@ -61,14 +61,15 @@ public class ToolBoxTest extends PbTestCase {
         .withToolDirs("/tools", "/root/cwd/tools")
         .withToolFiles(
             "/tools/bar.js", (
-                "({ help: 'an example tool', check: function (product) { } })"),
+                "({ help: 'an example tool', check: function (product) { }})"),
             "/tools/foo.js", "({ help: 'foo1' })",
             "/root/cwd/tools/baz.js", "({})",
             "/root/cwd/tools/foo.js", "({ help: 'foo2' })")
         .assertSigs(
-            "{\"name\":\"bar\",\"help\":\"an example tool\"}",
+            "{\"name\":\"bar\",\"help\":\"an example tool\","
+            + "\"check\":function(product) {\n}}",
             "{\"name\":\"foo\",\"help\":\"foo1\"}",
-            "{\"name\":\"baz\",\"help\":null}");
+            "{\"name\":\"baz\"}");
   }
 
   public final void testToolFileThrows() throws Exception {
@@ -76,7 +77,7 @@ public class ToolBoxTest extends PbTestCase {
         .withToolDirs("/tools", "/root/cwd/tools")
         .withToolFiles(
             "/tools/bar.js", (
-                "({ help: 'an example tool', check: function (product) { } })"),
+                "({ help: 'an example tool'})"),
             "/tools/foo.js", "({ help: 'foo1' })",
             "/root/cwd/tools/baz.js", "throw 'Bad tool'",  // Bad
             "/root/cwd/tools/foo.js", "({ help: 'foo2' })")
@@ -92,7 +93,8 @@ public class ToolBoxTest extends PbTestCase {
         .withToolDirs("/tools", "/root/cwd/tools")
         .withToolFiles(
             "/tools/bar.js", (
-                "({ help: 'an example tool', check: function (product) { } })"),
+                "({ help: 'an example tool',"
+                + " check: function (product) { console.log('OK'); } })"),
             "/tools/foo.js", (
                 "({ help: 'foo1', fire: function () { return exec('foo') } })"))
         .withBuiltinTools("cp.js")
@@ -101,7 +103,11 @@ public class ToolBoxTest extends PbTestCase {
                + "\"name\":\"cp\","
                + "\"help\":\"Copies files to a directory tree.  TODO usage\""
              + "}"),
-            "{\"name\":\"bar\",\"help\":\"an example tool\"}",
+            ("{"
+             + "\"name\":\"bar\","
+               + "\"help\":\"an example tool\","
+               + "\"check\":function(product) {\n  console.log(\"OK\");\n}"
+             + "}"),
             "{\"name\":\"foo\",\"help\":\"foo1\"}");
   }
 

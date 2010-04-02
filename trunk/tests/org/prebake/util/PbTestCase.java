@@ -46,7 +46,7 @@ public abstract class PbTestCase extends TestCase {
         @Override
         public void publish(LogRecord r) {
           log.add(r.getSourceClassName() + ":" + r.getLevel() + ": "
-              + MessageFormat.format(r.getMessage(), r.getParameters()));
+                  + MessageFormat.format(r.getMessage(), r.getParameters()));
           if (r.getThrown() != null) {
             log.add(r.getThrown().toString());
           }

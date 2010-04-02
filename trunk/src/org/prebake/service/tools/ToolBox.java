@@ -6,14 +6,12 @@ import org.prebake.fs.ArtifactAddresser;
 import org.prebake.fs.FileHashes;
 import org.prebake.fs.NonFileArtifact;
 import org.prebake.js.Executor;
-import org.prebake.js.JsonSerializable;
-import org.prebake.js.JsonSink;
 import org.prebake.js.Loader;
 import org.prebake.js.YSON;
 
-import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
@@ -38,6 +36,7 @@ import java.text.Normalizer;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.SortedMap;
 import java.util.concurrent.Callable;
 import java.util.concurrent.Future;
@@ -186,11 +185,19 @@ public class ToolBox implements Closeable {
     List<Future<ToolSignature>> promises = Lists.newArrayList();
     for (Tool t : tools.values()) {
       synchronized (t) {
-        promises.add(t.validator = requireToolValid(t));
+        Future<ToolSignature> f = t.validator;
+        if (f == null) { f = t.validator = requireToolValid(t); }
+        promises.add(f);
       }
     }
     return promises;
   }
+
+  private static final Set<String> FREE_VARS_OK = ImmutableSet.<String>builder()
+      .addAll(YSON.DEFAULT_YSON_ALLOWED)
+      .add("load")
+      .add("console")
+      .build();
 
   private Future<ToolSignature> requireToolValid(final Tool t) {
     final ToolImpl impl;
@@ -212,40 +219,24 @@ public class ToolBox implements Closeable {
       });
     }
     return execer.submit(new Callable<ToolSignature>() {
-      private ToolSignature makeSig() {
-        final String help = impl.help;
-        final String productChecker = impl.productChecker;
-        final boolean deterministic = impl.deterministic;
-        return new ToolSignature() {
-          public String getHelp() { return help; }
-          public String getName() { return impl.name; }
-          public String getProductChecker() { return productChecker; }
-          public boolean isDeterministic() { return deterministic; }
-
-          public void toJson(JsonSink sink) throws IOException {
-            sink.write("{").writeValue("name").write(":").writeValue(getName())
-                .write(",").writeValue("help").write(":").writeValue(help);
-            if (productChecker != null) {
-              sink.write(",").writeValue("check").write(":")
-                  .write(productChecker);
-            }
-            sink.write("}");
-          }
-
-          @Override
-          public String toString() {
-            return JsonSerializable.StringUtil.toString(this);
-          }
-        };
-      }
+      boolean clearedValidator;
 
       public ToolSignature call() {
-        return tryToValidate(4);
+        try {
+          return tryToValidate(4);
+        } finally {
+          synchronized (impl.tool) {
+            if (!clearedValidator) {
+              impl.tool.validator = null;
+              clearedValidator = true;
+            }
+          }
+        }
       }
 
       private ToolSignature tryToValidate(int nTriesRemaining) {
         synchronized (impl.tool) {
-          if (impl.isValid()) { return makeSig(); }
+          if (impl.isValid()) { return impl.sig; }
         }
         while (--nTriesRemaining >= 0) {
           Path toolPath = null;
@@ -294,7 +285,7 @@ public class ToolBox implements Closeable {
             logger.log(Level.SEVERE, "Bad tool file " + toolPath, ex);
             return null;
           }
-          Object ysonSigObj;
+          ToolSignature toolSig;
           Map<Path, Hash> dynamicLoads;
           try {
             Executor.Output<YSON> result = executor.run(
@@ -314,22 +305,20 @@ public class ToolBox implements Closeable {
             MessageQueue mq = new MessageQueue();
             // We need content that we can safely serialize and load into a plan
             // file.
-            YSON ysonSig = YSON.requireYSON(
-                result.result, YSON.DEFAULT_YSON_ALLOWED, mq);
+            YSON ysonSig = YSON.requireYSON(result.result, FREE_VARS_OK, mq);
 
-            ysonSigObj = ysonSig != null ? ysonSig.toJavaObject() : null;
-            if (!(ysonSigObj instanceof Map<?, ?>)) {
-              logger.log(
-                  Level.INFO,
-                  "Tool {0} yielded result {1}.  Expected YSON.  {2}",
-                  new Object[] {
-                    name,
-                    result.result != null ? result.result.toSource() : null,
-                    Joiner.on("; ").join(mq.getMessages())
-                  });
+            Object ysonSigObj = ysonSig != null ? ysonSig.toJavaObject() : null;
+            toolSig = ToolSignature.converter(
+                impl.name, !result.usedSourceOfKnownNondeterminism)
+                .convert(ysonSigObj, mq);
+            dynamicLoads = result.dynamicLoads;
+            if (mq.hasErrors()) {
+              for (String message : mq.getMessages()) {
+                // Escape message using MessageFormat rules.
+                logger.warning("'" + message.replace("'", "''") + "'");
+              }
               return null;
             }
-            dynamicLoads = result.dynamicLoads;
           } catch (Executor.AbnormalExitException ex) {
             logger.log(
                 Level.INFO, "Tool " + name + " failed with exception", ex);
@@ -340,18 +329,6 @@ public class ToolBox implements Closeable {
             return null;
           }
 
-          // Unpack the result.
-          String help;
-          YSON.Lambda checker;
-          {
-            Map<?, ?> ysonSigMap = (Map<?, ?>) ysonSigObj;
-            Object helpValue = ysonSigMap.get(ToolDefProperty.help.name());
-            Object checkerValue = ysonSigMap.get(ToolDefProperty.help.name());
-            help = helpValue instanceof String ? (String) helpValue : null;
-            checker = checkerValue instanceof YSON.Lambda
-                ? (YSON.Lambda) checkerValue : null;
-          }
-
           paths.addAll(dynamicLoads.keySet());
           hashes.addAll(dynamicLoads.values());
           Hash.HashBuilder hb = Hash.builder();
@@ -360,10 +337,8 @@ public class ToolBox implements Closeable {
           }
 
           synchronized (impl.tool) {
-            impl.productChecker = checker != null ? checker.getSource() : null;
-            impl.help = help;
             if (fh.update(addresser, impl, paths, hb.toHash())) {
-              return makeSig();
+              return impl.sig = toolSig;
             }
           }
           logger.log(
@@ -490,8 +465,7 @@ final class ToolImpl implements NonFileArtifact {
   final Tool tool;
   final String name;
   final int index;
-  String productChecker, help;
-  boolean deterministic;
+  ToolSignature sig;
   private boolean valid;
 
   ToolImpl(Tool tool, String name, int index) {
@@ -506,7 +480,7 @@ final class ToolImpl implements NonFileArtifact {
     synchronized (tool) {
       this.valid = valid;
       if (!valid) {
-        productChecker = null;
+        sig = null;
         if (tool.validator != null) {
           tool.validator.cancel(false);
           tool.validator = null;
