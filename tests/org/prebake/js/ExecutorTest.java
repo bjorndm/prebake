@@ -21,6 +21,8 @@ import java.util.Locale;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import org.junit.Test;
+
 public class ExecutorTest extends PbTestCase {
   public final void testResult() throws Exception {
     assertResult(2.0, "1 + 1");
@@ -473,32 +475,11 @@ public class ExecutorTest extends PbTestCase {
         result.result);
   }
 
-  public final void testRunawayScripts() throws Exception {
-    final Throwable[] th = new Throwable[1];
-    Thread scriptRunner = new Thread(new Runnable() {
-      public void run() {
-        try {
-          Executor.Factory.createJsExecutor(Executor.Input.builder(
-              "var i = 0; while (1) { ++i; }", getName()).build())
-              .run(Void.TYPE, getLogger(Level.INFO), null);
-        } catch (Exception ex) {
-          synchronized (th) { th[0] = ex; }
-        }
-        synchronized (th) { th.notify(); }
-      }
-    }, getName());
-    synchronized (th) {
-      long t0 = System.nanoTime();
-      long oneSecondInNanos = 1000L * 1000L * 1000L;
-      long deadline = t0 + 10 * oneSecondInNanos;
-
-      scriptRunner.start();
-
-      while (th[0] == null && (System.nanoTime() < deadline)) {
-        th.wait(deadline - System.nanoTime());
-      }
-    }
-    assertTrue("" + th[0], th[0] instanceof Executor.ScriptTimeoutException);
+  @Test(timeout=10000, expected=Executor.ScriptTimeoutException.class)
+  public final void longTestRunawayScripts() throws Exception {
+    Executor.Factory.createJsExecutor(Executor.Input.builder(
+        "var i = 0; while (1) { ++i; }", getName()).build())
+        .run(Void.TYPE, getLogger(Level.INFO), null);
   }
 
   private void assertResult(Object result, String src) throws Exception {

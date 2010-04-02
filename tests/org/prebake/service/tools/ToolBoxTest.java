@@ -23,6 +23,8 @@ import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import org.junit.Test;
+
 public class ToolBoxTest extends PbTestCase {
   private FileSystem fs;
   private Path root;
@@ -121,38 +123,12 @@ public class ToolBoxTest extends PbTestCase {
         .assertSigs("{\"name\":\"a\",\"help\":\"foobar\"}");
   }
 
-  public final void testRunawayScripts() throws Exception {
-    final Object[] result = new Object[1];
-    synchronized (result) {
-      Thread th = new Thread(new Runnable() {
-        public void run() {
-          result[0] = "starting";
-          try {
-            new TestRunner()
-                .withToolDirs("/tools")
-                .withToolFiles("/tools/tool.js", "while (1) {}")
-                .assertSigs();
-          } catch (Exception ex) {
-            synchronized (result) {
-              result[0] = ex.getMessage();
-              result.notify();
-            }
-          }
-          synchronized (result) {
-            result[0] = "done";
-            result.notify();
-          }
-        }
-      });
-      th.setDaemon(true);
-      th.setName(getName());
-      th.start();
-      while (!"done".equals(result[0])) {
-        result.wait(20000);
-        break;
-      }
-    }
-    assertEquals("done", result[0]);
+  @Test(timeout=10000)
+  public final void longTestRunawayScripts() throws Exception {
+    new TestRunner()
+        .withToolDirs("/tools")
+        .withToolFiles("/tools/tool.js", "while (1) {}")
+        .assertSigs();
     boolean foundTimeout = false;
     // The ToolBox executes the scripts in other threads so the timeout
     // exceptions should be on the stack.
