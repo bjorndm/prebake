@@ -1,1 +1,11 @@
-#summary TODO
+#summary an application of a tool.
+
+= Build Action <font size="1">[http://code.google.com/p/prebake/source/browse/trunk/src/org/prebake/service/plans/Action.java (src)]</font> =
+
+An action is a step in a recipe that involves running a [ToolFile tool].  [PlanFile Plan files] generate define actions and bundle them into [Product products].  Actions are created in plan files by invoking a tool file wrapper, e.g.
+{{{
+tools.gcc(
+    /* inputs */ [ 'src/foo/*.cc', ... ],
+    /* outputs */ [ 'lib/foo/*.o', ... ],
+    { "-O", 2, "-I": "includes" });
+}}}
