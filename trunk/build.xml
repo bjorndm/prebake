@@ -92,7 +92,7 @@
     <mkdir dir="${reports}/bugs"/>
     <!-- See http://findbugs.sourceforge.net/manual/anttask.html -->
     <findbugs home="${third_party}/findbugs" reportLevel="medium"
-     output="html" outputFile="${reports}/bugs/bugs.html" effort="max">
+     output="html" outputFile="${reports}/bugs/index.html" effort="max">
       <auxClasspath refid="classpath.tests.run" />
       <sourcePath path="${src}" />
       <class location="${lib}" />

@@ -26,9 +26,31 @@ public class JsonSourceTest extends TestCase {
     assertFalse(src.isEmpty());
     assertEquals("]", src.next());
     assertFalse(src.isEmpty());
-    assertEquals(Double.valueOf(-4), src.nextValue());
+    assertEquals(Long.valueOf(-4), src.nextValue());
     assertFalse(src.isEmpty());
     assertEquals(Double.valueOf(.001), src.nextValue());
+    assertTrue(src.isEmpty());
+  }
+
+  public final void testNumbers() throws Exception {
+    JsonSource src = new JsonSource(new StringReader(
+        "-0, 0.0, 0, 1e2, 2.5e-3, 0.5, -2, " + 0xfedcba9876543210L));
+    assertFalse(src.isEmpty());
+    assertEquals(-0.0d, src.nextValue());
+    assertEquals(",", src.next());
+    assertEquals(0.0d, src.nextValue());
+    assertEquals(",", src.next());
+    assertEquals(0L, src.nextValue());
+    assertEquals(",", src.next());
+    assertEquals(100d, src.nextValue());
+    assertEquals(",", src.next());
+    assertEquals(2.5e-3d, src.nextValue());
+    assertEquals(",", src.next());
+    assertEquals(0.5d, src.nextValue());
+    assertEquals(",", src.next());
+    assertEquals(-2L, src.nextValue());
+    assertEquals(",", src.next());
+    assertEquals(0xfedcba9876543210L, src.nextValue());
     assertTrue(src.isEmpty());
   }
 

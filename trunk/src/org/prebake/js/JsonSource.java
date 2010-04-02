@@ -60,7 +60,24 @@ public final class JsonSource implements Closeable {
       case 'f': return Boolean.FALSE;
       case 'n': return null;
       case 't': return Boolean.TRUE;
-      default: return Double.valueOf(tok);
+      default:
+        boolean nonZero = false;
+        for (int i = tok.length(); --i >= 0;) {
+          switch (tok.charAt(i)) {
+            case '1': case '2': case '3': case '4': case '5':
+            case '6': case '7': case '8': case '9':
+              nonZero = true;
+              break;
+            case 'e': case 'E': case '.':
+              return Double.valueOf(tok);
+          }
+        }
+        // Avoid rounding error for large integral constants.
+        if (!nonZero && tok.charAt(0) == '-') {
+          // Properly deal with negative zero.
+          return Double.valueOf(tok);
+        }
+        return Long.valueOf(tok);
     }
   }
 
