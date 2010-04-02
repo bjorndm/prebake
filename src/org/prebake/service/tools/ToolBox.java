@@ -25,7 +25,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
-import java.io.StringReader;
 import java.nio.charset.Charset;
 import java.nio.file.FileSystem;
 import java.nio.file.Path;
@@ -36,7 +35,6 @@ import java.nio.file.WatchService;
 import java.nio.file.attribute.Attributes;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.text.Normalizer;
-import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -290,8 +288,8 @@ public class ToolBox implements Closeable {
           }
           Executor executor;
           try {
-            executor = Executor.Factory.createJsExecutor(new Executor.Input(
-                new StringReader(js), toolPath.toString(), toolPath));
+            executor = Executor.Factory.createJsExecutor(Executor.Input.builder(
+                js, toolPath).build());
           } catch (Executor.MalformedSourceException ex) {
             logger.log(Level.SEVERE, "Bad tool file " + toolPath, ex);
             return null;
@@ -300,7 +298,6 @@ public class ToolBox implements Closeable {
           Map<Path, Hash> dynamicLoads;
           try {
             Executor.Output<YSON> result = executor.run(
-                Collections.<String, Object>emptyMap(),
                 YSON.class, logger, new Loader() {
                   public Executor.Input load(Path p) throws IOException {
                     // The name "next" resolves to the next instance of the
@@ -309,8 +306,9 @@ public class ToolBox implements Closeable {
                         && base.equals(p.getParent())) {
                       return nextTool(t, index, base.resolve("next"));
                     }
-                    return new Executor.Input(
-                        new InputStreamReader(p.newInputStream(), UTF8), p);
+                    return Executor.Input.builder(
+                        new InputStreamReader(p.newInputStream(), UTF8), p)
+                        .build();
                   }
                 });
             MessageQueue mq = new MessageQueue();
@@ -399,7 +397,7 @@ public class ToolBox implements Closeable {
       }
     }
     if (in == null) { throw new FileNotFoundException(path.toString()); }
-    return new Executor.Input(new InputStreamReader(in, UTF8), p);
+    return Executor.Input.builder(new InputStreamReader(in, UTF8), p).build();
   }
 
   public final void close() throws IOException {
