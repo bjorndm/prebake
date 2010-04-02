@@ -2,8 +2,10 @@ package org.prebake.core;
 
 import org.prebake.js.JsonSerializable;
 import org.prebake.js.JsonSink;
+import org.prebake.js.YSONConverter;
 
 import java.io.IOException;
+import java.util.Map;
 
 /**
  * Structured documentation of a system artifact.
@@ -47,21 +49,58 @@ public final class Documentation implements JsonSerializable {
 
   public Documentation(
       String summaryHtml, String detailHtml, String contactEmail) {
-    this.summaryHtml = summaryHtml;
-    this.detailHtml = detailHtml;
-    this.contactEmail = contactEmail;
-
     // TODO: coerce HTML to balanced preformatted static HTML with normalized
     // entities.  The balanced tag part is critical for summaryHtml.
+    this.summaryHtml = summaryHtml != null
+        ? summaryHtml : summaryOf(detailHtml);
+    this.detailHtml = detailHtml;
+    this.contactEmail = contactEmail;
   }
 
   public Documentation(String helpHtml, String contactEmail) {
-    this(summaryOf(helpHtml), helpHtml, contactEmail);
+    this(null, helpHtml, contactEmail);
   }
 
   @Override
   public String toString() {
     return JsonSerializable.StringUtil.toString(this);
+  }
+
+  public static final YSONConverter<Documentation> CONVERTER
+      = new YSONConverter<Documentation>() {
+    final YSONConverter<String> strIdent = YSONConverter.Factory
+        .withType(String.class);
+    final YSONConverter<String> optStrIdent = YSONConverter.Factory
+        .optional(strIdent);
+    final YSONConverter<Map<String, String>> MAP_CONV = YSONConverter.Factory
+        .<String, String>mapConverter(String.class)
+        .require("detail", strIdent)
+        .optional("summary", optStrIdent, null)
+        .optional("contact", optStrIdent, null)
+        .build();
+    public Documentation convert(Object ysonValue, MessageQueue problems) {
+      String summary, detail, contact;
+      if (ysonValue instanceof String) {
+        detail = (String) ysonValue;
+        summary = contact = null;
+      } else {
+        Map<String, String> pairs = MAP_CONV.convert(ysonValue, problems);
+        if (pairs == null) { return null; }
+        summary = pairs.get("summary");
+        detail = pairs.get("detail");
+        contact = pairs.get("contact");
+        if (detail == null) { return null; }  // message logged by MAP_CONV
+      }
+      return new Documentation(summary, detail, contact);
+    }
+    public String exampleText() { return MAP_CONV.exampleText(); }
+  };
+
+  /**
+   * True if it can be rendered as just the detail string without losing data.
+   */
+  public boolean isDetailOnly() {
+    return contactEmail == null && summaryOf(detailHtml).equals(summaryHtml);
   }
 
   public void toJson(JsonSink sink) throws IOException {
