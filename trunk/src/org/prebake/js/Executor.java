@@ -2,11 +2,16 @@ package org.prebake.js;
 
 import org.prebake.core.Hash;
 
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Maps;
+
+import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.Reader;
 import java.io.StringWriter;
 import java.lang.reflect.InvocationTargetException;
 import java.nio.file.Path;
+import java.util.Collections;
 import java.util.Map;
 import java.util.logging.Logger;
 
@@ -24,8 +29,7 @@ public interface Executor {
    *    expectedReturnType.
    */
   public <T> Output<T> run(
-      Map<String, ?> actuals, Class<T> expectedResultType,
-      Logger logger, Loader loader)
+      Class<T> expectedResultType, Logger logger, Loader loader)
       throws AbnormalExitException;
 
   public static class AbnormalExitException extends Exception {
@@ -88,19 +92,86 @@ public interface Executor {
 
   /** An input JavaScript file. */
   public static final class Input {
-    public final Reader input;
+    public final String content;
+    /** A string identifying the input which will show up in logs and stacks. */
     public final String source;
+    /**
+     * File against which {@link Loader loader} module paths are resolved.
+     * Null indicates module cannot load.
+     */
     public final Path base;
+    public final Map<String, ?> actuals;
 
-    public Input(Reader input, Path base) {
-      this(input, base.toString(), base);
+    private Input(
+        String content, String source, Path base, Map<String, ?> actuals) {
+      this.content = content;
+      this.source = source;
+      this.base = base;
+      this.actuals = actuals;
+    }
+
+    /** Used to construct {@link Input}s.  @see Input#builder */
+    public static class Builder {
+      private final String content;
+      private final String source;
+      private Path base;
+      private Map<String, ?> actuals;
+
+      private Builder(String content, String source) {
+        assert content != null;
+        assert source != null;
+        this.content = content;
+        this.source = source;
+      }
+
+      public Builder withBase(Path base) {
+        this.base = base;
+        return this;
+      }
+
+      public Builder withActuals(Map<String, ?> actuals) {
+        this.actuals = actuals;
+        return this;
+      }
+
+      public Input build() {
+        Map<String, Object> actuals;
+        if (this.actuals == null) {
+          actuals = ImmutableMap.of();
+        } else if (!this.actuals.containsValue(null)) {
+          actuals = ImmutableMap.copyOf(this.actuals);
+        } else {
+          actuals = Collections.unmodifiableMap(
+              Maps.newLinkedHashMap(this.actuals));
+        }
+        return new Input(content, source, base, actuals);
+      }
     }
 
     /** @param source file path or URL from which the JavaScript came. */
-    public Input(Reader input, String source, Path base) {
-      this.input = input;
-      this.source = source;
-      this.base = base;
+    public static Builder builder(Reader content, String source)
+        throws IOException {
+      StringBuilder sb = new StringBuilder();
+      try {
+        char[] buf = new char[4096];
+        for (int n; (n = content.read(buf)) > 0;) { sb.append(buf, 0, n); }
+      } finally {
+        content.close();
+      }
+      return new Builder(sb.toString(), source);
+    }
+
+    public static Builder builder(Reader content, Path base)
+        throws IOException {
+      return builder(content, base.toString()).withBase(base);
+    }
+
+    public static Builder builder(String content, String source) {
+      return new Builder(content, source);
+    }
+
+    public static Builder builder(String content, Path base) {
+      return new Builder(content, base.toString()).withBase(base);
     }
 
     @Override

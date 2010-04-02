@@ -9,7 +9,6 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
 import java.io.IOException;
-import java.io.Reader;
 import java.net.URI;
 import java.nio.file.Path;
 import java.text.ParseException;
@@ -160,9 +159,13 @@ public final class RhinoExecutor implements Executor {
     ContextFactory.initGlobal(SANDBOXINGFACTORY);
   }
 
-  private final Map<Path, Function> loadedModules = Maps.newHashMap();
-  public <T> Output<T> run(Map<String, ?> actuals, Class<T> expectedResultType,
-                           Logger logger, Loader loader)
+  /**
+   * Stores either the loaded module as a {@link Function} or the exception
+   * that caused module loading to fail.
+   */
+  private final Map<Path, Object> loadedModules = Maps.newHashMap();
+  public <T> Output<T> run(Class<T> expectedResultType,
+      Logger logger, Loader loader)
       throws AbnormalExitException {
     if (SANDBOXINGFACTORY != ContextFactory.getGlobal()) {
       throw new IllegalStateException();
@@ -171,15 +174,15 @@ public final class RhinoExecutor implements Executor {
     // TODO: figure out appropriate optimization level
     context.setOptimizationLevel(-1);
     try {
-      return runInContext(context, actuals, expectedResultType, logger, loader);
+      return runInContext(context, expectedResultType, logger, loader);
     } finally {
       Context.exit();
     }
   }
 
   private <T> Output<T> runInContext(
-      Context context, Map<String, ?> actuals, Class<T> expectedResultType,
-      Logger logger, Loader loader)
+      Context context, Class<T> expectedResultType, Logger logger,
+      Loader loader)
       throws AbnormalExitException {
     ScriptableObject globalScope = context.initStandardObjects();
     Map<Path, Hash> dynamicLoads = Maps.newLinkedHashMap();
@@ -208,60 +211,43 @@ public final class RhinoExecutor implements Executor {
               },
               nonDeterminism));
     }
-    try {
-      globalScope.defineProperty(
-          "console", new Console(logger), ScriptableObject.DONTENUM);
+    globalScope.defineProperty(
+        "console", new Console(logger), ScriptableObject.DONTENUM);
 
-      NativeObject actualsObj = new NativeObject();
-      for (Map.Entry<String, ?> e : actuals.entrySet()) {
-        ScriptableObject.putConstProperty(actualsObj, e.getKey(), e.getValue());
-      }
-      Object[] actualsObjArr = new Object[] { actualsObj };
+    Object result = null;
+    synchronized (context) {
+      for (Input src : srcs) {
+        NativeObject actualsObj = new NativeObject();
+        for (Map.Entry<String, ?> e : src.actuals.entrySet()) {
+          ScriptableObject.putConstProperty(actualsObj, e.getKey(), e.getValue());
+        }
+        Object[] actualsObjArr = new Object[] { actualsObj };
 
-      Object result = null;
-      synchronized (context) {
-        for (Input src : srcs) {
-          String inputRead = drain(src.input);
-          LoadFn loadFn = new LoadFn(
-              globalScope, loader, logger, src.base, dynamicLoads);
-          try {
-            result = loadFn.load(context, inputRead, src.source)
-                .call(context, globalScope, globalScope, actualsObjArr);
-          } catch (EcmaError ex) {
-            throw new AbnormalExitException(ex);
-          }
-          if (inputRead.length() > 500) { inputRead = "<ABBREVIATED>"; }
-        }
-        if (result == null) { return null; }
-        if (YSON.class.isAssignableFrom(expectedResultType)
-            && result instanceof Scriptable) {
-          Scriptable s = (Scriptable) result;
-          try {
-            result = toYSON(context, s);
-          } catch (ParseException ex) {
-            logger.log(Level.SEVERE, "Failed to convert output " + result, ex);
-          }
-        }
-        if (!expectedResultType.isInstance(result)) {
-          result = Context.jsToJava(result, expectedResultType);
+        LoadFn loadFn = new LoadFn(
+            globalScope, loader, logger, src.base, dynamicLoads);
+        try {
+          result = loadFn.load(context, src.content, src.source)
+              .call(context, globalScope, globalScope, actualsObjArr);
+        } catch (EcmaError ex) {
+          throw new AbnormalExitException(ex);
         }
       }
-      return new Output<T>(
-          expectedResultType.cast(result), dynamicLoads, nonDeterminism.used);
-    } catch (IOException ex) {
-      throw new AbnormalExitException(ex);
+      if (result == null) { return null; }
+      if (YSON.class.isAssignableFrom(expectedResultType)
+          && result instanceof Scriptable) {
+        Scriptable s = (Scriptable) result;
+        try {
+          result = toYSON(context, s);
+        } catch (ParseException ex) {
+          logger.log(Level.SEVERE, "Failed to convert output " + result, ex);
+        }
+      }
+      if (!expectedResultType.isInstance(result)) {
+        result = Context.jsToJava(result, expectedResultType);
+      }
     }
-  }
-
-  private static final String drain(Reader r) throws IOException {
-    try {
-      char[] buf = new char[4096];
-      StringBuilder sb = new StringBuilder();
-      for (int n; (n = r.read(buf)) >= 0;) { sb.append(buf, 0, n); }
-      return sb.toString();
-    } finally {
-      r.close();
-    }
+    return new Output<T>(
+        expectedResultType.cast(result), dynamicLoads, nonDeterminism.used);
   }
 
   private static final Pattern STACK_FRAME = Pattern.compile(
@@ -495,12 +481,9 @@ public final class RhinoExecutor implements Executor {
      * @throws RhinoException when load fails due to IE problems, or the JS file
      *     is syntactically invalid.
      */
-    public Object call(
+    public Function call(
         Context context, Scriptable scope, Scriptable thisObj, Object[] args)
         throws RhinoException {
-      LoadFn subLoadFn;  // The loaded module
-      String src;  // The source code.
-      String srcName;  // The name that will appear in stack traces.
       Path modulePath;  // The path to load
       {
         String relPath = args[0].toString();
@@ -515,26 +498,41 @@ public final class RhinoExecutor implements Executor {
         // existence, we know to invalidate the output.
         Executor.Input loaded = loader.load(modulePath);
         modulePath = loaded.base.normalize();
-        src = drain(loaded.input);
+        String src = loaded.content;
 
         // See if we've already loaded it now that the loader has resolved the
         // real path.
-        Function fn = loadedModules.get(modulePath);
         // Don't possibly load two versions of the same path.
         // We can't deal with version skew within a JS run.
-        if (fn != null) { return fn; }
-        dynamicLoads.put(
-            modulePath, Hash.builder().withString(src).toHash());
-        subLoadFn = new LoadFn(
+        Object loadResult = loadedModules.get(modulePath);
+        if (loadResult != null) {
+          if (loadResult instanceof Function) { return (Function) loadResult; }
+          Throwable th = (Throwable) loadResult;
+          if (th instanceof RuntimeException) {
+            throw (RuntimeException) th;
+          } else {
+            throw (IOException) th;
+          }
+        }
+        dynamicLoads.put(modulePath, Hash.builder().withString(src).toHash());
+        LoadFn subLoadFn = new LoadFn(
             globalScope, loader, logger, modulePath, dynamicLoads);
-        srcName = modulePath.toString();
+        Function fn = subLoadFn.load(context, src, modulePath.toString());
+        loadedModules.put(modulePath, fn);
+        return fn;
       } catch (IOException ex) {
-        dynamicLoads.put(modulePath, null);
+        loadedModules.put(modulePath, ex);
+        if (!dynamicLoads.containsKey(modulePath)) {
+          dynamicLoads.put(modulePath, null);
+        }
         throw new WrappedException(ex);
+      } catch (RuntimeException ex) {
+        loadedModules.put(modulePath, ex);
+        if (!dynamicLoads.containsKey(modulePath)) {
+          dynamicLoads.put(modulePath, null);
+        }
+        throw ex;
       }
-      Function fn = subLoadFn.load(context, src, srcName);
-      loadedModules.put(modulePath, fn);
-      return fn;
     }
 
     private Function load(Context context, String src, String srcName) {

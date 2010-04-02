@@ -1,15 +1,16 @@
 package org.prebake.js;
 
 import org.prebake.fs.FilePerms;
+import org.prebake.js.Executor.Input;
 import org.prebake.util.PbTestCase;
 import org.prebake.util.StubFileSystemProvider;
 
 import com.google.common.base.Joiner;
 
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
-import java.io.StringReader;
 import java.net.URI;
 import java.nio.file.FileSystem;
 import java.nio.file.Path;
@@ -108,11 +109,10 @@ public class ExecutorTest extends PbTestCase {
   public final void testActuals() throws Exception {
     FileSystem fs = new StubFileSystemProvider("mfs").getFileSystem(
         URI.create("mfs:///#/foo"));
-    Executor executor = Executor.Factory.createJsExecutor(new Executor.Input(
-        new StringReader("x + 1"),
-        fs.getPath("/foo/" + getName() + ".js")));
+    Executor executor = Executor.Factory.createJsExecutor(
+        Executor.Input.builder("x + 1", fs.getPath("/foo/" + getName() + ".js"))
+        .withActuals(Collections.singletonMap("x", 1)).build());
     Executor.Output<?> output = executor.run(
-        Collections.singletonMap("x", 1),
         Object.class,
         getLogger(Level.INFO),
         new Loader() {
@@ -123,65 +123,65 @@ public class ExecutorTest extends PbTestCase {
     assertEquals(2.0, output.result);
 
     // They shouldn't by default be visible to loaded modules.
-    executor = Executor.Factory.createJsExecutor(new Executor.Input(
-        new StringReader("load('x')() + 1"),
-        fs.getPath("/foo/" + getName() + ".js")));
+    executor = Executor.Factory.createJsExecutor(Executor.Input.builder(
+        "load('x')() + 1", fs.getPath("/foo/" + getName() + ".js"))
+        .withActuals(Collections.singletonMap("x", 1))
+        .build());
     output = executor.run(
-        Collections.singletonMap("x", 1),
         Object.class,
         getLogger(Level.INFO),
         new Loader() {
           public Executor.Input load(Path p) {
-            return new Executor.Input(
-                new StringReader("typeof x !== 'undefined' ? x : 2"), p);
+            return Executor.Input.builder("typeof x !== 'undefined' ? x : 2", p)
+                .build();
           }
         });
     assertEquals(3.0, output.result);
 
     // But a module can always elect to forward its scope.
-    executor = Executor.Factory.createJsExecutor(new Executor.Input(
-        new StringReader("load('x')(this) + 1"),
-        fs.getPath("/foo/" + getName() + ".js")));
+    executor = Executor.Factory.createJsExecutor(Executor.Input.builder(
+        "load('x')(this) + 1", fs.getPath("/foo/" + getName() + ".js"))
+        .withActuals(Collections.singletonMap("x", 1))
+        .build());
     output = executor.run(
-        Collections.singletonMap("x", 1),
         Object.class,
         getLogger(Level.INFO),
         new Loader() {
           public Executor.Input load(Path p) {
-            return new Executor.Input(
-                new StringReader("typeof x !== 'undefined' ? x : 2"), p);
+            return Executor.Input.builder("typeof x !== 'undefined' ? x : 2", p)
+                .build();
           }
         });
     assertEquals(2.0, output.result);
 
     // Or substitute its own.
-    executor = Executor.Factory.createJsExecutor(new Executor.Input(
-        new StringReader("load('x')({ x: 3 }) + 1"),
-        fs.getPath("/foo/" + getName() + ".js")));
+    executor = Executor.Factory.createJsExecutor(Executor.Input.builder(
+        "load('x')({ x: 3 }) + 1", fs.getPath("/foo/" + getName() + ".js"))
+        .withActuals(Collections.singletonMap("x", 1))
+        .build());
     output = executor.run(
-        Collections.singletonMap("x", 1),
         Object.class,
         getLogger(Level.INFO),
         new Loader() {
           public Executor.Input load(Path p) {
-            return new Executor.Input(
-                new StringReader("typeof x !== 'undefined' ? x : 2"), p);
+            return Executor.Input.builder("typeof x !== 'undefined' ? x : 2", p)
+                .build();
           }
         });
     assertEquals(4.0, output.result);
 
     // But in any case, changes to the module's scope don't affect the loader's.
     // But a module can always elect to forward its scope.
-    executor = Executor.Factory.createJsExecutor(new Executor.Input(
-        new StringReader("load('x')(this) + x"),
-        fs.getPath("/foo/" + getName() + ".js")));
+    executor = Executor.Factory.createJsExecutor(Executor.Input.builder(
+        "load('x')(this) + x", fs.getPath("/foo/" + getName() + ".js"))
+        .withActuals(Collections.singletonMap("x", 1))
+        .build());
     output = executor.run(
-        Collections.singletonMap("x", 1),
         Object.class,
         getLogger(Level.INFO),
         new Loader() {
           public Executor.Input load(Path p) {
-            return new Executor.Input(new StringReader("++x"), p);
+            return Executor.Input.builder("++x", p).build();
           }
         });
     assertEquals(3.0, output.result);
@@ -335,11 +335,12 @@ public class ExecutorTest extends PbTestCase {
   public final void testToSource() throws Exception {
     FileSystem fs = new StubFileSystemProvider("mfs").getFileSystem(
         URI.create("mfs:///#/foo"));
-    Executor executor = Executor.Factory.createJsExecutor(new Executor.Input(
-        new StringReader("({ x: 1, y: function () { return 4; }, z: [2] })"),
-        fs.getPath("/foo/" + getName() + ".js")));
+    Executor executor = Executor.Factory.createJsExecutor(
+        Executor.Input.builder(
+            "({ x: 1, y: function () { return 4; }, z: [2] })",
+            fs.getPath("/foo/" + getName() + ".js"))
+        .build());
     Executor.Output<YSON> out = executor.run(
-        Collections.<String, Object>emptyMap(),
         YSON.class,
         getLogger(Level.INFO),
         new Loader() {
@@ -355,18 +356,17 @@ public class ExecutorTest extends PbTestCase {
   public final void testToSourceFiltered1() throws Exception {
     FileSystem fs = new StubFileSystemProvider("mfs").getFileSystem(
         URI.create("mfs:///#/foo"));
-    Executor executor = Executor.Factory.createJsExecutor(new Executor.Input(
-        new StringReader(
+    Executor executor = Executor.Factory.createJsExecutor(
+        Executor.Input.builder(
             ""
             + "({"
             + "  x: 1,"
             + "  y: [function () { return Math.abs(-1); },"
             + "      (function (i) { return function () { return i+1; } })(0)],"
             + "  z: [2]"
-            + "})"),
-        fs.getPath("/foo/" + getName() + ".js")));
+            + "})",
+            fs.getPath("/foo/" + getName() + ".js")).build());
     Executor.Output<YSON> out = executor.run(
-        Collections.<String, Object>emptyMap(),
         YSON.class,
         getLogger(Level.INFO),
         new Loader() {
@@ -387,17 +387,16 @@ public class ExecutorTest extends PbTestCase {
   public final void testToSourceFiltered2() throws Exception {
     FileSystem fs = new StubFileSystemProvider("mfs").getFileSystem(
         URI.create("mfs:///#/foo"));
-    Executor executor = Executor.Factory.createJsExecutor(new Executor.Input(
-        new StringReader(
+    Executor executor = Executor.Factory.createJsExecutor(
+        Executor.Input.builder(
             ""
             + "({"
             + "  x: 1,"
             + "  y: (function (i) { return function () { return i+1; } })(0),"
             + "  z: [2]"
-            + "})"),
-        fs.getPath("/foo/" + getName() + ".js")));
+            + "})",
+            fs.getPath("/foo/" + getName() + ".js")).build());
     Executor.Output<YSON> out = executor.run(
-        Collections.<String, Object>emptyMap(),
         YSON.class,
         getLogger(Level.INFO),
         new Loader() {
@@ -409,25 +408,79 @@ public class ExecutorTest extends PbTestCase {
   }
 
   public final void testNoBase() throws Exception {
-    Executor executor = Executor.Factory.createJsExecutor(new Executor.Input(
-        new StringReader("typeof load"), getName(), null));
+    Executor executor = Executor.Factory.createJsExecutor(
+        Executor.Input.builder("typeof load", "" + getName()).build());
     Executor.Output<?> output = executor.run(
-        Collections.<String, Object>emptyMap(), Object.class,
-        getLogger(Level.INFO), null);
+        Object.class, getLogger(Level.INFO), null);
     assertEquals("undefined", output.result);
   }
 
-  public final void testRunawayScrits() throws Exception {
+  public final void testLoaderVersionSkew() throws Exception {
+    FileSystem fs = new StubFileSystemProvider("mfs").getFileSystem(
+        URI.create("mfs:///#/foo"));
+    Executor.Output<Number> result = Executor.Factory.createJsExecutor(
+        Executor.Input.builder(
+            "load('bar.js')() + load('bar.js')()",
+            fs.getPath("/foo/" + getName()))
+            .build())
+        .run(Number.class, getLogger(Level.INFO), new Loader() {
+          int count = 0;
+          public Input load(Path p) throws IOException {
+            if (!"/foo/bar.js".equals(p.toString())) {
+              throw new FileNotFoundException(p.toString());
+            }
+            return Executor.Input.builder("" + (++count), p).build();
+          }
+        });
+    // If load did not return the same content for the same path within an
+    // executor run, then we would expect to see 3.
+    assertEquals(2.0, result.result);
+  }
+
+  public final void testLoaderVersionSkewForFailingFile() throws Exception {
+    FileSystem fs = new StubFileSystemProvider("mfs").getFileSystem(
+        URI.create("mfs:///#/foo"));
+    Executor.Output<String> result = Executor.Factory.createJsExecutor(
+        Executor.Input.builder(
+            Joiner.on('\n').join(
+                "var a, b;",
+                "try {",
+                "  a = load('bar.js')();",
+                "} catch (e) {",
+                "  a = e.toString();",
+                "}",
+                "try {",
+                "  b = load('bar.js')();",
+                "} catch (e) {",
+                "  b = e.toString();",
+                "}",
+                "a + ' ; ' + b;"),
+            fs.getPath("/foo/" + getName()))
+            .build())
+        .run(String.class, getLogger(Level.INFO), new Loader() {
+          int count = 0;
+          public Input load(Path p) throws IOException {
+            // Will fail on the first load, and succeed on the second.
+            if (count++ == 0) { throw new FileNotFoundException(p.toString()); }
+            return Executor.Input.builder("1", p).build();
+          }
+        });
+    // If load did not return the same content for the same path within an
+    // executor run, then we would expect to see 3.
+    assertEquals(
+        "JavaException: java.io.FileNotFoundException: /foo/bar.js"
+        + " ; JavaException: java.io.FileNotFoundException: /foo/bar.js",
+        result.result);
+  }
+
+  public final void testRunawayScripts() throws Exception {
     final Throwable[] th = new Throwable[1];
     Thread scriptRunner = new Thread(new Runnable() {
       public void run() {
         try {
-          Executor.Factory.createJsExecutor(
-              new Executor.Input(
-                  new StringReader("var i = 0; while (1) { ++i; }"),
-                  getName(), null))
-              .run(Collections.<String, Object>emptyMap(), Void.TYPE,
-                   getLogger(Level.INFO), null);
+          Executor.Factory.createJsExecutor(Executor.Input.builder(
+              "var i = 0; while (1) { ++i; }", getName()).build())
+              .run(Void.TYPE, getLogger(Level.INFO), null);
         } catch (Exception ex) {
           synchronized (th) { th[0] = ex; }
         }
@@ -451,11 +504,10 @@ public class ExecutorTest extends PbTestCase {
   private void assertResult(Object result, String src) throws Exception {
     FileSystem fs = new StubFileSystemProvider("mfs").getFileSystem(
         URI.create("mfs:///#/foo"));
-    Executor executor = Executor.Factory.createJsExecutor(new Executor.Input(
-        new StringReader(src),
-        fs.getPath("/foo/" + getName() + ".js")));
+    Executor executor = Executor.Factory.createJsExecutor(
+        Executor.Input.builder(src, fs.getPath("/foo/" + getName() + ".js"))
+        .build());
     Executor.Output<?> output = executor.run(
-        Collections.<String, Object>emptyMap(),
         Object.class,
         getLogger(Level.INFO),
         new Loader() {
@@ -470,11 +522,10 @@ public class ExecutorTest extends PbTestCase {
       throws Exception {
     FileSystem fs = new StubFileSystemProvider("mfs").getFileSystem(
         URI.create("mfs:///#/foo"));
-    Executor executor = Executor.Factory.createJsExecutor(new Executor.Input(
-        new StringReader(src),
-        fs.getPath("/foo/" + getName() + ".js")));
+    Executor executor = Executor.Factory.createJsExecutor(
+        Executor.Input.builder(src, fs.getPath("/foo/" + getName() + ".js"))
+        .build());
     Executor.Output<?> output = executor.run(
-        Collections.<String, Object>emptyMap(),
         Object.class,
         getLogger(Level.INFO),
         new Loader() {
@@ -500,17 +551,17 @@ public class ExecutorTest extends PbTestCase {
         out.close();
       }
     }
-    Executor executor = Executor.Factory.createJsExecutor(new Executor.Input(
-        new StringReader(src),
-        fs.getPath("/foo/" + getName() + ".js")));
+    Executor executor = Executor.Factory.createJsExecutor(
+        Executor.Input.builder(
+            src, fs.getPath("/foo/" + getName() + ".js"))
+        .build());
     Executor.Output<?> output = executor.run(
-        Collections.<String, Object>emptyMap(),
         Object.class,
         getLogger(Level.INFO),
         new Loader() {
           public Executor.Input load(Path p) throws IOException {
-            return new Executor.Input(
-                new InputStreamReader(p.newInputStream(), "UTF-8"), p);
+            return Executor.Input.builder(
+                new InputStreamReader(p.newInputStream(), "UTF-8"), p).build();
           }
         });
     return output;
@@ -529,10 +580,10 @@ public class ExecutorTest extends PbTestCase {
 
     FileSystem fs = new StubFileSystemProvider("mfs").getFileSystem(
         URI.create("mfs:///#/foo"));
-    Executor executor = Executor.Factory.createJsExecutor(new Executor.Input(
-        new StringReader(src), fs.getPath("/" + getName() + ".js")));
+    Executor executor = Executor.Factory.createJsExecutor(
+        Executor.Input.builder(src, fs.getPath("/" + getName() + ".js"))
+            .build());
     executor.run(
-        Collections.<String, Object>emptyMap(),
         Object.class,
         logger,
         new Loader() {
