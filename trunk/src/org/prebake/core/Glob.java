@@ -1,7 +1,11 @@
 package org.prebake.core;
 
+import org.prebake.js.JsonSerializable;
+import org.prebake.js.JsonSink;
+
 import com.google.common.collect.Lists;
 
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -12,7 +16,7 @@ import java.util.List;
  * @see <a href="http://code.google.com/p/prebake/wiki/Glob">Wiki Docs</a>
  * @author mikesamuel@gmail.com
  */
-public final class Glob implements Comparable<Glob> {
+public final class Glob implements Comparable<Glob>, JsonSerializable {
   private final String[] parts;
 
   private Glob(String... parts) {
@@ -292,5 +296,9 @@ public final class Glob implements Comparable<Glob> {
       }
       return null;
     }
+  }
+
+  public void toJson(JsonSink sink) throws IOException {
+    sink.writeValue(toString());
   }
 }
