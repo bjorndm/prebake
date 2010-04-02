@@ -7,5 +7,5 @@ An action is a step in a recipe that involves running a [ToolFile tool].  [PlanF
 tools.gcc(
     /* inputs */  [ 'src/foo/*.cc', ... ],
     /* outputs */ [ 'lib/foo/*.o', ... ],
-    /* options */ { "-O", 2, "-I": "includes" });
+    /* options */ { "-O": 2, "-I": "includes" });
 }}}
