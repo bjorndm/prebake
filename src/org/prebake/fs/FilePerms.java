@@ -5,6 +5,7 @@ import com.google.common.collect.ImmutableSet;
 import java.nio.file.attribute.FileAttribute;
 import java.nio.file.attribute.PosixFilePermission;
 import java.nio.file.attribute.PosixFilePermissions;
+import java.util.Set;
 
 /**
  * Utilities for dealing with file permissions.
@@ -13,34 +14,44 @@ import java.nio.file.attribute.PosixFilePermissions;
  */
 public final class FilePerms {
   /**
-   * @param umask a UNIX style umask where bits 6-8 are RWX respectively for
-   *     the owner, bits 3-5 are RWX respectively for all users in the group,
-   *     and bits 0-2 are RWX respectively for all other users.
-   * @return the file attributes corresponding to umask.
+   * @param permBits POSIX style permission bits where bits 6-8 are RWX
+   *     respectively for the owner, bits 3-5 are RWX respectively for all users
+   *     in the group, and bits 0-2 are RWX respectively for all other users.
+   * @return the file permissions corresponding to permBits.
    */
-  public static FileAttribute<?>[] perms(int umask, boolean isDirectory) {
+  public static Set<PosixFilePermission> permSet(
+      int permBits, boolean isDirectory) {
     if (isDirectory) {
       // Set the executable bit for any of the UGO blocks that have the read
       // or write bits set.
-      int fromRead = (umask >>> 2) & 0111;
-      int fromWrite = (umask >>> 1) & 0111;
-      umask |= fromRead | fromWrite;
+      int fromRead = (permBits >>> 2) & 0111;
+      int fromWrite = (permBits >>> 1) & 0111;
+      permBits |= fromRead | fromWrite;
     }
-    umask &= 0777;
+    permBits &= 0777;
+    ImmutableSet.Builder<PosixFilePermission> posixs = ImmutableSet.builder();
+    for (int k = 0; permBits != 0; ++k, permBits >>>= 1) {
+      if ((permBits & 1) != 0) { posixs.add(POSIX_PERMS[k]); }
+    }
+    return posixs.build();
+  }
+  /**
+   * @param permBits POSIX style permission bits where bits 6-8 are RWX
+   *     respectively for the owner, bits 3-5 are RWX respectively for all users
+   *     in the group, and bits 0-2 are RWX respectively for all other users.
+   * @return the file attributes corresponding to permBits.
+   */
+  public static FileAttribute<?>[] perms(int permBits, boolean isDirectory) {
     /*
-    if (p != null && "\\".equals(p.getFileSystem().getSeparator())) {
-      String name = p.normalize().getName().toString();
+    if (path != null && "\\".equals(path.getFileSystem().getSeparator())) {
+      String name = path.normalize().getName().toString();
       if (name.startsWith(".") && !(".".equals(name) || "..".equals(name))) {
         // TODO: how do we propagate the hidden bit to DOS?
       }
     }
     */
-    ImmutableSet.Builder<PosixFilePermission> posixs = ImmutableSet.builder();
-    for (int k = 0; umask != 0; ++k, umask >>>= 1) {
-      if ((umask & 1) != 0) { posixs.add(POSIX_PERMS[k]); }
-    }
     return new FileAttribute[] {
-        PosixFilePermissions.asFileAttribute(posixs.build())
+        PosixFilePermissions.asFileAttribute(permSet(permBits, isDirectory))
     };
   }
 

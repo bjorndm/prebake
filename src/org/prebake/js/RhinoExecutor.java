@@ -136,7 +136,7 @@ public final class RhinoExecutor implements Executor {
 
     @Override
     protected void observeInstructionCount(Context cx, int instructionCount) {
-     CpuQuotaContext qcx = (CpuQuotaContext) cx;
+      CpuQuotaContext qcx = (CpuQuotaContext) cx;
       long currentTime = System.nanoTime();
       if (currentTime - qcx.startTimeNanos > 5000000000L) {
         // More then 5 seconds from Context creation time:

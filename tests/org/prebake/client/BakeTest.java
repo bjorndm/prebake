@@ -325,7 +325,7 @@ public class BakeTest extends PbTestCase {
     BakeTestRunner issue() throws IOException {
       result = bake.issueCommands(prebakeDir, commands, out);
       return this;
-     }
+    }
 
     BakeTestRunner expectResult(int result) {
       assertEquals(result, this.result);
