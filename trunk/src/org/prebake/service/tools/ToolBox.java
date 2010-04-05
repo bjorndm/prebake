@@ -53,7 +53,7 @@ import java.util.logging.Logger;
  *
  * @author mikesamuel@gmail.com
  */
-public class ToolBox implements Closeable {
+public class ToolBox implements Closeable, ToolProvider {
   private final FileSystem fs;
   private final FileHashes fh;
   private final Logger logger;

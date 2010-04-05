@@ -12,7 +12,7 @@ import org.prebake.js.Loader;
 import org.prebake.js.YSON;
 import org.prebake.js.YSONConverter;
 import org.prebake.js.Executor.Input;
-import org.prebake.service.tools.ToolBox;
+import org.prebake.service.tools.ToolProvider;
 import org.prebake.service.tools.ToolSignature;
 
 import com.google.common.base.Supplier;
@@ -42,6 +42,8 @@ import java.util.logging.Logger;
 
 /**
  * Keeps the set of {@link Product products} up-to-date.
+ *
+ * @author mikesamuel@gmail.com
  */
 public final class Planner implements Closeable {
   private final Multimap<String, Product> productsByName = Multimaps
@@ -53,7 +55,7 @@ public final class Planner implements Closeable {
 
   private final ImmutableMap<Path, PlanPart> planParts;
   private final FileHashes fh;
-  private final ToolBox tb;
+  private final ToolProvider toolbox;
   private final Logger logger;
   private final ScheduledExecutorService execer;
   private final ArtifactAddresser<PlanPart> productAddresser
@@ -68,10 +70,10 @@ public final class Planner implements Closeable {
   private final Future<?> updater;
 
   public Planner(
-      FileHashes fh, ToolBox tb, Iterable<Path> planFiles, Logger logger,
-      ScheduledExecutorService execer) {
+      FileHashes fh, ToolProvider toolbox, Iterable<Path> planFiles,
+      Logger logger, ScheduledExecutorService execer) {
     this.fh = fh;
-    this.tb = tb;
+    this.toolbox = toolbox;
     this.logger = logger;
     this.execer = execer;
     ImmutableMap.Builder<Path, PlanPart> b = ImmutableMap.builder();
@@ -133,7 +135,7 @@ public final class Planner implements Closeable {
           .write("({");
 
       boolean sawOne = false;
-      for (Future<ToolSignature> f : tb.getAvailableToolSignatures()) {
+      for (Future<ToolSignature> f : toolbox.getAvailableToolSignatures()) {
         try {
           ToolSignature sig = f.get();
           if (sig == null) {
