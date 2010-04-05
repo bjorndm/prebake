@@ -12,8 +12,10 @@ import com.sleepycat.je.DatabaseEntry;
 import com.sleepycat.je.Environment;
 import com.sleepycat.je.OperationStatus;
 
+import java.io.ByteArrayOutputStream;
 import java.io.Closeable;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.charset.Charset;
 import java.nio.file.FileSystem;
 import java.nio.file.Path;
@@ -83,9 +85,28 @@ public final class FileHashes implements Closeable {
     }
   }
 
-  /**
-   * Called when the system is notified that the given files have changed.
-   */
+  public FileAndHash load(Path p) throws IOException {
+    p = p.toRealPath(false);
+    ByteArrayOutputStream content = new ByteArrayOutputStream();
+    InputStream in = p.newInputStream();
+    try {
+      byte[] buffer = new byte[4096];
+      for (int n; (n = in.read(buffer)) > 0;) {
+        content.write(buffer, 0, n);
+      }
+    } finally {
+      in.close();
+    }
+    byte[] bytes = content.toByteArray();
+    Hash hash = null;
+    if (p.startsWith(root)) {
+      hash = Hash.builder().withData(bytes).build();
+      // TODO: maybe update file if hash differs
+    }
+    return new FileAndHash(p, bytes, hash);
+  }
+
+  /** Called when the system is notified that the given files have changed. */
   public void update(List<Path> toUpdate) {
     int n = toUpdate.size();
     Path[] relPaths = new Path[n];

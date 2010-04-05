@@ -1,7 +1,5 @@
 package org.prebake.js;
 
-import org.prebake.core.Hash;
-
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 
@@ -83,8 +81,7 @@ public interface Executor {
       } catch (NoSuchMethodException ex) {
         cause = ex;
       }
-      throw new RuntimeException("Can't recover from bad config",
-          cause);
+      throw new RuntimeException("Can't recover from bad config", cause);
     }
 
     private Factory() { /* not instantiable */ }
@@ -181,13 +178,10 @@ public interface Executor {
   /** The results of script execution. */
   public static final class Output<T> {
     public final T result;
-    public final Map<Path, Hash> dynamicLoads;
     public final boolean usedSourceOfKnownNondeterminism;
 
-    public Output(T result, Map<Path, Hash> dynamicLoads,
-                  boolean usedSourceOfKnownNondeterminism) {
+    public Output(T result, boolean usedSourceOfKnownNondeterminism) {
       this.result = result;
-      this.dynamicLoads = dynamicLoads;
       this.usedSourceOfKnownNondeterminism = usedSourceOfKnownNondeterminism;
     }
   }

@@ -6,6 +6,7 @@ import org.prebake.util.PbTestCase;
 import org.prebake.util.StubFileSystemProvider;
 
 import com.google.common.base.Joiner;
+import com.google.common.collect.ImmutableMap;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -35,14 +36,9 @@ public class ExecutorTest extends PbTestCase {
         "bar.js", "1 + 1;");
     assertEquals("function", out.result);
     assertFalse(out.usedSourceOfKnownNondeterminism);
-    // Even if not used, so we can track dependencies on missing files and
-    // invalidate hashes for computations that recover from missing files
-    // using try/catch.  Tested in more detail below.
-    assertEquals("[/foo/bar.js]", out.dynamicLoads.keySet().toString());
   }
 
   public final void testFailedLoadRecovery() throws Exception {
-    // More detailed check of the scenario described in the comment above.
     Executor.Output<?> out = doLoad(
         ""
         + "try {\n"
@@ -54,11 +50,9 @@ public class ExecutorTest extends PbTestCase {
         "java.io.FileNotFoundException: /foo/nosuchfile.js",
         (String) out.result);
     assertFalse(out.usedSourceOfKnownNondeterminism);
-    assertEquals("[/foo/nosuchfile.js]", out.dynamicLoads.keySet().toString());
   }
 
   public final void testMalformedModule() throws Exception {
-    // More detailed check of the scenario described in the comment above.
     Executor.Output<?> out = doLoad(
         ""
         + "try {\n"
@@ -71,7 +65,6 @@ public class ExecutorTest extends PbTestCase {
         "missing ; before statement (/bar/malformed.js#1)",
         (String) out.result);
     assertFalse(out.usedSourceOfKnownNondeterminism);
-    assertEquals("[/bar/malformed.js]", out.dynamicLoads.keySet().toString());
   }
 
   public final void testModuleResult() throws Exception {
@@ -80,7 +73,6 @@ public class ExecutorTest extends PbTestCase {
         "baz.js", "1 + 1;");
     assertEquals(2.0, out.result);
     assertFalse(out.usedSourceOfKnownNondeterminism);
-    assertEquals("[/foo/baz.js]", out.dynamicLoads.keySet().toString());
   }
 
   public final void testDeterministicModuleUnused() throws Exception {
@@ -90,9 +82,6 @@ public class ExecutorTest extends PbTestCase {
         "bar/boo.js", "Math.random()");
     assertTrue(Double.isNaN((Double) out.result));
     assertFalse(out.usedSourceOfKnownNondeterminism);
-    assertEquals(
-        "[/foo/bar/baz.js, /foo/bar/boo.js]",
-        out.dynamicLoads.keySet().toString());
   }
 
   public final void testDeterministicModuleUsed() throws Exception {
@@ -103,9 +92,6 @@ public class ExecutorTest extends PbTestCase {
         "bar/boo.js", "Math.random()");
     assertEquals(1.0, out.result);
     assertTrue(out.usedSourceOfKnownNondeterminism);
-    assertEquals(
-        "[/foo/bar/baz.js, /foo/bar/boo.js]",
-        out.dynamicLoads.keySet().toString());
   }
 
   public final void testActuals() throws Exception {
@@ -476,10 +462,27 @@ public class ExecutorTest extends PbTestCase {
   }
 
   @Test(timeout=10000, expected=Executor.ScriptTimeoutException.class)
-  public final void longTestRunawayScripts() throws Exception {
+  public final void testRunawayScripts() throws Exception {
     Executor.Factory.createJsExecutor(Executor.Input.builder(
         "var i = 0; while (1) { ++i; }", getName()).build())
         .run(Void.TYPE, getLogger(Level.INFO), null);
+  }
+
+  public final void testActualInputs() throws Exception {
+    Executor.Input srcX = Executor.Input.builder(
+        "3", getName()).build();
+    Executor.Input srcY = Executor.Input.builder(
+        "4", getName()).build();
+    Executor.Input srcTop = Executor.Input.builder("x + y", getName())
+        .withActuals(
+            ImmutableMap.<String, Object>builder()
+            .put("x", srcX)
+            .put("y", srcY)
+            .build())
+        .build();
+    Executor.Output<?> output = Executor.Factory.createJsExecutor(srcTop)
+        .run(Object.class, getLogger(Level.INFO), null);
+    assertEquals(7d, output.result);
   }
 
   private void assertResult(Object result, String src) throws Exception {
