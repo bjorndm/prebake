@@ -3,6 +3,7 @@ package org.prebake.service.tools;
 import org.prebake.core.Hash;
 import org.prebake.core.MessageQueue;
 import org.prebake.fs.ArtifactAddresser;
+import org.prebake.fs.FileAndHash;
 import org.prebake.fs.FileHashes;
 import org.prebake.fs.NonFileArtifact;
 import org.prebake.js.Executor;
@@ -17,6 +18,7 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 
 import java.io.BufferedReader;
+import java.io.ByteArrayOutputStream;
 import java.io.Closeable;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -271,8 +273,8 @@ public class ToolBox implements Closeable {
             logger.log(Level.SEVERE, "Reading " + toolPath, ex);
             return null;
           }
-          List<Path> paths = Lists.newArrayList();
-          List<Hash> hashes = Lists.newArrayList();
+          final List<Path> paths = Lists.newArrayList();
+          final List<Hash> hashes = Lists.newArrayList();
           if (base != null) {
             paths.add(toolPath);
             hashes.add(Hash.builder().withString(js).build());
@@ -286,19 +288,33 @@ public class ToolBox implements Closeable {
             return null;
           }
           ToolSignature toolSig;
-          Map<Path, Hash> dynamicLoads;
           try {
             Executor.Output<YSON> result = executor.run(
                 YSON.class, logger, new Loader() {
                   public Executor.Input load(Path p) throws IOException {
-                    // The name "next" resolves to the next instance of the
-                    // same tool in the search path.
-                    if ("next".equals(p.getName().toString())
-                        && base.equals(p.getParent())) {
-                      return nextTool(t, index, base.resolve("next"));
+                    FileAndHash loaded;
+                    try {
+                      // The name "next" resolves to the next instance of the
+                      // same tool in the search path.
+                      if ("next".equals(p.getName().toString())
+                          && base.equals(p.getParent())) {
+                        loaded = nextTool(t, index, base.resolve("next"));
+                      } else {
+                        loaded = fh.load(p);
+                      }
+                    } catch (IOException ex) {
+                      // We need to depend on non-existent files in case they
+                      // are later created.
+                      paths.add(p);
+                      throw ex;
+                    }
+                    Hash h = loaded.getHash();
+                    if (h != null) {
+                      paths.add(loaded.getPath());
+                      hashes.add(h);
                     }
                     return Executor.Input.builder(
-                        new InputStreamReader(p.newInputStream(), UTF8), p)
+                        loaded.getContentAsString(UTF8), p)
                         .build();
                   }
                 });
@@ -311,7 +327,6 @@ public class ToolBox implements Closeable {
             toolSig = ToolSignature.converter(
                 impl.name, !result.usedSourceOfKnownNondeterminism)
                 .convert(ysonSigObj, mq);
-            dynamicLoads = result.dynamicLoads;
             if (mq.hasErrors()) {
               for (String message : mq.getMessages()) {
                 // Escape message using MessageFormat rules.
@@ -329,8 +344,6 @@ public class ToolBox implements Closeable {
             return null;
           }
 
-          paths.addAll(dynamicLoads.keySet());
-          hashes.addAll(dynamicLoads.values());
           Hash.Builder hb = Hash.builder();
           for (Hash h : hashes) {
             if (h != null) { hb.withHash(h); }
@@ -351,7 +364,8 @@ public class ToolBox implements Closeable {
     });
   }
 
-  private Executor.Input nextTool(Tool t, int prevIndex, Path path) throws IOException {
+  private FileAndHash nextTool(Tool t, int prevIndex, Path path)
+      throws IOException {
     Integer nextIndex = null;
     for (Iterator<Integer> it = t.impls.keySet().iterator(); it.hasNext();) {
       int index = it.next();
@@ -360,19 +374,25 @@ public class ToolBox implements Closeable {
         break;
       }
     }
-    InputStream in = null;
-    Path p = null;
     if (nextIndex != null) {
       if (nextIndex < toolDirs.size()) {
-        p = toolDirs.get(nextIndex).resolve(t.localName);
-        in = p.newInputStream();
+        return fh.load(toolDirs.get(nextIndex).resolve(t.localName));
       } else {
-        p = t.localName;
-        in = ToolBox.class.getResourceAsStream(t.localName.toString());
+        byte[] buf = new byte[4096];
+        InputStream in = ToolBox.class.getResourceAsStream(
+            t.localName.toString());
+        if (in != null) {
+          try {
+            ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+            for (int n; (n = in.read(buf)) > 0;) { bytes.write(buf, 0, n); }
+            return new FileAndHash(t.localName, bytes.toByteArray(), null);
+          } finally {
+            in.close();
+          }
+        }
       }
     }
-    if (in == null) { throw new FileNotFoundException(path.toString()); }
-    return Executor.Input.builder(new InputStreamReader(in, UTF8), p).build();
+    throw new FileNotFoundException(path.toString());
   }
 
   public final void close() throws IOException {

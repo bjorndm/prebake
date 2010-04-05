@@ -1,7 +1,5 @@
 package org.prebake.js;
 
-import org.prebake.core.Hash;
-
 import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
 import com.google.common.collect.ImmutableSet;
@@ -23,6 +21,7 @@ import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import org.mozilla.javascript.BaseFunction;
 import org.mozilla.javascript.Callable;
 import org.mozilla.javascript.ClassShutter;
 import org.mozilla.javascript.Context;
@@ -185,7 +184,6 @@ public final class RhinoExecutor implements Executor {
       Loader loader)
       throws AbnormalExitException {
     ScriptableObject globalScope = context.initStandardObjects();
-    Map<Path, Hash> dynamicLoads = Maps.newLinkedHashMap();
     NonDeterminism nonDeterminism = new NonDeterminism();
     {
       Scriptable math = (Scriptable) ScriptableObject.getProperty(
@@ -212,7 +210,9 @@ public final class RhinoExecutor implements Executor {
               nonDeterminism));
     }
     globalScope.defineProperty(
-        "console", new Console(logger), ScriptableObject.DONTENUM);
+        "console", new Console(logger),
+        ScriptableObject.DONTENUM | ScriptableObject.PERMANENT
+        | ScriptableObject.READONLY);
 
     Object result = null;
     synchronized (context) {
@@ -223,11 +223,10 @@ public final class RhinoExecutor implements Executor {
         }
         Object[] actualsObjArr = new Object[] { actualsObj };
 
-        LoadFn loadFn = new LoadFn(
-            globalScope, loader, logger, src.base, dynamicLoads);
+        LoadFn loadFn = new LoadFn(globalScope, loader, logger, src.base);
         try {
           result = loadFn.load(context, src.content, src.source)
-              .call(context, globalScope, globalScope, actualsObjArr);
+            .call(context, globalScope, globalScope, actualsObjArr);
         } catch (EcmaError ex) {
           throw new AbnormalExitException(ex);
         }
@@ -246,8 +245,7 @@ public final class RhinoExecutor implements Executor {
         result = Context.jsToJava(result, expectedResultType);
       }
     }
-    return new Output<T>(
-        expectedResultType.cast(result), dynamicLoads, nonDeterminism.used);
+    return new Output<T>(expectedResultType.cast(result), nonDeterminism.used);
   }
 
   private static final Pattern STACK_FRAME = Pattern.compile(
@@ -453,16 +451,12 @@ public final class RhinoExecutor implements Executor {
     private final Loader loader;
     private final Logger logger;
     private final Path base;
-    private final Map<Path, Hash> dynamicLoads;
 
-    LoadFn(
-        Scriptable globalScope, Loader loader, Logger logger, Path base,
-        Map<Path, Hash> dynamicLoads) {
+    LoadFn(Scriptable globalScope, Loader loader, Logger logger, Path base) {
       this.globalScope = globalScope;
       this.loader = loader;
       this.logger = logger;
       this.base = base;
-      this.dynamicLoads = dynamicLoads;
     }
 
     @Override public String getTypeOf() { return "function"; }
@@ -514,23 +508,15 @@ public final class RhinoExecutor implements Executor {
             throw (IOException) th;
           }
         }
-        dynamicLoads.put(modulePath, Hash.builder().withString(src).build());
-        LoadFn subLoadFn = new LoadFn(
-            globalScope, loader, logger, modulePath, dynamicLoads);
+        LoadFn subLoadFn = new LoadFn(globalScope, loader, logger, modulePath);
         Function fn = subLoadFn.load(context, src, modulePath.toString());
         loadedModules.put(modulePath, fn);
         return fn;
       } catch (IOException ex) {
         loadedModules.put(modulePath, ex);
-        if (!dynamicLoads.containsKey(modulePath)) {
-          dynamicLoads.put(modulePath, null);
-        }
         throw new WrappedException(ex);
       } catch (RuntimeException ex) {
         loadedModules.put(modulePath, ex);
-        if (!dynamicLoads.containsKey(modulePath)) {
-          dynamicLoads.put(modulePath, null);
-        }
         throw ex;
       }
     }
@@ -625,71 +611,32 @@ public final class RhinoExecutor implements Executor {
     public String getClassName() { return null; }
   }
 
-  private static class NonDeterminism {
+  private static final class NonDeterminism {
     boolean used;
   }
 
-  private static final class NonDeterminismRecorder
-      implements Scriptable, Function {
-    final Function fn;
+  private static final class NonDeterminismRecorder extends FunctionWrapper {
     final Predicate<Object[]> argPredicate;
     final NonDeterminism nonDeterminism;
 
-    NonDeterminismRecorder(Function fn, Predicate<Object[]> argPredicate,
-                           NonDeterminism nonDeterminism) {
-      this.fn = fn;
+    NonDeterminismRecorder(
+        Function fn, Predicate<Object[]> argPredicate,
+        NonDeterminism nonDeterminism) {
+      super(fn);
       this.argPredicate = argPredicate;
       this.nonDeterminism = nonDeterminism;
     }
 
-    public void delete(String arg0) { fn.delete(arg0); }
-    public void delete(int arg0) { fn.delete(arg0); }
-    public Object get(String arg0, Scriptable arg1) {
-      return fn.get(arg0, arg1);
-    }
-    public Object get(int arg0, Scriptable arg1) {
-      return fn.get(arg0, arg1);
-    }
-    public String getClassName() { return fn.getClassName(); }
-    public Object getDefaultValue(Class<?> arg0) {
-      return fn.getDefaultValue(arg0);
-    }
-    public Object[] getIds() { return fn.getIds(); }
-    public Scriptable getParentScope() { return fn.getParentScope(); }
-    public Scriptable getPrototype() { return fn.getPrototype(); }
-    public boolean has(String arg0, Scriptable arg1) {
-      return fn.has(arg0, arg1);
-    }
-    public boolean has(int arg0, Scriptable arg1) {
-      return fn.has(arg0, arg1);
-    }
-    public boolean hasInstance(Scriptable arg0) {
-      return fn.hasInstance(arg0);
-    }
-    public void put(String arg0, Scriptable arg1, Object arg2) {
-      fn.put(arg0, arg1, arg2);
-    }
-    public void put(int arg0, Scriptable arg1, Object arg2) {
-      fn.put(arg0, arg1, arg2);
-    }
-    public void setParentScope(Scriptable arg0) {
-      fn.setParentScope(arg0);
-    }
-    public void setPrototype(Scriptable arg0) {
-      fn.setPrototype(arg0);
-    }
+    @Override
     public Object call(
         Context arg0, Scriptable arg1, Scriptable arg2, Object[] args) {
-      if (argPredicate.apply(args)) {
-        nonDeterminism.used = true;
-      }
-      return fn.call(arg0, arg1, arg2, args);
+      if (argPredicate.apply(args)) { nonDeterminism.used = true; }
+      return super.call(arg0, arg1, arg2, args);
     }
+    @Override
     public Scriptable construct(Context arg0, Scriptable arg1, Object[] args) {
-      if (argPredicate.apply(args)) {
-        nonDeterminism.used = true;
-      }
-      return fn.construct(arg0, arg1, args);
+      if (argPredicate.apply(args)) { nonDeterminism.used = true; }
+      return super.construct(arg0, arg1, args);
     }
   }
 
@@ -836,5 +783,55 @@ class SandboxingWrapFactory extends WrapFactory {
         return super.get(name, start);
       }
     };
+  }
+}
+
+abstract class FunctionWrapper implements Scriptable, Function {
+  protected final Function fn;
+
+  FunctionWrapper(Function fn) { this.fn = fn; }
+
+  public void delete(String arg0) { fn.delete(arg0); }
+  public void delete(int arg0) { fn.delete(arg0); }
+  public Object get(String arg0, Scriptable arg1) {
+    return fn.get(arg0, arg1);
+  }
+  public Object get(int arg0, Scriptable arg1) {
+    return fn.get(arg0, arg1);
+  }
+  public String getClassName() { return fn.getClassName(); }
+  public Object getDefaultValue(Class<?> arg0) {
+    return fn.getDefaultValue(arg0);
+  }
+  public Object[] getIds() { return fn.getIds(); }
+  public Scriptable getParentScope() { return fn.getParentScope(); }
+  public Scriptable getPrototype() { return fn.getPrototype(); }
+  public boolean has(String arg0, Scriptable arg1) {
+    return fn.has(arg0, arg1);
+  }
+  public boolean has(int arg0, Scriptable arg1) {
+    return fn.has(arg0, arg1);
+  }
+  public boolean hasInstance(Scriptable arg0) {
+    return fn.hasInstance(arg0);
+  }
+  public void put(String arg0, Scriptable arg1, Object arg2) {
+    fn.put(arg0, arg1, arg2);
+  }
+  public void put(int arg0, Scriptable arg1, Object arg2) {
+    fn.put(arg0, arg1, arg2);
+  }
+  public void setParentScope(Scriptable arg0) {
+    fn.setParentScope(arg0);
+  }
+  public void setPrototype(Scriptable arg0) {
+    fn.setPrototype(arg0);
+  }
+  public Object call(
+      Context arg0, Scriptable arg1, Scriptable arg2, Object[] args) {
+    return fn.call(arg0, arg1, arg2, args);
+  }
+  public Scriptable construct(Context arg0, Scriptable arg1, Object[] args) {
+    return fn.construct(arg0, arg1, args);
   }
 }
