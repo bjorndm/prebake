@@ -275,7 +275,7 @@ public class ToolBox implements Closeable {
           List<Hash> hashes = Lists.newArrayList();
           if (base != null) {
             paths.add(toolPath);
-            hashes.add(Hash.builder().withString(js).toHash());
+            hashes.add(Hash.builder().withString(js).build());
           }
           Executor executor;
           try {
@@ -331,13 +331,13 @@ public class ToolBox implements Closeable {
 
           paths.addAll(dynamicLoads.keySet());
           hashes.addAll(dynamicLoads.values());
-          Hash.HashBuilder hb = Hash.builder();
+          Hash.Builder hb = Hash.builder();
           for (Hash h : hashes) {
             if (h != null) { hb.withHash(h); }
           }
 
           synchronized (impl.tool) {
-            if (fh.update(addresser, impl, paths, hb.toHash())) {
+            if (fh.update(addresser, impl, paths, hb.build())) {
               return impl.sig = toolSig;
             }
           }

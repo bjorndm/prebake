@@ -248,9 +248,9 @@ public class FileHashesTest extends PbTestCase {
   }
 
   private Hash getHash(List<Path> paths) {
-    Hash.HashBuilder hb = Hash.builder();
+    Hash.Builder hb = Hash.builder();
     fh.getHashes(paths, hb);
-    return hb.toHash();
+    return hb.build();
   }
 
   private void assertHash(String golden, List<Path> paths) {

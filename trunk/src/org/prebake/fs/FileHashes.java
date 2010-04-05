@@ -106,7 +106,7 @@ public final class FileHashes implements Closeable {
       try {
         if (!p.notExists()) {
           logger.log(Level.FINE, "Hashing file {0}", p);
-          Hash hash = Hash.builder().withFile(p).toHash();
+          Hash hash = Hash.builder().withFile(p).build();
           hashes[i] = hash.toDatabaseEntry();
         }
       } catch (IOException ex) {
@@ -202,7 +202,7 @@ public final class FileHashes implements Closeable {
   /**
    * Hashes the given paths to out.
    */
-  public void getHashes(Collection<Path> paths, Hash.HashBuilder out) {
+  public void getHashes(Collection<Path> paths, Hash.Builder out) {
     int n = paths.size();
     Cursor cursor = fileToHash.openCursor(null, null);
     byte[][] data = new byte[n][];
@@ -256,7 +256,7 @@ public final class FileHashes implements Closeable {
     }
   }
 
-  private static final Hash NO_FILE_HASH = Hash.builder().toHash();
+  private static final Hash NO_FILE_HASH = Hash.builder().build();
   /**
    * @param artifact a newly valid non file artifact.
    * @param as the address space for item.
@@ -312,9 +312,9 @@ public final class FileHashes implements Closeable {
       String address = index + ":" + as.addressFor(artifact);
       DatabaseEntry value = new DatabaseEntry(bytes(address));
 
-      Hash.HashBuilder rehash = Hash.builder();
+      Hash.Builder rehash = Hash.builder();
       getHashes(prerequisites, rehash);
-      if (!prereqHash.equals(rehash.toHash())) {
+      if (!prereqHash.equals(rehash.build())) {
         logger.log(Level.INFO, "Version skew.  Cannot validate {0}", address);
         return false;
       }
