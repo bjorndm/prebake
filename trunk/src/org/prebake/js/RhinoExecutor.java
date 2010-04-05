@@ -15,6 +15,7 @@ import java.util.Formatter;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.WeakHashMap;
 import java.util.logging.Level;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
@@ -37,6 +38,7 @@ import org.mozilla.javascript.RhinoException;
 import org.mozilla.javascript.Script;
 import org.mozilla.javascript.Scriptable;
 import org.mozilla.javascript.ScriptableObject;
+import org.mozilla.javascript.Undefined;
 import org.mozilla.javascript.WrapFactory;
 import org.mozilla.javascript.WrappedException;
 
@@ -183,69 +185,104 @@ public final class RhinoExecutor implements Executor {
       Context context, Class<T> expectedResultType, Logger logger,
       Loader loader)
       throws AbnormalExitException {
-    ScriptableObject globalScope = context.initStandardObjects();
-    NonDeterminism nonDeterminism = new NonDeterminism();
-    {
-      Scriptable math = (Scriptable) ScriptableObject.getProperty(
-          globalScope, "Math");
-      Scriptable date = (Scriptable) ScriptableObject.getProperty(
-          globalScope, "Date");
-      ScriptableObject.putProperty(
-          math, "random",
-          new NonDeterminismRecorder(
-              (Function) ScriptableObject.getProperty(math, "random"),
-              Predicates.<Object[]>alwaysTrue(), nonDeterminism));
-      ScriptableObject.putProperty(
-          date, "now",
-          new NonDeterminismRecorder(
-              (Function) ScriptableObject.getProperty(date, "now"),
-              Predicates.<Object[]>alwaysTrue(), nonDeterminism));
-      ScriptableObject.putProperty(
-          globalScope, "Date",
-          new NonDeterminismRecorder(
-              (Function) date,
-              new Predicate<Object[]>() {
-                public boolean apply(Object[] args) { return args.length == 0; }
-              },
-              nonDeterminism));
-    }
-    globalScope.defineProperty(
-        "console", new Console(logger),
-        ScriptableObject.DONTENUM | ScriptableObject.PERMANENT
-        | ScriptableObject.READONLY);
+    Runner runner = new Runner(context, logger, loader);
 
     Object result = null;
     synchronized (context) {
-      for (Input src : srcs) {
-        NativeObject actualsObj = new NativeObject();
-        for (Map.Entry<String, ?> e : src.actuals.entrySet()) {
-          ScriptableObject.putConstProperty(actualsObj, e.getKey(), e.getValue());
-        }
-        Object[] actualsObjArr = new Object[] { actualsObj };
-
-        LoadFn loadFn = new LoadFn(globalScope, loader, logger, src.base);
-        try {
-          result = loadFn.load(context, src.content, src.source)
-            .call(context, globalScope, globalScope, actualsObjArr);
-        } catch (EcmaError ex) {
-          throw new AbnormalExitException(ex);
-        }
-      }
-      if (result == null) { return null; }
-      if (YSON.class.isAssignableFrom(expectedResultType)
-          && result instanceof Scriptable) {
-        Scriptable s = (Scriptable) result;
-        try {
-          result = toYSON(context, s);
-        } catch (ParseException ex) {
-          logger.log(Level.SEVERE, "Failed to convert output " + result, ex);
-        }
-      }
-      if (!expectedResultType.isInstance(result)) {
-        result = Context.jsToJava(result, expectedResultType);
+      for (Input src : srcs) { result = runner.run(src); }
+    }
+    if (result == null) { return null; }
+    if (YSON.class.isAssignableFrom(expectedResultType)
+        && result instanceof Scriptable) {
+      Scriptable s = (Scriptable) result;
+      try {
+        result = toYSON(context, s);
+      } catch (ParseException ex) {
+        logger.log(Level.SEVERE, "Failed to convert output " + result, ex);
       }
     }
-    return new Output<T>(expectedResultType.cast(result), nonDeterminism.used);
+    if (!expectedResultType.isInstance(result)) {
+      result = Context.jsToJava(result, expectedResultType);
+    }
+    return new Output<T>(
+        expectedResultType.cast(result), runner.nonDeterminism.used);
+  }
+
+  private class Runner {
+    private final Context context;
+    private final Logger logger;
+    private final Loader loader;
+    private final ScriptableObject globalScope;
+    private final NonDeterminism nonDeterminism;
+    private final Map<Input, Object> moduleResults
+        = new WeakHashMap<Input, Object>();
+
+    Runner(Context context, Logger logger, Loader loader) {
+      this.context = context;
+      this.logger = logger;
+      this.loader = loader;
+      this.globalScope = context.initStandardObjects();
+      this.nonDeterminism = new NonDeterminism();
+      {
+        Scriptable math = (Scriptable) ScriptableObject.getProperty(
+            globalScope, "Math");
+        Scriptable date = (Scriptable) ScriptableObject.getProperty(
+            globalScope, "Date");
+        Scriptable object = (Scriptable) ScriptableObject.getProperty(
+            globalScope, "Object");
+        ScriptableObject.putProperty(
+            math, "random",
+            new NonDeterminismRecorder(
+                (Function) ScriptableObject.getProperty(math, "random"),
+                Predicates.<Object[]>alwaysTrue(), nonDeterminism));
+        ScriptableObject.putProperty(
+            date, "now",
+            new NonDeterminismRecorder(
+                (Function) ScriptableObject.getProperty(date, "now"),
+                Predicates.<Object[]>alwaysTrue(), nonDeterminism));
+        ScriptableObject.putProperty(
+            globalScope, "Date",
+            new NonDeterminismRecorder(
+                (Function) date,
+                new Predicate<Object[]>() {
+                  public boolean apply(Object[] args) {
+                    return args.length == 0;
+                  }
+                },
+                nonDeterminism));
+        ScriptableObject.putProperty(object, "frozenCopy", new FrozenCopyFn());
+      }
+      globalScope.defineProperty(
+          "console", new Console(logger),
+          ScriptableObject.DONTENUM | ScriptableObject.PERMANENT
+          | ScriptableObject.READONLY);
+    }
+
+    private Object run(Executor.Input src) throws AbnormalExitException {
+      // Don't multiply evaluate an input that happens to be an actual to
+      // multiple other inputs.
+      if (moduleResults.containsKey(src)) { return moduleResults.get(src); }
+      NativeObject actualsObj = new NativeObject();
+      for (Map.Entry<String, ?> e : src.actuals.entrySet()) {
+        Object value = e.getValue();
+        // Inputs can be specified as inputs to other inputs.
+        if (value instanceof Executor.Input) {
+          value = run((Executor.Input) value);
+        }
+        ScriptableObject.putConstProperty(actualsObj, e.getKey(), value);
+      }
+      Object[] actualsObjArr = new Object[] { actualsObj };
+
+      LoadFn loadFn = new LoadFn(globalScope, loader, logger, src.base);
+      try {
+        Object result = loadFn.load(context, src.content, src.source)
+            .call(context, globalScope, globalScope, actualsObjArr);
+        moduleResults.put(src, result);
+        return result;
+      } catch (EcmaError ex) {
+        throw new AbnormalExitException(ex);
+      }
+    }
   }
 
   private static final Pattern STACK_FRAME = Pattern.compile(
@@ -524,25 +561,11 @@ public final class RhinoExecutor implements Executor {
     private Function load(Context context, String src, String srcName) {
       logger.log(Level.FINE, "Loading {0}", srcName);
       try {
-        return freeze(
-            context,
-            new LoadedModule(
-                srcName, context.compileString(src, srcName, 1, null)));
+        return new Freezer(context).freeze(new LoadedModule(
+            srcName, context.compileString(src, srcName, 1, null)));
       } finally {
         logger.log(Level.FINE, "Done    {0}", srcName);
       }
-    }
-
-    private <T extends ScriptableObject> T freeze(Context cx, T obj) {
-      for (Object name : obj.getAllIds()) {
-        ScriptableObject desc = new NativeObject();
-        desc.put("value", obj.get(name));
-        desc.put("writable", Boolean.FALSE);
-        desc.put("configurable", Boolean.FALSE);
-        obj.defineOwnProperty(cx, name, desc);
-      }
-      obj.preventExtensions();
-      return obj;
     }
 
     public Scriptable construct(
@@ -733,6 +756,106 @@ public final class RhinoExecutor implements Executor {
       if (!found) { return false; }
     }
     return true;
+  }
+}
+
+final class FrozenCopyFn extends BaseFunction {
+  @Override
+  public Object call(
+      Context cx, Scriptable scope, Scriptable thisObj, Object[] args) {
+    if (args.length != 1) { return Undefined.instance; }
+    return new Freezer(cx).frozenCopy(args[0]);
+  }
+  @Override
+  public String getFunctionName() { return "frozenCopy"; }
+}
+
+final class Freezer {
+  final Context cx;
+  final Map<ScriptableObject, ScriptableObject> frozenCopies
+      = Maps.newIdentityHashMap();
+  Freezer(Context cx) { this.cx = cx; }
+
+  <T extends ScriptableObject> T freeze(T obj) {
+    for (Object name : obj.getAllIds()) {
+      if (name instanceof Number) {
+        int index = ((Number) name).intValue();
+        obj.setAttributes(
+            index,
+            obj.getAttributes(index) | ScriptableObject.PERMANENT
+            | ScriptableObject.READONLY);
+      } else {
+        String s = name.toString();
+        obj.setAttributes(
+            s,
+            obj.getAttributes(s) | ScriptableObject.PERMANENT
+            | ScriptableObject.READONLY);
+      }
+    }
+    obj.preventExtensions();
+    return obj;
+  }
+
+  boolean isFrozen(ScriptableObject obj) {
+    if (obj.isExtensible()) { return false; }
+    for (Object name : obj.getAllIds()) {
+      if (!obj.isConst(name.toString())) { return false; }
+    }
+    return true;
+  }
+
+  Object frozenCopy(Object obj) {
+    if (!(obj instanceof ScriptableObject)) { return obj; }
+    ScriptableObject so = (ScriptableObject) obj;
+    ScriptableObject copy = frozenCopies.get(so);
+    if (copy != null) { return copy; }
+    if (so instanceof Function) {
+      class DelegatingFunction extends ScriptableObject implements Function {
+        private final Function fn;
+        DelegatingFunction(Function fn) {
+          super(fn.getParentScope(), fn.getPrototype());
+          this.fn = fn;
+        }
+        @Override public String getClassName() { return fn.getClassName(); }
+        public Object call(
+            Context arg0, Scriptable arg1, Scriptable arg2, Object[] arg3) {
+          return fn.call(arg0, arg1, arg2, arg3);
+        }
+        public Scriptable construct(
+            Context arg0, Scriptable arg1, Object[] arg2) {
+          return fn.construct(arg0, arg1, arg2);
+        }
+      }
+      copy = new DelegatingFunction((Function) so);
+    } else if (so instanceof NativeArray) {
+      copy = new NativeArray(((NativeArray) so).getLength());
+    } else {
+      copy = new NativeObject();
+    }
+    frozenCopies.put(so, copy);
+    boolean isFrozen = !so.isExtensible();
+    for (Object name : so.getAllIds()) {
+      String nameStr = name.toString();
+      Object value = so.get(nameStr);
+      int atts = so.getAttributes(nameStr);
+      Object frozenValue = frozenCopy(value);
+      if (isFrozen
+          && (((atts & (ScriptableObject.PERMANENT | ScriptableObject.READONLY))
+              != (ScriptableObject.PERMANENT | ScriptableObject.READONLY))
+              || frozenValue != value)) {
+        isFrozen = false;
+      }
+      ScriptableObject.defineProperty(
+          copy, nameStr, frozenValue,
+          atts | ScriptableObject.PERMANENT | ScriptableObject.READONLY);
+    }
+    if (isFrozen) {
+      frozenCopies.put(so, so);
+      return so;
+    } else {
+      copy.preventExtensions();
+      return copy;
+    }
   }
 }
 
