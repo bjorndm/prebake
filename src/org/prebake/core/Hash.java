@@ -35,14 +35,14 @@ public final class Hash {
 
   private static final byte[] ZERO_BYTE = new byte[1];
 
-  public static HashBuilder builder() { return new HashBuilder(); }
+  public static Builder builder() { return new Builder(); }
 
-  public static class HashBuilder {
+  public static class Builder {
     private MD5 md5 = new MD5();
 
-    private HashBuilder() {}
+    private Builder() {}
 
-    public HashBuilder withFile(Path p) throws IOException {
+    public Builder withFile(Path p) throws IOException {
       md5.Update(ZERO_BYTE, 0, 1);
       byte[] bytes = new byte[4096];
       InputStream in = p.newInputStream(StandardOpenOption.READ);
@@ -54,7 +54,7 @@ public final class Hash {
       return this;
     }
 
-    public HashBuilder withString(String s) {
+    public Builder withString(String s) {
       md5.Update(ZERO_BYTE, 0, 1);
       try {
         md5.Update(s, "UTF-8");
@@ -64,17 +64,17 @@ public final class Hash {
       return this;
     }
 
-    public HashBuilder withData(byte[] bytes) {
+    public Builder withData(byte[] bytes) {
       md5.Update(ZERO_BYTE, 0, 1);
       md5.Update(bytes, 0, bytes.length);
       return this;
     }
 
-    public HashBuilder withHash(Hash h) {
+    public Builder withHash(Hash h) {
       withData(h.bytes);
       return this;
     }
 
-    public Hash toHash() { return new Hash(md5.Final()); }
+    public Hash build() { return new Hash(md5.Final()); }
   }
 }

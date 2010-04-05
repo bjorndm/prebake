@@ -514,7 +514,7 @@ public final class RhinoExecutor implements Executor {
             throw (IOException) th;
           }
         }
-        dynamicLoads.put(modulePath, Hash.builder().withString(src).toHash());
+        dynamicLoads.put(modulePath, Hash.builder().withString(src).build());
         LoadFn subLoadFn = new LoadFn(
             globalScope, loader, logger, modulePath, dynamicLoads);
         Function fn = subLoadFn.load(context, src, modulePath.toString());
