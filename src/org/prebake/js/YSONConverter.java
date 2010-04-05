@@ -37,18 +37,23 @@ public interface YSONConverter<T> {
   public static class Factory {
     public static <T> YSONConverter<T> withType(final Class<T> type) {
       final Function<String, T> fromString;
-      Method valueOf;
+      Method strConverter;
       try {
-        valueOf = type.getDeclaredMethod(
+        strConverter = type.getDeclaredMethod(
             "valueOf", new Class[] { String.class });
       } catch (NoSuchMethodException ex) {
-        valueOf = null;
+        try {
+          strConverter = type.getDeclaredMethod(
+              "fromString", new Class[] { String.class });
+        } catch (NoSuchMethodException ex2) {
+          strConverter = null;
+        }
       }
-      if (valueOf != null) {  // Works for enums and concrete number types.
-        int mods = valueOf.getModifiers();
+      if (strConverter != null) {  // Works for enums and concrete number types.
+        int mods = strConverter.getModifiers();
         if (Modifier.isStatic(mods) && Modifier.isPublic(mods)
             && !Modifier.isAbstract(mods)) {
-          final Method convMethod = valueOf;
+          final Method convMethod = strConverter;
           fromString = new Function<String, T>() {
             public T apply(String s) {
               try {
@@ -105,6 +110,32 @@ public interface YSONConverter<T> {
     public static <K, V> YSONMapConverterBuilder<K, V> mapConverter(
         Class<K> keyType) {
       return new YSONMapConverterBuilder<K, V>(keyType);
+    }
+
+    public static <K, V> YSONConverter<Map<K, V>> mapConverter(
+        final YSONConverter<K> keyConv, final YSONConverter<V> valueConv) {
+      return new YSONConverter<Map<K, V>>() {
+        public Map<K, V> convert(Object ysonValue, MessageQueue problems) {
+          if (!(ysonValue instanceof Map<?, ?>)) {
+            problems.error(
+                "Expected " + exampleText() + " but got "
+                + toErrorString(ysonValue));
+            return null;
+          }
+          Map<K, V> out = Maps.newLinkedHashMap();
+          for (Map.Entry<?, ?> e : ((Map<?, ?>) ysonValue).entrySet()) {
+            K key = keyConv.convert(e.getKey(), problems);
+            V value = valueConv.convert(e.getValue(), problems);
+            out.put(key, value);
+          }
+          return out;
+        }
+
+        public String exampleText() {
+          return "{" + keyConv.exampleText()
+              + ":" + valueConv.exampleText() + ",...}";
+        }
+      };
     }
 
     public static <T> YSONConverter<List<T>> listConverter(
