@@ -39,6 +39,7 @@ public abstract class PbTestCase extends TestCase {
       handler = null;
       log = null;
     }
+    super.tearDown();
   }
 
   protected List<String> getLog() { return log; }
@@ -76,6 +77,7 @@ public abstract class PbTestCase extends TestCase {
     }
     if (!f.delete()) {
       // We're just making a best effort.
+      System.err.println("Failed to delete " + f);
     }
   }
 
