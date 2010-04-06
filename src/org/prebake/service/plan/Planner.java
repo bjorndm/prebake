@@ -3,8 +3,8 @@ package org.prebake.service.plan;
 import org.prebake.core.Hash;
 import org.prebake.core.MessageQueue;
 import org.prebake.fs.ArtifactAddresser;
-import org.prebake.fs.FileAndHash;
 import org.prebake.fs.ArtifactValidityTracker;
+import org.prebake.fs.FileAndHash;
 import org.prebake.fs.NonFileArtifact;
 import org.prebake.js.Executor;
 import org.prebake.js.JsonSink;
@@ -100,9 +100,6 @@ public final class Planner implements Closeable {
             allProducts.put(p.name, p);
           } else {
             Product old = allProducts.put(p.name, null);
-            logger.log(
-                Level.WARNING, "Duplicate product {0} in {1}",
-                new Object[] { p.name, p.source });
             if (old != null) {
               logger.log(
                   Level.WARNING, "Duplicate product {0} in {1}",
@@ -222,9 +219,7 @@ public final class Planner implements Closeable {
                 ImmutableList<Product> products = unpack(pp, javaObj);
                 if (products != null) {
                   Hash.Builder allHashes = Hash.builder();
-                  for (Hash hash : hashes) {
-                    allHashes.withHash(hash);
-                  }
+                  for (Hash hash : hashes) { allHashes.withHash(hash); }
                   synchronized (pp) {
                     if (files.update(
                             productAddresser, pp, paths, allHashes.build())) {

@@ -295,7 +295,7 @@ public interface YSONConverter<T> {
       }
     }
 
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings({ "unchecked", "cast" })
     private static <K, V> Map<K, V> makeMap(Class<K> keyType) {
       if (Enum.class.isAssignableFrom(keyType)) {
         return (Map<K, V>) Maps.newEnumMap(keyType.asSubclass(Enum.class));
