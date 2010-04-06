@@ -18,6 +18,13 @@ public final class Documentation implements JsonSerializable {
   public final String detailHtml;
   public final String contactEmail;
 
+  public enum Field {
+    summary,
+    detail,
+    contact,
+    ;
+  }
+
   /**
    * Implements Javadoc's summary string convention.
    * Per
@@ -72,8 +79,8 @@ public final class Documentation implements JsonSerializable {
         .withType(String.class);
     final YSONConverter<String> optStrIdent = YSONConverter.Factory
         .optional(strIdent);
-    final YSONConverter<Map<String, String>> MAP_CONV = YSONConverter.Factory
-        .<String, String>mapConverter(String.class)
+    final YSONConverter<Map<Field, String>> MAP_CONV = YSONConverter.Factory
+        .<Field, String>mapConverter(Field.class)
         .require("detail", strIdent)
         .optional("summary", optStrIdent, null)
         .optional("contact", optStrIdent, null)
@@ -84,11 +91,11 @@ public final class Documentation implements JsonSerializable {
         detail = (String) ysonValue;
         summary = contact = null;
       } else {
-        Map<String, String> pairs = MAP_CONV.convert(ysonValue, problems);
+        Map<Field, String> pairs = MAP_CONV.convert(ysonValue, problems);
         if (pairs == null) { return null; }
-        summary = pairs.get("summary");
-        detail = pairs.get("detail");
-        contact = pairs.get("contact");
+        summary = pairs.get(Field.summary);
+        detail = pairs.get(Field.detail);
+        contact = pairs.get(Field.contact);
         if (detail == null) { return null; }  // message logged by MAP_CONV
       }
       return new Documentation(summary, detail, contact);

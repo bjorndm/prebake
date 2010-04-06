@@ -21,7 +21,7 @@ public final class ToolSignature implements JsonSerializable {
   public final Documentation help;
   public final boolean deterministic;
 
-  ToolSignature(
+  public ToolSignature(
       String name, YSON.Lambda productChecker, Documentation help,
       boolean deterministic) {
     this.name = name;

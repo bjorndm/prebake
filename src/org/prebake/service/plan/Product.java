@@ -57,25 +57,27 @@ public final class Product implements JsonSerializable {
     return JsonSerializable.StringUtil.toString(this);
   }
 
-  private enum Field {
+  public enum Field {
     help,
     inputs,
     outputs,
     actions,
     intermediate,
-    name,
     ;
   }
 
   public void toJson(JsonSink sink) throws IOException {
-    sink.write("{").writeValue(Field.name).write(":").writeValue(name)
-        .write(",").writeValue(Field.help).write(":").writeValue(help)
-        .write(",").writeValue(Field.inputs).write(":").writeValue(inputs)
+    sink.write("{").writeValue(Field.inputs).write(":").writeValue(inputs)
         .write(",").writeValue(Field.outputs).write(":").writeValue(outputs)
-        .write(",").writeValue(Field.actions).write(":").writeValue(actions)
-        .write(",").writeValue(Field.intermediate)
-        .write(":").writeValue(isIntermediate)
-        .write("}");
+        .write(",").writeValue(Field.actions).write(":").writeValue(actions);
+    if (isIntermediate) {
+      sink.write(",").writeValue(Field.intermediate)
+          .write(":").writeValue(isIntermediate);
+    }
+    if (help != null) {
+      sink.write(",").writeValue(Field.help).write(":").writeValue(help);
+    }
+    sink.write("}");
   }
 
   private static final YSONConverter<List<Glob>> GLOB_LIST_CONV

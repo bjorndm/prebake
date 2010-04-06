@@ -11,6 +11,9 @@ public class JsonSinkTest extends TestCase {
     assertValueJson("false", false);
     assertValueJson("true", true);
     assertValueJson("null", null);
+    assertValueJson("-0.0", -0d);
+    assertValueJson("NaN", Double.NaN);
+    assertValueJson("Infinity", Double.POSITIVE_INFINITY);
     assertValueJson("[null,1.0,-2.0,3.5]", Arrays.asList(null,1.,-2.,3.5));
     assertValueJson("\"\\n\"", "\n");
     assertValueJson("\"\\r\"", "\r");

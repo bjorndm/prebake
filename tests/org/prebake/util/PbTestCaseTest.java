@@ -23,9 +23,9 @@ public class PbTestCaseTest extends TestCase {
         Joiner.on('\n').join(
             "/",
             "  foo/",
-            "    boo.txt (r) 'Howdy!'",
+            "    boo.txt (r) \"Howdy!\"",
             "  bar/",
-            "    baz.txt 'Hello, World!'",
+            "    baz.txt \"Hello, World!\"",
             "    far.txt"));
     for (String path : new String[] {
            "/", "/foo", "/foo/boo.txt", "/bar", "/bar/baz.txt", "/bar/far.txt"

@@ -13,7 +13,6 @@ import com.sleepycat.je.Environment;
 import com.sleepycat.je.OperationStatus;
 
 import java.io.ByteArrayOutputStream;
-import java.io.Closeable;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.Charset;
@@ -37,7 +36,7 @@ import java.util.logging.Logger;
  *
  * @author mikesamuel@gmail.com
  */
-public final class FileHashes implements Closeable {
+public final class FileHashes implements ArtifactValidityTracker {
   private final Logger logger;
   private final Database fileToHash;
   private final Database fileDerivatives;
@@ -286,7 +285,7 @@ public final class FileHashes implements Closeable {
    * @return true if item is really valid -- if its hash is up-to-date.
    */
   public <T extends NonFileArtifact> boolean update(
-      ArtifactAddresser<? super T> as, T artifact,
+      ArtifactAddresser<T> as, T artifact,
       Collection<Path> prerequisites, Hash prereqHash) {
     Set<Path> keyPaths;
     {

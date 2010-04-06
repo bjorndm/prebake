@@ -128,7 +128,12 @@ public abstract class PbTestCase extends TestCase {
     paths.add(fs.getPath("/"));
     assert asciiArt.indexOf('\t') < 0;
     Pattern lineParts = Pattern.compile(
-        "( *)([^:/ ]*)(/)?(?: *\\(([rwx]+)\\))?(?: *'((?:[^'\\\\]|\\\\.)*)')? *"
+        ""
+        + "( *)"  // indentation
+        + "([^/ ]*)"  // file path
+        + "(/)?"  // dirs end in /
+        + "(?: *\\(([rwx]+)\\))?"  // perms
+        + "(?: *(\"(?:[^\"\\\\]|\\\\.)*\"))? *" // content
         );
     for (String line : asciiArt.split("[\r\n]+")) {
       if ("".equals(line.trim())) { continue; }
@@ -185,8 +190,7 @@ public abstract class PbTestCase extends TestCase {
       } else {
         p.createFile(FilePerms.perms(permBits, true));
         if (contentEncoded != null) {
-          JsonSource source = new JsonSource(new StringReader(
-              "\"" + contentEncoded + "\""));
+          JsonSource source = new JsonSource(new StringReader(contentEncoded));
           String content;
           try {
             content = source.expectString();
