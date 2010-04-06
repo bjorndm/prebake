@@ -1,3 +1,5 @@
 #summary logging from JavaScript
 
+= Console <font size="1">[http://code.google.com/p/prebake/source/browse/trunk/org/prebake/js/Console.java (src)]</font> =
+
 JavaScript code in {{{prebake}}} can log by using the {{{console}}} API defined by [http://getfirebug.com/wiki/index.php/Console_API Firebug].
