@@ -70,25 +70,21 @@ public class StubScheduledExecutorService implements ScheduledExecutorService {
     return false;
   }
 
-  public <T> List<Future<T>> invokeAll(Collection<? extends Callable<T>> c)
-      throws InterruptedException {
+  public <T> List<Future<T>> invokeAll(Collection<? extends Callable<T>> c) {
     throw new UnsupportedOperationException();
   }
 
   public <T> List<Future<T>> invokeAll(
-      Collection<? extends Callable<T>> c, long t, TimeUnit u)
-      throws InterruptedException {
+      Collection<? extends Callable<T>> c, long t, TimeUnit u) {
     throw new UnsupportedOperationException();
   }
 
-  public <T> T invokeAny(Collection<? extends Callable<T>> callables)
-      throws InterruptedException, ExecutionException {
+  public <T> T invokeAny(Collection<? extends Callable<T>> callables) {
     throw new UnsupportedOperationException();
   }
 
   public <T> T invokeAny(
-      Collection<? extends Callable<T>> callables, long t, TimeUnit u)
-      throws InterruptedException, ExecutionException, TimeoutException {
+      Collection<? extends Callable<T>> callables, long t, TimeUnit u) {
     throw new UnsupportedOperationException();
   }
 
@@ -174,7 +170,7 @@ public class StubScheduledExecutorService implements ScheduledExecutorService {
       return true;
     }
 
-    public T get() throws InterruptedException, ExecutionException {
+    public T get() throws ExecutionException {
       if (!done) {
         try {
           result = toRun.call();
@@ -187,7 +183,7 @@ public class StubScheduledExecutorService implements ScheduledExecutorService {
     }
 
     public T get(long t, TimeUnit u)
-        throws InterruptedException, ExecutionException, TimeoutException {
+        throws ExecutionException, TimeoutException {
       if (dt == -1) { return get(); }
       if (done) { return result; }
       throw new TimeoutException();
