@@ -20,15 +20,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 
 public class PlannerTest extends PbTestCase {
-  @Override
-  protected void setUp() {
-
-  }
-
-  @Override
-  protected void tearDown() {
-
-  }
 
   public final void testToolsAvailable() throws IOException {
     FileSystem fs = fileSystemFromAsciiArt(

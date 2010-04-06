@@ -155,8 +155,17 @@ public class StubScheduledExecutorService implements ScheduledExecutorService {
     public int compareTo(Delayed o) {
       long otime = o instanceof Task<?>
           ? ((Task<?>) o).time : t + o.getDelay(TimeUnit.MILLISECONDS);
-      return this.time < otime ? -1 : this.time == otime ? 0 : 1;
+      if (this.time < otime) { return -1; }
+      if (this.time != otime) { return 1; }
+      // consistent with equals
+      long delta = ((long) System.identityHashCode(this))
+          - System.identityHashCode(o);
+      return delta < 0 ? -1 : delta != 0 ? 1 : 0;
     }
+
+    @Override public boolean equals(Object o) { return this == o; }
+
+    @Override public int hashCode() { return System.identityHashCode(this); }
 
     public boolean cancel(boolean interrupt) {
       if (cancelled) { return false; }
