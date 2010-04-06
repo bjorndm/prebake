@@ -2,6 +2,7 @@ package org.prebake.js;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.io.CharStreams;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -112,16 +113,8 @@ public final class JsonSource implements Closeable {
 
   private void tokenize() throws IOException {
     if (toks != null) { return; }
-    String json;
-    {
-      StringBuilder sb = new StringBuilder();
-      char[] buf = new char[1024];
-      for (int n; (n = in.read(buf)) >= 0;) {
-        sb.append(buf, 0, n);
-      }
-      in.close();
-      json = sb.toString();
-    }
+    String json = CharStreams.toString(in);
+    in.close();
     Matcher m = REGEX_TOKENS.matcher(json);
     List<String> toks = Lists.newArrayList();
     int last = 0;

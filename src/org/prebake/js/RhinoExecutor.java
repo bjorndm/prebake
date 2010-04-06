@@ -2,6 +2,7 @@ package org.prebake.js;
 
 import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
+import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Maps;
 
@@ -462,7 +463,7 @@ public final class RhinoExecutor implements Executor {
     try {
       writeYSON(context, o, sink);
     } catch (IOException ex) {
-      throw new RuntimeException(ex);  // Writing to StringBuilder
+      Throwables.propagate(ex);  // Writing to StringBuilder
     }
     return YSON.parseExpr(sb.toString());
   }

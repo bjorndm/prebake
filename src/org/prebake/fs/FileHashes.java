@@ -2,9 +2,11 @@ package org.prebake.fs;
 
 import org.prebake.core.Hash;
 
+import com.google.common.base.Charsets;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
+import com.google.common.io.ByteStreams;
 import com.sleepycat.je.Cursor;
 import com.sleepycat.je.Database;
 import com.sleepycat.je.DatabaseConfig;
@@ -12,10 +14,8 @@ import com.sleepycat.je.DatabaseEntry;
 import com.sleepycat.je.Environment;
 import com.sleepycat.je.OperationStatus;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.charset.Charset;
 import java.nio.file.FileSystem;
 import java.nio.file.Path;
 import java.util.Arrays;
@@ -86,17 +86,8 @@ public final class FileHashes implements ArtifactValidityTracker {
 
   public FileAndHash load(Path p) throws IOException {
     p = p.toRealPath(false);
-    ByteArrayOutputStream content = new ByteArrayOutputStream();
     InputStream in = p.newInputStream();
-    try {
-      byte[] buffer = new byte[4096];
-      for (int n; (n = in.read(buffer)) > 0;) {
-        content.write(buffer, 0, n);
-      }
-    } finally {
-      in.close();
-    }
-    byte[] bytes = content.toByteArray();
+    byte[] bytes = ByteStreams.toByteArray(in);
     Hash hash = null;
     if (p.startsWith(root)) {
       hash = Hash.builder().withData(bytes).build();
@@ -365,13 +356,11 @@ public final class FileHashes implements ArtifactValidityTracker {
     fileDerivatives.close();
   }
 
-  private static final Charset UTF8 = Charset.forName("UTF-8");
-
   private static byte[] bytes(Path p) { return bytes(p.toString()); }
 
-  private static byte[] bytes(String s) { return s.getBytes(UTF8); }
+  private static byte[] bytes(String s) { return s.getBytes(Charsets.UTF_8); }
 
   private static String fromBytes(byte[] bytes) {
-    return new String(bytes, UTF8);
+    return new String(bytes, Charsets.UTF_8);
   }
 }

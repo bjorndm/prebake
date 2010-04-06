@@ -5,6 +5,7 @@ import org.prebake.js.Executor.Input;
 import org.prebake.util.PbTestCase;
 import org.prebake.util.StubFileSystemProvider;
 
+import com.google.common.base.Charsets;
 import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableMap;
 
@@ -535,7 +536,7 @@ public class ExecutorTest extends PbTestCase {
       p.createFile(FilePerms.perms(0600, false));
       OutputStream out = p.newOutputStream(StandardOpenOption.CREATE);
       try {
-        out.write(files[i + 1].getBytes("UTF-8"));
+        out.write(files[i + 1].getBytes(Charsets.UTF_8));
       } finally {
         out.close();
       }
@@ -550,7 +551,8 @@ public class ExecutorTest extends PbTestCase {
         new Loader() {
           public Executor.Input load(Path p) throws IOException {
             return Executor.Input.builder(
-                new InputStreamReader(p.newInputStream(), "UTF-8"), p).build();
+                new InputStreamReader(p.newInputStream(), Charsets.UTF_8), p)
+                .build();
           }
         });
     return output;

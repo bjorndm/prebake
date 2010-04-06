@@ -10,21 +10,22 @@ import org.prebake.js.Executor;
 import org.prebake.js.Loader;
 import org.prebake.js.YSON;
 
+import com.google.common.base.Charsets;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
+import com.google.common.io.ByteStreams;
+import com.google.common.io.CharStreams;
 
 import java.io.BufferedReader;
-import java.io.ByteArrayOutputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
-import java.nio.charset.Charset;
 import java.nio.file.FileSystem;
 import java.nio.file.Path;
 import java.nio.file.StandardWatchEventKind;
@@ -173,7 +174,7 @@ public class ToolBox implements ToolProvider {
     List<String> builtins = Lists.newArrayList();
     InputStream builtinFiles = ToolBox.class.getResourceAsStream("tools.txt");
     BufferedReader in = new BufferedReader(
-        new InputStreamReader(builtinFiles, UTF8));
+        new InputStreamReader(builtinFiles, Charsets.UTF_8));
     try {
       for (String line; (line = in.readLine()) != null;) { builtins.add(line); }
     } finally {
@@ -255,12 +256,9 @@ public class ToolBox implements ToolProvider {
               toolPath = base.resolve(t.localName);
               jsIn = toolPath.newInputStream();
             }
-            Reader r = new InputStreamReader(jsIn, UTF8);
+            Reader r = new InputStreamReader(jsIn, Charsets.UTF_8);
             try {
-              char[] buf = new char[4096];
-              StringBuilder sb = new StringBuilder();
-              for (int n; (n = r.read(buf)) > 0;) { sb.append(buf, 0, n); }
-              js = sb.toString();
+              js = CharStreams.toString(r);
             } finally {
               try {
                 r.close();
@@ -313,7 +311,7 @@ public class ToolBox implements ToolProvider {
                       hashes.add(h);
                     }
                     return Executor.Input.builder(
-                        loaded.getContentAsString(UTF8), p)
+                        loaded.getContentAsString(Charsets.UTF_8), p)
                         .build();
                   }
                 });
@@ -377,14 +375,12 @@ public class ToolBox implements ToolProvider {
       if (nextIndex < toolDirs.size()) {
         return fh.load(toolDirs.get(nextIndex).resolve(t.localName));
       } else {
-        byte[] buf = new byte[4096];
         InputStream in = ToolBox.class.getResourceAsStream(
             t.localName.toString());
         if (in != null) {
           try {
-            ByteArrayOutputStream bytes = new ByteArrayOutputStream();
-            for (int n; (n = in.read(buf)) > 0;) { bytes.write(buf, 0, n); }
-            return new FileAndHash(t.localName, bytes.toByteArray(), null);
+            byte[] bytes = ByteStreams.toByteArray(in);
+            return new FileAndHash(t.localName, bytes, null);
           } finally {
             in.close();
           }
@@ -468,8 +464,6 @@ public class ToolBox implements ToolProvider {
       }
     }
   }
-
-  private static final Charset UTF8 = Charset.forName("UTF-8");
 }
 
 final class Tool {

@@ -5,14 +5,15 @@ import org.prebake.core.MessageQueue;
 import org.prebake.js.JsonSource;
 import org.prebake.util.CommandLineArgs;
 
+import com.google.common.base.Charsets;
 import com.google.common.base.Joiner;
+import com.google.common.io.ByteStreams;
+import com.google.common.util.concurrent.Executors;
 import com.sleepycat.je.Environment;
 import com.sleepycat.je.EnvironmentConfig;
 
-import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.StringReader;
 import java.math.BigInteger;
 import java.net.ServerSocket;
@@ -22,6 +23,8 @@ import java.nio.file.FileSystems;
 import java.nio.file.Path;
 import java.security.SecureRandom;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.logging.Logger;
 
 /**
@@ -62,6 +65,9 @@ public final class Main {
       }
       System.exit(-1);
     }
+    ScheduledExecutorService execer = Executors
+        .getExitingScheduledExecutorService(
+            new ScheduledThreadPoolExecutor(4));
     final Prebakery pb = new Prebakery(config, logger) {
       @Override
       protected String makeToken() {
@@ -84,17 +90,13 @@ public final class Main {
               try {
                 Socket sock = ss.accept();
                 // TODO: move sock handling to a worker or use java.nio stuff.
-                ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+                byte[] bytes;
                 try {
-                  InputStream in = sock.getInputStream();
-                  byte[] buf = new byte[4096];
-                  for (int n; (n = in.read(buf)) >= 0;) {
-                    bytes.write(buf, 0, n);
-                  }
+                  bytes = ByteStreams.toByteArray(sock.getInputStream());
                 } finally {
                   sock.close();
                 }
-                String commandText = bytes.toString("UTF-8");
+                String commandText = new String(bytes, Charsets.UTF_8);
                 try {
                   JsonSource src = new JsonSource(
                       new StringReader(commandText));

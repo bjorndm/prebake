@@ -4,6 +4,7 @@ import org.prebake.core.DidYouMean;
 import org.prebake.core.MessageQueue;
 
 import com.google.common.base.Function;
+import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -285,7 +286,7 @@ public interface YSONConverter<T> {
                 }
                 sink.write("}");
               } catch (IOException ex) {
-                throw new RuntimeException(ex);
+                Throwables.propagate(ex);  // sb is in-memory
               }
               exampleText = sb.toString();
             }
@@ -311,7 +312,7 @@ public interface YSONConverter<T> {
         sink.writeValue(o);
         sink.close();
       } catch (IOException ex) {
-        throw new RuntimeException(ex);  // sb is an in-memory buffer
+        Throwables.propagate(ex);  // sb is an in-memory buffer
       }
       if (sb.length() > 43) { sb.replace(20, sb.length() - 20, "..."); }
       return sb.toString();
