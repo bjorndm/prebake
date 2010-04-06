@@ -3,8 +3,10 @@ package org.prebake.fs;
 import org.prebake.util.PbTestCase;
 import org.prebake.util.StubFileSystemProvider;
 
+import com.google.common.base.Charsets;
 import com.google.common.base.Predicate;
 import com.google.common.collect.Sets;
+import com.google.common.io.Files;
 
 import java.io.File;
 import java.io.IOException;
@@ -37,10 +39,8 @@ public class DirectoryHooksTest extends PbTestCase {
   public final void testOnDefaultFileSystem() throws Exception {
     int delay = 100;
     FileSystem fs = FileSystems.getDefault();
-    Path dir = fs.getPath("" + File.createTempFile("temp", "dir"));
+    Path dir = fs.getPath("" + Files.createTempDir());
     try {
-      dir.delete();
-      mkdirs(dir);
       runTests(delay, fs, dir);
     } finally {
       rmDirTree(new File(dir.toString()));
@@ -78,7 +78,7 @@ public class DirectoryHooksTest extends PbTestCase {
     // Modify a file
     Path boocc = baz.resolve(fs.getPath("boo.cc"));
     OutputStream out = boocc.newOutputStream();
-    Writer w = new OutputStreamWriter(out, "UTF-8");
+    Writer w = new OutputStreamWriter(out, Charsets.UTF_8);
     w.write("\nprintf(\"Hello, World!\\n\");\n");
     w.close();
     assertChanged(q, delay, boocc);

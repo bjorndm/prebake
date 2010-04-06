@@ -8,6 +8,7 @@ import org.prebake.util.PbTestCase;
 import org.prebake.util.StubScheduledExecutorService;
 
 import com.google.common.base.Joiner;
+import com.google.common.util.concurrent.ValueFuture;
 
 import java.io.IOException;
 import java.nio.file.FileSystem;
@@ -16,7 +17,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 
 public class PlannerTest extends PbTestCase {
@@ -38,16 +38,9 @@ public class PlannerTest extends PbTestCase {
         fs.getPath("/cwd"));
     ToolProvider toolbox = new ToolProvider() {
       public List<Future<ToolSignature>> getAvailableToolSignatures() {
-        return Collections.singletonList(
-            (Future<ToolSignature>) new Future<ToolSignature>() {
-              public boolean cancel(boolean interrupt) { return false; }
-              public ToolSignature get() {
-                return new ToolSignature("myTool", null, null, true);
-              }
-              public ToolSignature get(long t, TimeUnit u) { return get(); }
-              public boolean isCancelled() { return false; }
-              public boolean isDone() { return true; }
-            });
+        ValueFuture<ToolSignature> f = ValueFuture.create();
+        f.set(new ToolSignature("myTool", null, null, true));
+        return Collections.<Future<ToolSignature>>singletonList(f);
       }
       public void close() {}
     };

@@ -5,6 +5,7 @@ import org.prebake.util.PbTestCase;
 import org.prebake.util.StubFileSystemProvider;
 
 import com.google.common.collect.Maps;
+import com.google.common.io.Files;
 import com.sleepycat.je.Environment;
 import com.sleepycat.je.EnvironmentConfig;
 
@@ -31,7 +32,8 @@ public class FileHashesTest extends PbTestCase {
     mkdirs(fs.getPath("/cwd/root"));
     EnvironmentConfig envConfig = new EnvironmentConfig();
     envConfig.setAllowCreate(true);
-    tempDir = makeTempDir();
+    tempDir = Files.createTempDir();
+    System.err.println("tempDir=" + tempDir + ", " + tempDir.exists());
     env = new Environment(tempDir, envConfig);
     fh = new FileHashes(env, fs.getPath("/cwd/root"), getLogger(Level.INFO));
   }

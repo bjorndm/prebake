@@ -4,6 +4,8 @@ import org.prebake.channel.Commands;
 import org.prebake.util.PbTestCase;
 import org.prebake.util.StubFileSystemProvider;
 
+import com.google.common.base.Charsets;
+import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 
 import java.io.ByteArrayInputStream;
@@ -256,12 +258,12 @@ public class BakeTest extends PbTestCase {
     };
 
     BakeTestRunner withCwd(String cwd) throws IOException {
-      FileSystem fs;
+      FileSystem fs = null;
       try {
         fs = new StubFileSystemProvider("mfs").newFileSystem(
             new URI("mfs", null, null, 0, "/", null, "#" + cwd), null);
       } catch (URISyntaxException ex) {
-        throw new RuntimeException(ex);
+        Throwables.propagate(ex);
       }
       this.cwd = fs.getPath(cwd);
       mkdirs(this.cwd);
@@ -312,13 +314,13 @@ public class BakeTest extends PbTestCase {
     }
 
     BakeTestRunner expectSent(String s) throws IOException {
-      assertEquals(s, connOut.toString("UTF-8"));
+      assertEquals(s, new String(connOut.toByteArray(), Charsets.UTF_8));
       return this;
     }
 
     BakeTestRunner withResponse(String s) throws IOException {
       assertFalse(connClosed);
-      connIn = new ByteArrayInputStream(s.getBytes("UTF-8"));
+      connIn = new ByteArrayInputStream(s.getBytes(Charsets.UTF_8));
       return this;
     }
 
@@ -334,7 +336,7 @@ public class BakeTest extends PbTestCase {
     }
 
     BakeTestRunner expectOutput(String content) throws IOException {
-      assertEquals(content, out.toString("UTF-8"));
+      assertEquals(content, new String(out.toByteArray(), Charsets.UTF_8));
       return this;
     }
   }

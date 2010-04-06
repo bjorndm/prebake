@@ -7,7 +7,9 @@ import org.prebake.js.JsonSink;
 import org.prebake.js.JsonSource;
 import org.prebake.service.Prebakery;
 
+import com.google.common.base.Charsets;
 import com.google.common.collect.Lists;
+import com.google.common.io.CharStreams;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -170,7 +172,8 @@ abstract class Bake {
 
     try {
       OutputStream connOut = conn.getOutputStream();
-      JsonSink sink = new JsonSink(new OutputStreamWriter(connOut, "UTF-8"));
+      JsonSink sink = new JsonSink(new OutputStreamWriter(
+          connOut, Charsets.UTF_8));
       commands.toJson(sink);
       sink.close();
 
@@ -196,16 +199,13 @@ abstract class Bake {
   }
 
   private static String read(Path p) throws IOException {
-    char[] buf = new char[1024];
-    StringBuilder sb = new StringBuilder();
-    InputStream in = p.newInputStream(StandardOpenOption.READ);
-    Reader r = new InputStreamReader(in, "UTF-8");
+    Reader r = new InputStreamReader(
+        p.newInputStream(StandardOpenOption.READ), Charsets.UTF_8);
     try {
-      for (int n; (n = r.read(buf)) > 0;) { sb.append(buf, 0, n); }
+      return CharStreams.toString(r);
     } finally {
       r.close();
     }
-    return sb.toString();
   }
 
   private static boolean isSubList(List<?> a, List<?> cont) {

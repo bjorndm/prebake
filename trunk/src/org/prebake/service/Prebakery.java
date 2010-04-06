@@ -7,21 +7,20 @@ import org.prebake.fs.DirectoryHooks;
 import org.prebake.fs.FileHashes;
 import org.prebake.fs.FilePerms;
 
+import com.google.common.base.Charsets;
 import com.google.common.base.Predicate;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
+import com.google.common.io.CharStreams;
 import com.sleepycat.je.Environment;
 
 import java.io.Closeable;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.io.Reader;
 import java.io.Writer;
-import java.nio.charset.Charset;
 import java.nio.file.FileSystem;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
@@ -274,14 +273,15 @@ public abstract class Prebakery implements Closeable {
   }
 
   private static void write(Path p, String content) throws IOException {
-    OutputStream out = p.newOutputStream(
-        StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.WRITE);
+    Writer w = new OutputStreamWriter(
+        p.newOutputStream(
+            StandardOpenOption.TRUNCATE_EXISTING,
+            StandardOpenOption.WRITE),
+        Charsets.UTF_8);
     try {
-      Writer w = new OutputStreamWriter(out, UTF8);
       w.write(content);
-      w.close();
     } finally {
-      out.close();
+      w.close();
     }
   }
 
@@ -290,17 +290,12 @@ public abstract class Prebakery implements Closeable {
     // the input stream is buffered, and use the file size to preallocate
     // the StringBuilder.
     // Or just use the byte buffer stuff.
-    StringBuilder out = new StringBuilder();
-    InputStream in = p.newInputStream(StandardOpenOption.READ);
-    Reader r = new InputStreamReader(in, UTF8);
+    Reader r = new InputStreamReader(
+        p.newInputStream(StandardOpenOption.READ), Charsets.UTF_8);
     try {
-      char[] buf = new char[4096];
-      for (int n; (n = r.read(buf)) > 0;) { out.append(buf, 0, n); }
+      return CharStreams.toString(r);
     } finally {
       r.close();
     }
-    return out.toString();
   }
-
-  private static final Charset UTF8 = Charset.forName("UTF-8");
 }

@@ -7,6 +7,7 @@ import org.prebake.util.StubFileSystemProvider;
 
 import com.google.common.base.Joiner;
 import com.google.common.collect.Lists;
+import com.google.common.io.Files;
 import com.sleepycat.je.Environment;
 import com.sleepycat.je.EnvironmentConfig;
 
@@ -42,7 +43,7 @@ public class ToolBoxTest extends PbTestCase {
     root = fs.getPath("/root");
     EnvironmentConfig envConfig = new EnvironmentConfig();
     envConfig.setAllowCreate(true);
-    tempDir = makeTempDir();
+    tempDir = Files.createTempDir();
     env = new Environment(tempDir, envConfig);
     fh = new FileHashes(env, root, logger);
     execer = new ScheduledThreadPoolExecutor(4);

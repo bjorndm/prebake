@@ -3,7 +3,9 @@ package org.prebake.util;
 import org.prebake.fs.FilePerms;
 import org.prebake.js.JsonSource;
 
+import com.google.common.base.Charsets;
 import com.google.common.collect.Lists;
+import com.google.common.io.Files;
 
 import java.io.File;
 import java.io.IOException;
@@ -71,13 +73,11 @@ public abstract class PbTestCase extends TestCase {
     return logger;
   }
 
-  protected static void rmDirTree(File f) throws IOException {
-    if (f.isDirectory()) {
-      for (File c : f.listFiles()) { rmDirTree(c); }
-    }
-    if (!f.delete()) {
-      // We're just making a best effort.
-      System.err.println("Failed to delete " + f);
+  protected static void rmDirTree(File f) {
+    try {
+      Files.deleteRecursively(f);
+    } catch (IOException ex) {
+      System.err.println(ex.getMessage());
     }
   }
 
@@ -96,17 +96,10 @@ public abstract class PbTestCase extends TestCase {
     OutputStream out = p.newOutputStream(
         StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
     try {
-      out.write(content.getBytes("UTF-8"));
+      out.write(content.getBytes(Charsets.UTF_8));
     } finally {
       out.close();
     }
-  }
-
-  protected File makeTempDir() throws IOException {
-    File tempFile = File.createTempFile(getName(), ".dir");
-    if (!tempFile.delete()) { throw new IOException(tempFile.toString()); }
-    if (!tempFile.mkdirs()) { throw new IOException(tempFile.toString()); }
-    return tempFile;
   }
 
   /**
@@ -201,7 +194,7 @@ public abstract class PbTestCase extends TestCase {
           }
           OutputStream out = p.newOutputStream();
           try {
-            out.write(content.getBytes("UTF-8"));
+            out.write(content.getBytes(Charsets.UTF_8));
           } finally {
             out.close();
           }

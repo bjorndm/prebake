@@ -15,7 +15,9 @@ import org.prebake.js.Executor.Input;
 import org.prebake.service.tools.ToolProvider;
 import org.prebake.service.tools.ToolSignature;
 
+import com.google.common.base.Charsets;
 import com.google.common.base.Supplier;
+import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
@@ -25,7 +27,6 @@ import com.google.common.collect.Multimaps;
 
 import java.io.Closeable;
 import java.io.IOException;
-import java.nio.charset.Charset;
 import java.nio.file.Path;
 import java.util.Collection;
 import java.util.Collections;
@@ -178,7 +179,8 @@ public final class Planner implements Closeable {
       sink.close();
       toolJs = sb.toString();
     } catch (IOException ex) {
-      throw new RuntimeException(ex);  // Writing to StringBuilder
+      Throwables.propagate(ex);  // Writing to StringBuilder
+      return Collections.emptyList();
     }
 
     if (!gotAllTools) {
@@ -254,7 +256,6 @@ public final class Planner implements Closeable {
     }
   }
 
-  private static final Charset UTF8 = Charset.forName("UTF-8");
   private Executor.Output<YSON> execPlan(
       Executor.Input toolDef, PlanPart pp,
       final List<Hash> hashes, final List<Path> paths)
@@ -268,7 +269,8 @@ public final class Planner implements Closeable {
     Executor planRunner;
     try {
       planRunner = Executor.Factory.createJsExecutor(
-          Executor.Input.builder(pf.getContentAsString(UTF8), pf.getPath())
+          Executor.Input.builder(
+              pf.getContentAsString(Charsets.UTF_8), pf.getPath())
           .withActuals(Collections.singletonMap("tools", toolDef))
           .build());
     } catch (Executor.MalformedSourceException ex) {
@@ -292,7 +294,8 @@ public final class Planner implements Closeable {
             paths.add(p);
             hashes.add(h);
           }
-          return Executor.Input.builder(rf.getContentAsString(UTF8), p).build();
+          return Executor.Input.builder(
+              rf.getContentAsString(Charsets.UTF_8), p).build();
         }
       });
     } catch (Executor.AbnormalExitException ex) {

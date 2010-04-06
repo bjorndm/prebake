@@ -1,5 +1,7 @@
 package org.prebake.js;
 
+import com.google.common.base.Throwables;
+
 import java.io.IOException;
 
 public interface JsonSerializable {
@@ -13,7 +15,7 @@ public interface JsonSerializable {
         o.toJson(sink);
         sink.close();
       } catch (IOException ex) {
-        throw new RuntimeException(ex);  // writing to in-memory buffer
+        Throwables.propagate(ex);  // writing to in-memory buffer
       }
       return sb.toString();
     }

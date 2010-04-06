@@ -1,7 +1,9 @@
 package org.prebake.js;
 
+import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
+import com.google.common.io.CharStreams;
 
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -63,25 +65,25 @@ public interface Executor {
   public static final class Factory {
     public static Executor createJsExecutor(Input... srcs)
         throws MalformedSourceException {
-      Throwable cause;
+      Executor executor = null;
       try {
         Class<? extends Executor> execClass = Class.forName(System.getProperty(
             "org.prebake.Executor.JS.class", "org.prebake.js.RhinoExecutor"))
             .asSubclass(Executor.class);
-        return execClass.getConstructor(Input[].class)
+        executor = execClass.getConstructor(Input[].class)
             .newInstance((Object) srcs);
       } catch (InvocationTargetException ex) {
         throw new MalformedSourceException(ex);
       } catch (ClassNotFoundException ex) {
-        cause = ex;
+        Throwables.propagate(ex);
       } catch (IllegalAccessException ex) {
-        cause = ex;
+        Throwables.propagate(ex);
       } catch (InstantiationException ex) {
-        cause = ex;
+        Throwables.propagate(ex);
       } catch (NoSuchMethodException ex) {
-        cause = ex;
+        Throwables.propagate(ex);
       }
-      throw new RuntimeException("Can't recover from bad config", cause);
+      return executor;
     }
 
     private Factory() { /* not instantiable */ }
@@ -148,14 +150,11 @@ public interface Executor {
     /** @param source file path or URL from which the JavaScript came. */
     public static Builder builder(Reader content, String source)
         throws IOException {
-      StringBuilder sb = new StringBuilder();
       try {
-        char[] buf = new char[4096];
-        for (int n; (n = content.read(buf)) > 0;) { sb.append(buf, 0, n); }
+        return new Builder(CharStreams.toString(content), source);
       } finally {
         content.close();
       }
-      return new Builder(sb.toString(), source);
     }
 
     public static Builder builder(Reader content, Path base)

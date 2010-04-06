@@ -5,6 +5,7 @@ import org.prebake.core.MessageQueue;
 import org.prebake.js.JsonSink;
 import org.prebake.util.CommandLineArgs;
 
+import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
@@ -264,7 +265,7 @@ final class CommandLineConfig implements Config {
       sink.writeValue(argv);
       sink.close();
     } catch (IOException ex) {
-      throw new RuntimeException("IOException writing to StringBuilder", ex);
+      Throwables.propagate(ex);  // IOException writing to StringBuilder
     }
     return sb.toString();
   }

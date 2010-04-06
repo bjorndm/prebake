@@ -1,7 +1,9 @@
 package org.prebake.util;
 
+import com.google.common.base.Charsets;
 import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.io.ByteStreams;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -65,10 +67,7 @@ public class PbTestCaseTest extends TestCase {
     InputStream in = fs.getPath("/bar/baz.txt").newInputStream();
     String out;
     try {
-      byte[] buffer = new byte[4096];
-      int nRead = in.read(buffer);
-      assertTrue(nRead < buffer.length);
-      out = new String(buffer, 0, nRead, "UTF-8");
+      out = new String(ByteStreams.toByteArray(in), Charsets.UTF_8);
     } finally {
       in.close();
     }

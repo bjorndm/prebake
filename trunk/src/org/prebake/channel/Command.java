@@ -5,6 +5,7 @@ import org.prebake.js.JsonSerializable;
 import org.prebake.js.JsonSink;
 import org.prebake.js.JsonSource;
 
+import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
@@ -94,7 +95,7 @@ public abstract class Command implements JsonSerializable {
     try {
       toJson(new JsonSink(sb));
     } catch (IOException ex) {
-      throw new RuntimeException("IOExcetion writing to StringBuilder", ex);
+      Throwables.propagate(ex);  // IOExcetion writing to StringBuilder
     }
     return sb.toString();
   }

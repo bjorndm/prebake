@@ -1,5 +1,6 @@
 package org.prebake.core;
 
+import com.google.common.base.Throwables;
 import com.sleepycat.je.DatabaseEntry;
 import com.twmacinta.util.MD5;
 
@@ -59,7 +60,7 @@ public final class Hash {
       try {
         md5.Update(s, "UTF-8");
       } catch (UnsupportedEncodingException ex) {
-        throw new RuntimeException(ex);  // UTF-8 must be supported
+        Throwables.propagate(ex);  // UTF-8 must be supported
       }
       return this;
     }
