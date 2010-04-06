@@ -130,6 +130,10 @@ public final class Planner implements Closeable {
       JsonSink sink = new JsonSink(sb);
       sink.write(" var freeze = {}.constructor.freeze;")
           .write(" var frozenCopy = {}.constructor.frozenCopy;")
+          .write(" function withHelp(o, help) {")
+          .write("    ({}).constructor.defineProperty(")
+          .write("        o, 'help_', { value: frozenCopy(help), enumerable: false });")
+          .write(" }")
           .write("({");
 
       boolean sawOne = false;

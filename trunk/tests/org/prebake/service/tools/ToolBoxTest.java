@@ -124,7 +124,7 @@ public class ToolBoxTest extends PbTestCase {
   }
 
   @Test(timeout=10000)
-  public final void longTestRunawayScripts() throws Exception {
+  public final void testRunawayScripts() throws Exception {
     new TestRunner()
         .withToolDirs("/tools")
         .withToolFiles("/tools/tool.js", "while (1) {}")

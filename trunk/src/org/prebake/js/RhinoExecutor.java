@@ -3,26 +3,18 @@ package org.prebake.js;
 import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
 import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
 import java.io.IOException;
 import java.net.URI;
 import java.nio.file.Path;
 import java.text.ParseException;
-import java.util.Arrays;
-import java.util.Formatter;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.WeakHashMap;
 import java.util.logging.Level;
-import java.util.logging.LogRecord;
 import java.util.logging.Logger;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
-import org.mozilla.javascript.BaseFunction;
 import org.mozilla.javascript.Callable;
 import org.mozilla.javascript.ClassShutter;
 import org.mozilla.javascript.Context;
@@ -32,14 +24,12 @@ import org.mozilla.javascript.EvaluatorException;
 import org.mozilla.javascript.Function;
 import org.mozilla.javascript.JavaScriptException;
 import org.mozilla.javascript.NativeArray;
-import org.mozilla.javascript.NativeJavaObject;
 import org.mozilla.javascript.NativeObject;
 import org.mozilla.javascript.RhinoException;
 import org.mozilla.javascript.Script;
 import org.mozilla.javascript.Scriptable;
 import org.mozilla.javascript.ScriptableObject;
 import org.mozilla.javascript.Undefined;
-import org.mozilla.javascript.WrapFactory;
 import org.mozilla.javascript.WrappedException;
 
 /**
@@ -252,10 +242,11 @@ public final class RhinoExecutor implements Executor {
                 nonDeterminism));
         ScriptableObject.putProperty(object, "frozenCopy", new FrozenCopyFn());
       }
-      globalScope.defineProperty(
-          "console", new Console(logger),
-          ScriptableObject.DONTENUM | ScriptableObject.PERMANENT
-          | ScriptableObject.READONLY);
+      Console console = new Console(logger);
+      int constBits = ScriptableObject.DONTENUM | ScriptableObject.PERMANENT
+          | ScriptableObject.READONLY;
+      globalScope.defineProperty("console", console, constBits);
+      globalScope.defineProperty("help", new HelpFn(console), constBits);
     }
 
     private Object run(Executor.Input src) throws AbnormalExitException {
@@ -285,204 +276,7 @@ public final class RhinoExecutor implements Executor {
     }
   }
 
-  private static final Pattern STACK_FRAME = Pattern.compile(
-      "^\tat ([^:]+):(\\d+)(?: \\(([^)]+)\\))?", Pattern.MULTILINE);
-
-  public static class Console {
-    private final Logger logger;
-    private final List<Group> groups = Lists.newArrayList();
-    private final Map<String, Long> timers = Maps.newHashMap();
-
-    Console(Logger logger) {
-      this.logger = logger;
-    }
-
-    private static boolean requiresFloatingPoint(char ch) {
-      switch (ch) {
-        case 'e': case 'E': case 'f': case 'g': case 'G': case 'a': case 'A':
-          return true;
-        default:
-          return false;
-      }
-    }
-
-    private static final Pattern FORMAT_SPECIFIER = Pattern.compile(
-        "%(?:(?:\\d+\\$)?(?:[\\-#+ 0,(]+)?(?:\\d+)?(?:\\.\\d+)?([a-zA-Z])|%)");
-
-    private void log(Level level, String format, Object... args) {
-      char[] fmtChars = null;
-      for (int i = args.length; --i >= 0;) {
-        Object o = args[i];
-        if (o instanceof Double
-            && ((Double) o).doubleValue() == ((Double) o).longValue()) {
-          // Convert Doubles to Longs when doing so does not lose information.
-          // This solves the problem of console.log("%s", 1) logging "1.0",
-          // and fixes "%d".
-          if (fmtChars == null) {
-            fmtChars = new char[args.length];
-            Matcher m = FORMAT_SPECIFIER.matcher(format);
-            int f = 0;
-            while (m.find() && f < fmtChars.length) {
-              String s = m.group(1);
-              if (s != null) { fmtChars[f++] = s.charAt(0); }
-            }
-            if (requiresFloatingPoint(fmtChars[i])) { continue; }
-            args = args.clone();
-          } else if (requiresFloatingPoint(fmtChars[i])) {
-            continue;
-          }
-          args[i] = Long.valueOf(((Double) o).longValue());
-        }
-      }
-      StringBuilder sb = new StringBuilder();
-      int nSpaces = groups.size() * 2;
-      while (nSpaces >= 16) { sb.append(SIXTEEN_SPACES); nSpaces -= 16; }
-      sb.append(SIXTEEN_SPACES, 0, nSpaces);
-      Formatter f = new Formatter(sb /*, default Locale */);
-      f.format(format, args);
-      LogRecord lr = new LogRecord(level, sb.toString());
-      Matcher m = STACK_FRAME.matcher(
-          new EvaluatorException(null).getScriptStackTrace());
-      if (m.find()) {
-        String file = m.group(1);
-        String line = m.group(2);
-        String fnName = m.group(3);
-        lr.setSourceClassName(file + ":" + line);
-        lr.setSourceMethodName(fnName != null ? fnName : "<anonymous>");
-      }
-      logger.log(lr);
-    }
-
-    public void log(String format, Object... args) {
-      log(Level.INFO, format, args);
-    }
-
-    public void warn(String format, Object... args) {
-      log(Level.WARNING, format, args);
-    }
-
-    public void error(String format, Object... args) {
-      log(Level.SEVERE, format, args);
-    }
-
-    public void info(String format, Object... args) {
-      log(Level.FINE, format, args);
-    }
-
-    public void debug(String format, Object... args) {
-      log(Level.INFO, format, args);
-    }
-
-    public void assert_(Object truth) { assert_(truth, null); }
-
-    public void assert_(Object truth, Object message) {
-      if (!Context.toBoolean(truth)) {
-        if (message == null) { message = "Assertion Failure"; }
-        String messageStr = message.toString();
-        error(messageStr);
-        throw new JavaScriptException(messageStr, "console", 1);
-      }
-    }
-
-    public void dir(Object obj) {
-      List<String> pairs = Lists.newArrayList("Name", "Value");
-      if (obj instanceof Scriptable) {
-        Scriptable s = (Scriptable) obj;
-        for (Object id : s.getIds()) {
-          if (id instanceof Number) {
-            pairs.add("" + id);
-            pairs.add(valueToStr(s.get(((Number) id).intValue(), s)));
-          } else {
-            String idStr = (String) id;
-            pairs.add(idStr);
-            pairs.add(valueToStr(s.get(idStr, s)));
-          }
-        }
-      }
-      log(Level.INFO, toTable(pairs, 2));
-    }
-
-    public void group(String name) {
-      log(Level.INFO, "Enter " + name);
-      groups.add(new Group(name));
-    }
-
-    public void groupEnd() {
-      log(Level.INFO, "Exit  " + groups.remove(0).name);
-    }
-
-    public void time(String name) {
-      timers.put(name, System.nanoTime());
-    }
-
-    public void timeEnd(String name) {
-      Long t0 = timers.remove(name);
-      if (t0 != null) {
-        long t1 = System.nanoTime();
-        log(Level.INFO, "Timer %s took %sns", name, t1 - t0);
-      }
-    }
-
-    public void trace() {
-      log(Level.INFO, new EvaluatorException(null).getScriptStackTrace());
-    }
-
-    // TODO: profile, profileEnd, count
-
-    private static final String SIXTEEN_SPACES = "                ";
-    static { assert 16 == SIXTEEN_SPACES.length(); }
-
-    private static String valueToStr(Object o) {
-      if (o == null) { return "null"; }
-      if (o.getClass().isArray()) {
-        if (o instanceof Object[]) { return Arrays.toString((Object[]) o); }
-        Class<?> cl = o.getClass().getComponentType();
-        if (cl == Byte.TYPE) { return Arrays.toString((byte[]) o); }
-        if (cl == Character.TYPE) { return Arrays.toString((char[]) o); }
-        if (cl == Double.TYPE) { return Arrays.toString((double[]) o); }
-        if (cl == Float.TYPE) { return Arrays.toString((float[]) o); }
-        if (cl == Integer.TYPE) { return Arrays.toString((int[]) o); }
-        if (cl == Long.TYPE) { return Arrays.toString((long[]) o); }
-        if (cl == Short.TYPE) { return Arrays.toString((short[]) o); }
-      }
-      return Context.toString(o);
-    }
-
-    private static String toTable(List<? extends String> cells, int n) {
-      int m = cells.size() / n;
-      int[] maxLens = new int[n];
-      for (int i = 0; i < m * n; ++i) {
-        maxLens[i % n] = Math.max(maxLens[i % n], cells.get(i).length());
-      }
-      int rowLen = 3 * n;  // n + 1 dividers, 2(n - 1) spaces, and 1 newline.
-      for (int len : maxLens) { rowLen += len; }
-      StringBuilder sb = new StringBuilder(rowLen * m);
-      for (int k = 0; k < m * n;) {
-        sb.append("\n|");
-        for (int j = 0; j < n; ++j, ++k) {
-          sb.append(' ');
-          String s = cells.get(k);
-          sb.append(s);
-          int padding = maxLens[j] - s.length();
-          while (padding >= 16) {
-            sb.append(SIXTEEN_SPACES);
-            padding -= 16;
-          }
-          sb.append(SIXTEEN_SPACES, 0, padding);
-          sb.append(" |");
-        }
-      }
-      return sb.toString();
-    }
-  }
-
-  private static final class Group {
-    final String name;
-
-    Group(String name) { this.name = name; }
-  }
-
-  public class LoadFn extends ScriptableObject implements Function {
+  public final class LoadFn extends ScriptableObject implements Function {
     private final Scriptable globalScope;
     private final Loader loader;
     private final Logger logger;
@@ -756,217 +550,5 @@ public final class RhinoExecutor implements Executor {
       if (!found) { return false; }
     }
     return true;
-  }
-}
-
-final class FrozenCopyFn extends BaseFunction {
-  @Override
-  public Object call(
-      Context cx, Scriptable scope, Scriptable thisObj, Object[] args) {
-    if (args.length != 1) { return Undefined.instance; }
-    return new Freezer(cx).frozenCopy(args[0]);
-  }
-  @Override
-  public String getFunctionName() { return "frozenCopy"; }
-}
-
-final class Freezer {
-  final Context cx;
-  final Map<ScriptableObject, ScriptableObject> frozenCopies
-      = Maps.newIdentityHashMap();
-  Freezer(Context cx) { this.cx = cx; }
-
-  <T extends ScriptableObject> T freeze(T obj) {
-    for (Object name : obj.getAllIds()) {
-      if (name instanceof Number) {
-        int index = ((Number) name).intValue();
-        obj.setAttributes(
-            index,
-            obj.getAttributes(index) | ScriptableObject.PERMANENT
-            | ScriptableObject.READONLY);
-      } else {
-        String s = name.toString();
-        obj.setAttributes(
-            s,
-            obj.getAttributes(s) | ScriptableObject.PERMANENT
-            | ScriptableObject.READONLY);
-      }
-    }
-    obj.preventExtensions();
-    return obj;
-  }
-
-  boolean isFrozen(ScriptableObject obj) {
-    if (obj.isExtensible()) { return false; }
-    for (Object name : obj.getAllIds()) {
-      if (!obj.isConst(name.toString())) { return false; }
-    }
-    return true;
-  }
-
-  Object frozenCopy(Object obj) {
-    if (!(obj instanceof ScriptableObject)) { return obj; }
-    ScriptableObject so = (ScriptableObject) obj;
-    ScriptableObject copy = frozenCopies.get(so);
-    if (copy != null) { return copy; }
-    if (so instanceof Function) {
-      class DelegatingFunction extends ScriptableObject implements Function {
-        private final Function fn;
-        DelegatingFunction(Function fn) {
-          super(fn.getParentScope(), fn.getPrototype());
-          this.fn = fn;
-        }
-        @Override public String getClassName() { return fn.getClassName(); }
-        public Object call(
-            Context arg0, Scriptable arg1, Scriptable arg2, Object[] arg3) {
-          return fn.call(arg0, arg1, arg2, arg3);
-        }
-        public Scriptable construct(
-            Context arg0, Scriptable arg1, Object[] arg2) {
-          return fn.construct(arg0, arg1, arg2);
-        }
-      }
-      copy = new DelegatingFunction((Function) so);
-    } else if (so instanceof NativeArray) {
-      copy = new NativeArray(((NativeArray) so).getLength());
-    } else {
-      copy = new NativeObject();
-    }
-    frozenCopies.put(so, copy);
-    boolean isFrozen = !so.isExtensible();
-    if (so instanceof NativeArray) {
-      for (Object name : so.getAllIds()) {
-        if (name instanceof Number) {
-          // TODO: freezing of array indices not supported
-          isFrozen = false;
-          int index = ((Number) name).intValue();
-          Object value = ScriptableObject.getProperty(so, index);
-          ScriptableObject.putProperty(copy, index, value);
-        }
-      }
-    } else {
-      for (Object name : so.getAllIds()) {
-        String nameStr = name.toString();
-        Object value = so.get(nameStr);
-        int atts = so.getAttributes(nameStr);
-        Object frozenValue = frozenCopy(value);
-        if (isFrozen
-            && (((atts & (ScriptableObject.PERMANENT | ScriptableObject.READONLY))
-                != (ScriptableObject.PERMANENT | ScriptableObject.READONLY))
-                || frozenValue != value)) {
-          isFrozen = false;
-        }
-        ScriptableObject.defineProperty(
-            copy, nameStr, frozenValue,
-            atts | ScriptableObject.PERMANENT | ScriptableObject.READONLY);
-      }
-    }
-    if (isFrozen) {
-      frozenCopies.put(so, so);
-      return so;
-    } else {
-      copy.preventExtensions();
-      return copy;
-    }
-  }
-}
-
-class SandboxingWrapFactory extends WrapFactory {
-  @Override
-  public Object wrap(
-      Context cx, Scriptable scope, Object javaObject, Class<?> staticType) {
-    // Deny reflective access up front.  This should not be triggered due
-    // to getter filtering, but let's be paranoid.
-    if (javaObject != null
-        && (javaObject instanceof Class<?>
-            || javaObject instanceof ClassLoader
-            || "java.lang.reflect".equals(
-                javaObject.getClass().getPackage().getName()))) {
-      return Context.getUndefinedValue();
-    }
-    // Make java arrays behave like native JS arrays.
-    // This breaks EQ, but is better than the alternative.
-    if (javaObject instanceof Object[]) {
-      Object[] javaArray = (Object[]) javaObject;
-      int n = javaArray.length;
-      Object[] wrappedElements = new Object[n];
-      Class<?> compType = javaArray.getClass().getComponentType();
-      for (int i = n; --i >= 0;) {
-        wrappedElements[i] = wrap(cx, scope, javaArray[i], compType);
-      }
-      NativeArray jsArray = new NativeArray(wrappedElements);
-      jsArray.setPrototype(ScriptableObject.getClassPrototype(scope, "Array"));
-      jsArray.setParentScope(scope);
-      return jsArray;
-    }
-    return super.wrap(cx, scope, javaObject, staticType);
-  }
-
-  @Override
-  public Scriptable wrapAsJavaObject(
-      Context cx, Scriptable scope, Object javaObject, Class<?> staticType) {
-    return new NativeJavaObject(scope, javaObject, staticType) {
-      @Override
-      public Object get(String name, Scriptable start) {
-        // Deny access to all members of the base Object class since
-        // some of them enable reflection, and the others are mostly for
-        // serialization and timing which should not be accessible.
-        // The codeutopia implementation only blacklists getClass.
-        if (RhinoExecutor.OBJECT_CLASS_MEMBERS.contains(name)) {
-          return NOT_FOUND;
-        }
-        return super.get(name, start);
-      }
-    };
-  }
-}
-
-abstract class FunctionWrapper implements Scriptable, Function {
-  protected final Function fn;
-
-  FunctionWrapper(Function fn) { this.fn = fn; }
-
-  public void delete(String arg0) { fn.delete(arg0); }
-  public void delete(int arg0) { fn.delete(arg0); }
-  public Object get(String arg0, Scriptable arg1) {
-    return fn.get(arg0, arg1);
-  }
-  public Object get(int arg0, Scriptable arg1) {
-    return fn.get(arg0, arg1);
-  }
-  public String getClassName() { return fn.getClassName(); }
-  public Object getDefaultValue(Class<?> arg0) {
-    return fn.getDefaultValue(arg0);
-  }
-  public Object[] getIds() { return fn.getIds(); }
-  public Scriptable getParentScope() { return fn.getParentScope(); }
-  public Scriptable getPrototype() { return fn.getPrototype(); }
-  public boolean has(String arg0, Scriptable arg1) {
-    return fn.has(arg0, arg1);
-  }
-  public boolean has(int arg0, Scriptable arg1) {
-    return fn.has(arg0, arg1);
-  }
-  public boolean hasInstance(Scriptable arg0) {
-    return fn.hasInstance(arg0);
-  }
-  public void put(String arg0, Scriptable arg1, Object arg2) {
-    fn.put(arg0, arg1, arg2);
-  }
-  public void put(int arg0, Scriptable arg1, Object arg2) {
-    fn.put(arg0, arg1, arg2);
-  }
-  public void setParentScope(Scriptable arg0) {
-    fn.setParentScope(arg0);
-  }
-  public void setPrototype(Scriptable arg0) {
-    fn.setPrototype(arg0);
-  }
-  public Object call(
-      Context arg0, Scriptable arg1, Scriptable arg2, Object[] args) {
-    return fn.call(arg0, arg1, arg2, args);
-  }
-  public Scriptable construct(Context arg0, Scriptable arg1, Object[] args) {
-    return fn.construct(arg0, arg1, args);
   }
 }
