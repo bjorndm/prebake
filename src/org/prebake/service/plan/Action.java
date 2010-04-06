@@ -16,7 +16,8 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * A step in a recipe that involves invoking a {@link ToolBox.Tool tool}.
+ * A step in a recipe that involves invoking a
+ * {@link org.prebake.service.tools.ToolSignature tool}.
  *
  * @see <a href="http://code.google.com/p/prebake/wiki/BuildAction">wiki</a>
  * @author mikesamuel@gmail.com

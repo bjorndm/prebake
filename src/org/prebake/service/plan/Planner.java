@@ -84,7 +84,7 @@ public final class Planner implements Closeable {
     }, 1000, 1000, TimeUnit.MILLISECONDS);
   }
 
-  public void close() throws IOException {
+  public void close() {
     updater.cancel(true);
   }
 
