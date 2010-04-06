@@ -4,7 +4,7 @@ import org.prebake.core.Hash;
 import org.prebake.core.MessageQueue;
 import org.prebake.fs.ArtifactAddresser;
 import org.prebake.fs.FileAndHash;
-import org.prebake.fs.FileHashes;
+import org.prebake.fs.ArtifactValidityTracker;
 import org.prebake.fs.NonFileArtifact;
 import org.prebake.js.Executor;
 import org.prebake.js.JsonSink;
@@ -54,7 +54,7 @@ public final class Planner implements Closeable {
           }));
 
   private final ImmutableMap<Path, PlanPart> planParts;
-  private final FileHashes fh;
+  private final ArtifactValidityTracker files;
   private final ToolProvider toolbox;
   private final Logger logger;
   private final ScheduledExecutorService execer;
@@ -64,15 +64,15 @@ public final class Planner implements Closeable {
       return artifact.planFile.toString();
     }
     public PlanPart lookup(String address) {
-      return planParts.get(fh.getFileSystem().getPath(address));
+      return planParts.get(files.getFileSystem().getPath(address));
     }
   };
   private final Future<?> updater;
 
   public Planner(
-      FileHashes fh, ToolProvider toolbox, Iterable<Path> planFiles,
+      ArtifactValidityTracker files, ToolProvider toolbox, Iterable<Path> planFiles,
       Logger logger, ScheduledExecutorService execer) {
-    this.fh = fh;
+    this.files = files;
     this.toolbox = toolbox;
     this.logger = logger;
     this.execer = execer;
@@ -92,7 +92,9 @@ public final class Planner implements Closeable {
     Map<String, Product> allProducts = Maps.newLinkedHashMap();
     for (Future<ImmutableList<Product>> pp : getProductLists()) {
       try {
-        for (Product p : pp.get()) {
+        Iterable<Product> products = pp.get();
+        if (products == null) { continue; }
+        for (Product p : products) {
           if (!allProducts.containsKey(p.name)) {
             allProducts.put(p.name, p);
           } else {
@@ -128,10 +130,8 @@ public final class Planner implements Closeable {
     try {
       StringBuilder sb = new StringBuilder();
       JsonSink sink = new JsonSink(sb);
-      sink.write(" var slice = [].slice;")
-          .write(" var freeze = {}.constructor.freeze;")
-          .write(" var freeze = {}.constructor.frozenCopy;")
-          .write(" var freeze = {}.constructor.frozenCopy;")
+      sink.write(" var freeze = {}.constructor.freeze;")
+          .write(" var frozenCopy = {}.constructor.frozenCopy;")
           .write("({");
 
       boolean sawOne = false;
@@ -149,7 +149,7 @@ public final class Planner implements Closeable {
           } else {
             sink.write("(");
           }
-          sink.write(":function (inputs, outputs, options) {")
+          sink.write("function (inputs, outputs, options) {")
               // copy and freeze options, outputs, and inputs
               .write(" inputs = frozenCopy(inputs);")
               .write(" outputs = frozenCopy(outputs);")
@@ -157,7 +157,7 @@ public final class Planner implements Closeable {
           if (sig.productChecker != null) {
             sink.write("(").writeValue(sig.productChecker).write(")(options);");
           }
-          sink.write(" return freeze({ name: ")
+          sink.write(" return freeze({ tool: ")
               .writeValue(sig.name)
               .write(", outputs: outputs")
               .write(", inputs: inputs")
@@ -187,7 +187,8 @@ public final class Planner implements Closeable {
 
     List<Future<ImmutableList<Product>>> out = Lists.newArrayList();
     for (PlanPart pp : planParts.values()) {
-      out.add(requirePlanPart(toolDef, pp));
+      Future<ImmutableList<Product>> products = requirePlanPart(toolDef, pp);
+      if (products != null) { out.add(products); }
     }
     return out;
   }
@@ -220,30 +221,33 @@ public final class Planner implements Closeable {
                 ImmutableList<Product> products = unpack(pp, javaObj);
                 if (products != null) {
                   Hash.Builder allHashes = Hash.builder();
-                  for (Hash hash : hashes) { allHashes.withHash(hash); }
+                  for (Hash hash : hashes) {
+                    allHashes.withHash(hash);
+                  }
                   synchronized (pp) {
-                    if (fh.update(
-                        productAddresser, pp, paths, allHashes.build())) {
+                    if (files.update(
+                            productAddresser, pp, paths, allHashes.build())) {
                       pp.products = products;
                       pp.valid = true;
+                      return products;
                     }
                   }
+                  logger.log(
+                      Level.WARNING, "Version skew for {0}.  {1} attempts left",
+                      new Object[] { pp.planFile, nAttempts });
+                  continue;
                 }
               }
             } catch (IOException ex) {
               logger.log(
-                  Level.WARNING, "Error executing plan " + pp.planFile,
-                  ex);
+                  Level.WARNING, "Error executing plan " + pp.planFile, ex);
             } catch (RuntimeException ex) {
               logger.log(
-                  Level.WARNING, "Error executing plan " + pp.planFile,
-                  ex);
+                  Level.WARNING, "Error executing plan " + pp.planFile, ex);
             }
-            logger.log(
-                Level.WARNING, "{0} attempts left for plan {1}",
-                new Object[] { nAttempts, pp.planFile });
+            break;
           }
-          logger.log(Level.SEVERE, "Failed to update plan {1}", pp.planFile);
+          logger.log(Level.SEVERE, "Failed to update plan {0}", pp.planFile);
           return null;
         }
       });
@@ -255,7 +259,7 @@ public final class Planner implements Closeable {
       Executor.Input toolDef, PlanPart pp,
       final List<Hash> hashes, final List<Path> paths)
       throws IOException {
-    FileAndHash pf = fh.load(pp.planFile);
+    FileAndHash pf = files.load(pp.planFile);
     Hash h = pf.getHash();
     if (h != null) {
       hashes.add(h);
@@ -276,7 +280,7 @@ public final class Planner implements Closeable {
         public Input load(Path p) throws IOException {
           FileAndHash rf;
           try {
-            rf = fh.load(p);
+            rf = files.load(p);
           } catch (IOException ex) {
             // We need to depend on non-existent files in case they
             // are later created.

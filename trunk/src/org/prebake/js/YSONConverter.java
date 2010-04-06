@@ -298,7 +298,7 @@ public interface YSONConverter<T> {
     @SuppressWarnings("unchecked")
     private static <K, V> Map<K, V> makeMap(Class<K> keyType) {
       if (Enum.class.isAssignableFrom(keyType)) {
-        return Maps.newEnumMap(keyType.asSubclass(Enum.class));
+        return (Map<K, V>) Maps.newEnumMap(keyType.asSubclass(Enum.class));
       } else {
         return Maps.newLinkedHashMap();
       }

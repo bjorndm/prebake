@@ -115,8 +115,14 @@ public final class JsonSink implements Closeable {
       }
       out.append(']');
       return this;
+    } else if (o instanceof Number || o instanceof Boolean) {
+      out.append(o.toString());
+      return this;
+    } else if (o instanceof Enum) {
+      return writeValue(((Enum) o).name());
     } else {
-      return write("" + o);
+      throw new IllegalArgumentException(
+          "" + o + " : " + o.getClass().getName());
     }
   }
 
@@ -126,7 +132,11 @@ public final class JsonSink implements Closeable {
   }
 
   public JsonSink writeValue(JsonSerializable o) throws IOException {
-    o.toJson(this);
+    if (o != null) {
+      o.toJson(this);
+    } else {
+      out.append("null");
+    }
     return this;
   }
 }

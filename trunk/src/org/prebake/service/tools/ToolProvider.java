@@ -1,5 +1,6 @@
 package org.prebake.service.tools;
 
+import java.io.Closeable;
 import java.util.List;
 import java.util.concurrent.Future;
 
@@ -8,6 +9,6 @@ import java.util.concurrent.Future;
  *
  * @author mikesamuel@gmail.com
  */
-public interface ToolProvider {
+public interface ToolProvider extends Closeable {
   List<Future<ToolSignature>> getAvailableToolSignatures();
 }

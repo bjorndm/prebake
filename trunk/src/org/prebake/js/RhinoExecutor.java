@@ -326,7 +326,6 @@ public final class RhinoExecutor implements Executor {
               String s = m.group(1);
               if (s != null) { fmtChars[f++] = s.charAt(0); }
             }
-            System.err.println("fmtChars=" + Arrays.toString(fmtChars));
             if (requiresFloatingPoint(fmtChars[i])) { continue; }
             args = args.clone();
           } else if (requiresFloatingPoint(fmtChars[i])) {
@@ -721,6 +720,7 @@ public final class RhinoExecutor implements Executor {
         out.write("}");
       }
     } else {
+      if (o instanceof Undefined) { o = null; }
       out.writeValue(o);
     }
   }
@@ -834,20 +834,32 @@ final class Freezer {
     }
     frozenCopies.put(so, copy);
     boolean isFrozen = !so.isExtensible();
-    for (Object name : so.getAllIds()) {
-      String nameStr = name.toString();
-      Object value = so.get(nameStr);
-      int atts = so.getAttributes(nameStr);
-      Object frozenValue = frozenCopy(value);
-      if (isFrozen
-          && (((atts & (ScriptableObject.PERMANENT | ScriptableObject.READONLY))
-              != (ScriptableObject.PERMANENT | ScriptableObject.READONLY))
-              || frozenValue != value)) {
-        isFrozen = false;
+    if (so instanceof NativeArray) {
+      for (Object name : so.getAllIds()) {
+        if (name instanceof Number) {
+          // TODO: freezing of array indices not supported
+          isFrozen = false;
+          int index = ((Number) name).intValue();
+          Object value = ScriptableObject.getProperty(so, index);
+          ScriptableObject.putProperty(copy, index, value);
+        }
       }
-      ScriptableObject.defineProperty(
-          copy, nameStr, frozenValue,
-          atts | ScriptableObject.PERMANENT | ScriptableObject.READONLY);
+    } else {
+      for (Object name : so.getAllIds()) {
+        String nameStr = name.toString();
+        Object value = so.get(nameStr);
+        int atts = so.getAttributes(nameStr);
+        Object frozenValue = frozenCopy(value);
+        if (isFrozen
+            && (((atts & (ScriptableObject.PERMANENT | ScriptableObject.READONLY))
+                != (ScriptableObject.PERMANENT | ScriptableObject.READONLY))
+                || frozenValue != value)) {
+          isFrozen = false;
+        }
+        ScriptableObject.defineProperty(
+            copy, nameStr, frozenValue,
+            atts | ScriptableObject.PERMANENT | ScriptableObject.READONLY);
+      }
     }
     if (isFrozen) {
       frozenCopies.put(so, so);

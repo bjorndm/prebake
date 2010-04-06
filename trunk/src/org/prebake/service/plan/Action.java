@@ -11,7 +11,6 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 
 import java.io.IOException;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -38,7 +37,7 @@ public final class Action implements JsonSerializable {
     assert ObjUtil.isDeeplyImmutable(options);
   }
 
-  private enum Field {
+  public enum Field {
     tool,
     inputs,
     outputs,
@@ -49,9 +48,11 @@ public final class Action implements JsonSerializable {
   public void toJson(JsonSink sink) throws IOException {
     sink.write("{").writeValue(Field.tool).write(":").writeValue(toolName)
         .write(",").writeValue(Field.inputs).write(":").writeValue(inputs)
-        .write(",").writeValue(Field.outputs).write(":").writeValue(outputs)
-        .write(",").writeValue(Field.options).write(":").writeValue(options)
-        .write("}");
+        .write(",").writeValue(Field.outputs).write(":").writeValue(outputs);
+    if (!options.isEmpty()) {
+      sink.write(",").writeValue(Field.options).write(":").writeValue(options);
+    }
+    sink.write("}");
   }
 
   private static final YSONConverter<List<Glob>> GLOB_LIST_CONV
@@ -63,8 +64,11 @@ public final class Action implements JsonSerializable {
       .require(Field.tool.name(), YSONConverter.Factory.withType(String.class))
       .require(Field.inputs.name(), GLOB_LIST_CONV)
       .require(Field.outputs.name(), GLOB_LIST_CONV)
-      .optional(Field.options.name(), YSONConverter.Factory.withType(Map.class),
-                Collections.emptyMap())
+      .optional(Field.options.name(),
+                YSONConverter.Factory.withDefault(
+                    YSONConverter.Factory.withType(Map.class),
+                    ImmutableMap.of()),
+                ImmutableMap.of())
       .build();
 
   public static final YSONConverter<Action> CONVERTER

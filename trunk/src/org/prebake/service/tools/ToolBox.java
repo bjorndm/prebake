@@ -19,7 +19,6 @@ import com.google.common.collect.Sets;
 
 import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
-import java.io.Closeable;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
@@ -53,7 +52,7 @@ import java.util.logging.Logger;
  *
  * @author mikesamuel@gmail.com
  */
-public class ToolBox implements Closeable, ToolProvider {
+public class ToolBox implements ToolProvider {
   private final FileSystem fs;
   private final FileHashes fh;
   private final Logger logger;
