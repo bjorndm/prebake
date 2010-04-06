@@ -463,9 +463,14 @@ public class ExecutorTest extends PbTestCase {
 
   @Test(timeout=10000, expected=Executor.ScriptTimeoutException.class)
   public final void testRunawayScripts() throws Exception {
-    Executor.Factory.createJsExecutor(Executor.Input.builder(
-        "var i = 0; while (1) { ++i; }", getName()).build())
-        .run(Void.TYPE, getLogger(Level.INFO), null);
+    try {
+      Executor.Factory.createJsExecutor(Executor.Input.builder(
+          "var i = 0; while (1) { ++i; }", getName()).build())
+          .run(Void.TYPE, getLogger(Level.INFO), null);
+    } catch (Executor.ScriptTimeoutException ex) {
+      // TODO: Neither ANT nor eclipse recognize expected exceptions
+      return;
+    }
   }
 
   public final void testActualInputs() throws Exception {
