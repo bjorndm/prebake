@@ -70,8 +70,9 @@ public final class Planner implements Closeable {
   private final Future<?> updater;
 
   public Planner(
-      ArtifactValidityTracker files, ToolProvider toolbox, Iterable<Path> planFiles,
-      Logger logger, ScheduledExecutorService execer) {
+      ArtifactValidityTracker files, ToolProvider toolbox,
+      Iterable<Path> planFiles, Logger logger,
+      ScheduledExecutorService execer) {
     this.files = files;
     this.toolbox = toolbox;
     this.logger = logger;

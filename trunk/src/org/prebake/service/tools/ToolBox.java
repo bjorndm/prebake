@@ -3,8 +3,8 @@ package org.prebake.service.tools;
 import org.prebake.core.Hash;
 import org.prebake.core.MessageQueue;
 import org.prebake.fs.ArtifactAddresser;
+import org.prebake.fs.ArtifactValidityTracker;
 import org.prebake.fs.FileAndHash;
-import org.prebake.fs.FileHashes;
 import org.prebake.fs.NonFileArtifact;
 import org.prebake.js.Executor;
 import org.prebake.js.Loader;
@@ -54,7 +54,7 @@ import java.util.logging.Logger;
  */
 public class ToolBox implements ToolProvider {
   private final FileSystem fs;
-  private final FileHashes fh;
+  private final ArtifactValidityTracker fh;
   private final Logger logger;
   private final WatchService watcher;
   private final ScheduledExecutorService execer;
@@ -78,8 +78,8 @@ public class ToolBox implements ToolProvider {
       };
   private final Future<?> updater;
 
-  public ToolBox(FileHashes fh, Iterable<Path> toolDirs, Logger logger,
-                 ScheduledExecutorService execer)
+  public ToolBox(ArtifactValidityTracker fh, Iterable<Path> toolDirs,
+                 Logger logger, ScheduledExecutorService execer)
       throws IOException {
     this.logger = logger;
     toolDirs = this.toolDirs = ImmutableList.copyOf(
