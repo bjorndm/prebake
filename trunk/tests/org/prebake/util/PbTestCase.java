@@ -55,7 +55,13 @@ public abstract class PbTestCase extends TestCase {
         @Override public void flush() {}
         @Override
         public void publish(LogRecord r) {
-          log.add(r.getSourceClassName() + ":" + r.getLevel() + ": "
+          String sourceClass = r.getSourceClassName();
+          String prefix = "";
+          if (sourceClass.contains(".js:")) {
+            // We're testing JS.
+            prefix = sourceClass + ":";
+          }
+          log.add(prefix + r.getLevel() + ": "
                   + MessageFormat.format(r.getMessage(), r.getParameters()));
           if (r.getThrown() != null) {
             log.add(r.getThrown().toString());

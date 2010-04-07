@@ -58,7 +58,7 @@ public final class Console {
       "%(?:(?:\\d+\\$)?(?:[\\-#+ 0,(]+)?(?:\\d+)?(?:\\.\\d+)?([a-zA-Z])|%)");
 
   @ParametersAreNonnullByDefault
-  private void logNoSub(Level level, String msg) {
+  void logNoSub(Level level, String msg) {
     LogRecord lr = new LogRecord(level, "'" + msg.replaceAll("'", "''") + "'");
     Matcher m = STACK_FRAME.matcher(
         new EvaluatorException(null).getScriptStackTrace());

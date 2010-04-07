@@ -17,6 +17,7 @@ import java.net.URI;
 import java.nio.file.FileSystem;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
@@ -252,8 +253,8 @@ public class ExecutorTest extends PbTestCase {
       assertConsole("console.error('foo')", "/testConsole.js:1:SEVERE: foo");
       assertConsole(
           Level.FINE, "console.info('Hello, %s!', 'World')",
-          "org.prebake.js.RhinoExecutor$LoadFn:FINE: Loading /testConsole.js",
-          "org.prebake.js.RhinoExecutor$LoadFn:FINE: Done    /testConsole.js",
+          "FINE: Loading /testConsole.js",
+          "FINE: Done    /testConsole.js",
           "/testConsole.js:1:FINE: Hello, World!");
       assertConsole(
           "console.dir({ a: 1, b: 'Hello, World!', c: null, d: [1,2,3] })",
@@ -489,6 +490,42 @@ public class ExecutorTest extends PbTestCase {
     Executor.Output<?> output = Executor.Factory.createJsExecutor(srcTop)
         .run(Object.class, getLogger(Level.INFO), null);
     assertEquals(7d, output.result);
+  }
+
+  public final void testHelpFunction() throws Exception {
+    assertHelpOutput("");
+    assertHelpOutput("null");
+    assertHelpOutput("{}");
+    assertHelpOutput(
+        "{ help_: 'Howdy' }",
+        "INFO: Help: Howdy");
+    assertHelpOutput(
+        "{ help_: { detail: 'Howdy' } }",
+        "INFO: Help: Howdy");
+    assertHelpOutput(
+        "{ help_: { summary: 'brief', detail: 'Howdy' } }",
+        "INFO: Help: brief\nHowdy");
+    assertHelpOutput(
+        "{ help_: { summary: 'brief', detail: 'brief. longer' } }",
+        "INFO: Help: brief. longer");
+    assertHelpOutput(
+        "{ help_: { detail: 'description', contact: 'foo@bar.baz' } }",
+        "INFO: Help: description\nContact: foo@bar.baz");
+  }
+
+  private void assertHelpOutput(String actuals, String... log)
+      throws Exception {
+    Logger logger = getLogger(Level.INFO);
+    getLog().clear();
+    String result = Executor.Factory.createJsExecutor(
+        (Executor.Input.builder("typeof help(" + actuals + ")", getName())
+         .build()))
+        .run(String.class, logger, null)
+        .result;
+    assertEquals("undefined", result);
+    assertEquals(
+        Arrays.asList(log),
+        getLog());
   }
 
   private void assertResult(Object result, String src) throws Exception {
