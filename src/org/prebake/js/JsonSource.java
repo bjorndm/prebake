@@ -14,12 +14,17 @@ import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+import javax.annotation.ParametersAreNonnullByDefault;
+
 /**
  * A JSON parser that generates generic collection classes instead of
  * introducing new collection classes.
  *
  * @author mikesamuel@gmail.com
  */
+@ParametersAreNonnullByDefault
 public final class JsonSource implements Closeable {
   private final Reader in;
   private String pushback;
@@ -41,7 +46,7 @@ public final class JsonSource implements Closeable {
     return !toks.hasNext();
   }
 
-  public String next() throws IOException {
+  public @Nonnull String next() throws IOException {
     String s = pushback;
     if (s != null) {
       pushback = null;
@@ -52,7 +57,7 @@ public final class JsonSource implements Closeable {
     return toks.next();
   }
 
-  public Object nextValue() throws IOException {
+  public @Nullable Object nextValue() throws IOException {
     String tok = next();
     switch (tok.charAt(0)) {
       case '[': pushback = "["; return nextArray();
@@ -97,7 +102,7 @@ public final class JsonSource implements Closeable {
     }
   }
 
-  public String expectString() throws IOException {
+  public @Nonnull String expectString() throws IOException {
     String t = next();
     if (t.charAt(0) == '"') { return decodeString(t); }
     throw new IOException("Expected quoted string, but got " + t);
@@ -133,7 +138,7 @@ public final class JsonSource implements Closeable {
     this.toks = toks.iterator();
   }
 
-  public static String decodeString(String s) {
+  public static @Nonnull String decodeString(String s) {
     s = s.substring(1, s.length() - 1);
     int n = s.length();
     int esc = s.indexOf('\\');
@@ -161,7 +166,7 @@ public final class JsonSource implements Closeable {
     return sb.toString();
   }
 
-  public List<Object> nextArray() throws IOException {
+  public @Nonnull List<Object> nextArray() throws IOException {
     expect("[");
     List<Object> els = Lists.newArrayList();
     if (!check("]")) {
@@ -173,7 +178,7 @@ public final class JsonSource implements Closeable {
     return els;
   }
 
-  public Map<String, Object> nextObject() throws IOException {
+  public @Nonnull Map<String, Object> nextObject() throws IOException {
     expect("{");
     Map<String, Object> els = Maps.newLinkedHashMap();
     if (!check("}")) {

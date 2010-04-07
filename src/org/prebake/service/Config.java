@@ -5,6 +5,8 @@ import java.util.List;
 import java.util.Set;
 import java.util.regex.Pattern;
 
+import javax.annotation.Nullable;
+
 /**
  * Configuration for the {@link Prebakery} service.
  * <p>
@@ -14,12 +16,12 @@ public interface Config {
   /**
    * @see <a href="http://code.google.com/p/prebake/wiki/ClientRoot">wiki</a>
    */
-  Path getClientRoot();
+  @Nullable Path getClientRoot();
   /**
    * @see
    * <a href="http://code.google.com/p/prebake/wiki/IgnoredFileSet">wiki</a>
    */
-  Pattern getIgnorePattern();
+  @Nullable Pattern getIgnorePattern();
   /**
    * Permission bit mask for files created by the service.
    * @see <a href="http://code.google.com/p/prebake/wiki/Usage">usage</a>

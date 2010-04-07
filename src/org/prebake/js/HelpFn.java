@@ -2,12 +2,19 @@ package org.prebake.js;
 
 import org.prebake.core.Documentation;
 
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+
+import javax.annotation.Nullable;
+import javax.annotation.ParametersAreNonnullByDefault;
+
 import org.mozilla.javascript.BaseFunction;
 import org.mozilla.javascript.Context;
 import org.mozilla.javascript.Scriptable;
 import org.mozilla.javascript.ScriptableObject;
 import org.mozilla.javascript.Undefined;
 
+@ParametersAreNonnullByDefault
 final class HelpFn extends BaseFunction {
   private final Console console;
 
@@ -17,7 +24,7 @@ final class HelpFn extends BaseFunction {
   public Object call(
       Context cx, Scriptable scope, Scriptable thisObj, Object[] args) {
     if (args.length == 1) {
-      Object o = args[0];
+      @Nullable Object o = args[0];
       if (o instanceof Scriptable) {
         Object help = ScriptableObject.getProperty((Scriptable) o, "help_");
         StringBuilder msg = new StringBuilder("Help: ");
@@ -50,4 +57,14 @@ final class HelpFn extends BaseFunction {
   }
   @Override
   public String getFunctionName() { return "help"; }
+
+  // Instances cannot be serialized since console cannot be serialized.
+  /** @param str unused */
+  private void readObject(ObjectInputStream str) {
+    throw new UnsupportedOperationException();
+  }
+  /** @param str unused */
+  private void writeObject(ObjectOutputStream str) {
+    throw new UnsupportedOperationException();
+  }
 }

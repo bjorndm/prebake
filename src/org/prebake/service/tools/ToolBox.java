@@ -48,16 +48,20 @@ import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import javax.annotation.Nullable;
+import javax.annotation.ParametersAreNonnullByDefault;
+
 /**
  * Watches the set of tools available to plan files.
  *
  * @author mikesamuel@gmail.com
  */
+@ParametersAreNonnullByDefault
 public class ToolBox implements ToolProvider {
   private final FileSystem fs;
   private final ArtifactValidityTracker fh;
   private final Logger logger;
-  private final WatchService watcher;
+  private final @Nullable WatchService watcher;
   private final ScheduledExecutorService execer;
   private final List<Path> toolDirs;
   private final Map<String, Tool> tools = Maps.newLinkedHashMap();
@@ -99,10 +103,10 @@ public class ToolBox implements ToolProvider {
       ImmutableMap.Builder<Path, Integer> b = ImmutableMap.builder();
       int index = 0;
       for (Path toolDir : this.toolDirs) { b.put(toolDir, index++); }
-      dirIndices = b.build();
+      this.dirIndices = b.build();
     } else {
-      watcher = null;
-      dirIndices = ImmutableMap.of();
+      this.watcher = null;
+      this.dirIndices = ImmutableMap.of();
     }
     // Load the builtin tools from a tools.txt file in this same directory.
     for (String builtin : getBuiltinToolNames()) { checkBuiltin(builtin); }
@@ -397,7 +401,7 @@ public class ToolBox implements ToolProvider {
     updater.cancel(true);
   }
 
-  private static String toolName(String fileName) {
+  private static @Nullable String toolName(String fileName) {
     if (!fileName.endsWith(".js")) { return null; }
     int len = fileName.length() - 3;
     if (len == 0) { return null; }
@@ -466,6 +470,7 @@ public class ToolBox implements ToolProvider {
   }
 }
 
+@ParametersAreNonnullByDefault
 final class Tool {
   final Path localName;
   final SortedMap<Integer, ToolImpl> impls = Maps.newTreeMap();
@@ -474,11 +479,12 @@ final class Tool {
   Tool(Path localName) { this.localName = localName; }
 }
 
+@ParametersAreNonnullByDefault
 final class ToolImpl implements NonFileArtifact {
   final Tool tool;
   final String name;
   final int index;
-  ToolSignature sig;
+  @Nullable ToolSignature sig;
   private boolean valid;
 
   ToolImpl(Tool tool, String name, int index) {

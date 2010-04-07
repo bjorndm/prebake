@@ -1,9 +1,12 @@
 package org.prebake.core;
 
+import org.prebake.js.JsonSink;
 import org.prebake.js.YSON;
 
 import com.google.common.base.Joiner;
+import com.google.common.base.Throwables;
 
+import java.io.IOException;
 import java.text.ParseException;
 import junit.framework.TestCase;
 
@@ -91,8 +94,7 @@ public class DocumentationTest extends TestCase {
         "Unexpected key \"details\". Did you mean \"detail\"?");
   }
 
-  private void assertConverter(
-      String golden, String yson, String... messages) {
+  private void assertConverter(String golden, String yson, String... messages) {
     Object input;
     try {
       input = yson != null ? YSON.parseExpr(yson).toJavaObject() : null;
@@ -103,13 +105,29 @@ public class DocumentationTest extends TestCase {
     MessageQueue mq = new MessageQueue();
     Documentation doc = Documentation.CONVERTER.convert(input, mq);
     String msgs = Joiner.on('\n').join(mq.getMessages());
-    String actual = doc != null ? doc.toString() : null;
+    String actual = null;
+    if (doc != null) {
+      StringBuilder sb = new StringBuilder();
+      JsonSink sink = new JsonSink(sb);
+      try {
+        doc.toJson(sink, true);
+      } catch (IOException ex) {
+        Throwables.propagate(ex);
+      }
+      actual = sb.toString();
+    }
     assertEquals(msgs, golden, actual);
-    if (messages != null) {
+    if (messages != null && actual != null) {
       assertEquals(msgs, messages.length != 0, mq.hasErrors());
       assertEquals(Joiner.on('\n').join(messages), msgs);
       // test idempotency
       assertConverter(actual, actual, (String[]) null);
+      if (doc != null) {
+        String shortForm = doc.toString();
+        if (!shortForm.equals(actual)) {
+          assertConverter(actual, shortForm, (String[]) null);
+        }
+      }
     }
   }
 }

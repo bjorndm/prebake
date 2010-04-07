@@ -4,6 +4,9 @@ import com.google.common.base.Throwables;
 
 import java.io.IOException;
 
+import javax.annotation.ParametersAreNonnullByDefault;
+
+@ParametersAreNonnullByDefault
 public interface JsonSerializable {
   void toJson(JsonSink sink) throws IOException;
 

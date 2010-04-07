@@ -23,11 +23,15 @@ import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 
+import javax.annotation.Nullable;
+import javax.annotation.ParametersAreNonnullByDefault;
+
 /**
  * Configuration derived from command line arguments.
  *
  * @author mikesamuel@gmail.com
  */
+@ParametersAreNonnullByDefault
 final class CommandLineConfig implements Config {
   private final FileSystem fs;
   private final Path clientRoot;
@@ -270,9 +274,9 @@ final class CommandLineConfig implements Config {
     return sb.toString();
   }
 
-  public Path getClientRoot() { return clientRoot; }
+  public @Nullable Path getClientRoot() { return clientRoot; }
 
-  public Pattern getIgnorePattern() { return ignorePattern; }
+  public @Nullable Pattern getIgnorePattern() { return ignorePattern; }
 
   public Set<Path> getPlanFiles() { return planFiles; }
 

@@ -313,12 +313,12 @@ public class BakeTest extends PbTestCase {
       return this;
     }
 
-    BakeTestRunner expectSent(String s) throws IOException {
+    BakeTestRunner expectSent(String s) {
       assertEquals(s, new String(connOut.toByteArray(), Charsets.UTF_8));
       return this;
     }
 
-    BakeTestRunner withResponse(String s) throws IOException {
+    BakeTestRunner withResponse(String s) {
       assertFalse(connClosed);
       connIn = new ByteArrayInputStream(s.getBytes(Charsets.UTF_8));
       return this;
@@ -335,7 +335,7 @@ public class BakeTest extends PbTestCase {
       return this;
     }
 
-    BakeTestRunner expectOutput(String content) throws IOException {
+    BakeTestRunner expectOutput(String content) {
       assertEquals(content, new String(out.toByteArray(), Charsets.UTF_8));
       return this;
     }

@@ -27,12 +27,15 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.logging.Logger;
 
+import javax.annotation.ParametersAreNonnullByDefault;
+
 /**
  * An executable class that hooks the Prebakery to the real file system and
  * network, and starts it running.
  *
  * @author mikesamuel@gmail.com
  */
+@ParametersAreNonnullByDefault
 public final class Main {
   public static final void main(String[] argv) {
     Logger logger = Logger.getLogger(Main.class.getName());

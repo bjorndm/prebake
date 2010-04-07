@@ -3,6 +3,9 @@ package org.prebake.service;
 import java.io.Closeable;
 import java.util.concurrent.BlockingQueue;
 
+import javax.annotation.ParametersAreNonnullByDefault;
+
+@ParametersAreNonnullByDefault
 abstract class Consumer<T> implements Closeable {
   private BlockingQueue<? extends T> q;
   private Thread th;

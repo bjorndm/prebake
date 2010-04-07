@@ -14,11 +14,15 @@ import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 
+import javax.annotation.Nullable;
+import javax.annotation.ParametersAreNonnullByDefault;
+
 /**
  * A possible goal declared in a plan file.
  *
  * @see <a href="http://code.google.com/p/prebake/wiki/Product">wiki</a>
  */
+@ParametersAreNonnullByDefault
 public final class Product implements JsonSerializable {
   public final String name;
   public final Documentation help;
@@ -29,7 +33,7 @@ public final class Product implements JsonSerializable {
   public final Path source;
 
   public Product(
-      String name, Documentation help,
+      String name, @Nullable Documentation help,
       List<? extends Glob> inputs, List<? extends Glob> outputs,
       List<? extends Action> actions, boolean isIntermediate,
       Path source) {
@@ -99,7 +103,8 @@ public final class Product implements JsonSerializable {
       final String name, final Path source) {
     return new YSONConverter<Product>() {
       @SuppressWarnings("unchecked")
-      public Product convert(Object ysonValue, MessageQueue problems) {
+      public @Nullable Product convert(
+          @Nullable Object ysonValue, MessageQueue problems) {
         Map<Field, ?> fields = MAP_CONV.convert(ysonValue, problems);
         if (problems.hasErrors()) { return null; }
         return new Product(

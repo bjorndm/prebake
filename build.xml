@@ -18,6 +18,7 @@
     <pathelement path="${third_party}/bdb/je.jar"/>
     <pathelement path="${third_party}/fast-md5/fast-md5.jar"/>
     <pathelement path="${third_party}/guava-libraries/guava.jar"/>
+    <pathelement path="${third_party}/findbugs/lib/jsr305.jar"/>
     <pathelement path="${third_party}/rhino/js.jar"/>
   </path>
   <path id="classpath.tests.compile">

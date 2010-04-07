@@ -4,6 +4,9 @@ import com.google.common.collect.Lists;
 
 import java.util.List;
 
+import javax.annotation.ParametersAreNonnullByDefault;
+
+@ParametersAreNonnullByDefault
 public class MessageQueue {
   private final List<String> messages;
   private boolean hasErrors;

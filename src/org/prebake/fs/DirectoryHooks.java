@@ -20,11 +20,15 @@ import java.util.Map;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 
+import javax.annotation.Nullable;
+import javax.annotation.ParametersAreNonnullByDefault;
+
 /**
  * Publishes events when files change.
  *
  * @author mikesamuel@gmail.com
  */
+@ParametersAreNonnullByDefault
 public class DirectoryHooks implements Closeable {
   // For how-tos on WatchService:
   // http://blogs.sun.com/thejavatutorials/entry/watching_a_directory_for_changes
@@ -42,7 +46,7 @@ public class DirectoryHooks implements Closeable {
   private final Path root;
   private final BlockingQueue<Path> q = new LinkedBlockingQueue<Path>(1 << 12);
   private final Predicate<Path> toIgnore;
-  private Thread watcher;
+  private @Nullable Thread watcher;
 
   public DirectoryHooks(Path root, Predicate<Path> toIgnore) {
     this.root = root;

@@ -15,11 +15,16 @@ import java.util.Collections;
 import java.util.Map;
 import java.util.logging.Logger;
 
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+import javax.annotation.ParametersAreNonnullByDefault;
+
 /**
  * Abstracts away execution of script.
  *
  * @author mikesamuel@gmail.com
  */
+@ParametersAreNonnullByDefault
 public interface Executor {
   /**
    * Execute in the context of the given bindings and coerce the result to the
@@ -29,7 +34,7 @@ public interface Executor {
    *    expectedReturnType.
    */
   public <T> Output<T> run(
-      Class<T> expectedResultType, Logger logger, Loader loader)
+      Class<T> expectedResultType, Logger logger, @Nullable Loader loader)
       throws AbnormalExitException;
 
   public static class AbnormalExitException extends Exception {
@@ -102,7 +107,8 @@ public interface Executor {
     public final Map<String, ?> actuals;
 
     private Input(
-        String content, String source, Path base, Map<String, ?> actuals) {
+        String content, String source, @Nullable Path base,
+        Map<String, ?> actuals) {
       this.content = content;
       this.source = source;
       this.base = base;
@@ -123,7 +129,7 @@ public interface Executor {
         this.source = source;
       }
 
-      public Builder withBase(Path base) {
+      public Builder withBase(@Nullable Path base) {
         this.base = base;
         return this;
       }
@@ -157,7 +163,7 @@ public interface Executor {
       }
     }
 
-    public static Builder builder(Reader content, Path base)
+    public static Builder builder(Reader content, @Nonnull Path base)
         throws IOException {
       return builder(content, base.toString()).withBase(base);
     }
@@ -166,7 +172,7 @@ public interface Executor {
       return new Builder(content, source);
     }
 
-    public static Builder builder(String content, Path base) {
+    public static Builder builder(String content, @Nonnull Path base) {
       return new Builder(content, base.toString()).withBase(base);
     }
 
@@ -179,7 +185,7 @@ public interface Executor {
     public final T result;
     public final boolean usedSourceOfKnownNondeterminism;
 
-    public Output(T result, boolean usedSourceOfKnownNondeterminism) {
+    public Output(@Nullable T result, boolean usedSourceOfKnownNondeterminism) {
       this.result = result;
       this.usedSourceOfKnownNondeterminism = usedSourceOfKnownNondeterminism;
     }
