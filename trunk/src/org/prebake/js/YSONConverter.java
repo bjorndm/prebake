@@ -17,6 +17,10 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+import javax.annotation.ParametersAreNonnullByDefault;
+
 /**
  * A schema for converting and checking the output of script execution.
  * These schemas are meant to be run against the output of
@@ -25,15 +29,16 @@ import java.util.Map;
  * @param <T> the type to which this converter converts.
  * @author mikesamuel@gmail.com
  */
+@ParametersAreNonnullByDefault
 public interface YSONConverter<T> {
   /**
    * Converts the given value to the output type, reporting an
    * {@link MessageQueue#hasErrors() error} and returning null if unable.
    * @param problems receives error messages.
    */
-  T convert(Object ysonValue, MessageQueue problems);
+  @Nullable T convert(@Nullable Object ysonValue, MessageQueue problems);
 
-  String exampleText();
+  @Nonnull String exampleText();
 
   public static class Factory {
     public static <T> YSONConverter<T> withType(final Class<T> type) {
@@ -77,7 +82,8 @@ public interface YSONConverter<T> {
         fromString = null;
       }
       return new YSONConverter<T>() {
-        public T convert(Object ysonValue, MessageQueue problems) {
+        public @Nullable T convert(
+            @Nullable Object ysonValue, MessageQueue problems) {
           if (type.isInstance(ysonValue)) { return type.cast(ysonValue); }
           if (ysonValue instanceof String && fromString != null) {
             T result = fromString.apply((String) ysonValue);
@@ -99,9 +105,10 @@ public interface YSONConverter<T> {
     }
 
     public static <T> YSONConverter<T> withDefault(
-        final YSONConverter<? extends T> conv, final T def) {
+        final YSONConverter<? extends T> conv, @Nullable final T def) {
       return new YSONConverter<T>() {
-        public T convert(Object ysonValue, MessageQueue problems) {
+        public @Nullable T convert(
+            @Nullable Object ysonValue, MessageQueue problems) {
           return ysonValue == null ? def : conv.convert(ysonValue, problems);
         }
         public String exampleText() { return conv.exampleText(); }
@@ -116,7 +123,8 @@ public interface YSONConverter<T> {
     public static <K, V> YSONConverter<Map<K, V>> mapConverter(
         final YSONConverter<K> keyConv, final YSONConverter<V> valueConv) {
       return new YSONConverter<Map<K, V>>() {
-        public Map<K, V> convert(Object ysonValue, MessageQueue problems) {
+        public @Nullable Map<K, V> convert(
+            @Nullable Object ysonValue, MessageQueue problems) {
           if (!(ysonValue instanceof Map<?, ?>)) {
             problems.error(
                 "Expected " + exampleText() + " but got "
@@ -143,7 +151,8 @@ public interface YSONConverter<T> {
         final YSONConverter<T> elementConverter) {
       assert elementConverter != null;
       return new YSONConverter<List<T>>() {
-        public List<T> convert(Object ysonValue, MessageQueue problems) {
+        public @Nullable List<T> convert(
+            @Nullable Object ysonValue, MessageQueue problems) {
           if (!(ysonValue instanceof Iterable<?>)) {
             problems.error(
                 "Expected a list like " + exampleText() + " but was "
@@ -177,11 +186,11 @@ public interface YSONConverter<T> {
         final YSONConverter<? extends K> keyConv;
         final YSONConverter<? extends V> valueConv;
         final boolean required;
-        final V defaultValue;
+        final @Nullable V defaultValue;
 
         Entry(String key, YSONConverter<? extends K> keyConv,
               YSONConverter<? extends V> valueConv,
-              boolean required, V defaultValue) {
+              boolean required, @Nullable V defaultValue) {
           assert key != null;
           assert keyConv != null;
           assert valueConv != null;
@@ -208,14 +217,15 @@ public interface YSONConverter<T> {
 
       public YSONMapConverterBuilder<K, V> optional(
           String key, YSONConverter<? extends K> keyConv,
-          YSONConverter<? extends V> valueConv, V defaultValue) {
+          YSONConverter<? extends V> valueConv, @Nullable V defaultValue) {
         entries.add(new Entry<K, V>(
             key, keyConv, valueConv, false, defaultValue));
         return this;
       }
 
       public YSONMapConverterBuilder<K, V> optional(
-          String key, YSONConverter<? extends V> valueConv, V defaultValue) {
+          String key, YSONConverter<? extends V> valueConv,
+          @Nullable V defaultValue) {
         return optional(key, keyIdentity, valueConv, defaultValue);
       }
 
@@ -225,7 +235,8 @@ public interface YSONConverter<T> {
         final ImmutableSet<String> allKeys = keyAggregator.build();
         final String[] allKeysArr = allKeys.toArray(new String[0]);
         return new YSONConverter<Map<K, V>>() {
-          public Map<K, V> convert(Object ysonValue, MessageQueue problems) {
+          public @Nullable Map<K, V> convert(
+              @Nullable Object ysonValue, MessageQueue problems) {
             if (!(ysonValue instanceof Map<?, ?>)) {
               problems.error(
                   "Expected " + exampleText() + ", not "

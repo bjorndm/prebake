@@ -14,6 +14,8 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 
+import javax.annotation.ParametersAreNonnullByDefault;
+
 /**
  * A step in a recipe that involves invoking a
  * {@link org.prebake.service.tools.ToolSignature tool}.
@@ -21,6 +23,7 @@ import java.util.Map;
  * @see <a href="http://code.google.com/p/prebake/wiki/BuildAction">wiki</a>
  * @author mikesamuel@gmail.com
  */
+@ParametersAreNonnullByDefault
 public final class Action implements JsonSerializable {
   public final String toolName;
   public final ImmutableList<Glob> inputs;

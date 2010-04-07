@@ -10,20 +10,24 @@ import org.prebake.js.YSONConverter;
 import java.io.IOException;
 import java.util.Map;
 
+import javax.annotation.Nullable;
+import javax.annotation.ParametersAreNonnullByDefault;
+
 /**
  * A description of a tool as seen by a plan file.
  *
  * @author mikesamuel@gmail.com
  */
+@ParametersAreNonnullByDefault
 public final class ToolSignature implements JsonSerializable {
   public final String name;
-  public final YSON.Lambda productChecker;
-  public final Documentation help;
+  public final @Nullable YSON.Lambda productChecker;
+  public final @Nullable Documentation help;
   public final boolean deterministic;
 
   public ToolSignature(
-      String name, YSON.Lambda productChecker, Documentation help,
-      boolean deterministic) {
+      String name, @Nullable YSON.Lambda productChecker,
+      @Nullable Documentation help, boolean deterministic) {
     this.name = name;
     this.productChecker = productChecker;
     this.help = help;
@@ -59,8 +63,9 @@ public final class ToolSignature implements JsonSerializable {
   public static final YSONConverter<ToolSignature> converter(
       final String name, final boolean deterministic) {
     return new YSONConverter<ToolSignature>() {
-      public ToolSignature convert(Object ysonValue, MessageQueue problems) {
-        Map<ToolDefProperty, Object> map = MAP_CONV.convert(ysonValue, problems);
+      public @Nullable ToolSignature convert(
+          @Nullable Object ysonValue, MessageQueue problems) {
+        Map<ToolDefProperty, ?> map = MAP_CONV.convert(ysonValue, problems);
         if (map != null) {
           return new ToolSignature(
               name, (YSON.Lambda) map.get(ToolDefProperty.check),

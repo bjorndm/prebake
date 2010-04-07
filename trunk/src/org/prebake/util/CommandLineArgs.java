@@ -8,11 +8,15 @@ import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import javax.annotation.Nullable;
+import javax.annotation.ParametersAreNonnullByDefault;
+
 /**
  * Wraps argv from the command line to provide a key/value pair view.
  *
  * @author mikesamuel@gmail.com
  */
+@ParametersAreNonnullByDefault
 public class CommandLineArgs {
   private final List<Flag> flags = Lists.newArrayList();
   private final List<String> values;
@@ -53,9 +57,9 @@ public class CommandLineArgs {
     /** non-null, e.g. <tt>--foo</tt> from <tt>--foo=bar</tt>. */
     public final String name;
     /** possibly null, e.g. <tt>bar</tt> from <tt>--foo=bar</tt>. */
-    public final String value;
+    public final @Nullable String value;
 
-    public Flag(String name, String value) {
+    public Flag(String name, @Nullable String value) {
       assert name != null;
       this.name = name;
       this.value = value;

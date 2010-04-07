@@ -19,6 +19,10 @@ import java.util.Map;
 import java.util.Set;
 import java.util.regex.Pattern;
 
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+import javax.annotation.ParametersAreNonnullByDefault;
+
 import org.mozilla.javascript.EvaluatorException;
 import org.mozilla.javascript.Node;
 import org.mozilla.javascript.Parser;
@@ -48,6 +52,7 @@ import org.mozilla.javascript.ast.VariableInitializer;
  *
  * @author mikesamuel@gmail.com
  */
+@ParametersAreNonnullByDefault
 public final class YSON {
   private final AstNode root;
   private YSON(AstNode root) { this.root = root; }
@@ -73,7 +78,7 @@ public final class YSON {
   }
 
   /** Makes a best effort to convert to JavaScript source code. */
-  public String toSource() { return root.toSource(); }
+  public @Nonnull String toSource() { return root.toSource(); }
 
   /**
    * Converts the JavaScript values in a YSON representation into Java objects.
@@ -83,7 +88,7 @@ public final class YSON {
    * functions are converted to {@link Lambda}s, and other values are converted
    * to {@code null}.
    */
-  public Object toJavaObject() {
+  public @Nullable Object toJavaObject() {
     return YSON.toJavaObject(root);
   }
 
@@ -118,12 +123,12 @@ public final class YSON {
       );
 
   public static boolean isYSON(
-      String js, Set<String> allowedFreeVars, MessageQueue mq) {
+      String js, Set<String> allowedFreeVars, @Nullable MessageQueue mq) {
     return requireYSON(js, allowedFreeVars, mq) != null;
   }
 
   public static YSON requireYSON(
-      String js, Set<String> allowedFreeVars, MessageQueue mq) {
+      String js, Set<String> allowedFreeVars, @Nullable MessageQueue mq) {
     if (js == null) {
       if (mq != null) { mq.getMessages().add("Output is null"); }
       return null;
@@ -140,7 +145,7 @@ public final class YSON {
   }
 
   public static YSON requireYSON(
-      YSON yson, Set<String> allowedFreeVars, MessageQueue mq) {
+      YSON yson, Set<String> allowedFreeVars, @Nullable MessageQueue mq) {
     Set<String> freeNames = yson.getFreeNames();
     freeNames.removeAll(allowedFreeVars);
     if (!freeNames.isEmpty()) {
@@ -154,7 +159,7 @@ public final class YSON {
   }
 
   private static boolean isStructuralYSON(
-      final AstNode node, final MessageQueue mq) {
+      final AstNode node, final @Nullable MessageQueue mq) {
     switch (node.getType()) {
       case Token.FALSE: case Token.FUNCTION: case Token.NULL:
       case Token.NUMBER: case Token.STRING: case Token.TRUE:
@@ -186,7 +191,7 @@ public final class YSON {
     }
   }
 
-  public static YSON parse(String js) throws ParseException {
+  public static @Nonnull YSON parse(String js) throws ParseException {
     try {
       return new YSON(new Parser().parse(js, "YSON", 1));
     } catch (EvaluatorException ex) {

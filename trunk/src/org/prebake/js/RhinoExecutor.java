@@ -16,6 +16,9 @@ import java.util.WeakHashMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import javax.annotation.Nullable;
+import javax.annotation.ParametersAreNonnullByDefault;
+
 import org.mozilla.javascript.Callable;
 import org.mozilla.javascript.ClassShutter;
 import org.mozilla.javascript.Context;
@@ -40,6 +43,7 @@ import org.mozilla.javascript.WrappedException;
  *
  * @author mikesamuel@gmail.com
  */
+@ParametersAreNonnullByDefault
 public final class RhinoExecutor implements Executor {
   private final Executor.Input[] srcs;
 
@@ -157,7 +161,7 @@ public final class RhinoExecutor implements Executor {
    */
   private final Map<Path, Object> loadedModules = Maps.newHashMap();
   public <T> Output<T> run(Class<T> expectedResultType,
-      Logger logger, Loader loader)
+      Logger logger, @Nullable Loader loader)
       throws AbnormalExitException {
     if (SANDBOXINGFACTORY != ContextFactory.getGlobal()) {
       throw new IllegalStateException();
@@ -174,7 +178,7 @@ public final class RhinoExecutor implements Executor {
 
   private <T> Output<T> runInContext(
       Context context, Class<T> expectedResultType, Logger logger,
-      Loader loader)
+      @Nullable Loader loader)
       throws AbnormalExitException {
     Runner runner = new Runner(context, logger, loader);
 
@@ -202,13 +206,13 @@ public final class RhinoExecutor implements Executor {
   private class Runner {
     private final Context context;
     private final Logger logger;
-    private final Loader loader;
+    private final @Nullable Loader loader;
     private final ScriptableObject globalScope;
     private final NonDeterminism nonDeterminism;
     private final Map<Input, Object> moduleResults
         = new WeakHashMap<Input, Object>();
 
-    Runner(Context context, Logger logger, Loader loader) {
+    Runner(Context context, Logger logger, @Nullable Loader loader) {
       this.context = context;
       this.logger = logger;
       this.loader = loader;
@@ -363,7 +367,7 @@ public final class RhinoExecutor implements Executor {
     }
 
     public Scriptable construct(
-        Context context, Scriptable scoe, Object[] args) {
+        Context context, Scriptable scope, Object[] args) {
       throw new UnsupportedOperationException();
     }
 
@@ -457,7 +461,8 @@ public final class RhinoExecutor implements Executor {
     }
   }
 
-  private static YSON toYSON(Context context, Object o) throws ParseException {
+  private static YSON toYSON(Context context, @Nullable Object o)
+      throws ParseException {
     StringBuilder sb = new StringBuilder();
     JsonSink sink = new JsonSink(sb);
     try {
@@ -468,7 +473,8 @@ public final class RhinoExecutor implements Executor {
     return YSON.parseExpr(sb.toString());
   }
 
-  private static void writeYSON(Context context, Object o, JsonSink out)
+  private static void writeYSON(
+      Context context, @Nullable Object o, JsonSink out)
       throws IOException {
     if (o instanceof Scriptable) {
       if (o instanceof Function) {

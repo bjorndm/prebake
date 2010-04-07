@@ -4,6 +4,9 @@ import com.google.common.collect.Maps;
 
 import java.util.Map;
 
+import javax.annotation.Nullable;
+import javax.annotation.ParametersAreNonnullByDefault;
+
 import org.mozilla.javascript.Context;
 import org.mozilla.javascript.Function;
 import org.mozilla.javascript.NativeArray;
@@ -11,6 +14,7 @@ import org.mozilla.javascript.NativeObject;
 import org.mozilla.javascript.Scriptable;
 import org.mozilla.javascript.ScriptableObject;
 
+@ParametersAreNonnullByDefault
 final class Freezer {
   final Context cx;
   final Map<ScriptableObject, ScriptableObject> frozenCopies
@@ -45,7 +49,7 @@ final class Freezer {
     return true;
   }
 
-  Object frozenCopy(Object obj) {
+  Object frozenCopy(@Nullable Object obj) {
     if (!(obj instanceof ScriptableObject)) { return obj; }
     ScriptableObject so = (ScriptableObject) obj;
     ScriptableObject copy = frozenCopies.get(so);
@@ -91,15 +95,13 @@ final class Freezer {
         Object value = so.get(nameStr);
         int atts = so.getAttributes(nameStr);
         Object frozenValue = frozenCopy(value);
+        int constBits = ScriptableObject.PERMANENT | ScriptableObject.READONLY;
         if (isFrozen
-            && (((atts & (ScriptableObject.PERMANENT | ScriptableObject.READONLY))
-                != (ScriptableObject.PERMANENT | ScriptableObject.READONLY))
-                || frozenValue != value)) {
+            && ((atts & constBits) != constBits || frozenValue != value)) {
           isFrozen = false;
         }
         ScriptableObject.defineProperty(
-            copy, nameStr, frozenValue,
-            atts | ScriptableObject.PERMANENT | ScriptableObject.READONLY);
+            copy, nameStr, frozenValue, atts | constBits);
       }
     }
     if (isFrozen) {

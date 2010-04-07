@@ -1,14 +1,19 @@
 package org.prebake.core;
 
+import javax.annotation.Nonnull;
+import javax.annotation.ParametersAreNonnullByDefault;
+
+@ParametersAreNonnullByDefault
 public final class DidYouMean {
   private DidYouMean() {}  // not instantiable
 
-
+  @Nonnull
   public static void toMessageQueue(
       String problem, String given, MessageQueue mq, String... options) {
     mq.getMessages().add(toMessage(problem, given, options));
   }
 
+  @Nonnull
   public static String toMessage(
       String problem, String given, String... options) {
     int bestOptionDist = editDistance(given, options[0]);

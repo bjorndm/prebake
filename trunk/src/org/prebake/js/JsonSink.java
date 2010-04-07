@@ -6,12 +6,16 @@ import java.lang.reflect.Array;
 import java.util.Iterator;
 import java.util.Map;
 
+import javax.annotation.Nullable;
+import javax.annotation.ParametersAreNonnullByDefault;
+
 /**
  * A JSON writer that doesn't require converting lists, maps, and arrays to
  * instances of some other class.
  *
  * @author mikesamuel@gmail.com
  */
+@ParametersAreNonnullByDefault
 public final class JsonSink implements Closeable {
   private final Appendable out;
 
@@ -28,7 +32,7 @@ public final class JsonSink implements Closeable {
     return this;
   }
 
-  public JsonSink writeValue(String s) throws IOException {
+  public JsonSink writeValue(@Nullable String s) throws IOException {
     if (s == null) {
       out.append("null");
       return this;
@@ -58,7 +62,12 @@ public final class JsonSink implements Closeable {
     return this;
   }
 
-  public <T> JsonSink writeValue(Map<String, T> obj) throws IOException {
+  public <T> JsonSink writeValue(@Nullable Map<String, T> obj)
+      throws IOException {
+    if (obj == null) {
+      out.append("null");
+      return this;
+    }
     out.append('{');
     Iterator<Map.Entry<String, T>> it = obj.entrySet().iterator();
     if (it.hasNext()) {
@@ -73,7 +82,11 @@ public final class JsonSink implements Closeable {
     return this;
   }
 
-  public JsonSink writeValue(Iterable<?> obj) throws IOException {
+  public JsonSink writeValue(@Nullable Iterable<?> obj) throws IOException {
+    if (obj == null) {
+      out.append("null");
+      return this;
+    }
     out.append('[');
     Iterator<?> it = obj.iterator();
     if (it.hasNext()) {
@@ -88,7 +101,7 @@ public final class JsonSink implements Closeable {
   }
 
   @SuppressWarnings("unchecked")
-  public JsonSink writeValue(Object o) throws IOException {
+  public JsonSink writeValue(@Nullable Object o) throws IOException {
     if (o == null) {
       out.append("null");
       return this;
@@ -131,7 +144,7 @@ public final class JsonSink implements Closeable {
     return this;
   }
 
-  public JsonSink writeValue(JsonSerializable o) throws IOException {
+  public JsonSink writeValue(@Nullable JsonSerializable o) throws IOException {
     if (o != null) {
       o.toJson(this);
     } else {

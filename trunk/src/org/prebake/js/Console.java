@@ -13,6 +13,10 @@ import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import javax.annotation.Nonnull;
+import javax.annotation.ParametersAreNonnullByDefault;
+import javax.annotation.ParametersAreNullableByDefault;
+
 import org.mozilla.javascript.Context;
 import org.mozilla.javascript.EvaluatorException;
 import org.mozilla.javascript.JavaScriptException;
@@ -28,6 +32,7 @@ import org.mozilla.javascript.Scriptable;
  * @see <a href="http://code.google.com/p/prebake/wiki/JsConsole">wiki</a>
  * @author mikesamuel@gmail.com
  */
+@ParametersAreNullableByDefault
 public final class Console {
   private final Logger logger;
   private final List<Group> groups = Lists.newArrayList();
@@ -36,7 +41,7 @@ public final class Console {
   private static final Pattern STACK_FRAME = Pattern.compile(
       "^\tat ([^:]+):(\\d+)(?: \\(([^)]+)\\))?", Pattern.MULTILINE);
 
-  Console(Logger logger) {
+  Console(@Nonnull Logger logger) {
     this.logger = logger;
   }
 
@@ -52,7 +57,23 @@ public final class Console {
   private static final Pattern FORMAT_SPECIFIER = Pattern.compile(
       "%(?:(?:\\d+\\$)?(?:[\\-#+ 0,(]+)?(?:\\d+)?(?:\\.\\d+)?([a-zA-Z])|%)");
 
-  private void log(Level level, String format, Object... args) {
+  @ParametersAreNonnullByDefault
+  private void logNoSub(Level level, String msg) {
+    LogRecord lr = new LogRecord(level, "'" + msg.replaceAll("'", "''") + "'");
+    Matcher m = STACK_FRAME.matcher(
+        new EvaluatorException(null).getScriptStackTrace());
+    if (m.find()) {
+      String file = m.group(1);
+      String line = m.group(2);
+      String fnName = m.group(3);
+      lr.setSourceClassName(file + ":" + line);
+      lr.setSourceMethodName(fnName != null ? fnName : "<anonymous>");
+    }
+    logger.log(lr);
+  }
+
+  @ParametersAreNonnullByDefault
+  private void log(Level level, String format, Object[] args) {
     char[] fmtChars = null;
     for (int i = args.length; --i >= 0;) {
       Object o = args[i];
@@ -83,17 +104,7 @@ public final class Console {
     sb.append(SIXTEEN_SPACES, 0, nSpaces);
     Formatter f = new Formatter(sb /*, default Locale */);
     f.format(format, args);
-    LogRecord lr = new LogRecord(level, sb.toString());
-    Matcher m = STACK_FRAME.matcher(
-        new EvaluatorException(null).getScriptStackTrace());
-    if (m.find()) {
-      String file = m.group(1);
-      String line = m.group(2);
-      String fnName = m.group(3);
-      lr.setSourceClassName(file + ":" + line);
-      lr.setSourceMethodName(fnName != null ? fnName : "<anonymous>");
-    }
-    logger.log(lr);
+    logNoSub(level, sb.toString());
   }
 
   public void log(String format, Object... args) {
@@ -142,16 +153,16 @@ public final class Console {
         }
       }
     }
-    log(Level.INFO, toTable(pairs, 2));
+    logNoSub(Level.INFO, toTable(pairs, 2));
   }
 
   public void group(String name) {
-    log(Level.INFO, "Enter " + name);
+    logNoSub(Level.INFO, "Enter " + name);
     groups.add(new Group(name));
   }
 
   public void groupEnd() {
-    log(Level.INFO, "Exit  " + groups.remove(0).name);
+    logNoSub(Level.INFO, "Exit  " + groups.remove(0).name);
   }
 
   public void time(String name) {
@@ -162,12 +173,12 @@ public final class Console {
     Long t0 = timers.remove(name);
     if (t0 != null) {
       long t1 = System.nanoTime();
-      log(Level.INFO, "Timer %s took %sns", name, t1 - t0);
+      log(Level.INFO, "Timer %s took %sns", new Object[] { name, t1 - t0 });
     }
   }
 
   public void trace() {
-    log(Level.INFO, new EvaluatorException(null).getScriptStackTrace());
+    logNoSub(Level.INFO, new EvaluatorException(null).getScriptStackTrace());
   }
 
   // TODO: make assert work as assert_
@@ -221,6 +232,6 @@ public final class Console {
 
   private static final class Group {
     final String name;
-    Group(String name) { this.name = name; }
+    Group(@Nonnull String name) { this.name = name; }
   }
 }

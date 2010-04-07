@@ -8,6 +8,8 @@ import java.lang.reflect.Array;
 import java.util.Map;
 import java.util.Set;
 
+import javax.annotation.Nullable;
+
 public final class ObjUtil {
   private static final Set<Class<?>> IMMUTABLE_CLASSES
       = ImmutableSet.<Class<?>>builder()
@@ -23,7 +25,7 @@ public final class ObjUtil {
       .add(Double.class)
       .build();
 
-  public static boolean isDeeplyImmutable(Object o) {
+  public static boolean isDeeplyImmutable(@Nullable Object o) {
     if (o == null) { return true; }
     if (IMMUTABLE_CLASSES.contains(o.getClass())) { return true; }
     if (o instanceof ImmutableCollection<?>) {

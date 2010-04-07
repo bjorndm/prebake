@@ -12,7 +12,7 @@ public final class FileAndHash {
 
   public FileAndHash(Path p, byte[] content, Hash hash) {
     this.p = p;
-    this.content = content;
+    this.content = content;  // TODO
     this.hash = hash;
   }
 

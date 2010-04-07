@@ -32,11 +32,15 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
 
+import javax.annotation.Nonnull;
+import javax.annotation.ParametersAreNonnullByDefault;
+
 /**
  * A service that services requests by the {@link org.prebake.client.Main}.
  *
  * @author mikesamuel@gmail.com
  */
+@ParametersAreNonnullByDefault
 public abstract class Prebakery implements Closeable {
   private final Config config;
   private final String token;
@@ -131,13 +135,14 @@ public abstract class Prebakery implements Closeable {
    * can reach the portion of the file system modifiable by the service.
    * In non test environments should return an unguessable string.
    */
-  protected abstract String makeToken();
+  protected abstract @Nonnull String makeToken();
 
   /**
    * Creates a database environment rooted at the given directory.
    * Test environments may create the database elsewhere.
    */
-  protected abstract Environment createDbEnv(Path dir) throws IOException;
+  protected abstract @Nonnull Environment createDbEnv(Path dir)
+      throws IOException;
 
   public synchronized void start(Runnable onClose) {
     if (this.onClose != null) { throw new IllegalStateException(); }

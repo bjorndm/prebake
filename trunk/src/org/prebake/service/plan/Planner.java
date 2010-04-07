@@ -41,11 +41,14 @@ import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import javax.annotation.ParametersAreNonnullByDefault;
+
 /**
  * Keeps the set of {@link Product products} up-to-date.
  *
  * @author mikesamuel@gmail.com
  */
+@ParametersAreNonnullByDefault
 public final class Planner implements Closeable {
   private final Multimap<String, Product> productsByName = Multimaps
       .synchronizedMultimap(Multimaps.newMultimap(
@@ -133,7 +136,8 @@ public final class Planner implements Closeable {
           .write(" var frozenCopy = {}.constructor.frozenCopy;")
           .write(" function withHelp(o, help) {")
           .write("    ({}).constructor.defineProperty(")
-          .write("        o, 'help_', { value: frozenCopy(help), enumerable: false });")
+          .write("        o, 'help_',")
+          .write("        { value: frozenCopy(help), enumerable: false });")
           .write(" }")
           .write("({");
 

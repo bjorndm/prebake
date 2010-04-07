@@ -7,6 +7,8 @@ import java.nio.file.attribute.PosixFilePermission;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.util.Set;
 
+import javax.annotation.Nonnull;
+
 /**
  * Utilities for dealing with file permissions.
  *
@@ -19,7 +21,7 @@ public final class FilePerms {
    *     in the group, and bits 0-2 are RWX respectively for all other users.
    * @return the file permissions corresponding to permBits.
    */
-  public static Set<PosixFilePermission> permSet(
+  public static @Nonnull Set<PosixFilePermission> permSet(
       int permBits, boolean isDirectory) {
     if (isDirectory) {
       // Set the executable bit for any of the UGO blocks that have the read
@@ -41,7 +43,8 @@ public final class FilePerms {
    *     in the group, and bits 0-2 are RWX respectively for all other users.
    * @return the file attributes corresponding to permBits.
    */
-  public static FileAttribute<?>[] perms(int permBits, boolean isDirectory) {
+  public static @Nonnull FileAttribute<?>[] perms(
+      int permBits, boolean isDirectory) {
     /*
     if (path != null && "\\".equals(path.getFileSystem().getSeparator())) {
       String name = path.normalize().getName().toString();

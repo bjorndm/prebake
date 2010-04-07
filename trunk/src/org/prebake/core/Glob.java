@@ -10,12 +10,15 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
+import javax.annotation.ParametersAreNonnullByDefault;
+
 /**
  * A pattern that matches a group of files.
  *
  * @see <a href="http://code.google.com/p/prebake/wiki/Glob">Wiki Docs</a>
  * @author mikesamuel@gmail.com
  */
+@ParametersAreNonnullByDefault
 public final class Glob implements Comparable<Glob>, JsonSerializable {
   private final String[] parts;
 

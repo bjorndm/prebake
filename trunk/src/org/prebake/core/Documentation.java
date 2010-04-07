@@ -7,16 +7,21 @@ import org.prebake.js.YSONConverter;
 import java.io.IOException;
 import java.util.Map;
 
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+import javax.annotation.ParametersAreNonnullByDefault;
+
 /**
  * Structured documentation of a system artifact.
  *
  * @see <a href="http://code.google.com/p/prebake/wiki/DocumentationRecord">
  *   wiki</a>
  */
+@ParametersAreNonnullByDefault
 public final class Documentation implements JsonSerializable {
-  public final String summaryHtml;
-  public final String detailHtml;
-  public final String contactEmail;
+  public final @Nonnull String summaryHtml;
+  public final @Nonnull String detailHtml;
+  public final @Nullable String contactEmail;
 
   public enum Field {
     summary,
@@ -55,17 +60,14 @@ public final class Documentation implements JsonSerializable {
   }
 
   public Documentation(
-      String summaryHtml, String detailHtml, String contactEmail) {
+      @Nullable String summaryHtml, String detailHtml,
+      @Nullable String contactEmail) {
     // TODO: coerce HTML to balanced preformatted static HTML with normalized
     // entities.  The balanced tag part is critical for summaryHtml.
     this.summaryHtml = summaryHtml != null
         ? summaryHtml : summaryOf(detailHtml);
     this.detailHtml = detailHtml;
     this.contactEmail = contactEmail;
-  }
-
-  public Documentation(String helpHtml, String contactEmail) {
-    this(null, helpHtml, contactEmail);
   }
 
   @Override
@@ -85,8 +87,11 @@ public final class Documentation implements JsonSerializable {
         .optional("summary", optStrIdent, null)
         .optional("contact", optStrIdent, null)
         .build();
-    public Documentation convert(Object ysonValue, MessageQueue problems) {
-      String summary, detail, contact;
+    public Documentation convert(
+        @Nullable Object ysonValue, MessageQueue problems) {
+      @Nullable String summary;
+      @Nonnull String detail;
+      @Nullable String contact;
       if (ysonValue instanceof String) {
         detail = (String) ysonValue;
         summary = contact = null;
@@ -98,7 +103,7 @@ public final class Documentation implements JsonSerializable {
         contact = pairs.get(Field.contact);
         if (detail == null) { return null; }  // message logged by MAP_CONV
       }
-      return new Documentation(summary, detail, contact);
+      return new Documentation(summary, detail.toString(), contact);
     }
     public String exampleText() { return MAP_CONV.exampleText(); }
   };
@@ -110,10 +115,22 @@ public final class Documentation implements JsonSerializable {
     return contactEmail == null && summaryOf(detailHtml).equals(summaryHtml);
   }
 
-  public void toJson(JsonSink sink) throws IOException {
-    sink.write("{").writeValue("summary").write(":").writeValue(summaryHtml)
-        .write(",").writeValue("detail").write(":").writeValue(detailHtml)
-        .write(",").writeValue("contact").write(":").writeValue(contactEmail)
-        .write("}");
+  public void toJson(JsonSink sink) throws IOException { toJson(sink, false); }
+
+  public void toJson(JsonSink sink, boolean full) throws IOException {
+    boolean skipSummary = !full && summaryOf(detailHtml).equals(summaryHtml);
+    if (skipSummary && contactEmail == null) {
+      sink.writeValue(detailHtml);
+      return;
+    }
+    sink.write("{");
+    if (!skipSummary) {
+      sink.writeValue("summary").write(":").writeValue(summaryHtml).write(",");
+    }
+    sink.writeValue("detail").write(":").writeValue(detailHtml);
+    if (full || contactEmail != null) {
+      sink.write(",").writeValue("contact").write(":").writeValue(contactEmail);
+    }
+    sink.write("}");
   }
 }

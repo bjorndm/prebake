@@ -30,12 +30,16 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import javax.annotation.Nullable;
+import javax.annotation.ParametersAreNonnullByDefault;
+
 /**
  * As files changes, maintains a table of file hashes, and invalidates non-file
  * artifacts such as the toolbox, and dependency graph.
  *
  * @author mikesamuel@gmail.com
  */
+@ParametersAreNonnullByDefault
 public final class FileHashes implements ArtifactValidityTracker {
   private final Logger logger;
   private final Database fileToHash;
@@ -71,7 +75,7 @@ public final class FileHashes implements ArtifactValidityTracker {
 
   public FileSystem getFileSystem() { return root.getFileSystem(); }
 
-  private Path toKeyPath(Path p) {
+  private @Nullable Path toKeyPath(Path p) {
     try {
       Path relPath = root.relativize(p.toRealPath(false));
       return (relPath.getNameCount() == 0
