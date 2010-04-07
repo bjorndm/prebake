@@ -132,13 +132,14 @@ public final class Planner implements Closeable {
     try {
       StringBuilder sb = new StringBuilder();
       JsonSink sink = new JsonSink(sb);
-      sink.write(" var freeze = {}.constructor.freeze;")
-          .write(" var frozenCopy = {}.constructor.frozenCopy;")
-          .write(" function withHelp(o, help) {")
-          .write("    ({}).constructor.defineProperty(")
-          .write("        o, 'help_',")
-          .write("        { value: frozenCopy(help), enumerable: false });")
-          .write(" }")
+      sink.write("var freeze = {}.constructor.freeze;\n")
+          .write("var frozenCopy = {}.constructor.frozenCopy;\n")
+          .write("function withHelp(help, o) {\n")
+          .write("  ({}).constructor.defineProperty(\n")
+          .write("      o, 'help_',\n")
+          .write("      { value: frozenCopy(help), enumerable: false });\n")
+          .write("  return o;\n")
+          .write("}\n")
           .write("({");
 
       boolean sawOne = false;
@@ -149,27 +150,29 @@ public final class Planner implements Closeable {
             gotAllTools = false;
             continue;
           }
-          if (sawOne) { sink.write(","); }
+          if (sawOne) { sink.write(",\n"); }
           sink.writeValue(sig.name).write(":freeze(");
           if (sig.help != null) {
-            sink.write("withHelp(").writeValue(sig.help).write(",");
+            sink.write("withHelp(").writeValue(sig.help).write(", ");
           } else {
             sink.write("(");
           }
-          sink.write("function (inputs, outputs, options) {")
+          sink.write("function ").write(sig.name)
+              .write("(inputs, outputs, options) {\n")
               // copy and freeze options, outputs, and inputs
-              .write(" inputs = frozenCopy(inputs);")
-              .write(" outputs = frozenCopy(outputs);")
-              .write(" options = frozenCopy(options);");
+              .write("    inputs = frozenCopy(inputs);\n")
+              .write("    outputs = frozenCopy(outputs);\n")
+              .write("    options = frozenCopy(options);\n");
           if (sig.productChecker != null) {
-            sink.write("(").writeValue(sig.productChecker).write(")(options);");
+            sink.write("    (").writeValue(sig.productChecker)
+                .write(")(options);\n");
           }
-          sink.write(" return freeze({ tool: ")
+          sink.write("    return freeze({ tool: ")
               .writeValue(sig.name)
               .write(", outputs: outputs")
               .write(", inputs: inputs")
-              .write(", options: options });")
-              .write("}))");
+              .write(", options: options });\n")
+              .write("  }))\n");
           sawOne = true;
         } catch (ExecutionException ex) {
           logger.log(Level.SEVERE, "Tool not available", ex);
@@ -179,9 +182,10 @@ public final class Planner implements Closeable {
           gotAllTools = false;
         }
       }
-      sink.write("})");
+      sink.write("})\n");
       sink.close();
       toolJs = sb.toString();
+      logger.log(Level.FINER, "{0}", toolJs);
     } catch (IOException ex) {
       Throwables.propagate(ex);  // Writing to StringBuilder
       return Collections.emptyList();

@@ -4,6 +4,7 @@ import org.prebake.core.Documentation;
 
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.util.logging.Level;
 
 import javax.annotation.Nullable;
 import javax.annotation.ParametersAreNonnullByDefault;
@@ -13,6 +14,7 @@ import org.mozilla.javascript.Context;
 import org.mozilla.javascript.Scriptable;
 import org.mozilla.javascript.ScriptableObject;
 import org.mozilla.javascript.Undefined;
+import org.mozilla.javascript.UniqueTag;
 
 @ParametersAreNonnullByDefault
 final class HelpFn extends BaseFunction {
@@ -27,7 +29,14 @@ final class HelpFn extends BaseFunction {
       @Nullable Object o = args[0];
       if (o instanceof Scriptable) {
         Object help = ScriptableObject.getProperty((Scriptable) o, "help_");
+        if (UniqueTag.NOT_FOUND.equals(help)) { return Undefined.instance; }
         StringBuilder msg = new StringBuilder("Help: ");
+        String name = null;
+        if (o instanceof BaseFunction) {
+          name = ((BaseFunction) o).getFunctionName();
+          if ("".equals(name)) { name = null; }
+        }
+        if (name != null) { msg.append(name).append('\n'); }
         if (help instanceof String) {
           msg.append(help);
         } else if (help instanceof Scriptable) {
@@ -49,8 +58,8 @@ final class HelpFn extends BaseFunction {
           if (contact instanceof String) {
             msg.append("\nContact: ").append(contact);
           }
-          console.log(msg.toString().replace("%", "%%"));
         }
+        console.logNoSub(Level.INFO, msg.toString());
       }
     }
     return Undefined.instance;
