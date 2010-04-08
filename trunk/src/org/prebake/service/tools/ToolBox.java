@@ -331,7 +331,7 @@ public class ToolBox implements ToolProvider {
             if (mq.hasErrors()) {
               for (String message : mq.getMessages()) {
                 // Escape message using MessageFormat rules.
-                logger.warning("'" + message.replace("'", "''") + "'");
+                logger.warning(MessageQueue.escape(message));
               }
               return null;
             }

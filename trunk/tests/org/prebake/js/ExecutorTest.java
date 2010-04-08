@@ -79,7 +79,7 @@ public class ExecutorTest extends PbTestCase {
 
   public final void testDeterministicModuleUnused() throws Exception {
     Executor.Output<?> out = doLoad(
-        "load('bar/baz.js')();",
+        "load('bar/baz.js')({ load: load });",
         "bar/baz.js", "1 + 0 * load('boo.js');",
         "bar/boo.js", "Math.random()");
     assertTrue(Double.isNaN((Double) out.result));
@@ -88,7 +88,7 @@ public class ExecutorTest extends PbTestCase {
 
   public final void testDeterministicModuleUsed() throws Exception {
     Executor.Output<?> out = doLoad(
-        "load('bar/baz.js')();",
+        "load('bar/baz.js')({ load: load });",
         // boo.js loaded relative to bar/baz.js
         "bar/baz.js", "1 + 0 * load('boo.js')();",
         "bar/boo.js", "Math.random()");
@@ -316,7 +316,7 @@ public class ExecutorTest extends PbTestCase {
         "foo.js", "this.x * this.y");
     assertEquals(6d, out.result);
     out = doLoad(
-        "load('fooDelegate.js')({ x: 2, y: 3 });",
+        "load('fooDelegate.js')({ x: 2, y: 3, load: load });",
         "fooDelegate.js", "load('foo.js')(this)",
         "foo.js", "this.x * this.y");
     assertEquals(6d, out.result);

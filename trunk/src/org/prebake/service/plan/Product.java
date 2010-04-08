@@ -8,11 +8,14 @@ import org.prebake.js.JsonSink;
 import org.prebake.js.YSONConverter;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Sets;
 
 import java.io.IOException;
 import java.nio.file.Path;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import javax.annotation.Nullable;
 import javax.annotation.ParametersAreNonnullByDefault;
@@ -61,6 +64,7 @@ public final class Product implements JsonSerializable {
     return JsonSerializable.StringUtil.toString(this);
   }
 
+  /** Property names in the YSON representation. */
   public enum Field {
     help,
     inputs,
@@ -90,8 +94,11 @@ public final class Product implements JsonSerializable {
   private static final YSONConverter<Map<Field, Object>> MAP_CONV
       = YSONConverter.Factory.mapConverter(Field.class)
           .optional(Field.help.name(), Documentation.CONVERTER, null)
-          .require(Field.inputs.name(), GLOB_LIST_CONV)
-          .require(Field.outputs.name(), GLOB_LIST_CONV)
+          // Inputs and outputs are optional because reasonable defaults
+          // can be inferred from the unions of the corresponding fields in
+          // the actions.
+          .optional(Field.inputs.name(), GLOB_LIST_CONV, null)
+          .optional(Field.outputs.name(), GLOB_LIST_CONV, null)
           .optional(
               Field.intermediate.name(),
               YSONConverter.Factory.withType(Boolean.class), false)
@@ -102,20 +109,62 @@ public final class Product implements JsonSerializable {
   public static YSONConverter<Product> converter(
       final String name, final Path source) {
     return new YSONConverter<Product>() {
-      @SuppressWarnings("unchecked")
       public @Nullable Product convert(
           @Nullable Object ysonValue, MessageQueue problems) {
+        if (ysonValue instanceof List<?>) {
+          List<?> list = (List<?>) ysonValue;
+          if (list.isEmpty() || looksLikeAction(list.get(0))) {
+            // Coerce a list of actions to a product.
+           ysonValue = Collections.singletonMap(
+               Field.actions.name(), ysonValue);
+          }
+        } else if (looksLikeAction(ysonValue)) {
+          // Coerce a single action to an action.
+          ysonValue = Collections.singletonMap(
+              Field.actions.name(), Collections.singletonList(ysonValue));
+        }
         Map<Field, ?> fields = MAP_CONV.convert(ysonValue, problems);
         if (problems.hasErrors()) { return null; }
+        List<Action> actions = getList(fields.get(Field.actions), Action.class);
+        List<Glob> inputs = getList(fields.get(Field.inputs), Glob.class);
+        List<Glob> outputs = getList(fields.get(Field.outputs), Glob.class);
+        if (inputs == null || outputs == null) {
+          // Default missing (not empty) inputs and outputs to the union of
+          // the actions' inputs and outputs.
+          Set<Glob> inSet = inputs == null
+              ? Sets.<Glob>newLinkedHashSet() : null;
+          Set<Glob> outSet = outputs == null
+              ? Sets.<Glob>newLinkedHashSet() : null;
+          for (Action a : actions) {
+            if (inSet != null) { inSet.addAll(a.inputs); }
+            if (outSet != null) { outSet.addAll(a.outputs); }
+          }
+          if (inSet != null) { inputs = ImmutableList.copyOf(inSet); }
+          if (outSet != null) { outputs = ImmutableList.copyOf(outSet); }
+        }
         return new Product(
-            name, (Documentation) fields.get(Field.help),
-            (List<Glob>) fields.get(Field.inputs),
-            (List<Glob>) fields.get(Field.outputs),
-            (List<Action>) fields.get(Field.actions),
-            Boolean.TRUE.equals(fields.get(Field.intermediate)),
+            name, (Documentation) fields.get(Field.help), inputs, outputs,
+            actions, Boolean.TRUE.equals(fields.get(Field.intermediate)),
             source);
       }
       public String exampleText() { return MAP_CONV.exampleText(); }
     };
+  }
+
+  private static <T> List<T> getList(Object o, Class<T> type) {
+    if (o == null) { return null; }
+    ImmutableList.Builder<T> b = ImmutableList.builder();
+    for (Object el : (List<?>) o) {
+      b.add(type.cast(el));
+    }
+    return b.build();
+  }
+
+  private static boolean looksLikeAction(Object o) {
+    if (!(o instanceof Map<?, ?>)) { return false; }
+    Map<?, ?> m = (Map<?, ?>) o;
+    return !m.containsKey(Field.actions.name())
+        && m.containsKey(Action.Field.tool.name())
+        && m.containsKey(Action.Field.options.name());
   }
 }

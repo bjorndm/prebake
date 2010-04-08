@@ -89,9 +89,13 @@ public class StubArtifactValidityTracker implements ArtifactValidityTracker {
     for (Path p : paths) {
       p = p.toRealPath(false);
       if (!p.startsWith(root)) { continue; }
-      Hash h = Hash.builder().withFile(p).build();
-      Hash old = hashes.put(p, h);
-      if (old == null || !old.equals(h)) { changed.add(p); }
+      if (p.exists()) {
+        Hash h = Hash.builder().withFile(p).build();
+        Hash old = hashes.put(p, h);
+        if (old == null || !old.equals(h)) { changed.add(p); }
+      } else {
+        if (hashes.remove(p) != null) { changed.add(p); }
+      }
     }
     for (Iterator<ArtifactEntry<?>> it = artifacts.iterator(); it.hasNext(); ) {
       ArtifactEntry<?> e = it.next();

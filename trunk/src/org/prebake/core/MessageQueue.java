@@ -26,4 +26,13 @@ public class MessageQueue {
   public List<String> getMessages() { return messages; }
 
   public boolean hasErrors() { return hasErrors; }
+
+  /**
+   * Escapes a string so that it can pass through the
+   * {@link java.text.MessageFormat} formatter used by
+   * {@link java.util.logging.Logger} unscathed.
+   */
+  public static String escape(String s) {
+    return s.replace("'", "''").replace("{", "'{'");
+  }
 }

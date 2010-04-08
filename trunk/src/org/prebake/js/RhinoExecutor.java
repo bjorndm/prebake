@@ -19,6 +19,7 @@ import java.util.logging.Logger;
 import javax.annotation.Nullable;
 import javax.annotation.ParametersAreNonnullByDefault;
 
+import org.mozilla.javascript.BaseFunction;
 import org.mozilla.javascript.Callable;
 import org.mozilla.javascript.ClassShutter;
 import org.mozilla.javascript.Context;
@@ -267,9 +268,12 @@ public final class RhinoExecutor implements Executor {
         }
         ScriptableObject.putConstProperty(actualsObj, e.getKey(), value);
       }
+      LoadFn loadFn = new LoadFn(globalScope, loader, logger, src.base);
+      if (loader != null && !ScriptableObject.hasProperty(actualsObj, "load")) {
+        ScriptableObject.putConstProperty(actualsObj, "load", loadFn);
+      }
       Object[] actualsObjArr = new Object[] { actualsObj };
 
-      LoadFn loadFn = new LoadFn(globalScope, loader, logger, src.base);
       try {
         Object result = loadFn.load(context, src.content, src.source)
             .call(context, globalScope, globalScope, actualsObjArr);
@@ -281,7 +285,7 @@ public final class RhinoExecutor implements Executor {
     }
   }
 
-  public final class LoadFn extends ScriptableObject implements Function {
+  public final class LoadFn extends BaseFunction {
     private final Scriptable globalScope;
     private final Loader loader;
     private final Logger logger;
@@ -294,11 +298,6 @@ public final class RhinoExecutor implements Executor {
       this.base = base;
     }
 
-    @Override public String getTypeOf() { return "function"; }
-
-    @Override
-    public String getClassName() { return null; }
-
     @Override
     public Object getDefaultValue(Class<?> typeHint) {
       if (Number.class.isAssignableFrom(typeHint)) { return Double.NaN; }
@@ -310,6 +309,7 @@ public final class RhinoExecutor implements Executor {
      * @throws RhinoException when load fails due to IE problems, or the JS file
      *     is syntactically invalid.
      */
+    @Override
     public Function call(
         Context context, Scriptable scope, Scriptable thisObj, Object[] args)
         throws RhinoException {
@@ -359,19 +359,26 @@ public final class RhinoExecutor implements Executor {
     private Function load(Context context, String src, String srcName) {
       logger.log(Level.FINE, "Loading {0}", srcName);
       try {
-        return new Freezer(context).freeze(new LoadedModule(
-            srcName, context.compileString(src, srcName, 1, null)));
+        Script compiled;
+        try {
+          compiled = context.compileString(src, srcName, 1, null);
+        } catch (EvaluatorException ex) {
+          logger.log(Level.FINE, "JS Compilation failed {0}", src);
+          throw ex;
+        }
+        return new Freezer(context).freeze(new LoadedModule(srcName, compiled));
       } finally {
         logger.log(Level.FINE, "Done    {0}", srcName);
       }
     }
 
+    @Override
     public Scriptable construct(
         Context context, Scriptable scope, Object[] args) {
       throw new UnsupportedOperationException();
     }
 
-    final class LoadedModule extends ScriptableObject implements Function {
+    final class LoadedModule extends BaseFunction {
       private final String srcName;
       private final Script body;
 
@@ -380,9 +387,17 @@ public final class RhinoExecutor implements Executor {
         this.body = body;
       }
 
-      @Override public String getTypeOf() { return "function"; }
-
-      @Override public String getClassName() { return srcName; }
+      @Override public String getFunctionName() {
+        int lastSlash = Math.max(
+            srcName.lastIndexOf('/'), srcName.lastIndexOf('\\')) + 1;
+        int dot = srcName.indexOf('.', lastSlash);
+        if (dot < 0) { dot = srcName.length(); }
+        if (lastSlash == dot) { return null; }
+        String name = srcName.substring(0, dot);
+        name = name.replace('-', '_').replaceAll("[^\\w$\\p{L}]", "");
+        if (Character.isDigit(name.codePointAt(0))) { name = "_" + name; }
+        return name;
+      }
 
       @Override
       public Object getDefaultValue(Class<?> typeHint) {
@@ -391,13 +406,11 @@ public final class RhinoExecutor implements Executor {
         return this;
       }
 
+      @Override
       public Object call(
           Context context, Scriptable scope, Scriptable thisObj, Object[] args)
           throws RhinoException {
         ScriptableObject localScope = new LoadedModuleScope(globalScope);
-        if (loader != null) {
-          ScriptableObject.putProperty(localScope, "load", LoadFn.this);
-        }
         if (args.length >= 1 && args[0] instanceof Scriptable) {
           Scriptable env = (Scriptable) args[0];
           for (Object key : ScriptableObject.getPropertyIds(env)) {
@@ -412,9 +425,15 @@ public final class RhinoExecutor implements Executor {
             }
           }
         }
+        if (loader != null
+            && (ScriptableObject.getProperty(localScope, "load")
+                instanceof LoadFn)) {
+          ScriptableObject.putProperty(localScope, "load", LoadFn.this);
+        }
         return body.exec(context, localScope);
       }
 
+      @Override
       public Scriptable construct(Context c, Scriptable scope, Object[] args) {
         throw new UnsupportedOperationException();
       }
@@ -527,8 +546,8 @@ public final class RhinoExecutor implements Executor {
   }
 
   private static String functionSource(Context context, Function f) {
-    Object toSource = ScriptableObject.getProperty(
-        f.getPrototype(), "toSource");
+    Scriptable fnProto = f.getPrototype();
+    Object toSource = ScriptableObject.getProperty(fnProto, "toSource");
     if (!(toSource instanceof Function)) { return null; }
     Object source = ((Function) toSource).call(
         context, f.getParentScope(), f, new Object[0]);

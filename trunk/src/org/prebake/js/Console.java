@@ -1,5 +1,7 @@
 package org.prebake.js;
 
+import org.prebake.core.MessageQueue;
+
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
@@ -59,7 +61,7 @@ public final class Console {
 
   @ParametersAreNonnullByDefault
   void logNoSub(Level level, String msg) {
-    LogRecord lr = new LogRecord(level, "'" + msg.replaceAll("'", "''") + "'");
+    LogRecord lr = new LogRecord(level, MessageQueue.escape(msg));
     Matcher m = STACK_FRAME.matcher(
         new EvaluatorException(null).getScriptStackTrace());
     if (m.find()) {

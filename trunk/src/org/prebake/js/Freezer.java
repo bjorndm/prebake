@@ -7,6 +7,7 @@ import java.util.Map;
 import javax.annotation.Nullable;
 import javax.annotation.ParametersAreNonnullByDefault;
 
+import org.mozilla.javascript.BaseFunction;
 import org.mozilla.javascript.Context;
 import org.mozilla.javascript.Function;
 import org.mozilla.javascript.NativeArray;
@@ -21,20 +22,21 @@ final class Freezer {
       = Maps.newIdentityHashMap();
   Freezer(Context cx) { this.cx = cx; }
 
+  private static final int CONST_BITS = ScriptableObject.PERMANENT
+      | ScriptableObject.READONLY;
+
   <T extends ScriptableObject> T freeze(T obj) {
     for (Object name : obj.getAllIds()) {
       if (name instanceof Number) {
         int index = ((Number) name).intValue();
-        obj.setAttributes(
-            index,
-            obj.getAttributes(index) | ScriptableObject.PERMANENT
-            | ScriptableObject.READONLY);
+        obj.setAttributes(index, obj.getAttributes(index) | CONST_BITS);
       } else {
         String s = name.toString();
-        obj.setAttributes(
-            s,
-            obj.getAttributes(s) | ScriptableObject.PERMANENT
-            | ScriptableObject.READONLY);
+        if (obj instanceof BaseFunction
+            && ("prototype".equals(s) || "arguments".equals(s))) {
+          continue;
+        }
+        obj.setAttributes(s, obj.getAttributes(s) | CONST_BITS);
       }
     }
     obj.preventExtensions();
