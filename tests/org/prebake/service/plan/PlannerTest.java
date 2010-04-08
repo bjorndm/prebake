@@ -76,6 +76,20 @@ public class PlannerTest extends PbTestCase {
         .run();
   }
 
+  public final void testGlobbing() throws IOException {
+    test.withFileSystem(
+            "/",
+            "  cwd/",
+            "    plan1.js \"({p:tools.gcc('**.{c,cc}', '**.o')})\"")
+        .withTools(tool("gcc"))
+        .withPlanFiles("plan1.js")
+        .expectProduct(
+            "p",
+            action("gcc", Arrays.asList("**.c", "**.cc"), Arrays.asList("**.o"))
+            )
+        .run();
+  }
+
   public final void testBadToolReturnValue() throws IOException {
     test.withFileSystem(
             "/",
@@ -90,7 +104,7 @@ public class PlannerTest extends PbTestCase {
         .withPlanFiles("plan1.js", "plan2.js")
         .expectProduct("myProduct", action("myTool", "**.foo", "**.bar"))
         .expectLog(
-            "WARNING: Expected {\"inputs\":[<glob>, ...],...}, not null",
+            "WARNING: Expected {\"inputs\":['*.glob', ...],...}, not null",
             "SEVERE: Failed to update plan plan1.js")
         .run();
   }
@@ -186,7 +200,7 @@ public class PlannerTest extends PbTestCase {
         .withTools(tool("munge"))
         .withPlanFiles("plan1.js")
         .expectLog(
-            "WARNING: Expected an instance of Glob but was \"//*.*\"",
+            "WARNING: Bad glob: '//*.*'",
             "SEVERE: Failed to update plan plan1.js")
         .run();
   }
@@ -455,5 +469,15 @@ public class PlannerTest extends PbTestCase {
         tool, Collections.singletonList(Glob.fromString(input)),
         Collections.singletonList(Glob.fromString(output)),
         ImmutableMap.<String, Object>of());
+  }
+
+  private static Action action(
+      String tool, List<String> inputs, List<String> outputs) {
+    List<Glob> inputGlobs = Lists.newArrayList();
+    for (String input : inputs) { inputGlobs.add(Glob.fromString(input)); }
+    List<Glob> outputGlobs = Lists.newArrayList();
+    for (String output : outputs) { outputGlobs.add(Glob.fromString(output)); }
+    return new Action(
+        tool, inputGlobs, outputGlobs, ImmutableMap.<String, Object>of());
   }
 }

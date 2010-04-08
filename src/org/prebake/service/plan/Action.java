@@ -58,15 +58,11 @@ public final class Action implements JsonSerializable {
     sink.write("}");
   }
 
-  private static final YSONConverter<List<Glob>> GLOB_LIST_CONV
-      = YSONConverter.Factory.listConverter(
-          YSONConverter.Factory.withType(Glob.class));
-
   private static final YSONConverter<Map<Field, Object>> MAP_CONV
       = YSONConverter.Factory.<Field, Object>mapConverter(Field.class)
       .require(Field.tool.name(), YSONConverter.Factory.withType(String.class))
-      .require(Field.inputs.name(), GLOB_LIST_CONV)
-      .require(Field.outputs.name(), GLOB_LIST_CONV)
+      .require(Field.inputs.name(), Glob.CONV)
+      .require(Field.outputs.name(), Glob.CONV)
       .optional(Field.options.name(),
                 YSONConverter.Factory.withDefault(
                     YSONConverter.Factory.withType(Map.class),

@@ -88,17 +88,14 @@ public final class Product implements JsonSerializable {
     sink.write("}");
   }
 
-  private static final YSONConverter<List<Glob>> GLOB_LIST_CONV
-      = YSONConverter.Factory.listConverter(
-          YSONConverter.Factory.withType(Glob.class));
   private static final YSONConverter<Map<Field, Object>> MAP_CONV
       = YSONConverter.Factory.mapConverter(Field.class)
           .optional(Field.help.name(), Documentation.CONVERTER, null)
           // Inputs and outputs are optional because reasonable defaults
           // can be inferred from the unions of the corresponding fields in
           // the actions.
-          .optional(Field.inputs.name(), GLOB_LIST_CONV, null)
-          .optional(Field.outputs.name(), GLOB_LIST_CONV, null)
+          .optional(Field.inputs.name(), Glob.CONV, null)
+          .optional(Field.outputs.name(), Glob.CONV, null)
           .optional(
               Field.intermediate.name(),
               YSONConverter.Factory.withType(Boolean.class), false)

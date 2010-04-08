@@ -127,4 +127,27 @@ public class GlobTest extends TestCase {
             Glob.fromString("*/com/google/caja/**.java"))
             .parts());
   }
+
+  public final void testConverter() throws Exception {
+    MessageQueue mq = new MessageQueue();
+    assertEquals("[**/*.foo]", "" + Glob.CONV.convert("**/*.foo", mq));
+    assertTrue(mq.getMessages().isEmpty());
+    assertEquals("[**/*.{foo}]", "" + Glob.CONV.convert("**/*.{foo}", mq));
+    assertTrue(mq.getMessages().isEmpty());
+    assertEquals(
+        "[**/*.foo, **/*.bar]", "" + Glob.CONV.convert("**/*.{foo,bar}", mq));
+    assertTrue(mq.getMessages().isEmpty());
+    assertEquals(
+        "[a0, a1, a, b0, b1, b, c0, c1, c]",
+        "" + Glob.CONV.convert("{a,b,c}{0,1,}", mq));
+    assertTrue(mq.getMessages().isEmpty());
+    assertEquals(
+        "[foo/*.x, foo/*.y, foo/bar]",
+        "" + Glob.CONV.convert("foo/{*.x,*.y,bar}", mq));
+    assertTrue(mq.getMessages().isEmpty());
+    Glob.CONV.convert("foo/{/,bar}", mq);
+    assertEquals(
+        "[Bad glob 'foo//' expanded from 'foo/{/,bar}']",
+        "" + mq.getMessages());
+  }
 }
