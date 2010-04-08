@@ -26,6 +26,7 @@ import com.google.common.collect.Multimap;
 import com.google.common.collect.Multimaps;
 
 import java.io.Closeable;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.Collection;
@@ -127,6 +128,8 @@ public final class Planner implements Closeable {
   }
 
   private List<Future<ImmutableList<Product>>> getProductLists() {
+    // TODO: instead create an input so each tool's validator is in its own
+    // appropriately named file to keep stack traces informative.
     String toolJs;
     boolean gotAllTools = true;
     try {
@@ -160,6 +163,12 @@ public final class Planner implements Closeable {
           sink.write("function ").write(sig.name)
               .write("(inputs, outputs, options) {\n")
               // copy and freeze options, outputs, and inputs
+              .write("    if ('string' === typeof inputs) {\n")
+              .write("      inputs = [inputs];\n")
+              .write("    }\n")
+              .write("    if ('string' === typeof outputs) {\n")
+              .write("      outputs = [outputs];\n")
+              .write("    }\n")
               .write("    inputs = frozenCopy(inputs);\n")
               .write("    outputs = frozenCopy(outputs);\n")
               .write("    options = frozenCopy(options);\n");
@@ -248,6 +257,9 @@ public final class Planner implements Closeable {
                   continue;
                 }
               }
+            } catch (FileNotFoundException ex) {
+              logger.log(
+                  Level.WARNING, "Missing plan " + pp.planFile, ex);
             } catch (IOException ex) {
               logger.log(
                   Level.WARNING, "Error executing plan " + pp.planFile, ex);
@@ -321,7 +333,7 @@ public final class Planner implements Closeable {
         .convert(scriptOutput, mq);
     if (mq.hasErrors()) {
       for (String msg : mq.getMessages()) {
-        logger.log(Level.WARNING, "'" + msg.replace("'", "''") + "'");
+        logger.log(Level.WARNING, MessageQueue.escape(msg));
       }
       return null;
     }

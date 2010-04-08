@@ -1,18 +1,29 @@
 package org.prebake.service.plan;
 
 import org.prebake.core.Documentation;
-import org.prebake.fs.ArtifactValidityTracker;
+import org.prebake.core.Glob;
 import org.prebake.fs.StubArtifactValidityTracker;
+import org.prebake.js.Executor;
+import org.prebake.js.YSON;
 import org.prebake.service.tools.ToolProvider;
 import org.prebake.service.tools.ToolSignature;
 import org.prebake.util.PbTestCase;
 import org.prebake.util.StubScheduledExecutorService;
 
+import com.google.common.base.Charsets;
 import com.google.common.base.Joiner;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.google.common.util.concurrent.ValueFuture;
 
 import java.io.IOException;
+import java.io.OutputStreamWriter;
+import java.io.Writer;
 import java.nio.file.FileSystem;
+import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -20,261 +31,429 @@ import java.util.Map;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.logging.Level;
+import java.util.logging.Logger;
 
 public class PlannerTest extends PbTestCase {
+  private Tester test;
+
+  @Override
+  protected void setUp() throws Exception {
+    super.setUp();
+    test = new Tester();
+  }
+
+  @Override
+  protected void tearDown() throws Exception {
+    test.close();
+    super.tearDown();
+  }
 
   public final void testToolsAvailable() throws IOException {
-    FileSystem fs = fileSystemFromAsciiArt(
-        "/cwd",
-        Joiner.on('\n').join(
+    test.withFileSystem(
             "/",
             "  cwd/",
-            ("    plan1.js \"({\\n"
-             + "  myProduct: {\\n"
-             + "    inputs: [ '**.foo' ],\\n"
-             + "    outputs: [ '**.bar' ],\\n"
-             + "    actions: [ tools.myTool(['**.foo'], ['**.bar']) ]\\n"
-             + "  }\\n"
-             + "})\"")));
-    ArtifactValidityTracker files = new StubArtifactValidityTracker(
-        fs.getPath("/cwd"));
-    ToolProvider toolbox = new ToolProvider() {
-      public List<Future<ToolSignature>> getAvailableToolSignatures() {
-        ValueFuture<ToolSignature> f = ValueFuture.create();
-        f.set(new ToolSignature("myTool", null, null, true));
-        return Collections.<Future<ToolSignature>>singletonList(f);
-      }
-      public void close() {}
-    };
-    ScheduledExecutorService execer = new StubScheduledExecutorService();
-    Planner p = new Planner(
-        files, toolbox, Collections.singleton(fs.getPath("plan1.js")),
-        getLogger(Level.INFO), execer);
-    Map<String, Product> products = p.getProducts();
-    assertEquals(
-        (""
-         + "{myProduct={"
-           + "\"inputs\":[\"**.foo\"],"
-           + "\"outputs\":[\"**.bar\"],"
-           + "\"actions\":[{"
-             + "\"tool\":\"myTool\","
-             + "\"inputs\":[\"**.foo\"],"
-             + "\"outputs\":[\"**.bar\"]"
-           + "}]"
-         + "}}"),
-         "" + products);
-    assertTrue(getLog().isEmpty());
+            "    plan.js \"for(var k in tools){\\nconsole.log(k);\\n}\\n({})\"")
+        .withTools(
+            tool("gcc"),
+            tool("javac"),
+            tool("cp"))
+        .withPlanFiles("plan.js")
+        .expectLog(
+            "/cwd/plan.js:2:INFO: gcc",
+            "/cwd/plan.js:2:INFO: javac",
+            "/cwd/plan.js:2:INFO: cp")
+        .run();
+  }
+
+  public final void testSimpleProduct() throws IOException {
+    test.withFileSystem(
+            "/",
+            "  cwd/",
+            "    plan1.js \"({p:{actions:[tools.gcc(['**.c'], ['**.o'])]}})\"")
+        .withTools(tool("gcc"))
+        .withPlanFiles("plan1.js")
+        .expectProduct("p", action("gcc", "**.c", "**.o"))
+        .run();
   }
 
   public final void testBadToolReturnValue() throws IOException {
-    FileSystem fs = fileSystemFromAsciiArt(
-        "/cwd",
-        Joiner.on('\n').join(
+    test.withFileSystem(
             "/",
             "  cwd/",
-            ("    plan1.js \"({ foo: null })\""),
+            "    plan1.js \"({ foo: null })\"",
             ("    plan2.js \"({\\n"
-             + "  myProduct: {\\n"
-             + "    inputs: [ '**.foo' ],\\n"
-             + "    outputs: [ '**.bar' ],\\n"
-             + "    actions: [ tools.myTool(['**.foo'], ['**.bar']) ]\\n"
-             + "  }\\n"
-             + "})\"")));
-    ArtifactValidityTracker files = new StubArtifactValidityTracker(
-        fs.getPath("/cwd"));
-    ToolProvider toolbox = new ToolProvider() {
-      public List<Future<ToolSignature>> getAvailableToolSignatures() {
-        ValueFuture<ToolSignature> f = ValueFuture.create();
-        f.set(new ToolSignature("myTool", null, null, true));
-        return Collections.<Future<ToolSignature>>singletonList(f);
-      }
-      public void close() {}
-    };
-    ScheduledExecutorService execer = new StubScheduledExecutorService();
-    Planner p = new Planner(
-        files, toolbox, Arrays.asList(
-            fs.getPath("plan1.js"),
-            fs.getPath("plan2.js")),
-        getLogger(Level.INFO), execer);
-    Map<String, Product> products = p.getProducts();
-    assertEquals(
-        (""
-         + "{myProduct={"
-           + "\"inputs\":[\"**.foo\"],"
-           + "\"outputs\":[\"**.bar\"],"
-           + "\"actions\":[{"
-             + "\"tool\":\"myTool\","
-             + "\"inputs\":[\"**.foo\"],"
-             + "\"outputs\":[\"**.bar\"]"
-           + "}]"
-         + "}}"),
-         "" + products);
-    assertEquals(
-        Joiner.on('\n').join(
+                 + "  myProduct: {\\n"
+                 + "    actions: [ tools.myTool(['**.foo'], ['**.bar']) ]\\n"
+                 + "  }\\n"
+                 + "})\""))
+        .withTools(tool("myTool"))
+        .withPlanFiles("plan1.js", "plan2.js")
+        .expectProduct("myProduct", action("myTool", "**.foo", "**.bar"))
+        .expectLog(
             "WARNING: Expected {\"inputs\":[<glob>, ...],...}, not null",
-            "SEVERE: Failed to update plan plan1.js"),
-        Joiner.on('\n').join(getLog()));
+            "SEVERE: Failed to update plan plan1.js")
+        .run();
   }
 
   public final void testToolFileThrows() throws IOException {
-    FileSystem fs = fileSystemFromAsciiArt(
-        "/cwd",
-        Joiner.on('\n').join(
+    test.withFileSystem(
             "/",
             "  cwd/",
             ("    plan1.js \"({\\n"
-             + "  myProduct: {\\n"
-             + "    inputs: [ '**.foo' ],\\n"
-             + "    outputs: [ '**.bar' ],\\n"
-             + "    actions: [ tools.myTool(['**.foo'], ['**.bar']) ]\\n"
-             + "  }\\n"
-             + "})\""),
-             "    plan2.js \"throw {}\""));
-    ArtifactValidityTracker files = new StubArtifactValidityTracker(
-        fs.getPath("/cwd"));
-    ToolProvider toolbox = new ToolProvider() {
-      public List<Future<ToolSignature>> getAvailableToolSignatures() {
-        ValueFuture<ToolSignature> f = ValueFuture.create();
-        f.set(new ToolSignature("myTool", null, null, true));
-        return Collections.<Future<ToolSignature>>singletonList(f);
-      }
-      public void close() {}
-    };
-    ScheduledExecutorService execer = new StubScheduledExecutorService();
-    Planner p = new Planner(
-        files, toolbox, Arrays.asList(
-            fs.getPath("plan1.js"),
-            fs.getPath("plan2.js")),
-        getLogger(Level.INFO), execer);
-    Map<String, Product> products = p.getProducts();
-    assertEquals(
-        (""
-         + "{myProduct={"
-           + "\"inputs\":[\"**.foo\"],"
-           + "\"outputs\":[\"**.bar\"],"
-           + "\"actions\":[{"
-             + "\"tool\":\"myTool\","
-             + "\"inputs\":[\"**.foo\"],"
-             + "\"outputs\":[\"**.bar\"]"
-           + "}]"
-         + "}}"),
-         "" + products);
-    assertEquals(
-        Joiner.on('\n').join(
+                  + "  myProduct: {\\n"
+                  + "    inputs: [ '**.foo' ],\\n"
+                  + "    outputs: [ '**.bar' ],\\n"
+                  + "    actions: [ tools.myTool(['**.foo'], ['**.bar']) ]\\n"
+                  + "  }\\n"
+                  + "})\""),
+             "    plan2.js \"throw {}\"")
+        .withTools(tool("myTool"))
+        .withPlanFiles("plan1.js", "plan2.js")
+        .expectProduct("myProduct", action("myTool", "**.foo", "**.bar"))
+        .expectLog(
             "WARNING: Error executing plan plan2.js\n"
             + "org.mozilla.javascript.JavaScriptException:"
             + " [object Object] (/cwd/plan2.js#1)",
-            "SEVERE: Failed to update plan plan2.js"),
-        Joiner.on('\n').join(getLog()));
+            "SEVERE: Failed to update plan plan2.js")
+        .run();
   }
 
   public final void testMalformedToolFile() throws IOException {
-    FileSystem fs = fileSystemFromAsciiArt(
-        "/cwd",
-        Joiner.on('\n').join(
+    test.withFileSystem(
             "/",
             "  cwd/",
             ("    plan1.js \"({\\n"
-             + "  myProduct: {\\n"
-             + "    inputs: [ '**.foo' ],\\n"
-             + "    outputs: [ '**.bar' ],\\n"
-             + "    actions: [ tools.myTool(['**.foo'], ['**.bar']) ]\\n"
-             + "  }\\n"
-             + "})\""),
-             "    plan2.js \"({ anotherTool: \""));  // JS syntax error
-    ArtifactValidityTracker files = new StubArtifactValidityTracker(
-        fs.getPath("/cwd"));
-    ToolProvider toolbox = new ToolProvider() {
-      public List<Future<ToolSignature>> getAvailableToolSignatures() {
-        ValueFuture<ToolSignature> f = ValueFuture.create();
-        f.set(new ToolSignature("myTool", null, null, true));
-        return Collections.<Future<ToolSignature>>singletonList(f);
-      }
-      public void close() {}
-    };
-    ScheduledExecutorService execer = new StubScheduledExecutorService();
-    Planner p = new Planner(
-        files, toolbox, Arrays.asList(
-            fs.getPath("plan1.js"),
-            fs.getPath("plan2.js")),
-        getLogger(Level.INFO), execer);
-    Map<String, Product> products = p.getProducts();
-    assertEquals(
-        (""
-         + "{myProduct={"
-           + "\"inputs\":[\"**.foo\"],"
-           + "\"outputs\":[\"**.bar\"],"
-           + "\"actions\":[{"
-             + "\"tool\":\"myTool\","
-             + "\"inputs\":[\"**.foo\"],"
-             + "\"outputs\":[\"**.bar\"]"
-           + "}]"
-         + "}}"),
-         "" + products);
-    assertEquals(
-        Joiner.on('\n').join(
+                 + "  myProduct: {\\n"
+                 + "    actions: [ tools.myTool(['**.foo'], ['**.bar']) ]\\n"
+                 + "  }\\n"
+                 + "})\""),
+             "    plan2.js \"({ anotherTool: \"")  // JS syntax error
+        .withTools(tool("myTool"))
+        .withPlanFiles("plan1.js", "plan2.js")
+        .expectProduct("myProduct", action("myTool", "**.foo", "**.bar"))
+        .expectLog(
             "WARNING: Error executing plan plan2.js\n"
             + "org.mozilla.javascript.EvaluatorException:"
             + " Unexpected end of file (/cwd/plan2.js#1)",
-            "SEVERE: Failed to update plan plan2.js"),
-        Joiner.on('\n').join(getLog()));
+            "SEVERE: Failed to update plan plan2.js")
+        .run();
   }
 
   public final void testToolHelp() throws IOException {
-    FileSystem fs = fileSystemFromAsciiArt(
-        "/cwd",
-        Joiner.on('\n').join(
+    test.withFileSystem(
             "/",
             "  cwd/",
-            "    plan1.js \"help(tools.myTool); ({})\""));
-    ArtifactValidityTracker files = new StubArtifactValidityTracker(
-        fs.getPath("/cwd"));
-    ToolProvider toolbox = new ToolProvider() {
-      public List<Future<ToolSignature>> getAvailableToolSignatures() {
-        ValueFuture<ToolSignature> f = ValueFuture.create();
-        f.set(new ToolSignature(
-            "myTool", null,
-            new Documentation(null, "A very useful tool", null),
-            true));
-        return Collections.<Future<ToolSignature>>singletonList(f);
-      }
-      public void close() {}
-    };
-    ScheduledExecutorService execer = new StubScheduledExecutorService();
-    Planner p = new Planner(
-        files, toolbox, Arrays.asList(
-            fs.getPath("plan1.js")),
-        getLogger(Level.INFO), execer);
-    Map<String, Product> products = p.getProducts();
-    assertTrue(products.isEmpty());
-    assertEquals(
-        "/cwd/plan1.js:1:INFO: Help: myTool\nA very useful tool",
-        Joiner.on('\n').join(getLog()));
+            "    plan1.js \"help(tools.myTool); ({})\"")
+        .withTools(tool(
+            "myTool", new Documentation(null, "A very useful tool", null)))
+        .withPlanFiles("plan1.js")
+        .expectLog("/cwd/plan1.js:1:INFO: Help: myTool\nA very useful tool")
+        .run();
   }
 
-  public final void testSanityChecker() {
-    // TODO
+  public final void testSanityChecker() throws IOException {
+    test.withFileSystem(
+            "/",
+            "  cwd/",
+            ("    plan1.js \"({\\n"
+                 + "  aProduct: {\\n"
+                 + "    inputs: [ '**.a' ],\\n"
+                 + "    outputs: [ '**.b' ],\\n"
+                 + "    actions: [ tools.munge(['**.a'], ['**.b']) ]\\n"
+                 + "  }\\n"
+                 + "})\""))
+        .withTools(tool(
+            "munge",
+            "function () { console.log('Looks spiffy!  Happy munging!') }",
+            new Documentation(null, "munges stuff", null)))
+        .withPlanFiles("plan1.js")
+        .expectProduct("aProduct", action("munge", "**.a", "**.b"))
+        .expectLog("INFO: Looks spiffy!  Happy munging!")
+        .run();
   }
 
-  public final void testPlanFileLoads() {
-    // TODO
+  public final void testMalformedGlob() throws IOException {
+    test.withFileSystem(
+            "/",
+            "  cwd/",
+            ("    plan1.js \"({\\n"
+                 + "  aProduct: {\\n"
+                 + "    inputs: [ '//*.*' ],\\n"
+                 + "    outputs: [ '**.b' ],\\n"
+                 + "    actions: [ tools.munge(['**.a'], ['**.b']) ]\\n"
+                 + "  }\\n"
+                 + "})\""))
+        .withTools(tool("munge"))
+        .withPlanFiles("plan1.js")
+        .expectLog(
+            "WARNING: Expected an instance of Glob but was \"//*.*\"",
+            "SEVERE: Failed to update plan plan1.js")
+        .run();
   }
 
-  public final void testPlanFileLoadMissingFile() {
-    // TODO
+  public final void testMissingPlanFile() throws IOException {
+    test.withFileSystem(
+            "/",
+            "  cwd/",
+            ("    plan1.js \"({\\n"
+                 + "  aProduct: {\\n"
+                 + "    actions: [ tools.munge(['**.a'], ['**.b']) ]\\n"
+                 + "  }\\n"
+                 + "})\""))
+        .withTools(tool("munge"))
+        .withPlanFiles("plan1.js", "plan2.js")  // plan2 does not exists
+        .expectLog(
+            "WARNING: Missing plan plan2.js",
+            "java.io.FileNotFoundException: plan2.js",
+            "SEVERE: Failed to update plan plan2.js")
+        .expectProduct("aProduct", action("munge", "**.a", "**.b"))
+        .run();
   }
 
-  public final void testPlanFileTimeout() {
-    // TODO
+  public final void testPlanFileLoads() throws IOException {
+    test.withFileSystem(
+            "/",
+            "  cwd/",
+            "    plan.js \"load('../bar/foo.js')({tools: tools, load: load})\"",
+            "  bar/",
+            "    foo.js \"load('baz.js')(this)\"",
+            "    baz.js \"({p:{actions:[tools.gcc(['**.c'],['**.o'])]}})\"")
+        .withTools(tool("gcc"))
+        .withPlanFiles("plan.js")
+        .expectProduct("p", action("gcc", "**.c", "**.o"))
+        .run();
   }
 
-  public final void testMaskingProductNames() {
-    // TODO
+  public final void testPlanFileLoadMissingFile() throws IOException {
+    test.withFileSystem(
+            "/",
+            "  cwd/",
+            "    plan.js \"load('../bar/foo.js')(this)\"")
+        .withTools(tool("gcc"))
+        .withPlanFiles("plan.js")
+        .expectLog(
+            "WARNING: Error executing plan plan.js",
+            ("org.mozilla.javascript.WrappedException"
+             + ": Wrapped java.io.FileNotFoundException"
+             + ": /bar/foo.js (/cwd/plan.js#1)"),
+            "SEVERE: Failed to update plan plan.js")
+        .run();
   }
 
-  public final void testToolFileUpdated() {
-    // TODO
+  public final void testPlanFileTimeout() throws IOException {
+    test.withFileSystem(
+            "/",
+            "  cwd/",
+            "    p.js \"while (true);\"",
+            "    q.js \"({p:{actions:[tools.cp('**.foo','**.bar')]}})\"")
+        .withTools(tool("cp"))
+        .withPlanFiles("p.js", "q.js")
+        .expectProduct("p", action("cp", "**.foo", "**.bar"))
+        .expectLog(
+            "WARNING: Error executing plan p.js",
+            Executor.ScriptTimeoutException.class.getName() + ": ",
+            "SEVERE: Failed to update plan p.js")
+        .run();
+  }
+
+  public final void testMaskingProductNames() throws IOException {
+    test.withFileSystem(
+            "/",
+            "  cwd/",
+            ("    p1.js \""
+                + "({p:{actions:[tools.gcc(['**.c'], ['**.o'], {'-c':true})]},"
+                + "  q:{actions:[tools.gcc(['**.o'], ['**.lib'])]}})\""),
+            ("    p2.js \"({p:{actions:[tools.gcc(['**.c'], ['**.lib'])]}})\""))
+        .withTools(tool("gcc"))
+        .withPlanFiles("p1.js", "p2.js")
+        .expectProduct("q", action("gcc", "**.o", "**.lib"))
+        .expectLog("WARNING: Duplicate product p in p1.js")
+        .run();
+  }
+
+  public final void testToolFileUpdated() throws IOException {
+    test.withFileSystem(
+            "/",
+            "  cwd/",
+            "    p.js \"console.log('p'), {p:tools.cp('**.a','**.w')}\"",
+            "    q.js \"console.log('q'), {q:tools.cp('**.b','**.x')}\"",
+            "    r.js \"console.log('r'), load('../cwd/bar/foo.js')(this)\"",
+            "    s.js \"console.log('s'), load('./bar/baz.js')(this)\"",
+            "    bar/",
+            "      foo.js \"console.log('foo'), {r:tools.cp('**.c','**.y')}\"",
+            "      baz.js \"console.log('baz'), {s:tools.cp('**.d','**.z')}\"")
+        .withTools(tool("cp"))
+        .withPlanFiles("p.js", "q.js", "r.js", "s.js")
+        .expectProduct("p", action("cp", "**.a", "**.w"))
+        .expectProduct("q", action("cp", "**.b", "**.x"))
+        .expectProduct("r", action("cp", "**.c", "**.y"))
+        .expectProduct("s", action("cp", "**.d", "**.z"))
+        .expectLog(
+            "/cwd/p.js:1:INFO: p",
+            "/cwd/q.js:1:INFO: q",
+            "/cwd/r.js:1:INFO: r",
+            "/cwd/bar/foo.js:1:INFO: foo",
+            "/cwd/s.js:1:INFO: s",
+            "/cwd/bar/baz.js:1:INFO: baz")
+        .run()
+        .writeFile("r.js", "console.log('r'), {r:tools.cp('**/*.c','**/*.y')}")
+        .writeFile("bar/baz.js",
+                   "console.log('baz'), {t:tools.cp('**/*.d','**/*.z')}")
+        .updateFiles("r.js", "/cwd/bar/baz.js")
+        .expectLog(
+            "/cwd/r.js:1:INFO: r",
+            "/cwd/s.js:1:INFO: s",
+            "/cwd/bar/baz.js:1:INFO: baz")
+        .expectProduct("p", action("cp", "**.a", "**.w"))
+        .expectProduct("q", action("cp", "**.b", "**.x"))
+        .expectProduct("r", action("cp", "**/*.c", "**/*.y"))
+        .expectProduct("t", action("cp", "**/*.d", "**/*.z"))
+        .run()
+        .deleteFile("/cwd/q.js")
+        .updateFiles("/cwd/q.js", "/cwd/r.js" /* no change */)
+        .expectLog(
+            "WARNING: Missing plan q.js",
+            "java.io.FileNotFoundException: q.js",
+            "SEVERE: Failed to update plan q.js")
+        .expectProduct("p", action("cp", "**.a", "**.w"))
+        .expectProduct("r", action("cp", "**/*.c", "**/*.y"))
+        .expectProduct("t", action("cp", "**/*.d", "**/*.z"))
+        .run();
   }
 
   // TODO: test plan file that doesn't exist, but then is created.
+
+  private final class Tester {
+    private FileSystem fs;
+    private final ImmutableList.Builder<Future<ToolSignature>> sigs
+        = ImmutableList.builder();
+    private final List<String> goldenLog = Lists.newArrayList();
+    private final Map<String, Product> goldenProds = Maps.newLinkedHashMap();
+    private StubArtifactValidityTracker files;
+    private ToolProvider toolbox;
+    private Planner planner;
+
+    public Tester withFileSystem(String... asciiArt) throws IOException {
+      assertNull(fs);
+      fs = fileSystemFromAsciiArt("/cwd", Joiner.on('\n').join(asciiArt));
+      files = new StubArtifactValidityTracker(fs.getPath("/cwd"));
+      toolbox = new ToolProvider() {
+        private boolean isClosed;
+        public List<Future<ToolSignature>> getAvailableToolSignatures() {
+          if (isClosed) { throw new IllegalStateException(); }
+          return sigs.build();
+        }
+        public void close() { isClosed = true; }
+      };
+      return this;
+    }
+
+    public Tester withTools(ToolSignature... sigs) {
+      for (ToolSignature sig : sigs) {
+        ValueFuture<ToolSignature> f = ValueFuture.create();
+        f.set(sig);
+        this.sigs.add(f);
+      }
+      return this;
+    }
+
+    public Tester withPlanFiles(String... planFiles) {
+      ImmutableList.Builder<Path> b = ImmutableList.builder();
+      for (String planFile : planFiles) {
+        b.add(fs.getPath(planFile));
+      }
+      ScheduledExecutorService execer = new StubScheduledExecutorService();
+      Logger logger = getLogger(Level.INFO);
+      planner = new Planner(files, toolbox, b.build(), logger, execer);
+      return this;
+    }
+
+    public Tester expectLog(String... log) {
+      goldenLog.addAll(Arrays.asList(log));
+      return this;
+    }
+
+    public Tester expectProducts(Product... prods) {
+      for (Product p : prods) { goldenProds.put(p.name, p); }
+      return this;
+    }
+
+    public Tester expectProduct(String name, Action a) {
+      return expectProduct(name, a.inputs, a.outputs, a);
+    }
+
+    public Tester expectProduct(
+        String name, List<Glob> inputs, List<Glob> outputs, Action... actions) {
+      return expectProducts(new Product(
+          name, null, inputs, outputs, Arrays.asList(actions), false,
+          fs.getPath("/cwd")));
+    }
+
+    public Tester writeFile(String path, String content) throws IOException {
+      Writer out = new OutputStreamWriter(
+          fs.getPath(path)
+              .newOutputStream(StandardOpenOption.TRUNCATE_EXISTING),
+          Charsets.UTF_8);
+      try {
+        out.write(content);
+      } finally {
+        out.close();
+      }
+      return this;
+    }
+
+    public Tester deleteFile(String path) throws IOException {
+      fs.getPath(path).delete();
+      return this;
+    }
+
+    public Tester updateFiles(String... filePaths) throws IOException {
+      int n = filePaths.length;
+      Path[] paths = new Path[n];
+      for (int i = n; --i >= 0;) { paths[i] = fs.getPath(filePaths[i]); }
+      files.update(paths);
+      return this;
+    }
+
+    public Tester run() {
+      System.err.println("goldenProds=" + goldenProds.keySet());
+      Map<String, Product> products = planner.getProducts();
+      assertEquals(goldenProds.toString(), products.toString());
+      assertEquals(
+          Joiner.on('\n').join(goldenLog), Joiner.on('\n').join(getLog()));
+      getLog().clear();
+      this.goldenProds.clear();
+      this.goldenLog.clear();
+      return this;
+    }
+
+    public void close() throws IOException {
+      planner.close();
+      toolbox.close();
+      files.close();
+      fs.close();
+    }
+  }
+
+  private static ToolSignature tool(String name) {
+    return tool(name, null, null);
+  }
+
+  private static ToolSignature tool(String name, Documentation docs) {
+    return tool(name, null, docs);
+  }
+
+  private static ToolSignature tool(
+      String name, String checker, Documentation docs) {
+    return new ToolSignature(
+        name, checker != null ? new YSON.Lambda(checker) : null, docs, true);
+  }
+
+  private static Action action(
+      String tool, String input, String output) {
+    return new Action(
+        tool, Collections.singletonList(Glob.fromString(input)),
+        Collections.singletonList(Glob.fromString(output)),
+        ImmutableMap.<String, Object>of());
+  }
 }
