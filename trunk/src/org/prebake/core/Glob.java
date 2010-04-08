@@ -2,14 +2,21 @@ package org.prebake.core;
 
 import org.prebake.js.JsonSerializable;
 import org.prebake.js.JsonSink;
+import org.prebake.js.YSONConverter;
 
+import com.google.common.base.Splitter;
+import com.google.common.base.Throwables;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
+import javax.annotation.Nullable;
 import javax.annotation.ParametersAreNonnullByDefault;
 
 /**
@@ -26,9 +33,7 @@ public final class Glob implements Comparable<Glob>, JsonSerializable {
     this.parts = parts;
   }
 
-  /**
-   * See the grammar at http://code.google.com/p/prebake/wiki/Glob.
-   */
+  /** See the grammar at http://code.google.com/p/prebake/wiki/Glob. */
   public static Glob fromString(String s) {
     int n = s.length();
     int partCount = 0;
@@ -38,7 +43,7 @@ public final class Glob implements Comparable<Glob>, JsonSerializable {
         case '*':  // * or **
           if (i + 1 < n && s.charAt(i + 1) == '*') {
             ++i;
-            // Three adjecent **'s not allowed.
+            // Three adjacent **'s not allowed.
             if (i + 1 < n && s.charAt(i + 1) == '*') { badGlob(s); }
           }
           break;
@@ -88,7 +93,7 @@ public final class Glob implements Comparable<Glob>, JsonSerializable {
   }
 
   private static void badGlob(String glob) {
-    throw new IllegalArgumentException(glob);
+    throw new GlobSyntaxException(glob);
   }
 
   private static final class Strategy {
@@ -303,5 +308,91 @@ public final class Glob implements Comparable<Glob>, JsonSerializable {
 
   public void toJson(JsonSink sink) throws IOException {
     sink.writeValue(toString());
+  }
+
+  /**
+   * Does shell-style expansion of <tt>{foo,bar}</tt> sections to produce
+   * a list of globs from a single input glob.
+   * E.g. <tt>foo/**.{html,js,css}</tt> would expand to the globs
+   * <tt>[foo/**.html, foo/**.js, foo/**.css]</tt>.
+   */
+  public static final YSONConverter<List<Glob>> CONV
+      = new YSONConverter<List<Glob>>() {
+    public @Nullable List<Glob> convert(
+        @Nullable Object ysonValue, MessageQueue problems) {
+      ImmutableList.Builder<Glob> globs = ImmutableList.builder();
+      if (ysonValue instanceof String) {
+        expandOneGlob((String) ysonValue, globs, problems);
+      } else if (ysonValue instanceof List<?>) {
+        for (Object o : ((List<?>) ysonValue)) {
+          if (o instanceof String) {
+            expandOneGlob((String) o, globs, problems);
+          } else {
+            StringBuilder sb = new StringBuilder();
+            sb.append("Expected ").append(exampleText()).append(" not ");
+            try {
+              new JsonSink(sb).writeValue(o).close();
+            } catch (IOException ex) {
+              Throwables.propagate(ex);
+            }
+            problems.error(sb.toString());
+          }
+        }
+      }
+      return globs.build();
+    }
+    public String exampleText() { return "['*.glob', ...]"; }
+  };
+
+  private static final Pattern SHELL_EXP
+      = Pattern.compile("\\{([^,\\}]*,[^\\}]*)\\}");
+  private static void expandOneGlob(
+      String glob, final ImmutableList.Builder<? super Glob> out,
+      MessageQueue mq) {
+    Matcher m = SHELL_EXP.matcher(glob);
+    if (!m.find()) {
+      try {
+        out.add(Glob.fromString(glob));
+      } catch (GlobSyntaxException ex) {
+        mq.error("Bad glob: '" + glob + "'");
+      }
+      return;
+    }
+    final List<String> lits = Lists.newArrayList();
+    final List<List<String>> options = Lists.newArrayList();
+    int pos = 0;
+    do {
+      lits.add(glob.substring(pos, m.start()));
+      List<String> opts = Lists.newArrayList();
+      for (String opt : Splitter.on(',').split(m.group(1))) { opts.add(opt); }
+      options.add(opts);
+      pos = m.end();
+    } while (m.find());
+    lits.add(glob.substring(pos));
+    try {
+      class Expander {
+        StringBuilder sb = new StringBuilder();
+        void expand(int i) {
+          sb.append(lits.get(i));
+          if (i == options.size()) {
+            out.add(Glob.fromString(sb.toString()));
+          } else {
+            int len = sb.length();
+            for (String opt : options.get(i)) {
+              sb.replace(len, sb.length(), opt);
+              expand(i + 1);
+            }
+          }
+        }
+      }
+      new Expander().expand(0);
+    } catch (GlobSyntaxException ex) {
+      mq.error(
+          "Bad glob '" + ex.getMessage() + "' expanded from '" + glob + "'");
+    }
+  }
+
+  public static class GlobSyntaxException extends IllegalArgumentException {
+    public GlobSyntaxException(String glob) { super(glob); }
   }
 }
