@@ -217,6 +217,26 @@ public final class Glob implements Comparable<Glob>, JsonSerializable {
     }
 
     Glob intersection() {
+      {
+        // The recursive algorithm below does a good job of early outing in the
+        // common no-intersection case where the two globs have a different
+        // prefix.
+        // But there is a very common case with differing suffixes which has
+        // worst case behavior : foo/bar/baz/*.x and foo/bar/baz/*.y
+        // This early-outs on the different suffix case.
+        int lastp = p.length - 1, lastq = q.length - 1;
+        if (lastp >= 0 && lastq >= 0) {
+          String pend = p[lastp], qend = q[lastq];
+          if (pend.charAt(0) != '*' && qend.charAt(0) != '*') {
+            if (pend.length() > qend.length()) {
+              if (!pend.endsWith(qend)) { return null; }
+            } else {
+              if (!qend.endsWith(pend)) { return null; }
+            }
+          }
+        }
+      }
+
       List<String> partsReversed = inter(0, false, 0, false);
       if (partsReversed == null) { return null; }
       int np = partsReversed.size();
