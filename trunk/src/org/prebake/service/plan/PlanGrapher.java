@@ -40,9 +40,9 @@ public final class PlanGrapher {
   private final Map<String, Product> unprocessed
       = new ConcurrentHashMap<String, Product>();
 
-  public void update(Product p) {
-    unprocessed.put(p.name, p);
-  }
+  public void update(Product p) { unprocessed.put(p.name, p); }
+
+  public void remove(String name) { unprocessed.put(name, null); }
 
   public synchronized PlanGraph snapshot() {
     processProducts();
@@ -67,13 +67,21 @@ public final class PlanGrapher {
     return b.build();
   }
 
-  private void processProducts() {
+  private synchronized void processProducts() {
     // This is O(n**2) in the number of products but minimizes the number of
     // glob intersection checks which are the expensive parts, and the number
     // of globs is strictly greater than the number of products.
-    List<Product> prods;
+    List<Product> prods = Lists.newArrayList();
+    List<String> removed = Lists.newArrayList();
     synchronized (unprocessed) {
-      prods = Lists.newArrayList(unprocessed.values());
+      for (Map.Entry<String, Product> e : unprocessed.entrySet()) {
+        Product p = e.getValue();
+        if (p != null) {
+          prods.add(p);
+        } else {
+          removed.add(e.getKey());
+        }
+      }
       unprocessed.clear();
     }
     List<Globs> oldGlobs = Lists.newArrayList();
@@ -90,6 +98,13 @@ public final class PlanGrapher {
       }
       endPoints.add(newNode.sources);
       endPoints.add(newNode.targets);
+    }
+    for (String name : removed) {
+      EndPoints oldNode = nodes.get(name);
+      if (oldNode != null) {
+        oldGlobs.add(oldNode.sources);
+        oldGlobs.add(oldNode.targets);
+      }
     }
     Set<Globs> defunct = Sets.newHashSet();
     for (Globs globs : oldGlobs) {

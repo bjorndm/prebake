@@ -73,6 +73,7 @@ public final class Planner implements Closeable {
     }
   };
   private final Future<?> updater;
+  private final PlanGrapher grapher = new PlanGrapher();
 
   public Planner(
       ArtifactValidityTracker files, ToolProvider toolbox,
@@ -246,6 +247,7 @@ public final class Planner implements Closeable {
                   synchronized (pp) {
                     if (files.update(
                             productAddresser, pp, paths, allHashes.build())) {
+                      for (Product p : products) { grapher.update(p); }
                       pp.products = products;
                       pp.valid = true;
                       return products;
@@ -361,6 +363,11 @@ public final class Planner implements Closeable {
           synchronized (productsByName) {
             for (Product p : products) {
               productsByName.remove(p.name, p);
+              Collection<Product> prods = productsByName.get(p.name);
+              switch (prods.size()) {
+                case 0: grapher.remove(p.name); break;
+                case 1: grapher.update(prods.iterator().next()); break;
+              }
             }
           }
         }
