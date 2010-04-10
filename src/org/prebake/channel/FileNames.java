@@ -12,5 +12,5 @@ public final class FileNames {
   public static final String PORT = "port";
   public static final String TOKEN = "token";
 
-  private FileNames() {}
+  private FileNames() { /* not instantiable */ }
 }

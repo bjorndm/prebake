@@ -126,5 +126,8 @@ public class StubArtifactValidityTracker implements ArtifactValidityTracker {
     }
   }
 
-  public void close() {}
+  public void close() {
+    hashes.clear();
+    artifacts.clear();
+  }
 }

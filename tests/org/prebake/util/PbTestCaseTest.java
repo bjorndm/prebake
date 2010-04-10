@@ -19,7 +19,7 @@ import junit.framework.TestCase;
  */
 public class PbTestCaseTest extends TestCase {
   public final void testFileSystemFromAsciiArt() throws IOException {
-    PbTestCase tc = new PbTestCase() {};
+    PbTestCase tc = new PbTestCase() { /* concrete */ };
     FileSystem fs = tc.fileSystemFromAsciiArt(
         "/foo/",
         Joiner.on('\n').join(

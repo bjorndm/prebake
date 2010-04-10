@@ -20,6 +20,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+/**
+ * Commands between the client and service.
+ *
+ * @author mikesamuel@gmail.com
+ * @see <a href="http://code.google.com/p/prebake/wiki/PreBakeCommand">wiki</a>
+ */
 public abstract class Command implements JsonSerializable {
   public enum Verb {
     handshake,
