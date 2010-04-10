@@ -189,7 +189,11 @@ public class ToolBox implements ToolProvider {
 
   public final List<Future<ToolSignature>> getAvailableToolSignatures() {
     List<Future<ToolSignature>> promises = Lists.newArrayList();
-    for (Tool t : tools.values()) {
+    List<Tool> tools;
+    synchronized (this.tools) {
+      tools = Lists.newArrayList(this.tools.values());
+    }
+    for (Tool t : tools) {
       synchronized (t) {
         Future<ToolSignature> f = t.validator;
         if (f == null) { f = t.validator = requireToolValid(t); }
@@ -298,7 +302,7 @@ public class ToolBox implements ToolProvider {
                       // The name "next" resolves to the next instance of the
                       // same tool in the search path.
                       if ("next".equals(p.getName().toString())
-                          && base.equals(p.getParent())) {
+                          && base != null && base.equals(p.getParent())) {
                         loaded = nextTool(t, index, base.resolve("next"));
                       } else {
                         loaded = fh.load(p);
@@ -397,7 +401,6 @@ public class ToolBox implements ToolProvider {
   public final void close() throws IOException {
     if (watcher != null) { watcher.close(); }
     synchronized (tools) { tools.clear(); }
-    tools.clear();
     updater.cancel(true);
   }
 

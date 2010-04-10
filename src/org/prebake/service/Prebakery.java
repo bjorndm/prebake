@@ -3,9 +3,13 @@ package org.prebake.service;
 import org.prebake.channel.Command;
 import org.prebake.channel.Commands;
 import org.prebake.channel.FileNames;
+import org.prebake.core.Documentation;
 import org.prebake.fs.DirectoryHooks;
 import org.prebake.fs.FileHashes;
 import org.prebake.fs.FilePerms;
+import org.prebake.service.plan.Planner;
+import org.prebake.service.tools.ToolBox;
+import org.prebake.service.tools.ToolSignature;
 
 import com.google.common.base.Charsets;
 import com.google.common.base.Predicate;
@@ -13,6 +17,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.common.io.CharStreams;
+import com.google.common.io.Closeables;
 import com.sleepycat.je.Environment;
 
 import java.io.Closeable;
@@ -28,7 +33,13 @@ import java.nio.file.attribute.DosFileAttributeView;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
 
@@ -46,11 +57,14 @@ public abstract class Prebakery implements Closeable {
   private final String token;
   private final LinkedBlockingQueue<Commands> cmdQueue;
   private final Logger logger;
+  private final ScheduledExecutorService execer;
   private Environment env;
   private FileHashes fileHashes;
   private Runnable onClose;
   private Consumer<Path> pathConsumer;
   private Consumer<Commands> commandConsumer;
+  private ToolBox tools;
+  private Planner planner;
 
   /**
    * @see
@@ -68,11 +82,13 @@ public abstract class Prebakery implements Closeable {
       + "|/\\.DS_Store$",
       Pattern.DOTALL);
 
-  public Prebakery(Config config, Logger logger) {
+  public Prebakery(
+      Config config, ScheduledExecutorService execer, Logger logger) {
     assert config != null;
     config = staticCopy(config);
-    this.logger = logger;
     this.config = config;
+    this.execer = execer;
+    this.logger = logger;
     this.token = makeToken();
     this.cmdQueue = new LinkedBlockingQueue<Commands>(4);
   }
@@ -89,10 +105,19 @@ public abstract class Prebakery implements Closeable {
         pathConsumer = null;
       }
       // Close stores next
+      if (planner != null) {
+        planner.close();
+        planner = null;
+      }
+      if (tools != null) {
+        Closeables.closeQuietly(tools);
+        tools = null;
+      }
       if (fileHashes != null) {
         fileHashes.close();
         fileHashes = null;
       }
+      if (!execer.isShutdown()) { execer.shutdown(); }
       // Close the DB environment after DB users.
       if (env != null) {
         env.close();
@@ -146,7 +171,9 @@ public abstract class Prebakery implements Closeable {
 
   public synchronized void start(Runnable onClose) {
     if (this.onClose != null) { throw new IllegalStateException(); }
-    if (onClose == null) { onClose = new Runnable() { public void run() {} }; }
+    if (onClose == null) {
+      onClose = new Runnable() { public void run() { /* no op */} };
+    }
     this.onClose = onClose;
     boolean setupSucceeded = false;
     try {
@@ -202,6 +229,10 @@ public abstract class Prebakery implements Closeable {
 
     this.env = createDbEnv(dir);
     this.fileHashes = new FileHashes(env, clientRoot, logger);
+    this.tools = new ToolBox(
+        fileHashes, config.getToolDirs(), logger, execer);
+    this.planner = new Planner(
+        fileHashes, tools, config.getPlanFiles(), logger, execer);
   }
 
   private void setupFileSystemWatcher() {
@@ -231,25 +262,63 @@ public abstract class Prebakery implements Closeable {
       @Override
       protected void consume(BlockingQueue<? extends Commands> q, Commands c) {
         boolean authed = false;
-        for (Command cmd : c) {
-          if (cmd.verb != Command.Verb.handshake && !authed) {
-            logger.warning("Unauthorized command " + cmd);
-            return;
-          }
-          switch (cmd.verb) {
-            case handshake:
-              authed = ((Command.HandshakeCommand) cmd).token.equals(token);
-              continue;
-            case shutdown: Prebakery.this.close(); break;
-            case sync:
-              try {
-                pathConsumer.waitUntilEmpty();
-              } catch (InterruptedException ex) {
-                logger.warning("Sync command interrupted " + cmd);
-                return;
-              }
+        try {
+          for (Command cmd : c) {
+            if (cmd.verb != Command.Verb.handshake && !authed) {
+              logger.warning("Unauthorized command " + cmd);
+              return;
+            }
+            switch (cmd.verb) {
+              case files_changed:
+                fileHashes.update(((Command.FilesChangedCommand) cmd).paths);
+                break;
+              case graph:
+                DotRenderer.render(
+                    planner.getPlanGraph(),
+                    ((Command.GraphCommand) cmd).products, c.getResponse());
+                break;
+              case handshake:
+                authed = ((Command.HandshakeCommand) cmd).token.equals(token);
+                continue;
+              case shutdown: Prebakery.this.close(); break;
+              case sync:
+                try {
+                  pathConsumer.waitUntilEmpty();
+                } catch (InterruptedException ex) {
+                  logger.warning("Sync command interrupted " + cmd);
+                  return;
+                }
+                break;
+              case tool_help:
+                Appendable out = c.getResponse();
+                List<ToolSignature> sigs = Lists.newArrayList();
+                for (Future<ToolSignature> f
+                     : tools.getAvailableToolSignatures()) {
+                  ToolSignature sig = null;
+                  try {
+                    sig = f.get(5, TimeUnit.SECONDS);
+                  } catch (ExecutionException ex) {
+                    out.append("Failed to update tool: ").append(ex.toString());
+                  } catch (InterruptedException ex) {
+                    out.append("Failed to update tool: ").append(ex.toString());
+                  } catch (TimeoutException ex) {
+                    out.append("Failed to update tool: ").append(ex.toString());
+                  }
+                  if (sig != null) { sigs.add(sig); }
+                }
+                for (ToolSignature sig : sigs) {
+                  out.append(sig.name).append('\n');
+                  Documentation doc = sig.help;
+                  if (doc != null) {
+                    out.append(indent(htmlToText(doc.summaryHtml)))
+                        .append('\n');
+                  }
+                }
               break;
+            }
           }
+        } catch (IOException ex) {  // Client disconnect?
+          logger.log(Level.INFO, "Failed to service command " + c, ex);
         }
       }
     };
@@ -302,5 +371,13 @@ public abstract class Prebakery implements Closeable {
     } finally {
       r.close();
     }
+  }
+
+  private static String htmlToText(String html) {
+    return html;  // TODO
+  }
+
+  private static String indent(String text) {
+    return text.replaceAll("^|\r\n?|\n", "$0    ");
   }
 }

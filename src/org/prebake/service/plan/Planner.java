@@ -45,12 +45,14 @@ import java.util.logging.Logger;
 import javax.annotation.ParametersAreNonnullByDefault;
 
 /**
- * Keeps the set of {@link Product products} up-to-date.
+ * Keeps the set of {@link Product products} and the {@link PlanGrapher}
+ * up-to-date.
  *
  * @author mikesamuel@gmail.com
  */
 @ParametersAreNonnullByDefault
 public final class Planner implements Closeable {
+  /** Synchronized after plan parts. */
   private final Multimap<String, Product> productsByName = Multimaps
       .synchronizedMultimap(Multimaps.newMultimap(
           Maps.<String, Collection<Product>>newLinkedHashMap(),
@@ -127,6 +129,8 @@ public final class Planner implements Closeable {
     }
     return allProducts;
   }
+
+  public PlanGraph getPlanGraph() { return grapher.snapshot(); }
 
   private List<Future<ImmutableList<Product>>> getProductLists() {
     // TODO: instead create an input so each tool's validator is in its own
@@ -365,7 +369,9 @@ public final class Planner implements Closeable {
               productsByName.remove(p.name, p);
               Collection<Product> prods = productsByName.get(p.name);
               switch (prods.size()) {
+                // No more products with this name left.
                 case 0: grapher.remove(p.name); break;
+                // Previously the product was masked, but now there's only one.
                 case 1: grapher.update(prods.iterator().next()); break;
               }
             }
