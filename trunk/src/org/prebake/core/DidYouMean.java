@@ -5,7 +5,7 @@ import javax.annotation.ParametersAreNonnullByDefault;
 
 @ParametersAreNonnullByDefault
 public final class DidYouMean {
-  private DidYouMean() {}  // not instantiable
+  private DidYouMean() { /* not instantiable */ }  
 
   @Nonnull
   public static void toMessageQueue(

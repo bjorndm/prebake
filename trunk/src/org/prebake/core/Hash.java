@@ -44,7 +44,7 @@ public final class Hash {
   public static class Builder {
     private MD5 md5 = new MD5();
 
-    private Builder() {}
+    private Builder() { /* not public */ }
 
     public Builder withFile(Path p) throws IOException {
       md5.Update(ZERO_BYTE, 0, 1);

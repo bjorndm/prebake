@@ -207,9 +207,8 @@ public class BakeTest extends PbTestCase {
     private Bake bake = new Bake(Logger.getLogger(getName())) {
       @Override
       Connection connect(int port) throws IOException {
-        Expectation exp = expectations.isEmpty()
-            ? null : expectations.remove(0);
-        assertEquals("conn", exp != null ? exp.type : null);
+        Expectation exp = expectations.remove(0);
+        assertEquals("conn", exp.type);
         assertEquals(port, exp.value);
         exp.runAll();
         if (Boolean.TRUE.equals(exp.result)) {
@@ -233,18 +232,16 @@ public class BakeTest extends PbTestCase {
 
       @Override
       void launch(String... argv) throws IOException {
-        Expectation exp = expectations.isEmpty()
-            ? null : expectations.remove(0);
-        assertEquals("launch", exp != null ? exp.type : null);
+        Expectation exp = expectations.remove(0);
+        assertEquals("launch", exp.type);
         assertEquals(Arrays.asList((String[]) exp.value), Arrays.asList(argv));
         exp.runAll();
       }
 
       @Override
       void sleep(int millis) throws InterruptedException {
-        Expectation exp = expectations.isEmpty()
-            ? null : expectations.remove(0);
-        assertEquals("sleep", exp != null ? exp.type : null);
+        Expectation exp = expectations.remove(0);
+        assertEquals("sleep", exp.type);
         assertEquals(exp.value, Integer.valueOf(millis));
         try {
           exp.runAll();
@@ -258,12 +255,13 @@ public class BakeTest extends PbTestCase {
     };
 
     BakeTestRunner withCwd(String cwd) throws IOException {
-      FileSystem fs = null;
+      FileSystem fs;
       try {
         fs = new StubFileSystemProvider("mfs").newFileSystem(
             new URI("mfs", null, null, 0, "/", null, "#" + cwd), null);
       } catch (URISyntaxException ex) {
         Throwables.propagate(ex);
+        return this;
       }
       this.cwd = fs.getPath(cwd);
       mkdirs(this.cwd);

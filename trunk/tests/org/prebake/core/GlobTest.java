@@ -128,7 +128,7 @@ public class GlobTest extends TestCase {
             .parts());
   }
 
-  public final void testConverter() throws Exception {
+  public final void testConverter() {
     MessageQueue mq = new MessageQueue();
     assertEquals("[**/*.foo]", "" + Glob.CONV.convert("**/*.foo", mq));
     assertTrue(mq.getMessages().isEmpty());
