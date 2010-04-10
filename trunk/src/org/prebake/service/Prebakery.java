@@ -7,6 +7,8 @@ import org.prebake.core.Documentation;
 import org.prebake.fs.DirectoryHooks;
 import org.prebake.fs.FileHashes;
 import org.prebake.fs.FilePerms;
+import org.prebake.service.build.Baker;
+import org.prebake.service.build.Recipe;
 import org.prebake.service.plan.Planner;
 import org.prebake.service.tools.ToolBox;
 import org.prebake.service.tools.ToolSignature;
@@ -279,7 +281,18 @@ public abstract class Prebakery implements Closeable {
                 break;
               case handshake:
                 authed = ((Command.HandshakeCommand) cmd).token.equals(token);
-                continue;
+                break;
+              case plan: {
+                Baker b = new Baker(null);
+                Recipe recipe = b.makeRecipe(
+                    planner.getPlanGraph(),
+                    ((Command.PlanCommand) cmd).products);
+                Appendable out = c.getResponse();
+                for (String instruction : recipe.instructions) {
+                  out.append(instruction).append('\n');
+                }
+                break;
+              }
               case shutdown: Prebakery.this.close(); break;
               case sync:
                 try {
