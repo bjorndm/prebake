@@ -1,7 +1,13 @@
 package org.prebake.service.plan;
 
+import java.util.Set;
+
+import javax.annotation.ParametersAreNonnullByDefault;
+
+import com.google.common.base.Function;
 import com.google.common.collect.ImmutableMultimap;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Sets;
 
 /**
  * A directed graph where nodes are {@link Product}s and an edge exists between
@@ -10,6 +16,7 @@ import com.google.common.collect.ImmutableSet;
  *
  * @author mikesamuel@gmail.com
  */
+@ParametersAreNonnullByDefault
 public final class PlanGraph {
   public final ImmutableSet<String> nodes;
   /**
@@ -43,5 +50,26 @@ public final class PlanGraph {
 
   public static Builder builder(String... nodes) {
     return new Builder(ImmutableSet.of(nodes));
+  }
+
+  public Walker walker(Function<String, ?> action) {
+    return new Walker(this, action);
+  }
+
+  public static final class Walker {
+    final PlanGraph g;
+    final Function<String, ?> action;
+    final Set<String> visited = Sets.newHashSet();
+
+    private Walker(PlanGraph g, Function<String, ?> action) {
+      this.g = g;
+      this.action = action;
+    }
+
+    public void walk(String node) {
+      if (!visited.add(node)) { return; }
+      action.apply(node);
+      for (String desc : g.edges.get(node)) { walk(desc); }
+    }
   }
 }

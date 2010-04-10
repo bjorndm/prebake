@@ -21,7 +21,7 @@ final class DotRenderer {
       final Set<String> notRoots = Sets.newHashSet();
       for (final String prod : prods) {
         if (notRoots.contains(prod)) { break; }
-        new Walker(g, new Function<String, Void>() {
+        g.walker(new Function<String, Void>() {
           public Void apply(String node) {
             if (!node.equals(prod) && prods.contains(node)) {
               notRoots.add(node);
@@ -35,7 +35,7 @@ final class DotRenderer {
     out.append("digraph {\n");
     for (String root : roots) {
       try {
-        new Walker(g, new Function<String, Void>() {
+        g.walker(new Function<String, Void>() {
           public Void apply(String node) {
             try {
               out.append("  ");
@@ -67,22 +67,5 @@ final class DotRenderer {
       }
     }
     out.append("}\n");
-  }
-
-  private static class Walker {
-    final PlanGraph g;
-    final Function<String, ?> action;
-    final Set<String> visited = Sets.newHashSet();
-
-    Walker(PlanGraph g, Function<String, ?> action) {
-      this.g = g;
-      this.action = action;
-    }
-
-    void walk(String node) {
-      if (!visited.add(node)) { return; }
-      action.apply(node);
-      for (String desc : g.edges.get(node)) { walk(desc); }
-    }
   }
 }

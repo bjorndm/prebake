@@ -40,7 +40,8 @@ import javax.annotation.ParametersAreNonnullByDefault;
  * @author mikesamuel@gmail.com
  */
 @ParametersAreNonnullByDefault
-public final class FileHashes implements ArtifactValidityTracker {
+public final class FileHashes
+    implements ArtifactValidityTracker, FileVersioner {
   private final Logger logger;
   private final Database fileToHash;
   private final Database fileDerivatives;
