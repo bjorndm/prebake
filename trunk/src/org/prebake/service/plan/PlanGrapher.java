@@ -3,11 +3,11 @@ package org.prebake.service.plan;
 import org.prebake.core.Glob;
 
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 
 import com.google.common.collect.HashMultiset;
 import com.google.common.collect.ImmutableList;
@@ -24,7 +24,7 @@ import com.google.common.collect.Sets;
  * globs of another.
  *
  * <p>
- * At any time the graph can be {@link snapshot}ted as an
+ * At any time the graph can be {@link #snapshot}ted as an
  * {@link PlanGraph immutable graph} that allows efficient edge traversal.
  *
  * @author mikesamuel@gmail.com
@@ -38,7 +38,7 @@ public final class PlanGrapher {
   private final Map<EndPoints, Boolean> edges = Maps.newHashMap();
   /** Products that have not been incorporated into the other collections. */
   private final Map<String, Product> unprocessed
-      = new ConcurrentHashMap<String, Product>();
+      = Collections.synchronizedMap(Maps.<String, Product>newHashMap());
 
   public void update(Product p) { unprocessed.put(p.name, p); }
 

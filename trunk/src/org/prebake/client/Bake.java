@@ -25,11 +25,14 @@ import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import javax.annotation.ParametersAreNonnullByDefault;
+
 /**
  * Sends commands to a {@link Prebakery} to drive builds.
  *
  * @author mikesamuel@gmail.com
  */
+@ParametersAreNonnullByDefault
 abstract class Bake {
   private final Logger logger;
 
@@ -83,7 +86,7 @@ abstract class Bake {
                  new AuthoritahNotRespectedException());
     }
     if (cmd != null) { commands.add(cmd); }
-    return Commands.valueOf(commands);
+    return Commands.valueOf(commands, null);
   }
 
   private Connection connectOrSpawn(Path prebakeDir)
@@ -167,7 +170,7 @@ abstract class Bake {
       List<Command> commandList = Lists.newArrayList();
       commandList.add(new Command.HandshakeCommand(token));
       for (Command command : commands) { commandList.add(command); }
-      commands = Commands.valueOf(commandList);
+      commands = Commands.valueOf(commandList, null);
     }
 
     try {
@@ -237,6 +240,6 @@ abstract class Bake {
   }
 
   static final class IHateYouSoVeryVeryMuch extends Exception {
-    private IHateYouSoVeryVeryMuch() {}
+    private IHateYouSoVeryVeryMuch() { /* not public */ }
   }
 }

@@ -10,21 +10,31 @@ import java.io.IOException;
 import java.nio.file.FileSystem;
 import java.util.Iterator;
 
+import javax.annotation.Nullable;
+import javax.annotation.ParametersAreNonnullByDefault;
+
 /**
  * A bundle of commands from a single source.
  *
  * @author mikesamuel@gmail.com
  */
+@ParametersAreNonnullByDefault
 public final class Commands implements Iterable<Command>, JsonSerializable {
   private final ImmutableList<Command> commands;
+  private final @Nullable Appendable response;
 
-  private Commands(ImmutableList<Command> commands) {
+  private Commands(
+      ImmutableList<Command> commands, @Nullable Appendable response) {
     this.commands = commands;
+    this.response = response;
   }
 
   public Iterator<Command> iterator() { return commands.iterator(); }
 
-  public static Commands fromJson(FileSystem fs, JsonSource src)
+  public Appendable getResponse() { return response; }
+
+  public static Commands fromJson(
+      FileSystem fs, JsonSource src, @Nullable Appendable response)
       throws IOException {
     ImmutableList.Builder<Command> cmds = ImmutableList.builder();
     src.expect("[");
@@ -34,11 +44,12 @@ public final class Commands implements Iterable<Command>, JsonSerializable {
       } while (src.check(","));
       src.expect("]");
     }
-    return new Commands(cmds.build());
+    return new Commands(cmds.build(), response);
   }
 
-  public static Commands valueOf(Iterable<Command> cmds) {
-    return new Commands(ImmutableList.copyOf(cmds));
+  public static Commands valueOf(
+      Iterable<Command> cmds, @Nullable Appendable response) {
+    return new Commands(ImmutableList.copyOf(cmds), response);
   }
 
   public void toJson(JsonSink out) throws IOException {

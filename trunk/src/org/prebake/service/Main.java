@@ -14,6 +14,7 @@ import com.sleepycat.je.EnvironmentConfig;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.OutputStreamWriter;
 import java.io.StringReader;
 import java.math.BigInteger;
 import java.net.ServerSocket;
@@ -71,7 +72,7 @@ public final class Main {
     ScheduledExecutorService execer = Executors
         .getExitingScheduledExecutorService(
             new ScheduledThreadPoolExecutor(4));
-    final Prebakery pb = new Prebakery(config, logger) {
+    final Prebakery pb = new Prebakery(config, execer, logger) {
       @Override
       protected String makeToken() {
         byte[] bytes = new byte[256];
@@ -96,16 +97,19 @@ public final class Main {
                 byte[] bytes;
                 try {
                   bytes = ByteStreams.toByteArray(sock.getInputStream());
+                  String commandText = new String(bytes, Charsets.UTF_8);
+                  try {
+                    q.put(Commands.fromJson(
+                        getFileSystem(),
+                        new JsonSource(
+                            new StringReader(commandText)),
+                        new OutputStreamWriter(
+                            sock.getOutputStream(), Charsets.UTF_8)));
+                  } catch (InterruptedException ex) {
+                    continue;
+                  }
                 } finally {
                   sock.close();
-                }
-                String commandText = new String(bytes, Charsets.UTF_8);
-                try {
-                  JsonSource src = new JsonSource(
-                      new StringReader(commandText));
-                  q.put(Commands.fromJson(getFileSystem(), src));
-                } catch (InterruptedException ex) {
-                  continue;
                 }
               } catch (IOException ex) {
                 ex.printStackTrace();

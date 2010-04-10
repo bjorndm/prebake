@@ -101,7 +101,7 @@ public final class FileHashes implements ArtifactValidityTracker {
   }
 
   /** Called when the system is notified that the given files have changed. */
-  public void update(List<Path> toUpdate) {
+  public void update(Collection<Path> toUpdate) {
     int n = toUpdate.size();
     Path[] relPaths = new Path[n];
     // null elements correspond to bad inputs

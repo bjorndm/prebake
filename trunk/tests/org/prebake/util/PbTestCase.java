@@ -1,6 +1,6 @@
 package org.prebake.util;
 
-import org.prebake.fs.FilePerms;
+import org.prebake.fs.FilePerms; 
 import org.prebake.js.JsonSource;
 
 import com.google.common.base.Charsets;
@@ -52,7 +52,7 @@ public abstract class PbTestCase extends TestCase {
       logger = Logger.getLogger(getName());
       logger.addHandler(handler = new Handler() {
         @Override public void close() { log = null; }
-        @Override public void flush() {}
+        @Override public void flush() { /* nothing to flush */ }
         @Override
         public void publish(LogRecord r) {
           String sourceClass = r.getSourceClassName();

@@ -18,30 +18,30 @@ public final class PlanGraph {
    */
   public final ImmutableMultimap<String, String> edges;
 
-  PlanGraph(
+  private PlanGraph(
       ImmutableSet<String> nodes, ImmutableMultimap<String, String> edges) {
-      this.nodes = nodes;
-      this.edges = edges;
+    this.nodes = nodes;
+    this.edges = edges;
   }
 
-  static class Builder {
+  public static class Builder {
     private final ImmutableSet<String> nodes;
     private final ImmutableMultimap.Builder<String, String> edges
         = ImmutableMultimap.builder();
 
     private Builder(ImmutableSet<String> nodes) { this.nodes = nodes; }
 
-    Builder edge(String from, String to) {
+    public Builder edge(String from, String to) {
       edges.put(to, from);
       return this;
     }
 
-    PlanGraph build() {
+    public PlanGraph build() {
       return new PlanGraph(nodes, edges.build());
     }
   }
 
-  static Builder builder(String... nodes) {
+  public static Builder builder(String... nodes) {
     return new Builder(ImmutableSet.of(nodes));
   }
 }
