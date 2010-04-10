@@ -1,6 +1,6 @@
 package org.prebake.util;
 
-import org.prebake.fs.FilePerms; 
+import org.prebake.fs.FilePerms;
 import org.prebake.js.JsonSource;
 
 import com.google.common.base.Charsets;
@@ -18,6 +18,7 @@ import java.nio.file.StandardOpenOption;
 import java.nio.file.attribute.FileAttribute;
 import java.nio.file.attribute.PosixFileAttributeView;
 import java.text.MessageFormat;
+import java.util.Collections;
 import java.util.List;
 import java.util.logging.Handler;
 import java.util.logging.Level;
@@ -48,7 +49,7 @@ public abstract class PbTestCase extends TestCase {
 
   protected Logger getLogger(Level level) {
     if (logger == null) {
-      log = Lists.newArrayList();
+      log = Collections.synchronizedList(Lists.<String>newArrayList());
       logger = Logger.getLogger(getName());
       logger.addHandler(handler = new Handler() {
         @Override public void close() { log = null; }
