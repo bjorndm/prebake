@@ -5,9 +5,7 @@ import org.prebake.core.MessageQueue;
 import org.prebake.fs.ArtifactAddresser;
 import org.prebake.fs.ArtifactValidityTracker;
 import org.prebake.fs.FileAndHash;
-import org.prebake.fs.NonFileArtifact;
 import org.prebake.js.Executor;
-import org.prebake.js.Loader;
 import org.prebake.js.YSON;
 
 import com.google.common.base.Charsets;
@@ -39,7 +37,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.SortedMap;
 import java.util.concurrent.Callable;
 import java.util.concurrent.Future;
 import java.util.concurrent.FutureTask;
@@ -59,7 +56,7 @@ import javax.annotation.ParametersAreNonnullByDefault;
 @ParametersAreNonnullByDefault
 public class ToolBox implements ToolProvider {
   private final FileSystem fs;
-  private final ArtifactValidityTracker fh;
+  final ArtifactValidityTracker files;
   private final Logger logger;
   private final @Nullable WatchService watcher;
   private final ScheduledExecutorService execer;
@@ -83,14 +80,14 @@ public class ToolBox implements ToolProvider {
       };
   private final Future<?> updater;
 
-  public ToolBox(ArtifactValidityTracker fh, Iterable<Path> toolDirs,
+  public ToolBox(ArtifactValidityTracker files, Iterable<Path> toolDirs,
                  Logger logger, ScheduledExecutorService execer)
       throws IOException {
     this.logger = logger;
     toolDirs = this.toolDirs = ImmutableList.copyOf(
         Sets.newLinkedHashSet(toolDirs));
-    this.fs = fh.getFileSystem();
-    this.fh = fh;
+    this.fs = files.getFileSystem();
+    this.files = files;
     this.execer = execer;
     if (!this.toolDirs.isEmpty()) {
       for (Path toolDir : toolDirs) {
@@ -295,34 +292,8 @@ public class ToolBox implements ToolProvider {
           ToolSignature toolSig;
           try {
             Executor.Output<YSON> result = executor.run(
-                YSON.class, logger, new Loader() {
-                  public Executor.Input load(Path p) throws IOException {
-                    FileAndHash loaded;
-                    try {
-                      // The name "next" resolves to the next instance of the
-                      // same tool in the search path.
-                      if ("next".equals(p.getName().toString())
-                          && base != null && base.equals(p.getParent())) {
-                        loaded = nextTool(t, index, base.resolve("next"));
-                      } else {
-                        loaded = fh.load(p);
-                      }
-                    } catch (IOException ex) {
-                      // We need to depend on non-existent files in case they
-                      // are later created.
-                      paths.add(p);
-                      throw ex;
-                    }
-                    Hash h = loaded.getHash();
-                    if (h != null) {
-                      paths.add(loaded.getPath());
-                      hashes.add(h);
-                    }
-                    return Executor.Input.builder(
-                        loaded.getContentAsString(Charsets.UTF_8), p)
-                        .build();
-                  }
-                });
+                YSON.class, logger,
+                new ToolLoader(base, ToolBox.this, impl, paths, hashes));
             MessageQueue mq = new MessageQueue();
             // We need content that we can safely serialize and load into a plan
             // file.
@@ -355,7 +326,7 @@ public class ToolBox implements ToolProvider {
           }
 
           synchronized (impl.tool) {
-            if (fh.update(addresser, impl, paths, hb.build())) {
+            if (files.update(addresser, impl, paths, hb.build())) {
               return impl.sig = toolSig;
             }
           }
@@ -369,26 +340,26 @@ public class ToolBox implements ToolProvider {
     });
   }
 
-  private FileAndHash nextTool(Tool t, int prevIndex, Path path)
-      throws IOException {
+  FileAndHash nextTool(ToolImpl ti, Path path) throws IOException {
+    Tool tool = ti.tool;
     Integer nextIndex = null;
-    for (Iterator<Integer> it = t.impls.keySet().iterator(); it.hasNext();) {
+    for (Iterator<Integer> it = tool.impls.keySet().iterator(); it.hasNext();) {
       int index = it.next();
-      if (index > prevIndex) {
+      if (index > ti.index) {
         nextIndex = index;
         break;
       }
     }
     if (nextIndex != null) {
       if (nextIndex < toolDirs.size()) {
-        return fh.load(toolDirs.get(nextIndex).resolve(t.localName));
+        return files.load(toolDirs.get(nextIndex).resolve(tool.localName));
       } else {
         InputStream in = ToolBox.class.getResourceAsStream(
-            t.localName.toString());
+            tool.localName.toString());
         if (in != null) {
           try {
             byte[] bytes = ByteStreams.toByteArray(in);
-            return new FileAndHash(t.localName, bytes, null);
+            return new FileAndHash(tool.localName, bytes, null);
           } finally {
             in.close();
           }
@@ -468,45 +439,6 @@ public class ToolBox implements ToolProvider {
       } else if (tool != null) {
         tool.impls.remove(dirIndex);
         if (tool.impls.isEmpty()) { tools.remove(toolName); }
-      }
-    }
-  }
-}
-
-@ParametersAreNonnullByDefault
-final class Tool {
-  final Path localName;
-  final SortedMap<Integer, ToolImpl> impls = Maps.newTreeMap();
-  Future<ToolSignature> validator;
-
-  Tool(Path localName) { this.localName = localName; }
-}
-
-@ParametersAreNonnullByDefault
-final class ToolImpl implements NonFileArtifact {
-  final Tool tool;
-  final String name;
-  final int index;
-  @Nullable ToolSignature sig;
-  private boolean valid;
-
-  ToolImpl(Tool tool, String name, int index) {
-    this.tool = tool;
-    this.name = name;
-    this.index = index;
-  }
-
-  public boolean isValid() { return valid; }
-
-  public void markValid(boolean valid) {
-    synchronized (tool) {
-      this.valid = valid;
-      if (!valid) {
-        sig = null;
-        if (tool.validator != null) {
-          tool.validator.cancel(false);
-          tool.validator = null;
-        }
       }
     }
   }
