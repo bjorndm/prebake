@@ -2,9 +2,8 @@ package org.prebake.service.tools;
 
 import org.prebake.fs.NonFileArtifact;
 
+import javax.annotation.Nullable;
 import javax.annotation.ParametersAreNonnullByDefault;
-
-import com.sun.istack.internal.Nullable;
 
 @ParametersAreNonnullByDefault
 final class ToolImpl implements NonFileArtifact {

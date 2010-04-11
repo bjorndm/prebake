@@ -119,7 +119,7 @@ public class ToolBoxTest extends PbTestCase {
         .withToolDirs("/root/cwd/tools", "/tools")
         .withToolFiles(
             "/root/cwd/tools/a.js", (
-                "var o = load('next')(this); o.help += 'bar'; o"),
+                "var o = load('...')(this); o.help += 'bar'; o"),
             "/tools/a.js", "({ help: 'foo' })")
         .assertSigs("{\"name\":\"a\",\"help\":\"foobar\"}");
   }
