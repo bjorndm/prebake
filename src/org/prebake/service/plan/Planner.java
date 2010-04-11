@@ -364,6 +364,10 @@ public final class Planner implements Closeable {
         if (this.products != null) {
           List<Product> products = this.products;
           this.products = null;
+          if (future != null) {
+            future.cancel(false);
+            future = null;
+          }
           synchronized (productsByName) {
             for (Product p : products) {
               productsByName.remove(p.name, p);
