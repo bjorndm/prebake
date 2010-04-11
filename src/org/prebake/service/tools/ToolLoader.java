@@ -33,11 +33,11 @@ public class ToolLoader implements Loader{
     try {
       // The name "next" resolves to the next instance of the
       // same tool in the search path.
-      if (base != null && "next".equals(p.getName().toString())
-          && base.equals(p.getParent())) {
-        // TODO: rename "next" to "..."
-        // and allow ".../<tool-name>" to load another tool.
-        loaded = toolBox.nextTool(current, base.resolve("next"));
+      String pName = p.getName().toString();
+      Path parent = p.getParent();
+      // TODO: Allow ".../<tool-name>" to load another tool.
+      if (base != null && "...".equals(pName) && base.equals(parent)) {
+        loaded = toolBox.nextTool(current, base.resolve("..."));
       } else {
         loaded = toolBox.files.load(p);
       }
