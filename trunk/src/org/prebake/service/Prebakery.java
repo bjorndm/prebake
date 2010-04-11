@@ -7,13 +7,15 @@ import org.prebake.core.Documentation;
 import org.prebake.fs.DirectoryHooks;
 import org.prebake.fs.FileHashes;
 import org.prebake.fs.FilePerms;
-import org.prebake.service.build.Baker;
-import org.prebake.service.build.Recipe;
+import org.prebake.service.plan.Ingredient;
+import org.prebake.service.plan.PlanGraph;
 import org.prebake.service.plan.Planner;
+import org.prebake.service.plan.Recipe;
 import org.prebake.service.tools.ToolBox;
 import org.prebake.service.tools.ToolSignature;
 
 import com.google.common.base.Charsets;
+import com.google.common.base.Function;
 import com.google.common.base.Predicate;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
@@ -23,6 +25,7 @@ import com.google.common.io.Closeables;
 import com.sleepycat.je.Environment;
 
 import java.io.Closeable;
+import java.io.IOError;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
@@ -282,23 +285,38 @@ public abstract class Prebakery implements Closeable {
               case handshake:
                 authed = ((Command.HandshakeCommand) cmd).token.equals(token);
                 break;
-              case plan: {
-                Baker b = new Baker(null);
-                Recipe recipe = b.makeRecipe(
-                    planner.getPlanGraph(),
-                    ((Command.PlanCommand) cmd).products);
-                Appendable out = c.getResponse();
-                for (String instruction : recipe.instructions) {
-                  out.append(instruction).append('\n');
+              case plan:
+                try {
+                  Recipe recipe = planner.getPlanGraph()
+                      .makeRecipe(((Command.PlanCommand) cmd).products);
+                  final Appendable out = c.getResponse();
+                  final StringBuilder sb = new StringBuilder();
+                  recipe.cook(new Recipe.Chef() {
+                    public void cook(
+                        Ingredient ingredient, Function<Boolean, ?> whenDone) {
+                      sb.append(ingredient.product).append('\n');
+                      whenDone.apply(true);
+                    }
+                    public void done(boolean allSucceeded) {
+                      assert allSucceeded;
+                      try {
+                        out.append(sb.toString());
+                      } catch (IOException ex) {
+                        throw new IOError(ex);
+                      }
+                    }
+                  });
+                } catch (PlanGraph.DependencyCycleException ex) {
+                  logger.log(Level.WARNING, "{0}", ex.getMessage());
                 }
                 break;
-              }
               case shutdown: Prebakery.this.close(); break;
               case sync:
                 try {
                   pathConsumer.waitUntilEmpty();
                 } catch (InterruptedException ex) {
-                  logger.warning("Sync command interrupted " + cmd);
+                  logger.log(
+                      Level.WARNING, "Sync command interrupted {0}", cmd);
                   return;
                 }
                 break;
@@ -330,6 +348,9 @@ public abstract class Prebakery implements Closeable {
               break;
             }
           }
+        } catch (IOError ex) {
+          logger.log(
+              Level.INFO, "Failed to service command " + c, ex.getCause());
         } catch (IOException ex) {  // Client disconnect?
           logger.log(Level.INFO, "Failed to service command " + c, ex);
         }
