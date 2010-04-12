@@ -237,7 +237,8 @@ public abstract class Prebakery implements Closeable {
     this.tools = new ToolBox(
         fileHashes, config.getToolDirs(), logger, execer);
     this.planner = new Planner(
-        fileHashes, tools, config.getPlanFiles(), logger, execer);
+        fileHashes, tools, config.getPlanFiles(), logger,
+        null /* TODO builder */, execer);
   }
 
   private void setupFileSystemWatcher() {
@@ -274,6 +275,9 @@ public abstract class Prebakery implements Closeable {
               return;
             }
             switch (cmd.verb) {
+              case build:
+                // TODO
+                break;
               case files_changed:
                 fileHashes.update(((Command.FilesChangedCommand) cmd).paths);
                 break;

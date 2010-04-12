@@ -29,7 +29,7 @@ import com.google.common.collect.Sets;
  *
  * @author mikesamuel@gmail.com
  */
-public final class PlanGrapher {
+public final class PlanGrapher implements ProductWatcher {
   /** The end points per product. */
   private final Map<String, EndPoints> nodes = Maps.newHashMap();
   /** Glob sets needed to compute the intersection graph of end-points. */
@@ -40,9 +40,9 @@ public final class PlanGrapher {
   private final Map<String, Product> unprocessed
       = Collections.synchronizedMap(Maps.<String, Product>newHashMap());
 
-  public void update(Product p) { unprocessed.put(p.name, p); }
+  public void productDefined(Product p) { unprocessed.put(p.name, p); }
 
-  public void remove(String name) { unprocessed.put(name, null); }
+  public void productDestroyed(String name) { unprocessed.put(name, null); }
 
   public synchronized PlanGraph snapshot() {
     processProducts();

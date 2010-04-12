@@ -42,6 +42,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import javax.annotation.Nullable;
 import javax.annotation.ParametersAreNonnullByDefault;
 
 /**
@@ -75,11 +76,12 @@ public final class Planner implements Closeable {
     }
   };
   private final Future<?> updater;
+  private final ProductWatcher watcher;
   private final PlanGrapher grapher = new PlanGrapher();
 
   public Planner(
       ArtifactValidityTracker files, ToolProvider toolbox,
-      Iterable<Path> planFiles, Logger logger,
+      Iterable<Path> planFiles, Logger logger, @Nullable ProductWatcher watcher,
       ScheduledExecutorService execer) {
     this.files = files;
     this.toolbox = toolbox;
@@ -91,6 +93,7 @@ public final class Planner implements Closeable {
     this.updater = execer.scheduleWithFixedDelay(new Runnable() {
       public void run() { getProductLists(); }
     }, 1000, 1000, TimeUnit.MILLISECONDS);
+    this.watcher = ProductWatcher.Factory.chain(grapher, watcher);
   }
 
   public void close() {
@@ -251,7 +254,7 @@ public final class Planner implements Closeable {
                   synchronized (pp) {
                     if (files.update(
                             productAddresser, pp, paths, allHashes.build())) {
-                      for (Product p : products) { grapher.update(p); }
+                      for (Product p : products) { watcher.productDefined(p); }
                       pp.products = products;
                       pp.valid = true;
                       return products;
@@ -374,9 +377,9 @@ public final class Planner implements Closeable {
               Collection<Product> prods = productsByName.get(p.name);
               switch (prods.size()) {
                 // No more products with this name left.
-                case 0: grapher.remove(p.name); break;
+                case 0: watcher.productDestroyed(p.name); break;
                 // Previously the product was masked, but now there's only one.
-                case 1: grapher.update(prods.iterator().next()); break;
+                case 1: watcher.productDefined(prods.iterator().next()); break;
               }
             }
           }

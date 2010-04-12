@@ -27,11 +27,12 @@ public class PlanGrapherTest extends PbTestCase {
 
   public final void testPlanGraph() {
     PlanGrapher grapher = new PlanGrapher();
-    grapher.update(product("foo", globs("*.a"), globs("*.b")));
-    grapher.update(product("bar", globs("*.b"), globs("*.c")));
-    grapher.update(product("baz", globs("*.c"), globs("*.d")));
-    grapher.update(product("boo", globs("*.c"), globs("*.e")));
-    grapher.update(product("far", globs("*.b", "*.d", "*.e"), globs("*.f")));
+    grapher.productDefined(product("foo", globs("*.a"), globs("*.b")));
+    grapher.productDefined(product("bar", globs("*.b"), globs("*.c")));
+    grapher.productDefined(product("baz", globs("*.c"), globs("*.d")));
+    grapher.productDefined(product("boo", globs("*.c"), globs("*.e")));
+    grapher.productDefined(
+        product("far", globs("*.b", "*.d", "*.e"), globs("*.f")));
 
     {
       PlanGraph pg = grapher.snapshot();
@@ -41,8 +42,8 @@ public class PlanGrapherTest extends PbTestCase {
           pg.edges.toString());
     }
 
-    grapher.update(product("baz", globs("*.b"), globs("*.e")));
-    grapher.update(product("faz", globs("*.a"), globs("*.d")));
+    grapher.productDefined(product("baz", globs("*.b"), globs("*.e")));
+    grapher.productDefined(product("faz", globs("*.a"), globs("*.d")));
 
     {
       PlanGraph pg = grapher.snapshot();
@@ -164,7 +165,7 @@ public class PlanGrapherTest extends PbTestCase {
         }
       });
       while (true) {
-        Task t = tasks.remove(Math.abs(rnd.nextInt()) % tasks.size());
+        Task t = tasks.remove(rnd.nextInt(tasks.size()));
         if (t == null) { break; }
         prods.add(t.prod);
         t.whenDone.apply(true);
