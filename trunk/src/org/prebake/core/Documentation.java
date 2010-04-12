@@ -75,6 +75,24 @@ public final class Documentation implements JsonSerializable {
     return JsonSerializable.StringUtil.toString(this);
   }
 
+  @Override
+  public boolean equals(Object o) {
+    if (!(o instanceof Documentation)) { return false; }
+    Documentation that = (Documentation) o;
+    return this.summaryHtml.equals(that.summaryHtml)
+        && (this.contactEmail == null
+            ? that.contactEmail == null
+            : this.contactEmail.equals(that.contactEmail))
+        && this.detailHtml.equals(that.detailHtml);
+  }
+
+  @Override
+  public int hashCode() {
+    return detailHtml.hashCode()
+        + 31 * (summaryHtml.hashCode()
+                + 31 * (contactEmail != null ? contactEmail.hashCode() : 0));
+  }
+
   public static final YSONConverter<Documentation> CONVERTER
       = new YSONConverter<Documentation>() {
     final YSONConverter<String> strIdent = YSONConverter.Factory
