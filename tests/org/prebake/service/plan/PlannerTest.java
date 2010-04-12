@@ -378,7 +378,7 @@ public class PlannerTest extends PbTestCase {
       }
       ScheduledExecutorService execer = new StubScheduledExecutorService();
       Logger logger = getLogger(Level.INFO);
-      planner = new Planner(files, toolbox, b.build(), logger, execer);
+      planner = new Planner(files, toolbox, b.build(), logger, null, execer);
       return this;
     }
 
