@@ -1,8 +1,10 @@
 package org.prebake.fs;
 
+import org.prebake.core.Glob;
 import org.prebake.core.Hash;
 
 import com.google.common.base.Charsets;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
@@ -29,6 +31,7 @@ import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.regex.Pattern;
 
 import javax.annotation.Nullable;
 import javax.annotation.ParametersAreNonnullByDefault;
@@ -74,6 +77,8 @@ public final class FileHashes
     fileDerivatives = env.openDatabase(null, "fileDerivatives", derivConfig);
   }
 
+  public Path getVersionRoot() { return root; }
+
   public FileSystem getFileSystem() { return root.getFileSystem(); }
 
   private @Nullable Path toKeyPath(Path p) {
@@ -99,6 +104,46 @@ public final class FileHashes
       // TODO: maybe update file if hash differs
     }
     return new FileAndHash(p, bytes, hash);
+  }
+
+  public List<Path> matching(List<Glob> globs) {
+    ImmutableList.Builder<Path> b = ImmutableList.builder();
+    String commonPrefix = Glob.commonPrefix(globs);
+    byte[] prefixBytes = commonPrefix.getBytes(Charsets.UTF_8);
+    DatabaseEntry key = new DatabaseEntry();
+    DatabaseEntry data = new DatabaseEntry();
+    key.setData(prefixBytes);
+
+    FileSystem fs = getFileSystem();
+    Pattern p = Glob.toRegex(globs);
+
+    Cursor cursor = fileToHash.openCursor(null, null);
+    try {
+      if (cursor.getSearchKeyRange(key, data, null)
+          == OperationStatus.SUCCESS) {
+        do {
+          byte[] result = key.getData();
+          if (!hasPrefix(result, prefixBytes)) { break; }
+          String path = new String(result, Charsets.UTF_8);
+          if (p.matcher(path).matches()) {
+            b.add(fs.getPath(path));
+          }
+        } while (cursor.getNext(key, data, null) == OperationStatus.SUCCESS);
+        // TODO: other operation statuses?
+      }
+    } finally {
+      cursor.close();
+    }
+    return b.build();
+  }
+
+  private static boolean hasPrefix(byte[] arr, byte[] prefix) {
+    int n = prefix.length;
+    if (arr.length < n) { return false; }
+    for (int i = n; --i >= 0;) {
+      if (arr[i] != prefix[i]) { return false; }
+    }
+    return true;
   }
 
   /** Called when the system is notified that the given files have changed. */
