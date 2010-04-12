@@ -20,12 +20,22 @@ The result of evaluating a tool file in the environment described below should b
     ...
     return true;  // if options and product could be OK
   },
-  fire: function (options, inputFiles, product) {
+  fire: function (options, inputFiles, product, exec) {
     // builds the product as described below
   },
 }
 }}}
 where {{{options}}} is a frozen [YSON ΛSON] object that the tool is free to interpret however it likes ; {{{inputFiles}}} is an array of paths into the TmpWorkspace ; and {{{product}}} is the frozen [YSON ΛSON] of the product whose action is being evaluated.
+{{{exec}}} is described below.
+
+=== {{{exec}}} ===
+The fire function *may* call {{{exec(path, argv...)}}} to spawn a process that runs the executable named by {{{path}}} with the given arguments and returns a ProcessResult.  Calls to {{{exec}}] are synchronous.
+
+{{{exec}}} obeys the usual rules for path resolution ; if the path does not contain a file separator character then it is resolved against the OS search path.
+
+The working directory will be the root of the TmpWorkspace.
+
+The caller *must not* pass any arguments that are paths into the ClientRoot.
 
 The {{{fire}}} function *must* return a ProcessResult or raise an exception.
 
@@ -42,23 +52,28 @@ The {{{check}}} function *should* return true if the options could be valid, and
 == Environment ==
 In addition to the global objects defined by JavaScript, the tool will have available:
 
-=== {{{exec(path, argv...)}}} ===
-Spawns a process that runs the executable named by {{{path}}} with the given arguments and returns a ProcessResult.  This is synchronous.
-
-The usual rules for path resolution apply -- if the path does not contain a file separator character -- then it is resolved against the OS search path.
-
-The working directory will be the root of the TmpWorkspace.
-
-The caller *must not* pass any arguments that are paths into the ClientRoot.
-
 === {{{console.log}}}, {{{warn}}}, etc. ===
 See JsConsole.
 
 === {{{glob.intersect(a, b)}}} ===
 Returns the intersection of two [Glob]s represented as strings or {{{null}}} if there is no intersection.
 
-=== {{{load(path, globals)}}} ===
-Loads JS from a path relative to the tool file, evaluates it in a context where globals is the global object, and returns the result.
+=== {{{load(path)(globals)}}} ===
+Loads JS from a path relative to the tool file.  This returns a function that when called evaluates the module in a context where {{{globals}}} is the global object, and returns the result.
+
+=== {{{sys}}} ===
+Contains information about the environment.
+{{{
+sys = {
+  os: {
+    name: "Windows",
+    version: '7',
+    arch: "i386"
+  },
+  file: { separator: "\\", encoding: "UTF-8" },
+  path: { separator: ";" }
+};
+}}}
 
 == Limitations ==
 The tool *must not* pass any arguments that are paths into the ClientRoot to {{{exec}}}.
