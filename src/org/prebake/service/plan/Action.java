@@ -90,4 +90,22 @@ public final class Action implements JsonSerializable {
   public String toString() {
     return JsonSerializable.StringUtil.toString(this);
   }
+
+  @Override
+  public boolean equals(Object o) {
+    if (!(o instanceof Action)) { return false; }
+    Action that = (Action) o;
+    return this.toolName.equals(that.toolName)
+        && this.inputs.equals(that.inputs)
+        && this.outputs.equals(that.outputs)
+        && this.options.equals(that.options);
+  }
+
+  @Override
+  public int hashCode() {
+    return toolName.hashCode()
+        + 31 * (inputs.hashCode()
+                + 31 * (outputs.hashCode()
+                        + 31 * options.hashCode()));
+  }
 }

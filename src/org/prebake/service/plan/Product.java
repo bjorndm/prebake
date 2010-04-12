@@ -59,9 +59,36 @@ public final class Product implements JsonSerializable {
         newName, help, inputs, outputs, actions, isIntermediate, source);
   }
 
+  public Product withoutNonBuildableInfo() {
+    return new Product(name, null, inputs, outputs, actions, false, source);
+  }
+
   @Override
   public String toString() {
     return JsonSerializable.StringUtil.toString(this);
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (!(o instanceof Product)) { return false; }
+    Product that = (Product) o;
+    if (this.isIntermediate != that.isIntermediate) { return false; }
+    if (!this.name.equals(that.name)) { return false; }
+    if (this.help == null ? that.help != null : !this.help.equals(that.help)) {
+      return false;
+    }
+    return this.actions.equals(that.actions)
+        && this.inputs.equals(that.inputs)
+        && this.outputs.equals(that.outputs);
+  }
+
+  @Override
+  public int hashCode() {
+    return name.hashCode() + 31 * (
+        actions.hashCode() + 31 * (
+            inputs.hashCode() + 31 * (
+                outputs.hashCode() + 31 * (
+                    isIntermediate ? 1 : 0))));
   }
 
   /** Property names in the YSON representation. */
