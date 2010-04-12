@@ -99,7 +99,10 @@ public class ToolBoxTest extends PbTestCase {
                 "({ help: 'an example tool',"
                 + " check: function (product) { console.log('OK'); } })"),
             "/tools/foo.js", (
-                "({ help: 'foo1', fire: function () { return exec('foo') } })"))
+                "({ help: 'foo1',"
+                + " fire: function (options, inputs, product, exec) {"
+                  + " return exec('foo')"
+                + " } })"))
         .withBuiltinTools("cp.js")
         .assertSigs(
             ("{"
