@@ -12,6 +12,7 @@ import com.google.common.collect.Lists;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -176,6 +177,32 @@ public final class Glob implements Comparable<Glob>, JsonSerializable {
     return false;
   }
 
+  public static String commonPrefix(Iterable<Glob> globs) {
+    Iterator<Glob> it = globs.iterator();
+    if (!it.hasNext()) { return ""; }
+    Glob first = it.next();
+    int commonPrefixLen = 0;
+    while (commonPrefixLen < first.parts.length
+           && first.parts[commonPrefixLen].charAt(0) != '*') {
+      ++commonPrefixLen;
+    }
+    while (it.hasNext() && commonPrefixLen > 0) {
+      Glob glob = it.next();
+      if (glob.parts.length < commonPrefixLen) {
+        commonPrefixLen = glob.parts.length;
+      }
+      for (int i = 0; i < commonPrefixLen; ++i) {
+        if (!glob.parts[i].equals(first.parts[i])) {
+          commonPrefixLen = i;
+          break;
+        }
+      }
+    }
+    StringBuilder sb = new StringBuilder();
+    for (int i = 0; i < commonPrefixLen; ++i) { sb.append(first.parts[i]); }
+    return sb.toString();
+  }
+
   @Override
   public String toString() {
     StringBuilder sb = new StringBuilder();
@@ -328,6 +355,55 @@ public final class Glob implements Comparable<Glob>, JsonSerializable {
 
   public void toJson(JsonSink sink) throws IOException {
     sink.writeValue(toString());
+  }
+
+  public static Pattern toRegex(Iterable<Glob> globs) {
+    StringBuilder sb = new StringBuilder();
+    boolean first = true;
+    for (Glob g : globs) {
+      if (!first) { sb.append('|'); }
+      first = false;
+      for (int i = 0, n = g.parts.length; i < n; ++i) {
+        String part = g.parts[i];
+        switch (part.charAt(0)) {
+          case '*':
+            if (part.length() == 2) {
+              if (i + 1 < n && "/".equals(g.parts[i + 1])) {
+                // foo/**/bar should match foo/bar.
+                sb.append("(?:.+[/\\\\])?");
+              } else {
+                sb.append(".*");
+              }
+            } else {
+              sb.append("[^/\\\\]*");
+            }
+            break;
+          case '/':
+            if (i + 2 == n) {
+              String nextPart = g.parts[i + 1];
+              if ('*' == nextPart.charAt(0)) {
+                // foo/* and foo/** should match foo
+                sb.append(
+                    nextPart.length() == 2
+                    ? "(?:[/\\\\].*)?"
+                    : "(?:[/\\\\][^/\\\\]*)?");
+                ++i;
+              } else {
+                sb.append("[/\\\\]");
+              }
+            } else {
+              sb.append("[/\\\\]");
+              // foo/ should match foo
+              if (i + 1 == n) { sb.append('?'); }
+            }
+            break;
+          default:
+            sb.append(Pattern.quote(part));
+            break;
+        }
+      }
+    }
+    return Pattern.compile(sb.toString(), Pattern.DOTALL);
   }
 
   /**

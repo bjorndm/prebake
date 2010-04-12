@@ -1,6 +1,11 @@
 package org.prebake.core;
 
 import java.util.Arrays;
+import java.util.List;
+import java.util.regex.Pattern;
+
+import com.google.common.base.Joiner;
+import com.google.common.collect.Lists;
 
 import junit.framework.TestCase;
 
@@ -149,5 +154,71 @@ public class GlobTest extends TestCase {
     assertEquals(
         "[Bad glob 'foo//' expanded from 'foo/{/,bar}']",
         "" + mq.getMessages());
+  }
+
+  public final void testCommonPrefix() {
+    assertEquals(
+        "/foo/",
+        Glob.commonPrefix(Lists.newArrayList(Glob.fromString("/foo/"))));
+    assertEquals(
+        "/foo/",
+        Glob.commonPrefix(Lists.newArrayList(Glob.fromString("/foo/*"))));
+    assertEquals(
+        "/foo/",
+        Glob.commonPrefix(Lists.newArrayList(
+            Glob.fromString("/foo/*"),
+            Glob.fromString("/foo/bar"))));
+    assertEquals(
+        "/foo/",
+        Glob.commonPrefix(Lists.newArrayList(
+            Glob.fromString("/foo/bar"),
+            Glob.fromString("/foo/*"))));
+  }
+
+  public final void testToRegex() {
+    assertRegexMatches(Arrays.<String>asList());
+    assertRegexMatches(Arrays.<String>asList("/foo"), "/foo");
+    assertRegexMatches(Arrays.<String>asList("/foo/"), "/foo");
+    assertRegexMatches(Arrays.<String>asList("/foo/*"), "/foo", "/foo/bar");
+    assertRegexMatches(
+        Arrays.<String>asList("/foo/**"),
+        "/foo", "/foo/bar", "/foo/bar/baz.txt");
+    assertRegexMatches(
+        Arrays.<String>asList("/foo/**.txt"),
+        "/foo/bar/baz.txt");
+  }
+
+  private void assertRegexMatches(List<String> globStrs, String... golden) {
+    List<Glob> globs = Lists.newArrayList();
+    for (String globStr : globStrs) { globs.add(Glob.fromString(globStr)); }
+    Pattern p = Glob.toRegex(globs);
+    {
+      List<String> actual = Lists.newArrayList();
+      for (String candidate : new String[] {
+            "/",
+            "/foo",
+            "/foo/bar",
+            "/foo/bar/baz.txt",
+           }) {
+        if (p.matcher(candidate).matches()) { actual.add(candidate); }
+      }
+      assertEquals(
+          Joiner.on(" ; ").join(golden),
+          Joiner.on(" ; ").join(actual));
+    }
+    {
+      List<String> actual = Lists.newArrayList();
+      for (String candidate : new String[] {
+            "\\",
+            "\\foo",
+            "\\foo\\bar",
+            "\\foo\\bar\\baz.txt",
+           }) {
+        if (p.matcher(candidate).matches()) { actual.add(candidate); }
+      }
+      assertEquals(
+          Joiner.on(" ; ").join(golden).replace('/', '\\'),
+          Joiner.on(" ; ").join(actual));
+    }
   }
 }
