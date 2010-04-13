@@ -24,6 +24,7 @@ import javax.annotation.ParametersAreNonnullByDefault;
  * A possible goal declared in a plan file.
  *
  * @see <a href="http://code.google.com/p/prebake/wiki/Product">wiki</a>
+ * @author mikesamuel@gmail.com
  */
 @ParametersAreNonnullByDefault
 public final class Product implements JsonSerializable {

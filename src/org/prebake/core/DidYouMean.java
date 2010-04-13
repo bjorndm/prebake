@@ -3,9 +3,14 @@ package org.prebake.core;
 import javax.annotation.Nonnull;
 import javax.annotation.ParametersAreNonnullByDefault;
 
+/**
+ * Suggests alternatives to possibly misspelled names.
+ *
+ * @author mikesamuel@gmail.com
+ */
 @ParametersAreNonnullByDefault
 public final class DidYouMean {
-  private DidYouMean() { /* not instantiable */ }  
+  private DidYouMean() { /* not instantiable */ }
 
   @Nonnull
   public static void toMessageQueue(

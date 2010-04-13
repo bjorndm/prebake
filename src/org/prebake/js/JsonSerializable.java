@@ -6,10 +6,17 @@ import java.io.IOException;
 
 import javax.annotation.ParametersAreNonnullByDefault;
 
+/**
+ * A JavaScript object that can be serialized to JSON.
+ * See {@link YSONConverter} for the dual.
+ *
+ * @author mikesamuel@gmail.com
+ */
 @ParametersAreNonnullByDefault
 public interface JsonSerializable {
   void toJson(JsonSink sink) throws IOException;
 
+  @ParametersAreNonnullByDefault
   public static final class StringUtil {
     public static String toString(JsonSerializable o) {
       StringBuilder sb = new StringBuilder();

@@ -1,9 +1,11 @@
 package org.prebake.core;
 
-import junit.framework.TestCase;
+import org.junit.Test;
 
-public class DidYouMeanTest extends TestCase {
-  public final void testToMessage() {
+import static junit.framework.Assert.assertEquals;
+
+public class DidYouMeanTest {
+  @Test public final void testToMessage() {
     assertEquals(
         "Foo. Did you mean \"cookies\"?",
         DidYouMean.toMessage(

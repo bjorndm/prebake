@@ -16,6 +16,7 @@ import javax.annotation.ParametersAreNonnullByDefault;
  *
  * @see <a href="http://code.google.com/p/prebake/wiki/DocumentationRecord">
  *   wiki</a>
+ * @author mikesamuel@gmail.com
  */
 @ParametersAreNonnullByDefault
 public final class Documentation implements JsonSerializable {

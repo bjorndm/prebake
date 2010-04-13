@@ -9,8 +9,10 @@ import java.util.Collections;
 import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableSet;
 
+import org.junit.Test;
+
 public class DotRendererTest extends PbTestCase {
-  public final void testRender() throws IOException {
+  @Test public final void testRender() throws IOException {
     PlanGraph g = PlanGraph.builder("foo", "bar", "baz")
         .edge("bar", "foo")
         .edge("baz", "bar")
@@ -31,8 +33,8 @@ public class DotRendererTest extends PbTestCase {
             ""),
         sb.toString());
   }
-  
-  public final void testNonDisjointRoots1() throws IOException {
+
+  @Test public final void testNonDisjointRoots1() throws IOException {
     PlanGraph g = PlanGraph.builder("foo", "bar", "baz")
         .edge("bar", "foo")
         .edge("baz", "bar")
@@ -53,8 +55,8 @@ public class DotRendererTest extends PbTestCase {
             ""),
         sb.toString());
   }
-  
-  public final void testNonDisjointRoots2() throws IOException {
+
+  @Test public final void testNonDisjointRoots2() throws IOException {
     PlanGraph g = PlanGraph.builder("foo", "bar", "baz", "oink")
         .edge("bar", "foo")
         .edge("baz", "bar")
@@ -79,7 +81,7 @@ public class DotRendererTest extends PbTestCase {
         sb.toString());
   }
 
-  public final void testPartialGraph() throws IOException {
+  @Test public final void testPartialGraph() throws IOException {
     PlanGraph g = PlanGraph.builder("foo", "bar", "baz", "oink", "oinkoink")
         .edge("bar", "foo")
         .edge("baz", "bar")
@@ -101,8 +103,8 @@ public class DotRendererTest extends PbTestCase {
             ""),
         sb.toString());
   }
-  
-  public final void testSelfEdge() throws IOException {
+
+  @Test public final void testSelfEdge() throws IOException {
     PlanGraph g = PlanGraph.builder("a", "b", "c")
         .edge("b", "a")
         .edge("b", "b")

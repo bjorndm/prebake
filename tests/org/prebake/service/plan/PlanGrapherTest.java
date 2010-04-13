@@ -3,6 +3,7 @@ package org.prebake.service.plan;
 import org.prebake.core.Glob;
 import org.prebake.util.PbTestCase;
 
+import java.io.IOException;
 import java.nio.file.Path;
 import java.util.Collections;
 import java.util.List;
@@ -16,22 +17,28 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 
+import org.junit.Before;
+import org.junit.Test;
+
 public class PlanGrapherTest extends PbTestCase {
   private Path source;
 
-  @Override
-  protected void setUp() throws Exception {
-    super.setUp();
+  @Before
+  public void setUp() throws IOException {
     source = this.fileSystemFromAsciiArt("/", "foo").getPath("/foo");
   }
 
-  public final void testPlanGraph() {
+  @Test public final void testPlanGraph() {
     PlanGrapher grapher = new PlanGrapher();
-    grapher.productDefined(product("foo", globs("*.a"), globs("*.b")));
-    grapher.productDefined(product("bar", globs("*.b"), globs("*.c")));
-    grapher.productDefined(product("baz", globs("*.c"), globs("*.d")));
-    grapher.productDefined(product("boo", globs("*.c"), globs("*.e")));
-    grapher.productDefined(
+    grapher.productListener.artifactChanged(
+        product("foo", globs("*.a"), globs("*.b")));
+    grapher.productListener.artifactChanged(
+        product("bar", globs("*.b"), globs("*.c")));
+    grapher.productListener.artifactChanged(
+        product("baz", globs("*.c"), globs("*.d")));
+    grapher.productListener.artifactChanged(
+        product("boo", globs("*.c"), globs("*.e")));
+    grapher.productListener.artifactChanged(
         product("far", globs("*.b", "*.d", "*.e"), globs("*.f")));
 
     {
@@ -42,8 +49,10 @@ public class PlanGrapherTest extends PbTestCase {
           pg.edges.toString());
     }
 
-    grapher.productDefined(product("baz", globs("*.b"), globs("*.e")));
-    grapher.productDefined(product("faz", globs("*.a"), globs("*.d")));
+    grapher.productListener.artifactChanged(
+        product("baz", globs("*.b"), globs("*.e")));
+    grapher.productListener.artifactChanged(
+        product("faz", globs("*.a"), globs("*.d")));
 
     {
       PlanGraph pg = grapher.snapshot();
@@ -54,7 +63,7 @@ public class PlanGrapherTest extends PbTestCase {
     }
   }
 
-  public final void testRecipe() throws Exception {
+  @Test public final void testRecipe() throws Exception {
     //  A           E     G
     //    \       /
     //      C - D

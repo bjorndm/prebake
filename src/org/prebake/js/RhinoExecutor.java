@@ -286,6 +286,7 @@ public final class RhinoExecutor implements Executor {
   }
 
   public final class LoadFn extends BaseFunction {
+    // TODO: attach help info to load
     private final Scriptable globalScope;
     private final Loader loader;
     private final Logger logger;
@@ -379,6 +380,8 @@ public final class RhinoExecutor implements Executor {
     }
 
     final class LoadedModule extends BaseFunction {
+      // TODO: attach help info showing where it came from and
+      // calling conventions.
       private final String srcName;
       private final Script body;
 

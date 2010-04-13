@@ -24,6 +24,8 @@ import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import org.junit.After;
+import org.junit.Before;
 import org.junit.Test;
 
 public class ToolBoxTest extends PbTestCase {
@@ -34,9 +36,8 @@ public class ToolBoxTest extends PbTestCase {
   private ScheduledExecutorService execer;
   private File tempDir;
 
-  @Override
-  protected void setUp() throws Exception {
-    super.setUp();
+  @Before
+  public void setUp() throws IOException {
     Logger logger = getLogger(Level.INFO);
     fs = new StubFileSystemProvider("mfs")
         .getFileSystem(URI.create("mfs:///#/root/cwd"));
@@ -49,17 +50,16 @@ public class ToolBoxTest extends PbTestCase {
     execer = new ScheduledThreadPoolExecutor(4);
   }
 
-  @Override
-  protected void tearDown() throws Exception {
+  @After
+  public void closeAll() throws IOException {
     execer.shutdown();
     fh.close();
     env.close();
     fs.close();
     rmDirTree(tempDir);
-    super.tearDown();
   }
 
-  public final void testToolBox() throws Exception {
+  @Test public final void testToolBox() throws Exception {
     new TestRunner()
         .withToolDirs("/tools", "/root/cwd/tools")
         .withToolFiles(
@@ -75,7 +75,7 @@ public class ToolBoxTest extends PbTestCase {
             "{\"name\":\"baz\"}");
   }
 
-  public final void testToolFileThrows() throws Exception {
+  @Test public final void testToolFileThrows() throws Exception {
     new TestRunner()
         .withToolDirs("/tools", "/root/cwd/tools")
         .withToolFiles(
@@ -91,7 +91,7 @@ public class ToolBoxTest extends PbTestCase {
             );
   }
 
-  public final void testBuiltin() throws Exception {
+  @Test public final void testBuiltin() throws Exception {
     new TestRunner()
         .withToolDirs("/tools", "/root/cwd/tools")
         .withToolFiles(
@@ -117,7 +117,7 @@ public class ToolBoxTest extends PbTestCase {
             "{\"name\":\"foo\",\"help\":\"foo1\"}");
   }
 
-  public final void testChaining() throws Exception {
+  @Test public final void testChaining() throws Exception {
     new TestRunner()
         .withToolDirs("/root/cwd/tools", "/tools")
         .withToolFiles(
@@ -202,4 +202,8 @@ public class ToolBoxTest extends PbTestCase {
 
   // TODO: test directories that initially don't exist, are created, deleted,
   // recreated.
+  // TODO: make sure the fire function can refer to global variables and sigs
+  // still work.
+  // TODO: change fire function sig to take an os parameter with an exec method
+  // instead of just an exec function.  Might want to provide other operators.
 }

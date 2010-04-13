@@ -1,10 +1,11 @@
 package org.prebake.channel;
 
 /**
- * File names.
+ * Constants for the names of files created by the {@link Prebakery} service.
  *
  * @see <a href="http://code.google.com/p/prebake/wiki/PrebakeDirectory">wiki
  *     </a>
+ * @author mikesamuel@gmail.com
  */
 public final class FileNames {
   public static final String DIR = ".prebake";

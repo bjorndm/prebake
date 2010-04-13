@@ -7,6 +7,8 @@ import com.google.common.base.Charsets;
 import com.google.common.collect.Lists;
 import com.google.common.io.Files;
 
+import org.junit.After;
+
 import java.io.File;
 import java.io.IOException;
 import java.io.OutputStream;
@@ -27,23 +29,24 @@ import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import junit.framework.TestCase;
+import junit.framework.Assert;
 
-public abstract class PbTestCase extends TestCase {
+public abstract class PbTestCase extends Assert {
   private Logger logger;
   private Handler handler;
   private List<String> log;
 
-  @Override
-  protected void tearDown() throws Exception {
+  @After
+  public void cleanupLogger() {
     if (logger != null) {
       logger.removeHandler(handler);
       logger = null;
       handler = null;
       log = null;
     }
-    super.tearDown();
   }
+
+  public String getName() { return getClass().getSimpleName(); }
 
   protected List<String> getLog() { return log; }
 

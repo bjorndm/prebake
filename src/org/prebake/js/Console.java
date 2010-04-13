@@ -36,6 +36,7 @@ import org.mozilla.javascript.Scriptable;
  */
 @ParametersAreNullableByDefault
 public final class Console {
+  // TODO: attach help info to object and methods.
   private final Logger logger;
   private final List<Group> groups = Lists.newArrayList();
   private final Map<String, Long> timers = Maps.newHashMap();

@@ -251,6 +251,7 @@ public class ToolBox implements ToolProvider {
           final Path base;
           String js;
           try {
+            // TODO: maybe refactor this to use getTool()
             if (index == toolDirs.size()) {  // builtin
               base = null;
               toolPath = t.localName;
@@ -284,6 +285,7 @@ public class ToolBox implements ToolProvider {
           Executor executor;
           try {
             executor = Executor.Factory.createJsExecutor(Executor.Input.builder(
+                // TODO: with actuals sys and glob.
                 js, toolPath).build());
           } catch (Executor.MalformedSourceException ex) {
             logger.log(Level.SEVERE, "Bad tool file " + toolPath, ex);
@@ -338,6 +340,42 @@ public class ToolBox implements ToolProvider {
         return null;
       }
     });
+  }
+
+  public FileAndHash getTool(String name) throws IOException {
+    Tool tool = tools.get(name);
+    if (tool == null) {
+      throw new FileNotFoundException("<tool>/" + name + ".js");
+    }
+    return getTool(tool);
+  }
+
+  private FileAndHash getTool(Tool t) throws IOException {
+    final int index;
+    {
+      Integer indexI = t.impls.firstKey();
+      if (indexI == null) {
+        throw new FileNotFoundException("<tool>/" + t.localName.toString());
+      }
+      index = indexI;
+    }
+    Path toolPath;
+    InputStream jsIn;
+    if (index == toolDirs.size()) {  // builtin
+      toolPath = t.localName;
+      String resourceName = t.localName.toString();
+      jsIn = ToolBox.class.getResourceAsStream(resourceName);
+      if (jsIn == null) {
+        throw new FileNotFoundException("<builtin>/" + resourceName);
+      }
+    } else {
+      Path base = toolDirs.get(index);
+      toolPath = base.resolve(t.localName);
+      jsIn = toolPath.newInputStream();
+    }
+    byte[] data = ByteStreams.toByteArray(jsIn);
+    return new FileAndHash(
+        toolPath, data, Hash.builder().withData(data).build());
   }
 
   FileAndHash nextTool(ToolImpl ti, Path path) throws IOException {

@@ -9,8 +9,17 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.util.List;
 
+import javax.annotation.ParametersAreNonnullByDefault;
+
 import com.google.common.base.Charsets;
 
+/**
+ * A custom loader that lets one tool file load the next tool file in the
+ * tool lookup path.  This allows easy wrapping and extending of tools.
+ *
+ * @author mikesamuel@gmail.com
+ */
+@ParametersAreNonnullByDefault
 public class ToolLoader implements Loader{
   private final Path base;
   private final ToolBox toolBox;

@@ -8,6 +8,8 @@ import com.google.common.base.Charsets;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 
+import org.junit.Test;
+
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.FileNotFoundException;
@@ -25,7 +27,7 @@ import java.util.logging.Logger;
 
 public class BakeTest extends PbTestCase {
 
-  public final void testEverythingWorksFirstTime() throws IOException {
+  @Test public final void testEverythingWorksFirstTime() throws IOException {
     new BakeTestRunner()
         .withCwd("/foo/bar/baz/boo")
         .withFile("/foo/bar/.prebake/port", "1234")
@@ -41,7 +43,7 @@ public class BakeTest extends PbTestCase {
         .expectConnClosed();
   }
 
-  public final void testNoPrebakeDir() {
+  @Test public final void testNoPrebakeDir() {
     try {
       new BakeTestRunner()
           .withCwd("/foo/bar/baz/boo")
@@ -56,7 +58,7 @@ public class BakeTest extends PbTestCase {
     fail();
   }
 
-  public final void testMalformedPort() throws IOException {
+  @Test public final void testMalformedPort() throws IOException {
     new BakeTestRunner()
         .withCwd("/foo/bar/baz/boo")
         .withFile("/foo/bar/.prebake/port", "123a")
@@ -77,7 +79,7 @@ public class BakeTest extends PbTestCase {
         .expectConnClosed();
   }
 
-  public final void testMalformedArgv() {
+  @Test public final void testMalformedArgv() {
     try {
       new BakeTestRunner()
           .withCwd("/foo/bar/baz/boo")
@@ -97,7 +99,7 @@ public class BakeTest extends PbTestCase {
     fail();
   }
 
-  public final void testNoToken() throws IOException {
+  @Test public final void testNoToken() throws IOException {
     try {
       new BakeTestRunner()
           .withCwd("/foo/bar/baz/boo")
@@ -112,7 +114,7 @@ public class BakeTest extends PbTestCase {
     fail();
   }
 
-  public final void testNeedToLaunch() throws IOException {
+  @Test public final void testNeedToLaunch() throws IOException {
     new BakeTestRunner()
         .withCwd("/foo/bar/baz/boo")
         .withFile("/foo/bar/.prebake/port", "1234")
@@ -141,7 +143,7 @@ public class BakeTest extends PbTestCase {
         .expectConnClosed();
   }
 
-  public final void testLaunchSlowly() throws IOException {
+  @Test public final void testLaunchSlowly() throws IOException {
     new BakeTestRunner()
         .withCwd("/foo/bar/baz/boo")
         .withFile("/foo/bar/.prebake/port", "1234")

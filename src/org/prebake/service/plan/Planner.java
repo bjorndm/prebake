@@ -1,5 +1,6 @@
 package org.prebake.service.plan;
 
+import org.prebake.core.ArtifactListener;
 import org.prebake.core.Hash;
 import org.prebake.core.MessageQueue;
 import org.prebake.fs.ArtifactAddresser;
@@ -42,7 +43,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import javax.annotation.Nullable;
 import javax.annotation.ParametersAreNonnullByDefault;
 
 /**
@@ -76,13 +76,13 @@ public final class Planner implements Closeable {
     }
   };
   private final Future<?> updater;
-  private final ProductWatcher watcher;
+  private final ArtifactListener<Product> listener;
   private final PlanGrapher grapher = new PlanGrapher();
 
   public Planner(
       ArtifactValidityTracker files, ToolProvider toolbox,
-      Iterable<Path> planFiles, Logger logger, @Nullable ProductWatcher watcher,
-      ScheduledExecutorService execer) {
+      Iterable<Path> planFiles, Logger logger,
+      ArtifactListener<Product> listener, ScheduledExecutorService execer) {
     this.files = files;
     this.toolbox = toolbox;
     this.logger = logger;
@@ -93,7 +93,8 @@ public final class Planner implements Closeable {
     this.updater = execer.scheduleWithFixedDelay(new Runnable() {
       public void run() { getProductLists(); }
     }, 1000, 1000, TimeUnit.MILLISECONDS);
-    this.watcher = ProductWatcher.Factory.chain(grapher, watcher);
+    this.listener = ArtifactListener.Factory.chain(
+        grapher.productListener, listener);
   }
 
   public void close() {
@@ -254,7 +255,9 @@ public final class Planner implements Closeable {
                   synchronized (pp) {
                     if (files.update(
                             productAddresser, pp, paths, allHashes.build())) {
-                      for (Product p : products) { watcher.productDefined(p); }
+                      for (Product p : products) {
+                        listener.artifactChanged(p);
+                      }
                       pp.products = products;
                       pp.valid = true;
                       return products;
@@ -376,10 +379,14 @@ public final class Planner implements Closeable {
               productsByName.remove(p.name, p);
               Collection<Product> prods = productsByName.get(p.name);
               switch (prods.size()) {
-                // No more products with this name left.
-                case 0: watcher.productDestroyed(p.name); break;
-                // Previously the product was masked, but now there's only one.
-                case 1: watcher.productDefined(prods.iterator().next()); break;
+                case 0:
+                  // No more products with this name left.
+                  listener.artifactDestroyed(p.name);
+                  break;
+                case 1:
+                  // Previously the product was masked, but no longer.
+                  listener.artifactChanged(prods.iterator().next());
+                  break;
               }
             }
           }

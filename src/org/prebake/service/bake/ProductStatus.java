@@ -5,12 +5,13 @@ import org.prebake.service.plan.Product;
 
 import java.util.concurrent.Future;
 
+import javax.annotation.ParametersAreNonnullByDefault;
+
+@ParametersAreNonnullByDefault
 final class ProductStatus {
   final String productName;
   Product product;
-  Hash productHash;
-  Hash toolHashes;
-  Hash inputHashes;
+  /** Iff the product is built, non-null. */
   Future<Hash> buildFuture;
 
   ProductStatus(String productName) { this.productName = productName; }

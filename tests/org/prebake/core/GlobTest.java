@@ -7,10 +7,15 @@ import java.util.regex.Pattern;
 import com.google.common.base.Joiner;
 import com.google.common.collect.Lists;
 
-import junit.framework.TestCase;
+import org.junit.Test;
 
-public class GlobTest extends TestCase {
-  public final void testEmptyGlob() {
+import static junit.framework.Assert.assertEquals;
+import static junit.framework.Assert.assertNull;
+import static junit.framework.Assert.assertTrue;
+import static junit.framework.Assert.fail;
+
+public class GlobTest {
+  @Test public final void testEmptyGlob() {
     Glob emptyGlob = Glob.fromString("");
     assertEquals(Arrays.<String>asList(), emptyGlob.parts());
     assertEquals("", emptyGlob.toString());
@@ -19,12 +24,12 @@ public class GlobTest extends TestCase {
       emptyGlob.parts().add("foo");
       fail("added");
     } catch (UnsupportedOperationException ex) {
-      // ok
+      // OK
     }
     assertEquals(Arrays.<String>asList(), emptyGlob.parts());
   }
 
-  public final void testSimpleGlob() {
+  @Test public final void testSimpleGlob() {
     Glob simpleGlob = Glob.fromString("foo");
     assertEquals(Arrays.asList("foo"), simpleGlob.parts());
     assertEquals("foo", simpleGlob.toString());
@@ -39,7 +44,7 @@ public class GlobTest extends TestCase {
         Arrays.<String>asList("foo"), simpleGlob.parts());
   }
 
-  public final void testFromString() {
+  @Test public final void testFromString() {
     assertEquals(
         Arrays.asList("foo", "/", "bar.baz"),
         Glob.fromString("foo/bar.baz").parts());
@@ -69,7 +74,7 @@ public class GlobTest extends TestCase {
     }
   }
 
-  public final void testIntersection() {
+  @Test public final void testIntersection() {
     assertEquals(
         Arrays.asList("*"),
         Glob.intersection(Glob.fromString("*"), Glob.fromString("*")).parts());
@@ -133,7 +138,7 @@ public class GlobTest extends TestCase {
             .parts());
   }
 
-  public final void testConverter() {
+  @Test public final void testConverter() {
     MessageQueue mq = new MessageQueue();
     assertEquals("[**/*.foo]", "" + Glob.CONV.convert("**/*.foo", mq));
     assertTrue(mq.getMessages().isEmpty());
@@ -156,7 +161,7 @@ public class GlobTest extends TestCase {
         "" + mq.getMessages());
   }
 
-  public final void testCommonPrefix() {
+  @Test public final void testCommonPrefix() {
     assertEquals(
         "/foo/",
         Glob.commonPrefix(Lists.newArrayList(Glob.fromString("/foo/"))));
@@ -175,7 +180,7 @@ public class GlobTest extends TestCase {
             Glob.fromString("/foo/*"))));
   }
 
-  public final void testToRegex() {
+  @Test public final void testToRegex() {
     assertRegexMatches(Arrays.<String>asList());
     assertRegexMatches(Arrays.<String>asList("/foo"), "/foo");
     assertRegexMatches(Arrays.<String>asList("/foo/"), "/foo");

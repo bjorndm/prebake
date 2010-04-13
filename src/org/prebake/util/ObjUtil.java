@@ -9,7 +9,14 @@ import java.util.Map;
 import java.util.Set;
 
 import javax.annotation.Nullable;
+import javax.annotation.ParametersAreNonnullByDefault;
 
+/**
+ * Utilities for dealing with object graphs.
+ *
+ * @author mikesamuel@gmail.com
+ */
+@ParametersAreNonnullByDefault
 public final class ObjUtil {
   private static final Set<Class<?>> IMMUTABLE_CLASSES
       = ImmutableSet.<Class<?>>builder()

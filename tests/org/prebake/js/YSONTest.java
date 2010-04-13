@@ -8,15 +8,19 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 
+import org.junit.Test;
+
 import java.text.ParseException;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.Set;
 
-import junit.framework.TestCase;
+import static junit.framework.Assert.assertEquals;
+import static junit.framework.Assert.assertFalse;
+import static junit.framework.Assert.fail;
 
-public class YSONTest extends TestCase {
-  public final void testFreeVars() throws Exception {
+public class YSONTest {
+  @Test public final void testFreeVars() throws Exception {
     assertFreeVars("function () {}");
     assertFreeVars("(function x() {})");
     assertFreeVars("(function x(y) { return y == 1 ? 1 : y * x(y - 1); })");
@@ -35,7 +39,7 @@ public class YSONTest extends TestCase {
     assertFreeVars("function () { return function () { return x; } }", "x");
   }
 
-  public final void testAstInfo() throws ParseException {
+  @Test public final void testAstInfo() throws ParseException {
     withCode("0").run();
     withCode("x").rn("x").fn("x").run();
     withCode("var x;").vsd("x").fn("x").run();
@@ -107,7 +111,7 @@ public class YSONTest extends TestCase {
     withCode("a[b] + c.d").rn("a", "b", "c").fn("a", "b", "c").run();
   }
 
-  public final void testIsYSON() {
+  @Test public final void testIsYSON() {
     assertNotYson("foo bar", "missing ; before statement in foo bar");
     assertYson("{ a: 1 }");
     assertYson("[1,2,3]");
@@ -128,7 +132,7 @@ public class YSONTest extends TestCase {
         "{ foo: 0 }), ({ bar: 4 }", "Not YSON: ({foo: 0}) , ({bar: 4})");
   }
 
-  public final void testToJava() throws Exception {
+  @Test public final void testToJava() throws Exception {
     assertEquals(
         Arrays.asList("foo", "bar"),
         YSON.parseExpr("['foo', 'bar']").toJavaObject());

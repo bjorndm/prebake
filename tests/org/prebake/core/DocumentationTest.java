@@ -6,12 +6,16 @@ import org.prebake.js.YSON;
 import com.google.common.base.Joiner;
 import com.google.common.base.Throwables;
 
+import org.junit.Test;
+
 import java.io.IOException;
 import java.text.ParseException;
-import junit.framework.TestCase;
 
-public class DocumentationTest extends TestCase {
-  public final void testSummaryOf() {
+import static junit.framework.Assert.assertEquals;
+import static junit.framework.Assert.fail;
+
+public class DocumentationTest {
+  @Test public final void testSummaryOf() {
     assertEquals("", Documentation.summaryOf(""));
     assertEquals("foo", Documentation.summaryOf("foo"));
     assertEquals("foo.", Documentation.summaryOf("foo."));
@@ -36,7 +40,7 @@ public class DocumentationTest extends TestCase {
             + "@see KnuthIsMyHomeboy"));
   }
 
-  public final void testConverter() {
+  @Test public final void testConverter() {
     assertConverter(
         null, null,
         "Expected {\"detail\":<string>,\"summary\":<string>,...}, not null");

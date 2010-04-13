@@ -9,7 +9,12 @@ import com.google.common.io.Files;
 import com.sleepycat.je.Environment;
 import com.sleepycat.je.EnvironmentConfig;
 
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Test;
+
 import java.io.File;
+import java.io.IOException;
 import java.net.URI;
 import java.nio.file.FileSystem;
 import java.nio.file.Path;
@@ -24,9 +29,8 @@ public class FileHashesTest extends PbTestCase {
   private File tempDir;
   private FileHashes fh;
 
-  @Override
-  protected void setUp() throws Exception {
-    super.setUp();
+  @Before
+  public void setUp() throws IOException {
     fs = new StubFileSystemProvider("mfs").getFileSystem(
         URI.create("mfs:///#/cwd"));
     mkdirs(fs.getPath("/cwd/root"));
@@ -38,8 +42,8 @@ public class FileHashesTest extends PbTestCase {
     fh = new FileHashes(env, fs.getPath("/cwd/root"), getLogger(Level.INFO));
   }
 
-  @Override
-  protected void tearDown() throws Exception {
+  @After
+  public void cleanup() throws IOException {
     fh.close();
     fh = null;
     env.close();
@@ -48,10 +52,9 @@ public class FileHashesTest extends PbTestCase {
     fs = null;
     rmDirTree(tempDir);
     tempDir = null;
-    super.tearDown();
   }
 
-  public final void testUpdates() throws Exception {
+  @Test public final void testUpdates() throws Exception {
     writeFile(fs.getPath("/cwd/root/a.cc"), "printf(\"Hello, World!\\n\");");
     writeFile(fs.getPath("/cwd/root/b.h"), "#include <zoicks>");
     writeFile(
@@ -73,7 +76,7 @@ public class FileHashesTest extends PbTestCase {
         "810dc8ffe666362187cd8f99da072d6e", paths("root/b.h", "root/c.cpp"));
   }
 
-  public final void testFilesOutsideRoot() throws Exception {
+  @Test public final void testFilesOutsideRoot() throws Exception {
     Path ra = fs.getPath("/cwd/root/a.cc");
     Path rb = fs.getPath("/cwd/root/b.cpp");
     Path b = fs.getPath("/cwd/b.cpp");
@@ -98,7 +101,7 @@ public class FileHashesTest extends PbTestCase {
     assertFalse(hash.equals(getHashStr(ra, rb)));
   }
 
-  public final void testInvalidation() throws Exception {
+  @Test public final void testInvalidation() throws Exception {
     class Tool implements NonFileArtifact {
       public final String name;
       public boolean valid;

@@ -13,6 +13,11 @@ import java.util.Arrays;
 
 import javax.annotation.ParametersAreNonnullByDefault;
 
+/**
+ * An MD5 hash generated from files, strings, or groups of hashes.
+ *
+ * @author mikesamuel@gmail.com
+ */
 @ParametersAreNonnullByDefault
 public final class Hash {
   private final byte[] bytes;
@@ -41,6 +46,7 @@ public final class Hash {
 
   public static Builder builder() { return new Builder(); }
 
+  @ParametersAreNonnullByDefault
   public static class Builder {
     private MD5 md5 = new MD5();
 

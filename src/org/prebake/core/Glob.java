@@ -29,6 +29,7 @@ import javax.annotation.ParametersAreNonnullByDefault;
 @ParametersAreNonnullByDefault
 public final class Glob implements Comparable<Glob>, JsonSerializable {
   private final String[] parts;
+  private Pattern regex;
 
   private Glob(String... parts) {
     this.parts = parts;
@@ -357,51 +358,64 @@ public final class Glob implements Comparable<Glob>, JsonSerializable {
     sink.writeValue(toString());
   }
 
+  public boolean match(String path) {
+    if (regex == null) {
+      StringBuilder sb = new StringBuilder();
+      toRegex(sb);
+      regex = Pattern.compile(sb.toString(), Pattern.DOTALL);
+    }
+    return regex.matcher(path).matches();
+  }
+
+  private void toRegex(StringBuilder sb) {
+    for (int i = 0, n = parts.length; i < n; ++i) {
+      String part = parts[i];
+      switch (part.charAt(0)) {
+        case '*':
+          if (part.length() == 2) {
+            if (i + 1 < n && "/".equals(parts[i + 1])) {
+              // foo/**/bar should match foo/bar.
+              sb.append("(?:.+[/\\\\])?");
+            } else {
+              sb.append(".*");
+            }
+          } else {
+            sb.append("[^/\\\\]*");
+          }
+          break;
+        case '/':
+          if (i + 2 == n) {
+            String nextPart = parts[i + 1];
+            if ('*' == nextPart.charAt(0)) {
+              // foo/* and foo/** should match foo
+              sb.append(
+                  nextPart.length() == 2
+                  ? "(?:[/\\\\].*)?"
+                  : "(?:[/\\\\][^/\\\\]*)?");
+              ++i;
+            } else {
+              sb.append("[/\\\\]");
+            }
+          } else {
+            sb.append("[/\\\\]");
+            // foo/ should match foo
+            if (i + 1 == n) { sb.append('?'); }
+          }
+          break;
+        default:
+          sb.append(Pattern.quote(part));
+          break;
+      }
+    }
+  }
+
   public static Pattern toRegex(Iterable<Glob> globs) {
     StringBuilder sb = new StringBuilder();
     boolean first = true;
     for (Glob g : globs) {
       if (!first) { sb.append('|'); }
       first = false;
-      for (int i = 0, n = g.parts.length; i < n; ++i) {
-        String part = g.parts[i];
-        switch (part.charAt(0)) {
-          case '*':
-            if (part.length() == 2) {
-              if (i + 1 < n && "/".equals(g.parts[i + 1])) {
-                // foo/**/bar should match foo/bar.
-                sb.append("(?:.+[/\\\\])?");
-              } else {
-                sb.append(".*");
-              }
-            } else {
-              sb.append("[^/\\\\]*");
-            }
-            break;
-          case '/':
-            if (i + 2 == n) {
-              String nextPart = g.parts[i + 1];
-              if ('*' == nextPart.charAt(0)) {
-                // foo/* and foo/** should match foo
-                sb.append(
-                    nextPart.length() == 2
-                    ? "(?:[/\\\\].*)?"
-                    : "(?:[/\\\\][^/\\\\]*)?");
-                ++i;
-              } else {
-                sb.append("[/\\\\]");
-              }
-            } else {
-              sb.append("[/\\\\]");
-              // foo/ should match foo
-              if (i + 1 == n) { sb.append('?'); }
-            }
-            break;
-          default:
-            sb.append(Pattern.quote(part));
-            break;
-        }
-      }
+      g.toRegex(sb);
     }
     return Pattern.compile(sb.toString(), Pattern.DOTALL);
   }

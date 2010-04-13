@@ -3,6 +3,7 @@ package org.prebake.service;
 import org.prebake.channel.Command;
 import org.prebake.channel.Commands;
 import org.prebake.channel.FileNames;
+import org.prebake.core.ArtifactListener;
 import org.prebake.core.Documentation;
 import org.prebake.fs.DirectoryHooks;
 import org.prebake.fs.FileHashes;
@@ -10,6 +11,7 @@ import org.prebake.fs.FilePerms;
 import org.prebake.service.plan.Ingredient;
 import org.prebake.service.plan.PlanGraph;
 import org.prebake.service.plan.Planner;
+import org.prebake.service.plan.Product;
 import org.prebake.service.plan.Recipe;
 import org.prebake.service.tools.ToolBox;
 import org.prebake.service.tools.ToolSignature;
@@ -238,7 +240,8 @@ public abstract class Prebakery implements Closeable {
         fileHashes, config.getToolDirs(), logger, execer);
     this.planner = new Planner(
         fileHashes, tools, config.getPlanFiles(), logger,
-        null /* TODO builder */, execer);
+        ArtifactListener.Factory.<Product>noop(),  // TODO builder.prodListener
+        execer);
   }
 
   private void setupFileSystemWatcher() {

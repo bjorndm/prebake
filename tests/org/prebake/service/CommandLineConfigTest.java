@@ -7,13 +7,15 @@ import org.prebake.util.StubFileSystemProvider;
 
 import com.google.common.base.Joiner;
 
+import org.junit.Test;
+
 import java.io.IOException;
 import java.net.URI;
 import java.nio.file.FileSystem;
 import java.util.regex.Pattern;
 
 public class CommandLineConfigTest extends PbTestCase {
-  public final void testClientRoot() throws IOException {
+  @Test public final void testClientRoot() throws IOException {
     Config c;
     c = assertConfig(new String[0], false, "Please specify --root");
     assertEquals("[]", CommandLineConfig.toArgv(c));
@@ -63,7 +65,7 @@ public class CommandLineConfigTest extends PbTestCase {
         CommandLineConfig.toArgv(c));
   }
 
-  public final void testIgnorePattern() throws IOException {
+  @Test public final void testIgnorePattern() throws IOException {
     Config c;
     c = assertConfig(
         new String[] { "--root=/foo/bar/project", "--ignore=*~" }, false,
@@ -86,7 +88,7 @@ public class CommandLineConfigTest extends PbTestCase {
     assertEquals("^.*~$", c.getIgnorePattern().pattern());
   }
 
-  public final void testUmask() throws IOException {
+  @Test public final void testUmask() throws IOException {
     Config c;
     c = assertConfig(new String[] { "--root=project" }, true);
     assertEquals(0640, c.getUmask());
@@ -123,12 +125,12 @@ public class CommandLineConfigTest extends PbTestCase {
         false, "Invalid umask 37777777777");
   }
 
-  public final void testPathSeparator() throws IOException {
+  @Test public final void testPathSeparator() throws IOException {
     Config c = assertConfig(new String[] { "--root=project" }, true);
     assertEquals(":", c.getPathSeparator());
   }
 
-  public final void testToolPaths() throws IOException {
+  @Test public final void testToolPaths() throws IOException {
     Config c;
     c = assertConfig(new String[] { "--root=project" }, true);
     assertTrue(c.getToolDirs().isEmpty());
@@ -160,7 +162,7 @@ public class CommandLineConfigTest extends PbTestCase {
         "[/foo/bar/tools, /foo/bar/project/ptools]", "" + c.getToolDirs());
   }
 
-  public final void testPlanPaths() throws IOException {
+  @Test public final void testPlanPaths() throws IOException {
     Config c;
     c = assertConfig(new String[] { "--root=project" }, true);
     assertEquals("[/foo/bar/project/recipe.js]", c.getPlanFiles().toString());
@@ -199,7 +201,7 @@ public class CommandLineConfigTest extends PbTestCase {
         "Duplicate plan file /foo/bar/project/recipe.js");
   }
 
-  public final void testMisspelledParams() throws IOException {
+  @Test public final void testMisspelledParams() throws IOException {
     assertConfig(
         new String[] { "-root=project" },
         false,

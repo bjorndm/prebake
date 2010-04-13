@@ -27,12 +27,12 @@ import java.util.logging.Logger;
 import org.junit.Test;
 
 public class ExecutorTest extends PbTestCase {
-  public final void testResult() throws Exception {
+  @Test public final void testResult() throws Exception {
     assertResult(2.0, "1 + 1");
     assertResult("Hello, World!", "'Hello, World!'");
   }
 
-  public final void testModuleIsDelayed() throws Exception {
+  @Test public final void testModuleIsDelayed() throws Exception {
     Executor.Output<?> out = doLoad(
         "typeof load('bar.js');",
         "bar.js", "1 + 1;");
@@ -40,7 +40,7 @@ public class ExecutorTest extends PbTestCase {
     assertFalse(out.usedSourceOfKnownNondeterminism);
   }
 
-  public final void testFailedLoadRecovery() throws Exception {
+  @Test public final void testFailedLoadRecovery() throws Exception {
     Executor.Output<?> out = doLoad(
         ""
         + "try {\n"
@@ -54,7 +54,7 @@ public class ExecutorTest extends PbTestCase {
     assertFalse(out.usedSourceOfKnownNondeterminism);
   }
 
-  public final void testMalformedModule() throws Exception {
+  @Test public final void testMalformedModule() throws Exception {
     Executor.Output<?> out = doLoad(
         ""
         + "try {\n"
@@ -69,7 +69,7 @@ public class ExecutorTest extends PbTestCase {
     assertFalse(out.usedSourceOfKnownNondeterminism);
   }
 
-  public final void testModuleResult() throws Exception {
+  @Test public final void testModuleResult() throws Exception {
     Executor.Output<?> out = doLoad(
         "load('baz.js')();",
         "baz.js", "1 + 1;");
@@ -77,7 +77,7 @@ public class ExecutorTest extends PbTestCase {
     assertFalse(out.usedSourceOfKnownNondeterminism);
   }
 
-  public final void testDeterministicModuleUnused() throws Exception {
+  @Test public final void testDeterministicModuleUnused() throws Exception {
     Executor.Output<?> out = doLoad(
         "load('bar/baz.js')({ load: load });",
         "bar/baz.js", "1 + 0 * load('boo.js');",
@@ -86,7 +86,7 @@ public class ExecutorTest extends PbTestCase {
     assertFalse(out.usedSourceOfKnownNondeterminism);
   }
 
-  public final void testDeterministicModuleUsed() throws Exception {
+  @Test public final void testDeterministicModuleUsed() throws Exception {
     Executor.Output<?> out = doLoad(
         "load('bar/baz.js')({ load: load });",
         // boo.js loaded relative to bar/baz.js
@@ -96,7 +96,7 @@ public class ExecutorTest extends PbTestCase {
     assertTrue(out.usedSourceOfKnownNondeterminism);
   }
 
-  public final void testActuals() throws Exception {
+  @Test public final void testActuals() throws Exception {
     FileSystem fs = new StubFileSystemProvider("mfs").getFileSystem(
         URI.create("mfs:///#/foo"));
     Executor executor = Executor.Factory.createJsExecutor(
@@ -177,7 +177,7 @@ public class ExecutorTest extends PbTestCase {
     assertEquals(3.0, output.result);
   }
 
-  public final void testSourcesOfNonDeterminism() throws Exception {
+  @Test public final void testSourcesOfNonDeterminism() throws Exception {
     assertDeterministic(true, "1 + 1");
     assertDeterministic(false, "new Date()");
     assertDeterministic(true, "new Date(0)");
@@ -201,7 +201,7 @@ public class ExecutorTest extends PbTestCase {
       Throwable th = ex.getCause();
       assertEquals(
           "TypeError: \"now\" is not a constructor."
-          + " (/foo/testSourcesOfNonDeterminism.js#1)",
+          + " (/foo/ExecutorTest.js#1)",
           th.getMessage());
     }
     assertDeterministic(false, "Math.random()");
@@ -214,12 +214,12 @@ public class ExecutorTest extends PbTestCase {
       Throwable th = ex.getCause();
       assertEquals(
           "TypeError: \"random\" is not a constructor."
-          + " (/foo/testSourcesOfNonDeterminism.js#1)",
+          + " (/foo/ExecutorTest.js#1)",
           th.getMessage());
     }
   }
 
-  public final void testConsole() throws Exception {
+  @Test public final void testConsole() throws Exception {
     // We use logging for the default locale, but the command line test runner
     // runs tests in the Turkish locale to flush out case folding problems.
     // We want to use the default locale for logging, but for these tests, we
@@ -230,36 +230,37 @@ public class ExecutorTest extends PbTestCase {
     Locale.setDefault(Locale.ENGLISH);
     try {
       assertConsole("1 + 1");
-      assertConsole("console.log(1 + 1)", "/testConsole.js:1:INFO: 2");
-      assertConsole("console.log(5 / 2)", "/testConsole.js:1:INFO: 2.5");
+      assertConsole("console.log(1 + 1)", "/ExecutorTest.js:1:INFO: 2");
+      assertConsole("console.log(5 / 2)", "/ExecutorTest.js:1:INFO: 2.5");
       assertConsole(
           ""
           + "function f(x) {\n"
           + "  console.log('x=%d', x);\n"
           + "}\n"
           + "f(2)",
-          "/testConsole.js:2:INFO: x=2");
+          "/ExecutorTest.js:2:INFO: x=2");
       assertConsole(
           ""
           + "var x = 2.5;\n"
           + "console.log('x=%.2f', x)",
-          "/testConsole.js:2:INFO: x=2.50");
+          "/ExecutorTest.js:2:INFO: x=2.50");
       assertConsole(
           ""
           + "var x = 20;\n"
           + "console.log('x=%.1f x=%a x=%G x=%+.1e x=%d', x, x, x, x, x)",
-          "/testConsole.js:2:INFO: x=20.0 x=0x1.4p4 x=20.0000 x=+2.0e+01 x=20");
-      assertConsole("console.warn('foo')", "/testConsole.js:1:WARNING: foo");
-      assertConsole("console.error('foo')", "/testConsole.js:1:SEVERE: foo");
+          "/ExecutorTest.js:2:INFO: x=20.0 x=0x1.4p4 x=20.0000 x=+2.0e+01 x=20"
+          );
+      assertConsole("console.warn('foo')", "/ExecutorTest.js:1:WARNING: foo");
+      assertConsole("console.error('foo')", "/ExecutorTest.js:1:SEVERE: foo");
       assertConsole(
           Level.FINE, "console.info('Hello, %s!', 'World')",
-          "FINE: Loading /testConsole.js",
-          "FINE: Done    /testConsole.js",
-          "/testConsole.js:1:FINE: Hello, World!");
+          "FINE: Loading /ExecutorTest.js",
+          "FINE: Done    /ExecutorTest.js",
+          "/ExecutorTest.js:1:FINE: Hello, World!");
       assertConsole(
           "console.dir({ a: 1, b: 'Hello, World!', c: null, d: [1,2,3] })",
           ""
-          + "/testConsole.js:1:INFO: \n"
+          + "/ExecutorTest.js:1:INFO: \n"
           + "| Name | Value         |\n"
           + "| a    | 1             |\n"
           + "| b    | Hello, World! |\n"
@@ -270,18 +271,18 @@ public class ExecutorTest extends PbTestCase {
           + "console.group('foo');\n"
           + "console.log('hi');\n"
           + "console.groupEnd();",
-          "/testConsole.js:1:INFO: Enter foo",
-          "/testConsole.js:2:INFO:   hi",
-          "/testConsole.js:3:INFO: Exit  foo");
+          "/ExecutorTest.js:1:INFO: Enter foo",
+          "/ExecutorTest.js:2:INFO:   hi",
+          "/ExecutorTest.js:3:INFO: Exit  foo");
       assertConsole(
           ""
           + "console.time('foo');\n"
           + "for (var i = 4; --i > 0;) { console.log(i); }\n"
           + "console.timeEnd('foo');",
-          "/testConsole.js:2:INFO: 3",
-          "/testConsole.js:2:INFO: 2",
-          "/testConsole.js:2:INFO: 1",
-          "/testConsole.js:3:INFO: Timer foo took <normalized>ns");
+          "/ExecutorTest.js:2:INFO: 3",
+          "/ExecutorTest.js:2:INFO: 2",
+          "/ExecutorTest.js:2:INFO: 1",
+          "/ExecutorTest.js:3:INFO: Timer foo took <normalized>ns");
 
       // TEST console.assert, profile, profileEnd, etc.
     } finally {
@@ -289,11 +290,11 @@ public class ExecutorTest extends PbTestCase {
     }
   }
 
-  public final void testJsWithBOM() throws Exception {
+  @Test public final void testJsWithBOM() throws Exception {
     assertResult(2.0, "\ufeff1 + 1");
   }
 
-  public final void testGlobalsAvailable() throws Exception {
+  @Test public final void testGlobalsAvailable() throws Exception {
     Executor.Output<?> out;
     out = doLoad(
         "load('foo.js')({});",
@@ -305,7 +306,7 @@ public class ExecutorTest extends PbTestCase {
     assertEquals("function", out.result);
   }
 
-  public final void testModuleEnvironment() throws Exception {
+  @Test public final void testModuleEnvironment() throws Exception {
     Executor.Output<?> out;
     out = doLoad(
         "load('foo.js')({ x: 2, y: 3 });",
@@ -322,7 +323,7 @@ public class ExecutorTest extends PbTestCase {
     assertEquals(6d, out.result);
   }
 
-  public final void testToSource() throws Exception {
+  @Test public final void testToSource() throws Exception {
     FileSystem fs = new StubFileSystemProvider("mfs").getFileSystem(
         URI.create("mfs:///#/foo"));
     Executor executor = Executor.Factory.createJsExecutor(
@@ -343,7 +344,7 @@ public class ExecutorTest extends PbTestCase {
         out.result.toSource());
   }
 
-  public final void testToSourceFiltered1() throws Exception {
+  @Test public final void testToSourceFiltered1() throws Exception {
     FileSystem fs = new StubFileSystemProvider("mfs").getFileSystem(
         URI.create("mfs:///#/foo"));
     Executor executor = Executor.Factory.createJsExecutor(
@@ -374,7 +375,7 @@ public class ExecutorTest extends PbTestCase {
         out.result.toSource());
   }
 
-  public final void testToSourceFiltered2() throws Exception {
+  @Test public final void testToSourceFiltered2() throws Exception {
     FileSystem fs = new StubFileSystemProvider("mfs").getFileSystem(
         URI.create("mfs:///#/foo"));
     Executor executor = Executor.Factory.createJsExecutor(
@@ -397,7 +398,7 @@ public class ExecutorTest extends PbTestCase {
     assertEquals("({\"x\": 1.0, \"z\": [2.0]})", out.result.toSource());
   }
 
-  public final void testNoBase() throws Exception {
+  @Test public final void testNoBase() throws Exception {
     Executor executor = Executor.Factory.createJsExecutor(
         Executor.Input.builder("typeof load", "" + getName()).build());
     Executor.Output<?> output = executor.run(
@@ -405,7 +406,7 @@ public class ExecutorTest extends PbTestCase {
     assertEquals("undefined", output.result);
   }
 
-  public final void testLoaderVersionSkew() throws Exception {
+  @Test public final void testLoaderVersionSkew() throws Exception {
     FileSystem fs = new StubFileSystemProvider("mfs").getFileSystem(
         URI.create("mfs:///#/foo"));
     Executor.Output<Number> result = Executor.Factory.createJsExecutor(
@@ -427,7 +428,8 @@ public class ExecutorTest extends PbTestCase {
     assertEquals(2.0, result.result);
   }
 
-  public final void testLoaderVersionSkewForFailingFile() throws Exception {
+  @Test public final void testLoaderVersionSkewForFailingFile()
+      throws Exception {
     FileSystem fs = new StubFileSystemProvider("mfs").getFileSystem(
         URI.create("mfs:///#/foo"));
     Executor.Output<String> result = Executor.Factory.createJsExecutor(
@@ -465,17 +467,12 @@ public class ExecutorTest extends PbTestCase {
 
   @Test(timeout=10000, expected=Executor.ScriptTimeoutException.class)
   public final void testRunawayScripts() throws Exception {
-    try {
-      Executor.Factory.createJsExecutor(Executor.Input.builder(
-          "var i = 0; while (1) { ++i; }", getName()).build())
-          .run(Void.TYPE, getLogger(Level.INFO), null);
-    } catch (Executor.ScriptTimeoutException ex) {
-      // TODO: Neither ANT nor eclipse recognize expected exceptions
-      return;
-    }
+    Executor.Factory.createJsExecutor(Executor.Input.builder(
+        "var i = 0; while (1) { ++i; }", getName()).build())
+        .run(Void.TYPE, getLogger(Level.INFO), null);
   }
 
-  public final void testActualInputs() throws Exception {
+  @Test public final void testActualInputs() throws Exception {
     Executor.Input srcX = Executor.Input.builder(
         "3", getName()).build();
     Executor.Input srcY = Executor.Input.builder(
@@ -492,7 +489,7 @@ public class ExecutorTest extends PbTestCase {
     assertEquals(7d, output.result);
   }
 
-  public final void testHelpFunction() throws Exception {
+  @Test public final void testHelpFunction() throws Exception {
     assertHelpOutput("");
     assertHelpOutput("null");
     assertHelpOutput("{}");
