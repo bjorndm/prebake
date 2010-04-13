@@ -1,5 +1,6 @@
 package org.prebake.service.tools;
 
+import org.prebake.core.ArtifactListener;
 import org.prebake.core.Hash;
 import org.prebake.core.MessageQueue;
 import org.prebake.fs.ArtifactAddresser;
@@ -66,7 +67,7 @@ public class ToolBox implements ToolProvider {
   private final ArtifactAddresser<ToolImpl> addresser
       = new ArtifactAddresser<ToolImpl>() {
         public String addressFor(ToolImpl artifact) {
-          return artifact.name + "#" + artifact.index;
+          return artifact.tool.toolName + "#" + artifact.index;
         }
 
         public ToolImpl lookup(String address) {
@@ -79,15 +80,18 @@ public class ToolBox implements ToolProvider {
         }
       };
   private final Future<?> updater;
+  private final ArtifactListener<ToolSignature> listener;
 
   public ToolBox(ArtifactValidityTracker files, Iterable<Path> toolDirs,
-                 Logger logger, ScheduledExecutorService execer)
+                 Logger logger, ArtifactListener<ToolSignature> listener,
+                 ScheduledExecutorService execer)
       throws IOException {
     this.logger = logger;
     toolDirs = this.toolDirs = ImmutableList.copyOf(
         Sets.newLinkedHashSet(toolDirs));
     this.fs = files.getFileSystem();
     this.files = files;
+    this.listener = ArtifactListener.Factory.loggingListener(listener, logger);
     this.execer = execer;
     if (!this.toolDirs.isEmpty()) {
       for (Path toolDir : toolDirs) {
@@ -303,7 +307,7 @@ public class ToolBox implements ToolProvider {
 
             Object ysonSigObj = ysonSig != null ? ysonSig.toJavaObject() : null;
             toolSig = ToolSignature.converter(
-                impl.name, !result.usedSourceOfKnownNondeterminism)
+                t.toolName, !result.usedSourceOfKnownNondeterminism)
                 .convert(ysonSigObj, mq);
             if (mq.hasErrors()) {
               for (String message : mq.getMessages()) {
@@ -327,16 +331,20 @@ public class ToolBox implements ToolProvider {
             if (h != null) { hb.withHash(h); }
           }
 
+          boolean success;
           synchronized (impl.tool) {
-            if (files.update(addresser, impl, paths, hb.build())) {
-              return impl.sig = toolSig;
-            }
+            success = files.update(addresser, impl, paths, hb.build());
+            if (success) { impl.sig = toolSig; }
+          }
+          if (success) {
+            t.check();
+            return toolSig;
           }
           logger.log(
               Level.INFO, "Failed to update tool {0}.  {1} tries remaining",
-              new Object[] { impl.name, nTriesRemaining });
+              new Object[] { t.toolName, nTriesRemaining });
         }
-        logger.log(Level.INFO, "Giving up on {0}", impl.name);
+        logger.log(Level.INFO, "Giving up on {0}", t.toolName);
         return null;
       }
     });
@@ -470,9 +478,11 @@ public class ToolBox implements ToolProvider {
     synchronized (tools) {
       Tool tool = tools.get(toolName);
       if (exists) {
-        if (tool == null) { tools.put(toolName, tool = new Tool(localName)); }
+        if (tool == null) {
+          tools.put(toolName, tool = new Tool(toolName, localName, listener));
+        }
         if (!tool.impls.containsKey(dirIndex)) {
-          tool.impls.put(dirIndex, new ToolImpl(tool, toolName, dirIndex));
+          tool.impls.put(dirIndex, new ToolImpl(tool, dirIndex));
         }
       } else if (tool != null) {
         tool.impls.remove(dirIndex);

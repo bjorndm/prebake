@@ -4,10 +4,12 @@ import org.prebake.core.ArtifactListener;
 import org.prebake.core.Glob;
 import org.prebake.core.Hash;
 
+import java.io.IOException;
 import java.nio.file.Path;
 import java.util.Collection;
 import java.util.List;
 
+import javax.annotation.Nonnull;
 import javax.annotation.ParametersAreNonnullByDefault;
 
 /**
@@ -18,9 +20,11 @@ import javax.annotation.ParametersAreNonnullByDefault;
  */
 @ParametersAreNonnullByDefault
 public interface FileVersioner {
-  public Path getVersionRoot();
-  public void getHashes(Collection<Path> paths, Hash.Builder out);
-  public List<Path> matching(List<Glob> globs);
-  public void watch(GlobUnion globs, ArtifactListener<GlobUnion> watcher);
-  public void unwatch(GlobUnion globs, ArtifactListener<GlobUnion> watcher);
+  @Nonnull Path getVersionRoot();
+  void getHashes(Collection<Path> paths, Hash.Builder out);
+  @Nonnull List<Path> matching(List<Glob> globs);
+  void watch(GlobUnion globs, ArtifactListener<GlobUnion> watcher);
+  void unwatch(GlobUnion globs, ArtifactListener<GlobUnion> watcher);
+  void update(Collection<Path> toUpdate);
+  @Nonnull FileAndHash load(Path p) throws IOException;
 }

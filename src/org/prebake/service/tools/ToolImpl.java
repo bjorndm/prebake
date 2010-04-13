@@ -8,14 +8,12 @@ import javax.annotation.ParametersAreNonnullByDefault;
 @ParametersAreNonnullByDefault
 final class ToolImpl implements NonFileArtifact {
   final Tool tool;
-  final String name;
   final int index;
   @Nullable ToolSignature sig;
   private boolean valid;
 
-  ToolImpl(Tool tool, String name, int index) {
+  ToolImpl(Tool tool, int index) {
     this.tool = tool;
-    this.name = name;
     this.index = index;
   }
 
@@ -24,13 +22,9 @@ final class ToolImpl implements NonFileArtifact {
   public void markValid(boolean valid) {
     synchronized (tool) {
       this.valid = valid;
-      if (!valid) {
-        sig = null;
-        if (tool.validator != null) {
-          tool.validator.cancel(false);
-          tool.validator = null;
-        }
-      }
+      if (sig == null) { return; }
+      if (!valid) { sig = null; }
     }
+    tool.check();
   }
 }
