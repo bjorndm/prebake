@@ -5,12 +5,15 @@ import java.util.List;
 import java.util.Set;
 import java.util.regex.Pattern;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 /**
  * Configuration for the {@link Prebakery} service.
  * <p>
  * The getters below should consistently return the same value.
+ *
+ * @author mikesamuel@gmail.com
  */
 public interface Config {
   /**
@@ -31,13 +34,13 @@ public interface Config {
    * Search path for
    * <a href="http://code.google.com/p/prebake/wiki/ToolFile">tools</a>.
    */
-  List<Path> getToolDirs();
+  @Nonnull List<Path> getToolDirs();
   /** @see <a href="http://code.google.com/p/prebake/wiki/PlanFile">wiki</a> */
-  Set<Path> getPlanFiles();
+  @Nonnull Set<Path> getPlanFiles();
   /**
    * The string used to separate paths, e.g. <tt>:</tt> on *NIX systems or
    * <tt>;</tt> on Windows.
    * @see java.io.File#pathSeparator
    */
-  String getPathSeparator();
+  @Nonnull String getPathSeparator();
 }

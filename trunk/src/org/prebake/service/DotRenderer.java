@@ -11,12 +11,21 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Set;
 
+import javax.annotation.ParametersAreNonnullByDefault;
+
+/**
+ * Converts a plan graph to
+ * <a href="http://www.graphviz.org/doc/info/lang.html">DOT format</a>.
+ *
+ * @author mikesamuel@gmail.com
+ */
+@ParametersAreNonnullByDefault
 final class DotRenderer {
   static void render(
       final PlanGraph g, final Set<String> prods, final Appendable out)
       throws IOException {
     final List<String> roots = Lists.newArrayList(prods);
-    // Eliminate any prods that are dependencies of others.
+    // Eliminate any products that are dependencies of others.
     {
       final Set<String> notRoots = Sets.newHashSet();
       for (final String prod : prods) {

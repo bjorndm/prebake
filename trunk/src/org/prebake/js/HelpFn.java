@@ -16,6 +16,12 @@ import org.mozilla.javascript.ScriptableObject;
 import org.mozilla.javascript.Undefined;
 import org.mozilla.javascript.UniqueTag;
 
+/**
+ * A JavaScript function that finds documentation attached to an object or
+ * function.
+ *
+ * @author mikesamuel@gmail.com
+ */
 @ParametersAreNonnullByDefault
 final class HelpFn extends BaseFunction {
   private final Console console;

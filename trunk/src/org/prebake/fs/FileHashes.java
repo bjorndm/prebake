@@ -1,5 +1,6 @@
 package org.prebake.fs;
 
+import org.prebake.core.ArtifactListener;
 import org.prebake.core.Glob;
 import org.prebake.core.Hash;
 
@@ -135,6 +136,14 @@ public final class FileHashes
       cursor.close();
     }
     return b.build();
+  }
+
+  public void unwatch(Iterable<Glob> globs, ArtifactListener<Path> watcher) {
+    throw new Error();  // TODO: implement using GlobSet
+  }
+
+  public void watch(Iterable<Glob> globs, ArtifactListener<Path> watcher) {
+    throw new Error();  // TODO: implement using GlobSet
   }
 
   private static boolean hasPrefix(byte[] arr, byte[] prefix) {

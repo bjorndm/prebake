@@ -3,10 +3,16 @@ package org.prebake.js;
 import java.io.IOException;
 import java.io.StringReader;
 
-import junit.framework.TestCase;
+import org.junit.Test;
 
-public class JsonSourceTest extends TestCase {
-  public final void testJsonSource() throws Exception {
+import static junit.framework.Assert.assertEquals;
+import static junit.framework.Assert.assertFalse;
+import static junit.framework.Assert.assertTrue;
+import static junit.framework.Assert.fail;
+
+
+public class JsonSourceTest {
+  @Test public final void testJsonSource() throws Exception {
     JsonSource src = new JsonSource(new StringReader(
         "false, \"bar\" : 1.5 [\"\\\"boo[]{}\\u000a\"] -4 1e-3"));
     assertFalse(src.isEmpty());
@@ -32,7 +38,7 @@ public class JsonSourceTest extends TestCase {
     assertTrue(src.isEmpty());
   }
 
-  public final void testNumbers() throws Exception {
+  @Test public final void testNumbers() throws Exception {
     JsonSource src = new JsonSource(new StringReader(
         "-0, 0.0, 0, 1e2, 2.5e-3, 0.5, -2, " + 0xfedcba9876543210L));
     assertFalse(src.isEmpty());
@@ -54,7 +60,7 @@ public class JsonSourceTest extends TestCase {
     assertTrue(src.isEmpty());
   }
 
-  public final void testBadJson() {
+  @Test public final void testBadJson() {
     assertBadJson(".", ".");
     assertBadJson(".0", ".");
     assertBadJson("0123", "0123");

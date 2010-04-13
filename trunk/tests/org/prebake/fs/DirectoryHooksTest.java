@@ -8,6 +8,8 @@ import com.google.common.base.Predicate;
 import com.google.common.collect.Sets;
 import com.google.common.io.Files;
 
+import org.junit.Test;
+
 import java.io.File;
 import java.io.IOException;
 import java.io.OutputStream;
@@ -27,7 +29,7 @@ public class DirectoryHooksTest extends PbTestCase {
   private static final FileAttribute<?>[] FILE_ATTRS = FilePerms.perms(
       0600, false);
 
-  public final void testOnStubFileSystem() throws Exception {
+  @Test public final void testOnStubFileSystem() throws Exception {
     int delay = 100;
     FileSystem fs = new StubFileSystemProvider("mfs")
         .getFileSystem(URI.create("mfs://#/foo/bar"));
@@ -36,7 +38,7 @@ public class DirectoryHooksTest extends PbTestCase {
     runTests(delay, fs, dir);
   }
 
-  public final void testOnDefaultFileSystem() throws Exception {
+  @Test public final void testOnDefaultFileSystem() throws Exception {
     int delay = 100;
     FileSystem fs = FileSystems.getDefault();
     Path dir = fs.getPath("" + Files.createTempDir());

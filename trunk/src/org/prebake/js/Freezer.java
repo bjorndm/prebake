@@ -15,6 +15,12 @@ import org.mozilla.javascript.NativeObject;
 import org.mozilla.javascript.Scriptable;
 import org.mozilla.javascript.ScriptableObject;
 
+/**
+ * Exposes the EcmaScript 5 {@code Object.freeze} semantics to java code that
+ * is setting up an JavaScript context.
+ *
+ * @author mikesamuel@gmail.com
+ */
 @ParametersAreNonnullByDefault
 final class Freezer {
   final Context cx;
@@ -51,6 +57,7 @@ final class Freezer {
     return true;
   }
 
+  /** Returns a frozen copy of an object graph. */
   Object frozenCopy(@Nullable Object obj) {
     if (!(obj instanceof ScriptableObject)) { return obj; }
     ScriptableObject so = (ScriptableObject) obj;

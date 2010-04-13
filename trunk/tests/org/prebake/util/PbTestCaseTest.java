@@ -5,6 +5,8 @@ import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.io.ByteStreams;
 
+import org.junit.Test;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.FileSystem;
@@ -12,13 +14,16 @@ import java.nio.file.attribute.BasicFileAttributeView;
 import java.nio.file.attribute.PosixFileAttributeView;
 import java.nio.file.attribute.PosixFilePermission;
 
-import junit.framework.TestCase;
+import static junit.framework.Assert.assertEquals;
+import static junit.framework.Assert.assertTrue;
 
 /**
  * Ack!  Our test case utilities are complicated enough to warrant tests.
  */
-public class PbTestCaseTest extends TestCase {
-  public final void testFileSystemFromAsciiArt() throws IOException {
+public class PbTestCaseTest {
+  private static final boolean DISABLED = true;  // TODO
+
+  @Test public final void testFileSystemFromAsciiArt() throws IOException {
     PbTestCase tc = new PbTestCase() { /* concrete */ };
     FileSystem fs = tc.fileSystemFromAsciiArt(
         "/foo/",
@@ -42,7 +47,7 @@ public class PbTestCaseTest extends TestCase {
         fs.getPath("/foo/boo.txt")
             .getFileAttributeView(BasicFileAttributeView.class).readAttributes()
             .isRegularFile());
-    if (false) {  // perms not implemented in stub FS
+    if (DISABLED) {  // perms not implemented in stub FS
     assertEquals(
         ImmutableSet.of(
             PosixFilePermission.OWNER_EXECUTE,

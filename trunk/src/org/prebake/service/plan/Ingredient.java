@@ -22,9 +22,9 @@ public final class Ingredient {
   public final int nIngredients;
 
   public Ingredient(
-      String product, int nIngredients, ImmutableList<Ingredient> postRequisites) {
+      String product, int nIngredients, ImmutableList<Ingredient> postReqs) {
     this.product = product;
     this.nIngredients = nIngredients;
-    this.postRequisites = postRequisites;
+    this.postRequisites = postReqs;
   }
 }

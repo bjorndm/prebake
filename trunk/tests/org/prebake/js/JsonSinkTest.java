@@ -4,10 +4,12 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collections;
 
-import junit.framework.TestCase;
+import org.junit.Test;
 
-public class JsonSinkTest extends TestCase {
-  public final void testJsonSink() throws IOException {
+import static junit.framework.Assert.assertEquals;
+
+public class JsonSinkTest {
+  @Test public final void testJsonSink() throws IOException {
     assertValueJson("false", false);
     assertValueJson("true", true);
     assertValueJson("null", null);

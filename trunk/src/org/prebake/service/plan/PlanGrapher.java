@@ -1,5 +1,6 @@
 package org.prebake.service.plan;
 
+import org.prebake.core.ArtifactListener;
 import org.prebake.core.Glob;
 
 import java.util.Arrays;
@@ -29,7 +30,7 @@ import com.google.common.collect.Sets;
  *
  * @author mikesamuel@gmail.com
  */
-public final class PlanGrapher implements ProductWatcher {
+public final class PlanGrapher {
   /** The end points per product. */
   private final Map<String, EndPoints> nodes = Maps.newHashMap();
   /** Glob sets needed to compute the intersection graph of end-points. */
@@ -40,9 +41,11 @@ public final class PlanGrapher implements ProductWatcher {
   private final Map<String, Product> unprocessed
       = Collections.synchronizedMap(Maps.<String, Product>newHashMap());
 
-  public void productDefined(Product p) { unprocessed.put(p.name, p); }
-
-  public void productDestroyed(String name) { unprocessed.put(name, null); }
+  final ArtifactListener<Product> productListener
+      = new ArtifactListener<Product>() {
+    public void artifactChanged(Product p) { unprocessed.put(p.name, p); }
+    public void artifactDestroyed(String name) { unprocessed.put(name, null); }
+  };
 
   public synchronized PlanGraph snapshot() {
     processProducts();

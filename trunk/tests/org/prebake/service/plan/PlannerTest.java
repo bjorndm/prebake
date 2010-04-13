@@ -1,7 +1,9 @@
 package org.prebake.service.plan;
 
+import org.prebake.core.ArtifactListener;
 import org.prebake.core.Documentation;
 import org.prebake.core.Glob;
+import org.prebake.fs.FileAndHash;
 import org.prebake.fs.StubArtifactValidityTracker;
 import org.prebake.js.Executor;
 import org.prebake.js.YSON;
@@ -17,6 +19,10 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.util.concurrent.ValueFuture;
+
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Test;
 
 import java.io.IOException;
 import java.io.OutputStreamWriter;
@@ -36,19 +42,17 @@ import java.util.logging.Logger;
 public class PlannerTest extends PbTestCase {
   private Tester test;
 
-  @Override
-  protected void setUp() throws Exception {
-    super.setUp();
+  @Before
+  public void initTest() {
     test = new Tester();
   }
 
-  @Override
-  protected void tearDown() throws Exception {
+  @After
+  public void closeTest() throws IOException {
     test.close();
-    super.tearDown();
   }
 
-  public final void testToolsAvailable() throws IOException {
+  @Test public final void testToolsAvailable() throws IOException {
     test.withFileSystem(
             "/",
             "  cwd/",
@@ -65,7 +69,7 @@ public class PlannerTest extends PbTestCase {
         .run();
   }
 
-  public final void testSimpleProduct() throws IOException {
+  @Test public final void testSimpleProduct() throws IOException {
     test.withFileSystem(
             "/",
             "  cwd/",
@@ -76,7 +80,7 @@ public class PlannerTest extends PbTestCase {
         .run();
   }
 
-  public final void testGlobbing() throws IOException {
+  @Test public final void testGlobbing() throws IOException {
     test.withFileSystem(
             "/",
             "  cwd/",
@@ -90,7 +94,7 @@ public class PlannerTest extends PbTestCase {
         .run();
   }
 
-  public final void testBadToolReturnValue() throws IOException {
+  @Test public final void testBadToolReturnValue() throws IOException {
     test.withFileSystem(
             "/",
             "  cwd/",
@@ -109,7 +113,7 @@ public class PlannerTest extends PbTestCase {
         .run();
   }
 
-  public final void testToolFileThrows() throws IOException {
+  @Test public final void testToolFileThrows() throws IOException {
     test.withFileSystem(
             "/",
             "  cwd/",
@@ -132,7 +136,7 @@ public class PlannerTest extends PbTestCase {
         .run();
   }
 
-  public final void testMalformedToolFile() throws IOException {
+  @Test public final void testMalformedToolFile() throws IOException {
     test.withFileSystem(
             "/",
             "  cwd/",
@@ -153,7 +157,7 @@ public class PlannerTest extends PbTestCase {
         .run();
   }
 
-  public final void testToolHelp() throws IOException {
+  @Test public final void testToolHelp() throws IOException {
     test.withFileSystem(
             "/",
             "  cwd/",
@@ -165,7 +169,7 @@ public class PlannerTest extends PbTestCase {
         .run();
   }
 
-  public final void testSanityChecker() throws IOException {
+  @Test public final void testSanityChecker() throws IOException {
     test.withFileSystem(
             "/",
             "  cwd/",
@@ -186,7 +190,7 @@ public class PlannerTest extends PbTestCase {
         .run();
   }
 
-  public final void testMalformedGlob() throws IOException {
+  @Test public final void testMalformedGlob() throws IOException {
     test.withFileSystem(
             "/",
             "  cwd/",
@@ -205,7 +209,7 @@ public class PlannerTest extends PbTestCase {
         .run();
   }
 
-  public final void testMissingPlanFile() throws IOException {
+  @Test public final void testMissingPlanFile() throws IOException {
     test.withFileSystem(
             "/",
             "  cwd/",
@@ -224,7 +228,7 @@ public class PlannerTest extends PbTestCase {
         .run();
   }
 
-  public final void testPlanFileLoads() throws IOException {
+  @Test public final void testPlanFileLoads() throws IOException {
     test.withFileSystem(
             "/",
             "  cwd/",
@@ -238,7 +242,7 @@ public class PlannerTest extends PbTestCase {
         .run();
   }
 
-  public final void testPlanFileLoadMissingFile() throws IOException {
+  @Test public final void testPlanFileLoadMissingFile() throws IOException {
     test.withFileSystem(
             "/",
             "  cwd/",
@@ -254,7 +258,7 @@ public class PlannerTest extends PbTestCase {
         .run();
   }
 
-  public final void testPlanFileTimeout() throws IOException {
+  @Test public final void testPlanFileTimeout() throws IOException {
     test.withFileSystem(
             "/",
             "  cwd/",
@@ -270,7 +274,7 @@ public class PlannerTest extends PbTestCase {
         .run();
   }
 
-  public final void testMaskingProductNames() throws IOException {
+  @Test public final void testMaskingProductNames() throws IOException {
     test.withFileSystem(
             "/",
             "  cwd/",
@@ -285,7 +289,7 @@ public class PlannerTest extends PbTestCase {
         .run();
   }
 
-  public final void testToolFileUpdated() throws IOException {
+  @Test public final void testToolFileUpdated() throws IOException {
     test.withFileSystem(
             "/",
             "  cwd/",
@@ -357,6 +361,9 @@ public class PlannerTest extends PbTestCase {
           if (isClosed) { throw new IllegalStateException(); }
           return sigs.build();
         }
+        public FileAndHash getTool(String toolName) {
+          throw new Error("Unsupported by " + PlannerTest.class);
+        }
         public void close() { isClosed = true; }
       };
       return this;
@@ -378,7 +385,9 @@ public class PlannerTest extends PbTestCase {
       }
       ScheduledExecutorService execer = new StubScheduledExecutorService();
       Logger logger = getLogger(Level.INFO);
-      planner = new Planner(files, toolbox, b.build(), logger, null, execer);
+      planner = new Planner(
+          files, toolbox, b.build(), logger,
+          ArtifactListener.Factory.<Product>noop(), execer);
       return this;
     }
 

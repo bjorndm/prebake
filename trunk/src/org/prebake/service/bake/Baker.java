@@ -1,16 +1,21 @@
 package org.prebake.service.bake;
 
+import org.prebake.core.ArtifactListener;
 import org.prebake.core.Glob;
 import org.prebake.core.Hash;
+import org.prebake.fs.FileAndHash;
 import org.prebake.fs.FileVersioner;
+import org.prebake.fs.GlobUnion;
 import org.prebake.js.Executor;
 import org.prebake.os.OperatingSystem;
 import org.prebake.service.plan.Action;
 import org.prebake.service.plan.Product;
-import org.prebake.service.plan.ProductWatcher;
+import org.prebake.service.tools.ToolProvider;
+import org.prebake.service.tools.ToolSignature;
 
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Future;
@@ -20,20 +25,24 @@ import javax.annotation.ParametersAreNonnullByDefault;
 
 import com.google.common.base.Function;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Sets;
 
 @ParametersAreNonnullByDefault
-public final class Baker implements ProductWatcher {
+public final class Baker {
   private final OperatingSystem os;
   private final FileVersioner files;
   private final ConcurrentHashMap<String, ProductStatus> productStatuses
       = new ConcurrentHashMap<String, ProductStatus>();
   private final ScheduledExecutorService execer;
+  private final ToolProvider toolbox;
 
   public Baker(
       OperatingSystem os, FileVersioner files,
-      ScheduledExecutorService execer) {
+      ToolProvider toolbox, ScheduledExecutorService execer) {
     this.os = os;
     this.files = files;
+    this.toolbox = toolbox;
     this.execer = execer;
   }
 
@@ -51,6 +60,26 @@ public final class Baker implements ProductWatcher {
             final ImmutableList<Path> outputs;
             final ImmutableList.Builder<Hash> inputHashes
                 = ImmutableList.builder();
+
+            ImmutableMap<String, FileAndHash> tools;
+            Hash toolHashes;
+            {
+              ImmutableMap.Builder<String, FileAndHash> tb
+                  = ImmutableMap.builder();
+              Set<String> toolsUsed = Sets.newHashSet();
+              Hash.Builder hb = Hash.builder();
+              for (Action a : product.actions) {
+                String toolName = a.toolName;
+                if (!toolsUsed.add(toolName)) { continue; }
+                FileAndHash tool = toolbox.getTool(toolName);
+                tb.put(toolName, tool);
+                Hash h = tool.getHash();
+                if (h != null) { hb.withHash(h); }
+              }
+              tools = tb.build();
+              toolHashes = hb.build();
+            }
+
 
             inputs = ImmutableList.copyOf(files.matching(product.inputs));
             workDir = createWorkingDirectory();
@@ -94,37 +123,59 @@ public final class Baker implements ProductWatcher {
     throw new Error("IMPLEMENT ME");  // TODO
   }
 
-  public void productDestroyed(String product) {
-    ProductStatus status = productStatuses.remove(product);
-    if (status != null) {
-      synchronized (status) {
-        if (status.buildFuture != null) {
-          status.buildFuture.cancel(true);
-          status.buildFuture = null;
+  private final ArtifactListener<Product> prodListener
+      = new ArtifactListener<Product>() {
+    public void artifactDestroyed(String productName) {
+      ProductStatus status = productStatuses.remove(productName);
+      if (status != null) {
+        synchronized (status) {
+          if (status.buildFuture != null) {
+            status.buildFuture.cancel(true);
+            status.buildFuture = null;
+          }
         }
       }
     }
-  }
 
-  public void productDefined(Product product) {
-    product = product.withoutNonBuildableInfo();
-    ProductStatus status;
-    {
-      ProductStatus stub = new ProductStatus(product.name);
-      status = productStatuses.putIfAbsent(product.name, stub);
-      if (status == null) { status = stub; }
-    }
-    synchronized (status) {
-      if (status.product == null || !status.product.equals(product)) {
-        status.productHash = null;
-        status.toolHashes = null;
-        status.inputHashes = null;
-        if (status.buildFuture != null) {
-          status.buildFuture.cancel(true);
-          status.buildFuture = null;
+    public void artifactChanged(Product product) {
+      product = product.withoutNonBuildableInfo();
+      ProductStatus status;
+      {
+        ProductStatus stub = new ProductStatus(product.name);
+        status = productStatuses.putIfAbsent(product.name, stub);
+        if (status == null) { status = stub; }
+      }
+      synchronized (status) {
+        if (status.product == null || !status.product.equals(product)) {
+          if (status.buildFuture != null) {
+            status.buildFuture.cancel(true);
+            status.buildFuture = null;
+          }
+          status.product = product;
         }
-        status.product = product;
       }
     }
-  }
+  };
+
+  private final ArtifactListener<ToolSignature> toolListener
+      = new ArtifactListener<ToolSignature>() {
+    public void artifactChanged(ToolSignature sig) {
+      throw new Error("IMPLEMENT ME");  // TODO
+    }
+
+    public void artifactDestroyed(String toolName) {
+      throw new Error("IMPLEMENT ME");  // TODO
+    }
+  };
+
+  private final ArtifactListener<GlobUnion> fileListener
+      = new ArtifactListener<GlobUnion>() {
+    public void artifactChanged(GlobUnion union) {
+      throw new Error("IMPLEMENT ME");  // TODO
+    }
+
+    public void artifactDestroyed(String productName) {
+      throw new Error("IMPLEMENT ME");  // TODO
+    }
+  };
 }
