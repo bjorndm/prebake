@@ -9,6 +9,7 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.util.List;
 
+import javax.annotation.Nullable;
 import javax.annotation.ParametersAreNonnullByDefault;
 
 import com.google.common.base.Charsets;
@@ -28,7 +29,7 @@ public class ToolLoader implements Loader{
   private final List<? super Hash> hashes;
 
   public ToolLoader(
-      Path base, ToolBox toolBox, ToolImpl current,
+      @Nullable Path base, ToolBox toolBox, ToolImpl current,
       List<? super Path> pathsLoaded, List<? super Hash> hashes) {
     this.base = base;
     this.toolBox = toolBox;

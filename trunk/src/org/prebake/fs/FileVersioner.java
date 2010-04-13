@@ -21,6 +21,6 @@ public interface FileVersioner {
   public Path getVersionRoot();
   public void getHashes(Collection<Path> paths, Hash.Builder out);
   public List<Path> matching(List<Glob> globs);
-  public void watch(Iterable<Glob> globs, ArtifactListener<Path> watcher);
-  public void unwatch(Iterable<Glob> globs, ArtifactListener<Path> watcher);
+  public void watch(GlobUnion globs, ArtifactListener<GlobUnion> watcher);
+  public void unwatch(GlobUnion globs, ArtifactListener<GlobUnion> watcher);
 }
