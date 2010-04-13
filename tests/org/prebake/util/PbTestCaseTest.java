@@ -47,7 +47,7 @@ public class PbTestCaseTest {
         fs.getPath("/foo/boo.txt")
             .getFileAttributeView(BasicFileAttributeView.class).readAttributes()
             .isRegularFile());
-    if (DISABLED) {  // perms not implemented in stub FS
+    if (!DISABLED) {  // file permissions not implemented in stub FS
     assertEquals(
         ImmutableSet.of(
             PosixFilePermission.OWNER_EXECUTE,

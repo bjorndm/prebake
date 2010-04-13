@@ -1,9 +1,12 @@
 package org.prebake.fs;
 
+import org.prebake.core.ArtifactListener;
+import org.prebake.core.Glob;
 import org.prebake.core.Hash;
 import org.prebake.util.PbTestCase;
 import org.prebake.util.StubFileSystemProvider;
 
+import com.google.common.base.Joiner;
 import com.google.common.collect.Maps;
 import com.google.common.io.Files;
 import com.sleepycat.je.Environment;
@@ -22,6 +25,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.logging.Level;
+import java.util.logging.Logger;
 
 public class FileHashesTest extends PbTestCase {
   private FileSystem fs;
@@ -238,6 +242,150 @@ public class FileHashesTest extends PbTestCase {
     assertFalse(javadoct.valid);
     assertFalse(javap.valid);
     assertFalse(docsp.valid);
+  }
+
+  @Test public final void testWatcher() throws IOException {
+    GlobUnion fooTxt = new GlobUnion(
+        "foo.txt", Arrays.asList(Glob.fromString("foo/**.txt")));
+    GlobUnion barTxt = new GlobUnion(
+        "bar.txt", Arrays.asList(Glob.fromString("bar/**.txt")));
+    GlobUnion fooHtml = new GlobUnion(
+        "foo.html", Arrays.asList(Glob.fromString("foo/**.html")));
+    GlobUnion barHtml = new GlobUnion(
+        "bar.html", Arrays.asList(Glob.fromString("bar/**.html")));
+    GlobUnion foo = new GlobUnion(
+        "foo", Arrays.asList(Glob.fromString("foo/**")));
+    GlobUnion bar = new GlobUnion(
+        "bar", Arrays.asList(Glob.fromString("bar/**")));
+    GlobUnion txt = new GlobUnion(
+        ".txt", Arrays.asList(Glob.fromString("**.txt")));
+    GlobUnion html = new GlobUnion(
+        ".html", Arrays.asList(Glob.fromString("**.html")));
+
+    final Logger logger = getLogger(Level.INFO);
+    ArtifactListener<GlobUnion> listener = new ArtifactListener<GlobUnion>() {
+      public void artifactChanged(GlobUnion artifact) {
+        logger.log(Level.INFO, "changed " + artifact.name);
+      }
+      public void artifactDestroyed(String artifactName) {
+        logger.log(Level.INFO, "destroyed " + artifactName);
+      }
+    };
+
+    fh.watch(fooTxt, listener);
+    fh.watch(barTxt, listener);
+    fh.watch(fooHtml, listener);
+    fh.watch(barHtml, listener);
+    fh.watch(foo, listener);
+    fh.watch(bar, listener);
+    fh.watch(txt, listener);
+    fh.watch(html, listener);
+
+    fs.getPath("/cwd/root/foo").createDirectory();
+    fs.getPath("/cwd/root/bar").createDirectory();
+    Path fooATxt = fs.getPath("/cwd/root/foo/a.txt");
+    Path fooBTxt = fs.getPath("/cwd/root/foo/b.txt");
+    Path barATxt = fs.getPath("/cwd/root/bar/a.txt");
+    Path barBTxt = fs.getPath("/cwd/root/bar/b.txt");
+    Path fooAHtml = fs.getPath("/cwd/root/foo/a.html");
+    Path fooBHtml = fs.getPath("/cwd/root/foo/b.html");
+    Path barAHtml = fs.getPath("/cwd/root/bar/a.html");
+    Path barBHtml = fs.getPath("/cwd/root/bar/b.html");
+    List<Path> allPaths = Arrays.asList(
+        fooATxt, fooBTxt, barATxt, barBTxt,
+        fooAHtml, fooBHtml, barAHtml, barBHtml);
+
+    writeFile(fooATxt, "1");
+    writeFile(fooBTxt, "1");
+    writeFile(barATxt, "1");
+    writeFile(barBTxt, "1");
+    writeFile(fooAHtml, "1");
+    writeFile(fooBHtml, "1");
+    writeFile(barAHtml, "1");
+    writeFile(barBHtml, "1");
+
+    assertTrue(getLog().isEmpty());
+    fh.update(allPaths);
+    assertEquals(
+        Joiner.on('\n').join(
+            // foo{a,b}.txt changed
+            "INFO: changed foo.txt",
+            "INFO: changed foo",
+            "INFO: changed .txt",
+            // bar{a,b}.txt changed
+            "INFO: changed bar.txt",
+            "INFO: changed bar",
+            // foo{a,b}.html changed
+            "INFO: changed foo.html",
+            "INFO: changed .html",
+            // bar{a,b}.html changed
+            "INFO: changed bar.html"),
+            Joiner.on('\n').join(getLog()));
+    getLog().clear();
+    fh.update(allPaths);
+    assertEquals("", Joiner.on('\n').join(getLog()));
+
+    writeFile(fooBHtml, "2");
+    fh.update(allPaths);
+    assertEquals(
+        Joiner.on('\n').join(
+            "INFO: changed foo.html",
+            "INFO: changed foo",
+            "INFO: changed .html"),
+        Joiner.on('\n').join(getLog()));
+    getLog().clear();
+
+    assertEquals(
+        ""
+        + "[**.html, **.txt, bar/**, bar/**.html, bar/**.txt,"
+        + " foo/**, foo/**.html, foo/**.txt]",
+        fh.unittestBackdoorDispatcherKeys());
+    fh.unwatch(txt, listener);
+    fh.unwatch(html, listener);
+    assertEquals("", Joiner.on('\n').join(getLog()));
+    writeFile(barAHtml, "2");
+    fh.update(allPaths);
+    assertEquals(
+        Joiner.on('\n').join(
+            "INFO: changed bar.html",
+            "INFO: changed bar"),
+        Joiner.on('\n').join(getLog()));
+    getLog().clear();
+    assertEquals(  // Make sure no leaks
+        "[bar/**, bar/**.html, bar/**.txt, foo/**, foo/**.html, foo/**.txt]",
+        fh.unittestBackdoorDispatcherKeys());
+
+    fh.watch(html, listener);
+    fh.watch(html, listener);
+    assertEquals("", Joiner.on('\n').join(getLog()));
+    writeFile(barAHtml, "3");
+    fh.update(allPaths);
+    assertEquals(
+        Joiner.on('\n').join(
+            "INFO: changed bar.html",
+            "INFO: changed bar",
+            "INFO: changed .html",
+            "INFO: changed .html"),
+        Joiner.on('\n').join(getLog()));
+    getLog().clear();
+
+    fh.unwatch(html, listener);
+    assertEquals("", Joiner.on('\n').join(getLog()));
+    writeFile(barAHtml, "4");
+    fh.update(allPaths);
+    assertEquals(
+        Joiner.on('\n').join(
+            "INFO: changed bar.html",
+            "INFO: changed bar",
+            "INFO: changed .html"),
+        Joiner.on('\n').join(getLog()));
+    getLog().clear();
+
+    fh.unwatch(html, listener);
+    assertEquals("", Joiner.on('\n').join(getLog()));
+    writeFile(barAHtml, "4");  // No change
+    fh.update(allPaths);
+    assertEquals("", Joiner.on('\n').join(getLog()));
   }
 
   private String getHashStr(Path... paths) {

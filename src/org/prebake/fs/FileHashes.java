@@ -4,6 +4,7 @@ import org.prebake.core.ArtifactListener;
 import org.prebake.core.Glob;
 import org.prebake.core.Hash;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Charsets;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
@@ -61,6 +62,7 @@ public final class FileHashes
    */
   private final ReadWriteLock derivativeHashLock
       = new ReentrantReadWriteLock(true);
+  private final GlobDispatcher dispatcher;
 
   public FileHashes(Environment env, Path root, Logger logger)
       throws IOException {
@@ -76,6 +78,7 @@ public final class FileHashes
     derivConfig.setTemporary(true);
     derivConfig.setSortedDuplicates(true);
     fileDerivatives = env.openDatabase(null, "fileDerivatives", derivConfig);
+    this.dispatcher = new GlobDispatcher(logger);
   }
 
   public Path getVersionRoot() { return root; }
@@ -138,12 +141,12 @@ public final class FileHashes
     return b.build();
   }
 
-  public void unwatch(Iterable<Glob> globs, ArtifactListener<Path> watcher) {
-    throw new Error();  // TODO: implement using GlobSet
+  public void unwatch(GlobUnion globs, ArtifactListener<GlobUnion> watcher) {
+    dispatcher.unwatch(globs, watcher);
   }
 
-  public void watch(Iterable<Glob> globs, ArtifactListener<Path> watcher) {
-    throw new Error();  // TODO: implement using GlobSet
+  public void watch(GlobUnion globs, ArtifactListener<GlobUnion> watcher) {
+    dispatcher.watch(globs, watcher);
   }
 
   private static boolean hasPrefix(byte[] arr, byte[] prefix) {
@@ -230,11 +233,13 @@ public final class FileHashes
     // soon-to-be-invalid objects.
     Set<String> addressesToInvalidate = Sets.newHashSet();
     derivativeHashLock.writeLock().lock();
+    List<Path> changedPaths = Lists.newArrayList();
     try {
       cursor = fileDerivatives.openCursor(null, null);
       try {
         DatabaseEntry data = new DatabaseEntry();
         for (int i = -1; (i = unchanged.nextClearBit(i + 1)) < n;) {
+          changedPaths.add(relPaths[i]);
           DatabaseEntry key = keys[i];
           OperationStatus retVal = cursor.getSearchKey(key, data, null);
           while (retVal == OperationStatus.SUCCESS) {
@@ -259,7 +264,7 @@ public final class FileHashes
         if (as != null) {
           NonFileArtifact inv = as.lookup(address.substring(colon + 1));
           if (inv != null) {
-            logger.log(Level.INFO /*TODO FINER*/, "Invalidating {0}", address);
+            logger.log(Level.FINER, "Invalidating {0}", address);
             inv.markValid(false);
           }
         }
@@ -267,10 +272,14 @@ public final class FileHashes
         logger.log(Level.SEVERE, "Failed to invalidate address " + address, ex);
       }
     }
+
+    // Finally dispatch based on globs.
+    if (!changedPaths.isEmpty()) { dispatcher.dispatch(changedPaths); }
   }
 
   /**
    * Hashes the given paths to out.
+   * @param out modified in place.
    */
   public void getHashes(Collection<Path> paths, Hash.Builder out) {
     int n = paths.size();
@@ -421,5 +430,10 @@ public final class FileHashes
 
   private static String fromBytes(byte[] bytes) {
     return new String(bytes, Charsets.UTF_8);
+  }
+
+  @VisibleForTesting
+  String unittestBackdoorDispatcherKeys() {
+    return dispatcher.unittestBackdoorGlobKeys();
   }
 }
