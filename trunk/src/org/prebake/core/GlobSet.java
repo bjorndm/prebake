@@ -79,6 +79,29 @@ public class GlobSet {
     return b.build();
   }
 
+  public boolean matches(Path normPath) {
+    PrefixTree t = prefixTree;
+    for (Path p : normPath) {
+      PrefixTree child = t.children.get(p.toString());
+      if (child == null) { break; }
+      t = child;
+    }
+    String pathStr = normPath.toString();
+    String extension = extensionFor(normPath);
+    if ("".equals(extension)) { extension = null; }
+    for (; t != null; t = t.parent) {
+      if (extension != null) {
+        for (Glob g : t.globsByExtension.get(extension)) {
+          if (g.match(pathStr)) { return true; }
+        }
+      }
+      for (Glob g : t.globsByExtension.get("")) {
+        if (g.match(pathStr)) { return true; }
+      }
+    }
+    return false;
+  }
+
   private static final Supplier<List<Glob>> GLOB_LIST_SUPPLIER
       = new Supplier<List<Glob>>() {
         public List<Glob> get() { return Lists.newArrayList(); }

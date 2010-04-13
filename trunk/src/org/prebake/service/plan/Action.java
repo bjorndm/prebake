@@ -29,6 +29,7 @@ public final class Action implements JsonSerializable {
   public final ImmutableList<Glob> inputs;
   public final ImmutableList<Glob> outputs;
   public final ImmutableMap<String, ?> options;
+  // TODO: allow user defined Lambdas as actions
 
   public Action(
       String toolName, List<? extends Glob> inputs,

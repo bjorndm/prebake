@@ -3,15 +3,15 @@ package org.prebake.service;
 import org.prebake.channel.Command;
 import org.prebake.channel.Commands;
 import org.prebake.channel.FileNames;
-import org.prebake.core.ArtifactListener;
 import org.prebake.core.Documentation;
 import org.prebake.fs.DirectoryHooks;
 import org.prebake.fs.FileHashes;
 import org.prebake.fs.FilePerms;
+import org.prebake.os.OperatingSystem;
+import org.prebake.service.bake.Baker;
 import org.prebake.service.plan.Ingredient;
 import org.prebake.service.plan.PlanGraph;
 import org.prebake.service.plan.Planner;
-import org.prebake.service.plan.Product;
 import org.prebake.service.plan.Recipe;
 import org.prebake.service.tools.ToolBox;
 import org.prebake.service.tools.ToolSignature;
@@ -65,6 +65,7 @@ public abstract class Prebakery implements Closeable {
   private final LinkedBlockingQueue<Commands> cmdQueue;
   private final Logger logger;
   private final ScheduledExecutorService execer;
+  private final OperatingSystem os;
   private Environment env;
   private FileHashes fileHashes;
   private Runnable onClose;
@@ -72,6 +73,7 @@ public abstract class Prebakery implements Closeable {
   private Consumer<Commands> commandConsumer;
   private ToolBox tools;
   private Planner planner;
+  private Baker baker;
 
   /**
    * @see
@@ -90,11 +92,13 @@ public abstract class Prebakery implements Closeable {
       Pattern.DOTALL);
 
   public Prebakery(
-      Config config, ScheduledExecutorService execer, Logger logger) {
+      Config config, ScheduledExecutorService execer, OperatingSystem os,
+      Logger logger) {
     assert config != null;
     config = staticCopy(config);
     this.config = config;
     this.execer = execer;
+    this.os = os;
     this.logger = logger;
     this.token = makeToken();
     this.cmdQueue = new LinkedBlockingQueue<Commands>(4);
@@ -236,12 +240,13 @@ public abstract class Prebakery implements Closeable {
 
     this.env = createDbEnv(dir);
     this.fileHashes = new FileHashes(env, clientRoot, logger);
+    this.baker = new Baker(os, fileHashes, logger, execer);
     this.tools = new ToolBox(
-        fileHashes, config.getToolDirs(), logger, execer);
+        fileHashes, config.getToolDirs(), logger, baker.toolListener, execer);
+    this.baker.setToolBox(this.tools);
     this.planner = new Planner(
         fileHashes, tools, config.getPlanFiles(), logger,
-        ArtifactListener.Factory.<Product>noop(),  // TODO builder.prodListener
-        execer);
+        this.baker.prodListener, execer);
   }
 
   private void setupFileSystemWatcher() {

@@ -1,5 +1,7 @@
 package org.prebake.os;
 
+import java.nio.file.Path;
+
 import javax.annotation.ParametersAreNonnullByDefault;
 
 /**
@@ -9,5 +11,6 @@ import javax.annotation.ParametersAreNonnullByDefault;
  */
 @ParametersAreNonnullByDefault
 public interface OperatingSystem {
-  Process run(String command, String... argv);
+  Process run(Path cwd, String command, String... argv);
+  Path getTempDir();
 }

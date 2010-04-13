@@ -1,5 +1,7 @@
 package org.prebake.channel;
 
+import org.prebake.service.Prebakery;
+
 /**
  * Constants for the names of files created by the {@link Prebakery} service.
  *

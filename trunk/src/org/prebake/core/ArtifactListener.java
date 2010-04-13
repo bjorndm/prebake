@@ -1,5 +1,8 @@
 package org.prebake.core;
 
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
 import javax.annotation.Nonnull;
 import javax.annotation.ParametersAreNonnullByDefault;
 
@@ -43,6 +46,27 @@ public interface ArtifactListener<ART> {
         case 1: return listenerList.get(0);
         default: return new ArtifactListenerChain<ART>(listenerList);
       }
+    }
+    public static @Nonnull <ART> ArtifactListener<ART> loggingListener(
+        final ArtifactListener<ART> listener, final Logger logger) {
+      if (listener instanceof NoopListener<?>) { return listener; }
+      return new ArtifactListener<ART>() {
+        public void artifactChanged(ART artifact) {
+          try {
+            listener.artifactChanged(artifact);
+          } catch (Exception ex) {
+            logger.log(Level.SEVERE, "Exception during event dispatch", ex);
+          }
+        }
+
+        public void artifactDestroyed(String artifactName) {
+          try {
+            listener.artifactDestroyed(artifactName);
+          } catch (Exception ex) {
+            logger.log(Level.SEVERE, "Exception during event dispatch", ex);
+          }
+        }
+      };
     }
   }
 }

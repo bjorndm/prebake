@@ -1,5 +1,6 @@
 package org.prebake.service.tools;
 
+import org.prebake.core.ArtifactListener;
 import org.prebake.fs.FileHashes;
 import org.prebake.js.Executor;
 import org.prebake.util.PbTestCase;
@@ -176,7 +177,9 @@ public class ToolBoxTest extends PbTestCase {
     }
 
     void assertSigs(String... expectedSigs) throws Exception {
-      ToolBox tb = new ToolBox(fh, toolDirs, getLogger(Level.FINE), execer) {
+      ToolBox tb = new ToolBox(
+          fh, toolDirs, getLogger(Level.FINE),
+          ArtifactListener.Factory.<ToolSignature>noop(), execer) {
         @Override
         protected Iterable<String> getBuiltinToolNames() { return builtins; }
       };
@@ -206,4 +209,5 @@ public class ToolBoxTest extends PbTestCase {
   // still work.
   // TODO: change fire function sig to take an os parameter with an exec method
   // instead of just an exec function.  Might want to provide other operators.
+  // TODO: test tool listeners fired
 }

@@ -3,6 +3,7 @@ package org.prebake.service;
 import org.prebake.channel.Commands;
 import org.prebake.core.MessageQueue;
 import org.prebake.js.JsonSource;
+import org.prebake.os.OperatingSystem;
 import org.prebake.util.CommandLineArgs;
 
 import com.google.common.base.Charsets;
@@ -72,7 +73,15 @@ public final class Main {
     ScheduledExecutorService execer = Executors
         .getExitingScheduledExecutorService(
             new ScheduledThreadPoolExecutor(4));
-    final Prebakery pb = new Prebakery(config, execer, logger) {
+    OperatingSystem os = new OperatingSystem() {
+      public Path getTempDir() {
+        throw new Error("IMPLEMENT ME");
+      }
+      public Process run(Path cwd, String command, String... argv) {
+        throw new Error("IMPLEMENT ME");
+      }
+    };
+    final Prebakery pb = new Prebakery(config, execer, os, logger) {
       @Override
       protected String makeToken() {
         byte[] bytes = new byte[256];
