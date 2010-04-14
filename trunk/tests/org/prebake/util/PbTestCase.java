@@ -8,6 +8,7 @@ import com.google.common.collect.Lists;
 import com.google.common.io.Files;
 
 import org.junit.After;
+import org.junit.Assert;
 
 import java.io.File;
 import java.io.IOException;
@@ -28,8 +29,6 @@ import java.util.logging.LogRecord;
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
-import junit.framework.Assert;
 
 public abstract class PbTestCase extends Assert {
   private Logger logger;

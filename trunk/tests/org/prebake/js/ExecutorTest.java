@@ -50,7 +50,7 @@ public class ExecutorTest extends PbTestCase {
         + "}");
     assertEquals(
         "java.io.FileNotFoundException: /foo/nosuchfile.js",
-        (String) out.result);
+        out.result);
     assertFalse(out.usedSourceOfKnownNondeterminism);
   }
 
@@ -65,7 +65,7 @@ public class ExecutorTest extends PbTestCase {
         "/bar/malformed.js", "NOT VALID JAVASCRIPT!!!");
     assertEquals(
         "missing ; before statement (/bar/malformed.js#1)",
-        (String) out.result);
+        out.result);
     assertFalse(out.usedSourceOfKnownNondeterminism);
   }
 

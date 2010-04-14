@@ -222,7 +222,7 @@ public class PlannerTest extends PbTestCase {
         .withPlanFiles("plan1.js", "plan2.js")  // plan2 does not exists
         .expectLog(
             "WARNING: Missing plan plan2.js",
-            "java.io.FileNotFoundException: plan2.js",
+            "java.io.FileNotFoundException: /cwd/plan2.js",
             "SEVERE: Failed to update plan plan2.js")
         .expectProduct("aProduct", action("munge", "**.a", "**.b"))
         .run();
@@ -331,7 +331,7 @@ public class PlannerTest extends PbTestCase {
         .updateFiles("/cwd/q.js", "/cwd/r.js" /* no change */)
         .expectLog(
             "WARNING: Missing plan q.js",
-            "java.io.FileNotFoundException: q.js",
+            "java.io.FileNotFoundException: /cwd/q.js",
             "SEVERE: Failed to update plan q.js")
         .expectProduct("p", action("cp", "**.a", "**.w"))
         .expectProduct("r", action("cp", "**/*.c", "**/*.y"))
@@ -439,7 +439,6 @@ public class PlannerTest extends PbTestCase {
     }
 
     public Tester run() {
-      System.err.println("goldenProds=" + goldenProds.keySet());
       Map<String, Product> products = planner.getProducts();
       assertEquals(goldenProds.toString(), products.toString());
       assertEquals(

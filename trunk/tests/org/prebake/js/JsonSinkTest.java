@@ -6,7 +6,7 @@ import java.util.Collections;
 
 import org.junit.Test;
 
-import static junit.framework.Assert.assertEquals;
+import static org.junit.Assert.assertEquals;
 
 public class JsonSinkTest {
   @Test public final void testJsonSink() throws IOException {

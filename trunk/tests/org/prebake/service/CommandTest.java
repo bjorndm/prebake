@@ -15,7 +15,7 @@ import java.io.StringReader;
 import java.net.URI;
 import java.nio.file.FileSystem;
 
-import static junit.framework.Assert.assertEquals;
+import static org.junit.Assert.assertEquals;
 
 public class CommandTest {
   private FileSystem fs;
