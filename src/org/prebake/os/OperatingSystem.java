@@ -1,5 +1,6 @@
 package org.prebake.os;
 
+import java.io.IOException;
 import java.nio.file.Path;
 
 import javax.annotation.ParametersAreNonnullByDefault;
@@ -11,6 +12,6 @@ import javax.annotation.ParametersAreNonnullByDefault;
  */
 @ParametersAreNonnullByDefault
 public interface OperatingSystem {
-  Process run(Path cwd, String command, String... argv);
+  Process run(Path cwd, String command, String... argv) throws IOException;
   Path getTempDir();
 }

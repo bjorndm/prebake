@@ -3,10 +3,14 @@ package org.prebake.service.bake;
 import org.prebake.core.ArtifactListener;
 import org.prebake.core.Glob;
 import org.prebake.core.GlobSet;
+import org.prebake.core.Hash;
+import org.prebake.fs.ArtifactAddresser;
+import org.prebake.fs.ArtifactValidityTracker;
 import org.prebake.fs.FileAndHash;
 import org.prebake.fs.FilePerms;
 import org.prebake.fs.FileVersioner;
 import org.prebake.fs.GlobUnion;
+import org.prebake.fs.NonFileArtifact;
 import org.prebake.js.Executor;
 import org.prebake.js.JsonSink;
 import org.prebake.js.Loader;
@@ -49,23 +53,38 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.ValueFuture;
 
+/**
+ * Maintains a set of products and whether they're up to date.
+ *
+ * @author mikesamuel@gmail.com
+ */
 @ParametersAreNonnullByDefault
 public final class Baker {
   private final OperatingSystem os;
   private final FileVersioner files;
+  private final ArtifactValidityTracker fileValidity;
   private final Logger logger;
   private final ScheduledExecutorService execer;
   private final ConcurrentHashMap<String, ProductStatus> productStatuses
       = new ConcurrentHashMap<String, ProductStatus>();
-  private final ConcurrentHashMap<String, List<ProductStatus>> toolDeps
-      = new ConcurrentHashMap<String, List<ProductStatus>>();
+  private final ConcurrentHashMap<String, ProductStatusChain> toolDeps
+      = new ConcurrentHashMap<String, ProductStatusChain>();
   private ToolProvider toolbox;
+  private final ArtifactAddresser<ProductStatus> addresser
+      = new ArtifactAddresser<ProductStatus>() {
+    public String addressFor(ProductStatus artifact) { return artifact.name; }
+    public ProductStatus lookup(String address) {
+      return productStatuses.get(address);
+    }
+  };
 
   public Baker(
-      OperatingSystem os, FileVersioner files, Logger logger,
+      OperatingSystem os, FileVersioner files,
+      ArtifactValidityTracker fileValidity, Logger logger,
       ScheduledExecutorService execer) {
     this.os = os;
     this.files = files;
+    this.fileValidity = fileValidity;
     this.logger = logger;
     this.execer = execer;
   }
@@ -83,29 +102,54 @@ public final class Baker {
     }
     synchronized (status) {
       if (status.getBuildFuture() == null) {
+        final Product product = status.getProduct();
         Future<Boolean> f = execer.submit(new Callable<Boolean>() {
-          final Product product = status.getProduct();
-          public Boolean call() throws Exception {
+          public Boolean call() {
+            Boolean result = build();
+            whenBuilt.apply(result);
+            return result;
+          }
+
+          private boolean build() {
             final Path workDir;
             final ImmutableList<Path> inputs;
+            boolean passed = false;
 
-            inputs = ImmutableList.copyOf(files.matching(product.inputs));
-            workDir = createWorkingDirectory(product.name);
             try {
-              Set<Path> workingDirInputs = Sets.newLinkedHashSet();
-              copyToWorkingDirectory(inputs, workDir, workingDirInputs);
-              Executor.Output<Boolean> result = executeActions(
-                  workDir, product, inputs);
-              if (result != null && Boolean.TRUE.equals(result.result)) {
-                ImmutableList<Path> outputs;
-                outputs = copyToRepo(
-                    workDir, workingDirInputs, product.outputs);
-                files.update(outputs);
+              inputs = ImmutableList.copyOf(files.matching(product.inputs));
+              workDir = createWorkingDirectory(product.name);
+              try {
+                final List<Path> paths = Lists.newArrayList();
+                final Hash.Builder hashes = Hash.builder();
+
+                Set<Path> workingDirInputs = Sets.newLinkedHashSet();
+                copyToWorkingDirectory(inputs, workDir, workingDirInputs);
+                Executor.Output<Boolean> result = executeActions(
+                    workDir, product, inputs, paths, hashes);
+                if (result != null && Boolean.TRUE.equals(result.result)) {
+                  ImmutableList<Path> outputs;
+                  outputs = copyToRepo(
+                      workDir, workingDirInputs, product.outputs);
+                  files.update(outputs);
+                  synchronized (status) {
+                    if (status.product.equals(product)
+                        && fileValidity.update(
+                            addresser, status, paths, hashes.build())) {
+                      passed = true;
+                    } else {
+                      logger.log(
+                          Level.WARNING, "Version skew for " + product.name);
+                    }
+                  }
+                }
+              } finally {
+                cleanWorkingDirectory(workDir);
               }
-            } finally {
-              cleanWorkingDirectory(workDir);
+            } catch (IOException ex) {
+              logger.log(
+                  Level.SEVERE, "Failed to build product " + product.name, ex);
             }
-            return true;
+            return passed;
           }
         });
         status.setBuildFuture(f);
@@ -137,7 +181,8 @@ public final class Baker {
   }
 
   private Executor.Output<Boolean> executeActions(
-      Path workingDir, Product p, List<Path> inputs)
+      Path workingDir, Product p, List<Path> inputs,
+      final List<Path> paths, final Hash.Builder hashes)
       throws IOException {
     List<String> inputStrs = Lists.newArrayList();
     for (Path input : inputs) { inputStrs.add(input.toString()); }
@@ -152,9 +197,12 @@ public final class Baker {
       if (toolNameToLocalName.containsKey(toolName)) { continue; }
       String localName = "tool_" + toolNameToLocalName.size();
       toolNameToLocalName.put(toolName, localName);
-      actuals.put(
-          localName,
-          toolbox.getTool(toolName).getContentAsString(Charsets.UTF_8));
+      FileAndHash tool = toolbox.getTool(toolName);
+      if (tool.getHash() != null) {
+        paths.add(tool.getPath());
+        hashes.withHash(tool.getHash());
+      }
+      actuals.put(localName, tool.getContentAsString(Charsets.UTF_8));
     }
     // Second, store the product.
     productJsSink.write("var product = Object.frozenCopy(")
@@ -177,11 +225,14 @@ public final class Baker {
           Executor.Input.builder(productJs.toString(), "product-" + p.name)
               .withBase(workingDir)
               .build());
-      // TODO: track hashes and externally loaded files so we can make the
-      // product status dependent on the external files.
+
       return exec.run(Boolean.class, logger, new Loader() {
         public Executor.Input load(Path p) throws IOException {
           FileAndHash fh = files.load(p);
+          if (fh.getHash() != null) {
+            paths.add(fh.getPath());
+            hashes.withHash(fh.getHash());
+          }
           return Executor.Input.builder(
               fh.getContentAsString(Charsets.UTF_8), p).build();
         }
@@ -255,7 +306,7 @@ public final class Baker {
     final Path toDelete = tmpName;
     execer.submit(new Runnable() {
       public void run() {
-        java.nio.file.Files.walkFileTree(toDelete, new FileVisitor<Path>() {
+        Files.walkFileTree(toDelete, new FileVisitor<Path>() {
           public FileVisitResult postVisitDirectory(Path dir, IOException ex) {
             if (ex != null) {
               logger.log(Level.WARNING, "Deleting " + dir, ex);
@@ -303,7 +354,7 @@ public final class Baker {
       product = product.withoutNonBuildableInfo();
       ProductStatus status;
       {
-        ProductStatus stub = new ProductStatus();
+        ProductStatus stub = new ProductStatus(product.name);
         status = productStatuses.putIfAbsent(product.name, stub);
         if (status == null) { status = stub; }
       }
@@ -316,11 +367,9 @@ public final class Baker {
     public void artifactChanged(ToolSignature sig) { invalidate(sig.name); }
     public void artifactDestroyed(String toolName) { invalidate(toolName); }
     private void invalidate(String toolName) {
-      List<ProductStatus> statuses = toolDeps.get(toolName);
-      if (statuses != null) {
-        synchronized (statuses) {
-          for (ProductStatus status : statuses) { status.setBuildFuture(null); }
-        }
+      for (ProductStatusChain statuses = toolDeps.get(toolName);
+           statuses != null; statuses = statuses.next) {
+        statuses.ps.setBuildFuture(null);
       }
     }
   };
@@ -336,12 +385,15 @@ public final class Baker {
   };
 
   @ParametersAreNonnullByDefault
-  private final class ProductStatus {
+  private final class ProductStatus implements NonFileArtifact {
+    final String name;
     private Product product;
     /** Iff the product is built, non-null. */
     private Future<Boolean> buildFuture;
     private GlobUnion inputs;
     private ImmutableSet<String> tools;
+
+    ProductStatus(String name) { this.name = name; }
 
     void setProduct(@Nullable Product newProduct) {
       if (newProduct != null) {
@@ -374,28 +426,38 @@ public final class Baker {
         if (newTools != null ? !newTools.equals(tools) : tools != null) {
           if (tools != null) {
             for (String toolName : tools) {
-              List<ProductStatus> statuses = toolDeps.get(toolName);
-              if (statuses != null) {
-                statuses.remove(this);
-                // TODO: how do we remove it if empty?
-                // Do we need to use an immutable linked list so we can do
-                // toolDeps.remove(Obj, Obj)?
+              while (true) {
+                ProductStatusChain statuses = toolDeps.get(toolName);
+                if (statuses == null) { break; }
+                ProductStatusChain newStatuses = statuses.without(this);
+                if (newStatuses == statuses) { break; }
+                if (newStatuses != null) {
+                  if (toolDeps.replace(toolName, statuses, newStatuses)) {
+                    break;
+                  }
+                } else if (toolDeps.remove(toolName, statuses)) {
+                  break;
+                }
               }
             }
           }
           tools = newTools;
           if (tools != null) {
-            List<ProductStatus> empty = Collections.synchronizedList(
-                Lists.<ProductStatus>newLinkedList());
             for (String toolName : tools) {
-              List<ProductStatus> statuses
-                  = toolDeps.putIfAbsent(toolName, empty);
-              if (statuses == null) {
-                statuses = empty;
-                empty = Collections.synchronizedList(
-                    Lists.<ProductStatus>newLinkedList());
+              while (true) {
+                ProductStatusChain statuses = toolDeps.get(toolName);
+                if (statuses == null) {
+                  if (toolDeps.putIfAbsent(
+                          toolName, new ProductStatusChain(this, null))
+                      == null) {
+                    break;
+                  }
+                } else if (toolDeps.replace(
+                    toolName, statuses,
+                    new ProductStatusChain(this, statuses))) {
+                  break;
+                }
               }
-              statuses.add(this);
             }
           }
         }
@@ -413,5 +475,26 @@ public final class Baker {
     }
 
     synchronized Future<Boolean> getBuildFuture() { return buildFuture; }
+
+    public synchronized void markValid(boolean valid) {
+      if (!valid) { setBuildFuture(null); }
+    }
+  }
+
+  private static final class ProductStatusChain {
+    final ProductStatus ps;
+    final ProductStatusChain next;
+
+    ProductStatusChain(ProductStatus ps, @Nullable ProductStatusChain next) {
+      this.ps = ps;
+      this.next = next;
+    }
+
+    ProductStatusChain without(ProductStatus toRemove) {
+      if (ps == toRemove) { return next.without(toRemove); }
+      if (next == null) { return this; }
+      ProductStatusChain newNext = next.without(toRemove);
+      return newNext == next ? this : new ProductStatusChain(ps, newNext);
+    }
   }
 }
