@@ -15,9 +15,10 @@ import java.util.Arrays;
 import java.util.Map;
 import java.util.Set;
 
-import static junit.framework.Assert.assertEquals;
-import static junit.framework.Assert.assertFalse;
-import static junit.framework.Assert.fail;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 public class YSONTest {
   @Test public final void testFreeVars() throws Exception {
@@ -152,6 +153,19 @@ public class YSONTest {
     assertEquals(  // iteration order preserved
         Lists.newArrayList(golden.keySet()),
         Lists.newArrayList(actual.keySet()));
+  }
+
+  @Test public final void testIsValidIdentifier() {
+    assertFalse(YSON.isValidIdentifier(""));
+    assertTrue(YSON.isValidIdentifier("x"));
+    assertTrue(YSON.isValidIdentifier("x1"));
+    assertFalse(YSON.isValidIdentifier("1"));
+    assertFalse(YSON.isValidIdentifier("this"));
+    assertFalse(YSON.isValidIdentifier("null"));
+    assertTrue(YSON.isValidIdentifier("\u00c5"));
+    assertFalse(YSON.isValidIdentifier("\u0041\u030a"));
+    assertFalse(YSON.isValidIdentifier("\"x\""));
+    assertFalse(YSON.isValidIdentifier("a-b"));
   }
 
   private void assertFreeVars(String src, String... freeVars) throws Exception {

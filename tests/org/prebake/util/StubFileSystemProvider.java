@@ -603,11 +603,8 @@ class MemFileSystem extends FileSystem {
     for (Path part : file) {
       String partName = part.toString();
       if ("".equals(partName)) { continue; }
-      if (n == null) {
-        System.err.println("file=" + file);
-        System.err.println(root.toTree(0, new StringBuilder()));
-        throw new IOException(); }
-      if (!n.isDir()) { throw new IOException(); }
+      if (n == null) { throw new IOException(file.toString()); }
+      if (!n.isDir()) { throw new IOException(file.toString()); }
       Node child = n.getChild(partName);
       parent = n;
       n = child;
