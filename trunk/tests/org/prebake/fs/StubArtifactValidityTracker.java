@@ -6,8 +6,6 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
-import com.google.common.io.ByteStreams;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.FileSystem;
@@ -44,16 +42,9 @@ public class StubArtifactValidityTracker implements ArtifactValidityTracker {
   public FileSystem getFileSystem() { return root.getFileSystem(); }
 
   public FileAndHash load(Path p) throws IOException {
-    byte[] data;
-    InputStream in = p.newInputStream();
-    try {
-      data = ByteStreams.toByteArray(in);
-    } finally {
-      in.close();
-    }
     p = p.toRealPath(false);
-    Hash h = p.startsWith(root) ? Hash.builder().withData(data).build() : null;
-    return new FileAndHash(p, data, h);
+    InputStream in = p.newInputStream();
+    return FileAndHash.fromStream(p, in, p.startsWith(root));
   }
 
   public <T extends NonFileArtifact> boolean update(

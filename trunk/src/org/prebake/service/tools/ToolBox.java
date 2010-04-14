@@ -16,7 +16,6 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
-import com.google.common.io.ByteStreams;
 import com.google.common.io.CharStreams;
 
 import java.io.BufferedReader;
@@ -33,7 +32,6 @@ import java.nio.file.WatchKey;
 import java.nio.file.WatchService;
 import java.nio.file.attribute.Attributes;
 import java.nio.file.attribute.BasicFileAttributes;
-import java.text.Normalizer;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -369,7 +367,8 @@ public class ToolBox implements ToolProvider {
     }
     Path toolPath;
     InputStream jsIn;
-    if (index == toolDirs.size()) {  // builtin
+    boolean isBuiltin = index == toolDirs.size();
+    if (isBuiltin) {
       toolPath = t.localName;
       String resourceName = t.localName.toString();
       jsIn = ToolBox.class.getResourceAsStream(resourceName);
@@ -381,9 +380,7 @@ public class ToolBox implements ToolProvider {
       toolPath = base.resolve(t.localName);
       jsIn = toolPath.newInputStream();
     }
-    byte[] data = ByteStreams.toByteArray(jsIn);
-    return new FileAndHash(
-        toolPath, data, Hash.builder().withData(data).build());
+    return FileAndHash.fromStream(toolPath, jsIn, !isBuiltin);
   }
 
   FileAndHash nextTool(ToolImpl ti, Path path) throws IOException {
@@ -403,12 +400,7 @@ public class ToolBox implements ToolProvider {
         InputStream in = ToolBox.class.getResourceAsStream(
             tool.localName.toString());
         if (in != null) {
-          try {
-            byte[] bytes = ByteStreams.toByteArray(in);
-            return new FileAndHash(tool.localName, bytes, null);
-          } finally {
-            in.close();
-          }
+          return FileAndHash.fromStream(tool.localName, in, false);
         }
       }
     }
@@ -426,13 +418,7 @@ public class ToolBox implements ToolProvider {
     int len = fileName.length() - 3;
     if (len == 0) { return null; }
     String baseName = fileName.substring(0, len);
-    if (!Character.isJavaIdentifierStart(baseName.charAt(0))) { return null; }
-    for (int i = 1; i < len; ++i) {
-      if (!Character.isJavaIdentifierPart(baseName.charAt(i))) { return null; }
-    }
-    if (!Normalizer.isNormalized(baseName, Normalizer.Form.NFC)) {
-      return null;
-    }
+    if (!YSON.isValidIdentifier(baseName)) { return null; }
     return baseName;
   }
 

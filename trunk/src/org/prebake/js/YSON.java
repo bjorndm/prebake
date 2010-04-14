@@ -11,6 +11,7 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 
 import java.io.IOException;
+import java.text.Normalizer;
 import java.text.ParseException;
 import java.util.Collections;
 import java.util.Iterator;
@@ -197,6 +198,42 @@ public final class YSON {
     } catch (EvaluatorException ex) {
       throw new ParseException(ex.details() + " in " + abbrev(js), -1);
     }
+  }
+
+  /**
+   * <a href="http://interglacial.com/javascript_spec/a-7.html#a-7.5.1">
+   * Section 7.5.1</a>
+   */
+  private static final Set<String> JS_KEYWORDS = ImmutableSet.of(
+      "break", "else", "new", "var", "case", "finally", "return", "void",
+      "catch", "for", "switch", "while", "continue", "function", "this", "with",
+      "default", "if", "throw", "delete", "in", "try", "do", "instanceof",
+      "typeof",
+      "abstract", "enum", "int", "short", "boolean", "export", "interface",
+      "static", "byte", "extends", "long", "super", "char", "final", "native",
+      "synchronized", "class", "float", "package", "throws", "const", "goto",
+      "private", "transient", "debugger", "implements", "protected", "volatile",
+      "double", "import", "public",
+      "null", "false", "true");
+
+  /**
+   * From <a href="http://interglacial.com/javascript_spec/a-7.html#a-7.6">
+   * section 7.6</a> of the EcmaScript 5 spec.
+   */
+  private static final Pattern IDENTIFIER_NAME = Pattern.compile(
+      ""
+      + "[$_\\p{Lu}\\p{Ll}\\p{Lt}\\p{Lm}\\p{Lo}\\p{Nl}]"
+      + "[$_\\p{Lu}\\p{Ll}\\p{Lt}\\p{Lm}\\p{Lo}\\p{Nl}"
+      + "\\p{Nd}\\p{Mn}\\p{Mc}\\p{Pc}]*");
+
+  /**
+   * See <a href="http://interglacial.com/javascript_spec/a-7.html#a-7.6">
+   * section 7.6</a> for the definition of a JS identifier.
+   */
+  public static boolean isValidIdentifier(String s) {
+    return !JS_KEYWORDS.contains(s)
+        && IDENTIFIER_NAME.matcher(s).matches()
+        && Normalizer.isNormalized(s, Normalizer.Form.NFC);
   }
 
   private static String abbrev(String s) {

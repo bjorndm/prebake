@@ -10,7 +10,6 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
-import com.google.common.io.ByteStreams;
 import com.sleepycat.je.Cursor;
 import com.sleepycat.je.Database;
 import com.sleepycat.je.DatabaseConfig;
@@ -101,13 +100,8 @@ public final class FileHashes
   public FileAndHash load(Path p) throws IOException {
     p = p.toRealPath(false);
     InputStream in = p.newInputStream();
-    byte[] bytes = ByteStreams.toByteArray(in);
-    Hash hash = null;
-    if (p.startsWith(root)) {
-      hash = Hash.builder().withData(bytes).build();
-      // TODO: maybe update file if hash differs
-    }
-    return new FileAndHash(p, bytes, hash);
+    return FileAndHash.fromStream(p, in, p.startsWith(root));
+    // TODO: maybe update file if hash differs
   }
 
   public List<Path> matching(List<Glob> globs) {
