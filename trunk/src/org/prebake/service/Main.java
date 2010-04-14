@@ -8,6 +8,7 @@ import org.prebake.util.CommandLineArgs;
 
 import com.google.common.base.Charsets;
 import com.google.common.base.Joiner;
+import com.google.common.collect.ImmutableList;
 import com.google.common.io.ByteStreams;
 import com.google.common.util.concurrent.Executors;
 import com.sleepycat.je.Environment;
@@ -61,7 +62,8 @@ public final class Main {
     }
 
     MessageQueue mq = new MessageQueue();
-    Config config = new CommandLineConfig(FileSystems.getDefault(), mq, args);
+    final FileSystem fs = FileSystems.getDefault();
+    Config config = new CommandLineConfig(fs, mq, args);
     if (mq.hasErrors()) {
       System.err.println(USAGE);
       System.err.println();
@@ -75,10 +77,15 @@ public final class Main {
             new ScheduledThreadPoolExecutor(4));
     OperatingSystem os = new OperatingSystem() {
       public Path getTempDir() {
-        throw new Error("IMPLEMENT ME");
+        return fs.getPath(System.getProperty("java.io.tmpdir"));
       }
-      public Process run(Path cwd, String command, String... argv) {
-        throw new Error("IMPLEMENT ME");
+      public Process run(Path cwd, String command, String... argv)
+          throws IOException {
+        ProcessBuilder pb = new ProcessBuilder();
+        pb.directory(new File(cwd.toString()));
+        pb.command(
+            ImmutableList.<String>builder().add(command).add(argv).build());
+        return pb.start();
       }
     };
     final Prebakery pb = new Prebakery(config, execer, os, logger) {

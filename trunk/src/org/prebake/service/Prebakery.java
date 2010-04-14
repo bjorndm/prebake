@@ -240,7 +240,7 @@ public abstract class Prebakery implements Closeable {
 
     this.env = createDbEnv(dir);
     this.fileHashes = new FileHashes(env, clientRoot, logger);
-    this.baker = new Baker(os, fileHashes, logger, execer);
+    this.baker = new Baker(os, fileHashes, fileHashes, logger, execer);
     this.tools = new ToolBox(
         fileHashes, config.getToolDirs(), logger, baker.toolListener, execer);
     this.baker.setToolBox(this.tools);
@@ -406,10 +406,6 @@ public abstract class Prebakery implements Closeable {
   }
 
   private static String read(Path p) throws IOException {
-    // TODO: this is not efficient for large files.  Maybe check whether
-    // the input stream is buffered, and use the file size to preallocate
-    // the StringBuilder.
-    // Or just use the byte buffer stuff.
     Reader r = new InputStreamReader(
         p.newInputStream(StandardOpenOption.READ), Charsets.UTF_8);
     try {
