@@ -183,7 +183,7 @@ public class PlanGrapherTest extends PbTestCase {
       prods.add("signalled");
 
       String prodsStr = prods.toString();
-      //System.err.println(prodsStr);
+//    System.err.println(prodsStr);
       assertEquals(prodsStr, 10, prods.size());
       assertTrue(prodsStr, prods.indexOf("A") < prods.indexOf("D"));
       assertTrue(prodsStr, prods.indexOf("B") < prods.indexOf("D"));
