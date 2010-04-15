@@ -4,11 +4,10 @@ import org.prebake.core.ArtifactListener;
 import org.prebake.core.Glob;
 import org.prebake.core.GlobSet;
 import org.prebake.core.Hash;
+import org.prebake.fs.FileVersioner;
 import org.prebake.fs.ArtifactAddresser;
-import org.prebake.fs.ArtifactValidityTracker;
 import org.prebake.fs.FileAndHash;
 import org.prebake.fs.FilePerms;
-import org.prebake.fs.FileVersioner;
 import org.prebake.fs.GlobUnion;
 import org.prebake.fs.NonFileArtifact;
 import org.prebake.js.Executor;
@@ -62,7 +61,6 @@ import com.google.common.util.concurrent.ValueFuture;
 public final class Baker {
   private final OperatingSystem os;
   private final FileVersioner files;
-  private final ArtifactValidityTracker fileValidity;
   private final Logger logger;
   private final ScheduledExecutorService execer;
   private final ConcurrentHashMap<String, ProductStatus> productStatuses
@@ -79,12 +77,10 @@ public final class Baker {
   };
 
   public Baker(
-      OperatingSystem os, FileVersioner files,
-      ArtifactValidityTracker fileValidity, Logger logger,
+      OperatingSystem os, FileVersioner files, Logger logger,
       ScheduledExecutorService execer) {
     this.os = os;
     this.files = files;
-    this.fileValidity = fileValidity;
     this.logger = logger;
     this.execer = execer;
   }
@@ -133,7 +129,7 @@ public final class Baker {
                   files.update(outputs);
                   synchronized (status) {
                     if (status.product.equals(product)
-                        && fileValidity.update(
+                        && files.update(
                             addresser, status, paths, hashes.build())) {
                       passed = true;
                     } else {
@@ -217,6 +213,8 @@ public final class Baker {
           .write(".run(")
           .writeValue(a.options).write(", ")
           // TODO: define exec based on os
+          // TODO: fetch the inputs based on the action's input globs
+          // and
           .writeValue(inputStrs).write(", product, exec);\n");
     }
     productJsSink.writeValue(true);

@@ -28,6 +28,9 @@ import javax.annotation.ParametersAreNonnullByDefault;
  */
 @ParametersAreNonnullByDefault
 public final class Product implements JsonSerializable {
+  // TODO: HIGH: add an optional bake method that gets as arguments functions
+  // to run each action that can inspect the output and result code, and choose
+  // to pipe input, conditionally execute, ignore or initialte failure, etc.
   public final String name;
   public final Documentation help;
   public final ImmutableList<Glob> inputs;

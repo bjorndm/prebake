@@ -24,10 +24,16 @@ public final class Hash {
 
   private Hash(byte[] bytes) { this.bytes = bytes; }
 
-  //public byte[] getBytes() { return bytes; }
-
   public DatabaseEntry toDatabaseEntry() {
     return new DatabaseEntry(bytes);
+  }
+
+  public static Hash fromDatabaseEntry(DatabaseEntry entry) {
+    return new Hash(entry.getData());
+  }
+
+  public boolean matches(byte[] bytes) {
+    return Arrays.equals(this.bytes, bytes);
   }
 
   public String toHexString() { return MD5.asHex(bytes); }
@@ -80,10 +86,7 @@ public final class Hash {
       return this;
     }
 
-    public Builder withHash(Hash h) {
-      withData(h.bytes);
-      return this;
-    }
+    public Builder withHash(Hash h) { return withData(h.bytes); }
 
     public Hash build() { return new Hash(md5.Final()); }
   }

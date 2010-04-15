@@ -4,8 +4,8 @@ import org.prebake.core.ArtifactListener;
 import org.prebake.core.Hash;
 import org.prebake.core.MessageQueue;
 import org.prebake.fs.ArtifactAddresser;
-import org.prebake.fs.ArtifactValidityTracker;
 import org.prebake.fs.FileAndHash;
+import org.prebake.fs.FileVersioner;
 import org.prebake.fs.NonFileArtifact;
 import org.prebake.js.Executor;
 import org.prebake.js.JsonSink;
@@ -62,7 +62,7 @@ public final class Planner implements Closeable {
           }));
 
   private final ImmutableMap<Path, PlanPart> planParts;
-  private final ArtifactValidityTracker files;
+  private final FileVersioner files;
   private final ToolProvider toolbox;
   private final Logger logger;
   private final ScheduledExecutorService execer;
@@ -80,7 +80,7 @@ public final class Planner implements Closeable {
   private final PlanGrapher grapher = new PlanGrapher();
 
   public Planner(
-      ArtifactValidityTracker files, ToolProvider toolbox,
+      FileVersioner files, ToolProvider toolbox,
       Iterable<Path> planFiles, Logger logger,
       ArtifactListener<Product> listener, ScheduledExecutorService execer) {
     this.files = files;

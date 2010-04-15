@@ -67,7 +67,7 @@ public abstract class Prebakery implements Closeable {
   private final ScheduledExecutorService execer;
   private final OperatingSystem os;
   private Environment env;
-  private FileHashes fileHashes;
+  private FileHashes files;
   private Runnable onClose;
   private Consumer<Path> pathConsumer;
   private Consumer<Commands> commandConsumer;
@@ -124,9 +124,9 @@ public abstract class Prebakery implements Closeable {
         Closeables.closeQuietly(tools);
         tools = null;
       }
-      if (fileHashes != null) {
-        fileHashes.close();
-        fileHashes = null;
+      if (files != null) {
+        files.close();
+        files = null;
       }
       if (!execer.isShutdown()) { execer.shutdown(); }
       // Close the DB environment after DB users.
@@ -239,13 +239,13 @@ public abstract class Prebakery implements Closeable {
     write(tokenFile, token);
 
     this.env = createDbEnv(dir);
-    this.fileHashes = new FileHashes(env, clientRoot, logger);
-    this.baker = new Baker(os, fileHashes, fileHashes, logger, execer);
+    this.files = new FileHashes(env, clientRoot, logger);
+    this.baker = new Baker(os, files, logger, execer);
     this.tools = new ToolBox(
-        fileHashes, config.getToolDirs(), logger, baker.toolListener, execer);
+        files, config.getToolDirs(), logger, baker.toolListener, execer);
     this.baker.setToolBox(this.tools);
     this.planner = new Planner(
-        fileHashes, tools, config.getPlanFiles(), logger,
+        files, tools, config.getPlanFiles(), logger,
         this.baker.prodListener, execer);
   }
 
@@ -265,7 +265,7 @@ public abstract class Prebakery implements Closeable {
         List<Path> updates = Lists.newArrayList();
         updates.add(x);
         q.drainTo(updates, 64);
-        fileHashes.update(updates);
+        files.update(updates);
       }
     };
     pathConsumer.start();
@@ -287,7 +287,7 @@ public abstract class Prebakery implements Closeable {
                 // TODO
                 break;
               case files_changed:
-                fileHashes.update(((Command.FilesChangedCommand) cmd).paths);
+                files.update(((Command.FilesChangedCommand) cmd).paths);
                 break;
               case graph:
                 DotRenderer.render(
