@@ -20,7 +20,7 @@ The result of evaluating a tool file in the environment described below should b
     ...
     return true;  // if options and product could be OK
   },
-  fire: function (options, inputFiles, product, exec) {
+  fire: function (options, inputFiles, action, product, exec) {
     // builds the product as described below
   },
 }
