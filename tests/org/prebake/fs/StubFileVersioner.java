@@ -17,6 +17,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.logging.Logger;
 
+import javax.annotation.ParametersAreNonnullByDefault;
+
+@ParametersAreNonnullByDefault
 public class StubFileVersioner extends FileVersioner {
   private final Map<Path, Hash> hashes = Maps.newHashMap();
   private final Multimap<Path, String> derivatives = Multimaps.newListMultimap(

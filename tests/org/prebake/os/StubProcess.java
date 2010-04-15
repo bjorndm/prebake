@@ -8,10 +8,12 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.concurrent.Callable;
 
+import javax.annotation.ParametersAreNonnullByDefault;
+
 import com.google.common.base.Charsets;
 import com.google.common.base.Function;
 
-
+@ParametersAreNonnullByDefault
 public class StubProcess extends Process {
   private boolean destroyed, completed;
   private final Function<String, String> streams;
