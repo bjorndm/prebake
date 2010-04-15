@@ -4,7 +4,7 @@ import org.prebake.core.ArtifactListener;
 import org.prebake.core.Documentation;
 import org.prebake.core.Glob;
 import org.prebake.fs.FileAndHash;
-import org.prebake.fs.StubArtifactValidityTracker;
+import org.prebake.fs.StubFileVersioner;
 import org.prebake.js.Executor;
 import org.prebake.js.YSON;
 import org.prebake.service.tools.ToolProvider;
@@ -40,6 +40,15 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 public class PlannerTest extends PbTestCase {
+  // TODO: HIGH.  Let checker infer outputs from inputs, so that
+  //   gcc('**.cc') -> {
+  //     tool: 'gcc', inputs: ['**.c'], outputs: ['**.o'], options: {'-c': true}
+  //   }
+  // while
+  //   gcc('**.cc', 'main.so') -> {
+  //     tool: 'gcc', inputs: ['**.c'], outputs: ['main.so'], options: ...
+  //   }
+
   private Tester test;
 
   @Before
@@ -302,6 +311,7 @@ public class PlannerTest extends PbTestCase {
             "      baz.js \"console.log('baz'), {s:tools.cp('**.d','**.z')}\"")
         .withTools(tool("cp"))
         .withPlanFiles("p.js", "q.js", "r.js", "s.js")
+        .updateFiles("bar/foo.js", "bar/baz.js")
         .expectProduct("p", action("cp", "**.a", "**.w"))
         .expectProduct("q", action("cp", "**.b", "**.x"))
         .expectProduct("r", action("cp", "**.c", "**.y"))
@@ -347,14 +357,15 @@ public class PlannerTest extends PbTestCase {
         = ImmutableList.builder();
     private final List<String> goldenLog = Lists.newArrayList();
     private final Map<String, Product> goldenProds = Maps.newLinkedHashMap();
-    private StubArtifactValidityTracker files;
+    private StubFileVersioner files;
     private ToolProvider toolbox;
     private Planner planner;
 
     public Tester withFileSystem(String... asciiArt) throws IOException {
       assertNull(fs);
+      Logger logger = getLogger(Level.INFO);
       fs = fileSystemFromAsciiArt("/cwd", Joiner.on('\n').join(asciiArt));
-      files = new StubArtifactValidityTracker(fs.getPath("/cwd"));
+      files = new StubFileVersioner(fs.getPath("/cwd"), logger);
       toolbox = new ToolProvider() {
         private boolean isClosed;
         public List<Future<ToolSignature>> getAvailableToolSignatures() {
@@ -385,8 +396,10 @@ public class PlannerTest extends PbTestCase {
       }
       ScheduledExecutorService execer = new StubScheduledExecutorService();
       Logger logger = getLogger(Level.INFO);
+      List<Path> planFileList = b.build();
+      files.update(planFileList);
       planner = new Planner(
-          files, toolbox, b.build(), logger,
+          files, toolbox, planFileList, logger,
           ArtifactListener.Factory.<Product>noop(), execer);
       return this;
     }
@@ -430,11 +443,11 @@ public class PlannerTest extends PbTestCase {
       return this;
     }
 
-    public Tester updateFiles(String... filePaths) throws IOException {
+    public Tester updateFiles(String... filePaths) {
       int n = filePaths.length;
       Path[] paths = new Path[n];
       for (int i = n; --i >= 0;) { paths[i] = fs.getPath(filePaths[i]); }
-      files.update(paths);
+      files.update(Arrays.asList(paths));
       return this;
     }
 

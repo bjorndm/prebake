@@ -87,7 +87,7 @@ public final class Glob implements Comparable<Glob>, JsonSerializable {
         case 0: throw new IllegalStateException();
         case 2: if ('.' != part.charAt(1)) { break; }
           // $FALL-THROUGH$
-        case 1: if ('.' == part.charAt(0)) { badGlob(s); }
+        case 1: if ('.' == part.charAt(0)) { badGlob(s); } break;
       }
       parts[++k] = part;
     }

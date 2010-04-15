@@ -4,8 +4,8 @@ import org.prebake.core.ArtifactListener;
 import org.prebake.core.Hash;
 import org.prebake.core.MessageQueue;
 import org.prebake.fs.ArtifactAddresser;
-import org.prebake.fs.ArtifactValidityTracker;
 import org.prebake.fs.FileAndHash;
+import org.prebake.fs.FileVersioner;
 import org.prebake.js.Executor;
 import org.prebake.js.YSON;
 
@@ -55,7 +55,7 @@ import javax.annotation.ParametersAreNonnullByDefault;
 @ParametersAreNonnullByDefault
 public class ToolBox implements ToolProvider {
   private final FileSystem fs;
-  final ArtifactValidityTracker files;
+  final FileVersioner files;
   private final Logger logger;
   private final @Nullable WatchService watcher;
   private final ScheduledExecutorService execer;
@@ -80,7 +80,7 @@ public class ToolBox implements ToolProvider {
   private final Future<?> updater;
   private final ArtifactListener<ToolSignature> listener;
 
-  public ToolBox(ArtifactValidityTracker files, Iterable<Path> toolDirs,
+  public ToolBox(FileVersioner files, Iterable<Path> toolDirs,
                  Logger logger, ArtifactListener<ToolSignature> listener,
                  ScheduledExecutorService execer)
       throws IOException {

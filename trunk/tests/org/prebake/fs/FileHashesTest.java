@@ -41,7 +41,6 @@ public class FileHashesTest extends PbTestCase {
     EnvironmentConfig envConfig = new EnvironmentConfig();
     envConfig.setAllowCreate(true);
     tempDir = Files.createTempDir();
-    System.err.println("tempDir=" + tempDir + ", " + tempDir.exists());
     env = new Environment(tempDir, envConfig);
     fh = new FileHashes(env, fs.getPath("/cwd/root"), getLogger(Level.INFO));
   }
@@ -65,9 +64,9 @@ public class FileHashesTest extends PbTestCase {
         fs.getPath("/cwd/root/c.cpp"),
         "cout << \"Hello, \" << \"World!\" << eol;");
     fh.update(paths("root/a.cc", "root/b.h"));
-    assertHash(
+    assertHash(  // c.cpp not found
         "810dc8ffe666362187cd8f99da072d6e", paths("root/b.h", "root/c.cpp"));
-    fh.update(paths("root/b.h"));
+    fh.update(paths("root/b.h"));  // no effect
     assertHash(
         "810dc8ffe666362187cd8f99da072d6e", paths("root/b.h", "root/c.cpp"));
     writeFile(fs.getPath("root/b.h"), "#define ZOICKS");
