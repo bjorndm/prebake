@@ -14,6 +14,9 @@ import java.util.concurrent.TimeoutException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import javax.annotation.ParametersAreNonnullByDefault;
+
+@ParametersAreNonnullByDefault
 public class StubScheduledExecutorService implements ScheduledExecutorService {
   private PriorityQueue<Task<?>> tasks = new PriorityQueue<Task<?>>();
   private boolean shutdown;

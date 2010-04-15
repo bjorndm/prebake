@@ -14,12 +14,15 @@ import java.nio.file.FileSystems;
 import java.nio.file.Path;
 import java.util.logging.Logger;
 
+import javax.annotation.ParametersAreNonnullByDefault;
+
 /**
  * An executable class that wires the bake command to the file system and
  * network.
  *
  * @author mikesamuel@gmail.com
  */
+@ParametersAreNonnullByDefault
 public final class Main {
 
   public static void main(String... argv) {

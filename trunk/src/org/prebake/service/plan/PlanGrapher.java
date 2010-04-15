@@ -10,6 +10,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import javax.annotation.ParametersAreNonnullByDefault;
+
 import com.google.common.collect.HashMultiset;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
@@ -30,6 +32,7 @@ import com.google.common.collect.Sets;
  *
  * @author mikesamuel@gmail.com
  */
+@ParametersAreNonnullByDefault
 public final class PlanGrapher {
   /** The end points per product. */
   private final Map<String, EndPoints> nodes = Maps.newHashMap();
