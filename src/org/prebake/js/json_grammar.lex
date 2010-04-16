@@ -3,9 +3,8 @@ package org.prebake.js;
 %%
 
 %{
+  // Accumulates string body.
   private final StringBuilder sb = new StringBuilder();
-
-  int getPosition() { return yychar; }
 
   private static Token tok(Token.Type type, String text) {
     return new Token(type, text);
@@ -28,15 +27,18 @@ package org.prebake.js;
 %state STRING
 %state BRK
 
+// A separate zero production helps us properly handle -0.
 ZERO      = [-]?[0]
+// Should be parsed to a long to avoid rounding errors for int literals.
 INT       = [-]?[1-9][0-9]*
 REAL      = [-]?([1-9][0-9]*|0)(\.[0-9]+)?([eE][+-]?[0-9]+)?
 WS        = [ \t\r\n]+
 STR_CHAR  = [^\"\\]
 STR_ESC   = \\[^\r\n]
-OTHER     = .
+OTHER     = [^]
 %%
 
+// We don't decode strings here since JsonSource yields token text.
 <STRING> \"            {
   yybegin(YYINITIAL);
   return tok(Token.Type.STR, sb.append('"').toString());
