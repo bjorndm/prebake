@@ -61,12 +61,12 @@ public class JsonSourceTest {
   }
 
   @Test public final void testBadJson() {
-    assertBadJson(".", ".");
-    assertBadJson(".0", ".");
-    assertBadJson("0123", "0123");
-    assertBadJson("falsey", "falsey");
-    assertBadJson("1 * 1", "*");
-    assertBadJson("{ \"foo\"# \"bar\" }", "#");
+    assertBadJson(".", "Malformed json at 0+0 : .");
+    assertBadJson(".0", "Malformed json at 0+0 : .");
+    assertBadJson("0123", "Malformed json at 0+1 : 1");
+    assertBadJson("falsey", "Malformed json at 0+5 : y");
+    assertBadJson("1 * 1", "Malformed json at 0+2 : *");
+    assertBadJson("{ \"foo\"# \"bar\" }", "Malformed json at 0+7 : #");
   }
 
   private void assertBadJson(String s, String problem) {

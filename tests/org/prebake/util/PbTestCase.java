@@ -27,8 +27,6 @@ import java.util.logging.Handler;
 import java.util.logging.Level;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 public abstract class PbTestCase extends Assert {
   private Logger logger;
@@ -131,23 +129,64 @@ public abstract class PbTestCase extends Assert {
     List<Path> paths = Lists.newArrayList();
     paths.add(fs.getPath("/"));
     assert asciiArt.indexOf('\t') < 0;
-    Pattern lineParts = Pattern.compile(
-        ""
-        + "( *)"  // indentation
-        + "([^/ ]*)"  // file path
-        + "(/)?"  // dirs end in /
-        + "(?: *\\(([rwx]+)\\))?"  // perms
-        + "(?: *(\"(?:[^\"\\\\]|\\\\.)*\"))? *" // content
-        );
     for (String line : asciiArt.split("[\r\n]+")) {
       if ("".equals(line.trim())) { continue; }
-      Matcher m = lineParts.matcher(line);
-      if (!m.matches()) { throw new IllegalArgumentException(line); }
-      int indent = m.group(1).length();
-      String fileName = m.group(2);
-      boolean isDir = m.group(3) != null;
-      String perms = m.group(4);
-      String contentEncoded = m.group(5);
+      int indent;
+      String fileName;
+      boolean isDir = false;
+      String perms = null;
+      String contentEncoded = null;
+
+      int pos = 0, n = line.length();
+
+      while (pos < n && line.charAt(pos) == ' ') { ++pos; }
+      indent = pos;
+      for (; ; ++pos) {
+        if (pos == n) {
+          fileName = line.substring(indent);
+          break;
+        }
+        char ch = line.charAt(pos);
+        if (ch == ' ' || ch == '(' || ch == '"') {
+          fileName = line.substring(indent, pos);
+          break;
+        } else if (ch == '/') {
+          fileName = line.substring(indent, pos);
+          isDir = true;
+          ++pos;
+          break;
+        }
+      }
+      while (pos < n) {
+        while (pos < n && line.charAt(pos) == ' ') { ++pos; }
+        if (pos == n) { break; }
+        switch (line.charAt(pos)) {
+          case '(': {
+            int end = pos + 1;
+            while (end < n && "rwx".indexOf(line.charAt(end)) >= 0) { ++end; }
+            if (end == n || line.charAt(end) != ')') {
+              throw new IllegalArgumentException(
+                  "Expected close parenthesis : " + line);
+            }
+            perms = line.substring(pos + 1, end);
+            pos = end + 1;
+            break;
+          }
+          case '"': {
+            int end = pos + 1;
+            while (line.charAt(end) != '"') {
+              if (line.charAt(end) == '\\') { ++end; }
+              ++end;
+            }
+            contentEncoded = line.substring(pos, end + 1);
+            pos = end + 1;
+            break;
+          }
+          default: throw new IllegalArgumentException(
+              line.charAt(pos) + " in " + line);
+        }
+      }
+
       if (isDir && contentEncoded != null) {
         throw new IllegalArgumentException(line);
       }

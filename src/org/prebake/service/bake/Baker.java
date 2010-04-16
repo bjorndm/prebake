@@ -92,8 +92,10 @@ public final class Baker {
     assert toolbox != null;
     final ProductStatus status = productStatuses.get(productName);
     if (status == null) {
+      logger.log(Level.WARNING, "Unrecognized product {0}", productName);
       ValueFuture<Boolean> vf = ValueFuture.create();
       vf.set(Boolean.FALSE);
+      whenBuilt.apply(false);
       return vf;
     }
     synchronized (status) {
@@ -113,6 +115,7 @@ public final class Baker {
 
             try {
               inputs = ImmutableList.copyOf(files.matching(product.inputs));
+              System.err.println("inputs=" + inputs);  // TODO DEBUG
               workDir = createWorkingDirectory(product.name);
               try {
                 final List<Path> paths = Lists.newArrayList();
