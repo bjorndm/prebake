@@ -268,9 +268,8 @@ class Yylex {
   private boolean zzEOFDone;
 
   /* user code: */
+  // Accumulates string body.
   private final StringBuilder sb = new StringBuilder();
-
-  int getPosition() { return yychar; }
 
   private static Token tok(Token.Type type, String text) {
     return new Token(type, text);
