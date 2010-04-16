@@ -39,6 +39,19 @@ public final class Product implements JsonSerializable {
   public final boolean isIntermediate;
   public final Path source;
 
+  /**
+   * @param name a unique name that identifies this product.  This is the name
+   *    that will be used in with the build command, so
+   *    <code>$ bake build cake</code> will build the product named "cake".
+   * @param help optional documentation.
+   * @param inputs the set of files that need to be present when this product's
+   *    actions are executed.
+   * @param outputs the set of files that the product produces.
+   * @param actions the commands to execute to produce the outputs from the
+   *    inputs.
+   * @param isIntermediate true if this product is required by other products
+   *    but should not be explicitly built by the user.
+   */
   public Product(
       String name, @Nullable Documentation help,
       List<? extends Glob> inputs, List<? extends Glob> outputs,

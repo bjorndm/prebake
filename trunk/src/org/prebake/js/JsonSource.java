@@ -2,8 +2,6 @@ package org.prebake.js;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.google.common.io.CharStreams;
-
 import java.io.Closeable;
 import java.io.IOException;
 import java.io.Reader;
@@ -11,9 +9,6 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.ParametersAreNonnullByDefault;
@@ -27,8 +22,8 @@ import javax.annotation.ParametersAreNonnullByDefault;
 @ParametersAreNonnullByDefault
 public final class JsonSource implements Closeable {
   private final Reader in;
-  private String pushback;
-  private Iterator<String> toks;
+  private Token pushback;
+  private Iterator<Token> toks;
 
   public JsonSource(Reader in) {
     this.in = in;
@@ -36,7 +31,7 @@ public final class JsonSource implements Closeable {
 
   public void close() throws IOException {
     this.pushback = null;
-    this.toks = Collections.<String>emptyList().iterator();
+    this.toks = Collections.<Token>emptyList().iterator();
     in.close();
   }
 
@@ -47,10 +42,14 @@ public final class JsonSource implements Closeable {
   }
 
   public @Nonnull String next() throws IOException {
-    String s = pushback;
-    if (s != null) {
+    return nextToken().text;
+  }
+
+  public @Nonnull Token nextToken() throws IOException {
+    Token t = pushback;
+    if (t != null) {
       pushback = null;
-      return s;
+      return t;
     }
     tokenize();
     if (!toks.hasNext()) { throw new IOException(); }
@@ -58,40 +57,49 @@ public final class JsonSource implements Closeable {
   }
 
   public @Nullable Object nextValue() throws IOException {
-    String tok = next();
-    switch (tok.charAt(0)) {
-      case '[': pushback = "["; return nextArray();
-      case '{': pushback = "{"; return nextObject();
-      case '"': return decodeString(tok);
-      case 'f': return Boolean.FALSE;
-      case 'n': return null;
-      case 't': return Boolean.TRUE;
+    Token tok = nextToken();
+    switch (tok.type) {
+      case LSQUARE: pushback = tok; return nextArray();
+      case LCURLY: pushback = tok; return nextObject();
+      case STR: return decodeString(tok.text);
+      case FALSE: return Boolean.FALSE;
+      case NULL: return null;
+      case TRUE: return Boolean.TRUE;
       default:
+        String numStr = tok.text;
         boolean nonZero = false;
-        for (int i = tok.length(); --i >= 0;) {
-          switch (tok.charAt(i)) {
+        for (int i = numStr.length(); --i >= 0;) {
+          switch (numStr.charAt(i)) {
             case '1': case '2': case '3': case '4': case '5':
             case '6': case '7': case '8': case '9':
               nonZero = true;
               break;
             case 'e': case 'E': case '.':
-              return Double.valueOf(tok);
+              return Double.valueOf(numStr);
           }
         }
-        // Avoid rounding error for large integral constants.
-        if (!nonZero && tok.charAt(0) == '-') {
+        if (!nonZero && numStr.charAt(0) == '-') {
           // Properly deal with negative zero.
-          return Double.valueOf(tok);
+          return Double.valueOf(numStr);
         }
-        return Long.valueOf(tok);
+        // Avoid rounding error for large integral constants.
+        return Long.valueOf(numStr);
     }
   }
 
-  public boolean check(String tok) throws IOException {
+  public boolean check(String s) throws IOException {
     if (isEmpty()) { return false; }
-    String t = next();
-    if (tok.equals(t)) { return true; }
-    pushback = t;
+    Token tok = nextToken();
+    if (tok.text.equals(s)) { return true; }
+    pushback = tok;
+    return false;
+  }
+
+  private boolean check(Token.Type type) throws IOException {
+    if (isEmpty()) { return false; }
+    Token tok = nextToken();
+    if (tok.type == type) { return true; }
+    pushback = tok;
     return false;
   }
 
@@ -102,39 +110,27 @@ public final class JsonSource implements Closeable {
     }
   }
 
+  private void expect(Token.Type type) throws IOException {
+    Token t = nextToken();
+    if (type != t.type) {
+      throw new IOException("Expected " + type.text + ", but was " + t.text);
+    }
+  }
+
   public @Nonnull String expectString() throws IOException {
     String t = next();
     if (t.charAt(0) == '"') { return decodeString(t); }
     throw new IOException("Expected quoted string, but got " + t);
   }
 
-  private static final Pattern REGEX_TOKENS = Pattern.compile(
-      ""
-      + "[ \r\n\t\ufeff]+"
-      + "|\"(?:\\\\(?:[\"/\\\\bnfrt]|u[0-9a-fA-F]{4})|[^\"\\\\\\r\\n])*\""
-      + "|-?\\b(?:[1-9][0-9]*)?[0-9](?:\\.[0-9]+)?(?:[eE][+-]?[0-9]+)?\\b"
-      + "|\\bfalse\\b|\\btrue\\b|\\bnull\\b"
-      + "|[,:\\{\\}\\[\\]]");
-
   private void tokenize() throws IOException {
     if (toks != null) { return; }
-    String json = CharStreams.toString(in);
-    in.close();
-    Matcher m = REGEX_TOKENS.matcher(json);
-    List<String> toks = Lists.newArrayList();
-    int last = 0;
-    while (m.find()) {
-      String s = m.group();
-      if (m.start() != last) {
-        throw new IOException(json.substring(last, m.start()));
-      }
-      last = m.end();
-      switch (s.charAt(0)) {
-        case ' ': case '\t': case '\r': case '\n': case '\ufeff': continue;
-      }
-      toks.add(s);
+
+    List<Token> toks = Lists.newArrayList();
+    Yylex lexer = new Yylex(in);
+    for (Token tok; (tok = lexer.yylex()) != null;) {
+      toks.add(tok);
     }
-    if (last != json.length()) { throw new IOException(json.substring(last)); }
     this.toks = toks.iterator();
   }
 
@@ -167,27 +163,27 @@ public final class JsonSource implements Closeable {
   }
 
   public @Nonnull List<Object> nextArray() throws IOException {
-    expect("[");
+    expect(Token.Type.LSQUARE);
     List<Object> els = Lists.newArrayList();
-    if (!check("]")) {
+    if (!check(Token.Type.RSQUARE)) {
       do {
         els.add(nextValue());
-      } while (check(","));
-      expect("]");
+      } while (check(Token.Type.COMMA));
+      expect(Token.Type.RSQUARE);
     }
     return els;
   }
 
   public @Nonnull Map<String, Object> nextObject() throws IOException {
-    expect("{");
+    expect(Token.Type.LCURLY);
     Map<String, Object> els = Maps.newLinkedHashMap();
-    if (!check("}")) {
+    if (!check(Token.Type.RCURLY)) {
       do {
         String key = expectString();
-        expect(":");
+        expect(Token.Type.COLON);
         els.put(key, nextValue());
-      } while (check(","));
-      expect("}");
+      } while (check(Token.Type.COMMA));
+      expect(Token.Type.RCURLY);
     }
     return els;
   }
