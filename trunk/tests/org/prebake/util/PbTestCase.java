@@ -1,10 +1,12 @@
 package org.prebake.util;
 
 import org.prebake.fs.FilePerms;
+import org.prebake.js.JsonSink;
 import org.prebake.js.JsonSource;
 
 import com.google.common.base.Charsets;
 import com.google.common.collect.Lists;
+import com.google.common.io.CharStreams;
 import com.google.common.io.Files;
 
 import org.junit.After;
@@ -12,12 +14,16 @@ import org.junit.Assert;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.StringReader;
 import java.net.URI;
 import java.nio.file.FileSystem;
+import java.nio.file.FileVisitResult;
+import java.nio.file.FileVisitor;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.nio.file.attribute.FileAttribute;
 import java.nio.file.attribute.PosixFileAttributeView;
 import java.text.MessageFormat;
@@ -107,6 +113,72 @@ public abstract class PbTestCase extends Assert {
     } finally {
       out.close();
     }
+  }
+
+  public static String fileSystemToAsciiArt(
+      FileSystem fs, final int contentLimit) {
+    final StringBuilder sb = new StringBuilder();
+    for (Path root : fs.getRootDirectories()) {
+      java.nio.file.Files.walkFileTree(root, new FileVisitor<Path>() {
+        private int indent;
+
+        public FileVisitResult postVisitDirectory(Path d, IOException ex) {
+          --indent;
+          return FileVisitResult.CONTINUE;
+        }
+        public FileVisitResult preVisitDirectory(Path d) {
+          indent();
+          if ("/".equals(d.getName().toString())) {
+            sb.append("/\n");
+          } else {
+            sb.append(d.getName()).append('/').append('\n');
+          }
+          ++indent;
+          return FileVisitResult.CONTINUE;
+        }
+        public FileVisitResult preVisitDirectoryFailed(Path d, IOException ex) {
+          ex.printStackTrace();
+          indent();
+          if ("/".equals(d.getName().toString())) {
+            sb.append("/ ?\n");
+          } else {
+            sb.append(d.getName()).append("/ ?\n");
+          }
+          return FileVisitResult.CONTINUE;
+        }
+        public FileVisitResult visitFile(Path f, BasicFileAttributes atts) {
+          indent();
+          String content = null;
+          sb.append(f.getName());
+          try {
+            content = CharStreams.toString(
+                new InputStreamReader(f.newInputStream(), Charsets.UTF_8));
+          } catch (IOException ex) {
+            ex.printStackTrace();
+          }
+          if (content != null && !"".equals(content)) {
+            if (content.length() <= contentLimit) {
+              sb.append(' ');
+              JsonSink.stringify(content, sb);
+            } else {
+              sb.append(" \"...\"");
+            }
+          }
+          sb.append('\n');
+          return FileVisitResult.CONTINUE;
+        }
+        public FileVisitResult visitFileFailed(Path f, IOException ex) {
+          ex.printStackTrace();
+          indent();
+          sb.append(f.getName()).append(" ?\n");
+          return FileVisitResult.CONTINUE;
+        }
+        private void indent() {
+          for (int i = indent; --i >= 0;) { sb.append("  "); }
+        }
+      });
+    }
+    return sb.toString();
   }
 
   /**
