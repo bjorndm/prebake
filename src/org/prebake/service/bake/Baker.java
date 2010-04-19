@@ -518,6 +518,7 @@ public final class Baker {
     });
   }
 
+  // TODO: move listener results onto execer
   public final ArtifactListener<Product> prodListener
       = new ArtifactListener<Product>() {
     public void artifactDestroyed(String productName) {
