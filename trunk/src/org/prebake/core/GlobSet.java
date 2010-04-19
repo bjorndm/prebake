@@ -2,6 +2,7 @@ package org.prebake.core;
 
 import com.google.common.base.Supplier;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMultimap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Multimap;
@@ -24,6 +25,12 @@ import javax.annotation.ParametersAreNonnullByDefault;
 @ParametersAreNonnullByDefault
 public class GlobSet {
   final PrefixTree prefixTree = new PrefixTree();
+
+  public GlobSet() { /* no-op */ }
+
+  public GlobSet(GlobSet gset) {
+    copy(gset.prefixTree, prefixTree);
+  }
 
   private PrefixTree lookup(Glob glob, boolean create) {
     List<String> parts = glob.parts();
@@ -50,8 +57,34 @@ public class GlobSet {
     lookup(glob, true).add(glob);
   }
 
+  public GlobSet addAll(Iterable<Glob> globs) {
+    for (Glob g : globs) { add(g); }
+    return this;
+  }
+
   public boolean remove(Glob glob) {
     return lookup(glob, false).remove(glob);
+  }
+
+  public Multimap<String, Glob> getGlobsGroupedByPrefix() {
+    ImmutableMultimap.Builder<String, Glob> b = ImmutableMultimap.builder();
+    groupByPrefixInto(prefixTree, b, new StringBuilder());
+    return b.build();
+  }
+
+  private void groupByPrefixInto(
+      PrefixTree t, ImmutableMultimap.Builder<String, Glob> out,
+      StringBuilder prefix) {
+    Collection<Glob> globs = t.globsByExtension.values();
+    if (!globs.isEmpty()) { out.putAll(prefix.toString(), globs); }
+    if (!t.children.isEmpty()) {
+      int len = prefix.length();
+      for (Map.Entry<String, PrefixTree> child : t.children.entrySet()) {
+        if (len != 0) { prefix.append('/'); }
+        groupByPrefixInto(child.getValue(), out, prefix.append(child.getKey()));
+        prefix.setLength(len);
+      }
+    }
   }
 
   /** All globs that match the given path in no-particular order. */
@@ -107,6 +140,17 @@ public class GlobSet {
         public List<Glob> get() { return Lists.newArrayList(); }
       };
 
+  private static void copy(PrefixTree from, PrefixTree to) {
+    for (Map.Entry<String, PrefixTree> e : from.children.entrySet()) {
+      String s = e.getKey();
+      PrefixTree child = to.children.get(s);
+      if (child == null) { child = new PrefixTree(s, to); }
+      copy(e.getValue(), child);
+    }
+    to.globsByExtension.putAll(from.globsByExtension);
+  }
+
+
   /** A node in a prefix or suffix tree. */
   @ParametersAreNonnullByDefault
   private static final class PrefixTree {
@@ -124,9 +168,7 @@ public class GlobSet {
     PrefixTree(String prefix, PrefixTree parent) {
       this.prefix = prefix;
       this.parent = parent;
-      if (parent != null) {
-        parent.children.put(prefix, this);
-      }
+      parent.children.put(prefix, this);
     }
 
     void add(Glob glob) {

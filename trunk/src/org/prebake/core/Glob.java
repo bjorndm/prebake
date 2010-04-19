@@ -10,6 +10,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 
 import java.io.IOException;
+import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Iterator;
@@ -221,6 +222,42 @@ public final class Glob implements Comparable<Glob>, JsonSerializable {
 
   public List<String> parts() {
     return Collections.unmodifiableList(Arrays.asList(parts));
+  }
+
+  /**
+   * The most specific path which is a strict ancestor of all paths matched by
+   * this glob.
+   * @param base the base directory.
+   * @return a path resolved against base.
+   */
+  public Path getPathContainingAllMatches(Path base) {
+    int end = 0;
+    int n = parts.length;
+    for (; end < n; ++end) {
+      String part = parts[end];
+      if (part.charAt(0) == '*') { break; }
+    }
+    if (end == 0) { return base; }
+    int start = 0;
+    if ("/".equals(parts[0])) {
+      base = base.getRoot();
+      start = 1;
+    }
+    if (end > start && "/".equals(parts[end - 1])) {
+      --end;
+    } else if (end == n) {
+      // A glob with no wildcards could match an exact file or an exact
+      // directory, so back up to make sure we match only dirs.
+      --end;
+    }
+    if (end == start) { return base; }
+    StringBuilder sb = new StringBuilder();
+    String sep = base.getFileSystem().getSeparator();
+    for (int i = start; i < end; ++i) {
+      String part = parts[i];
+      sb.append("/".equals(part) ? sep : part);
+    }
+    return base.resolve(sb.toString());
   }
 
   public int compareTo(Glob that) {
