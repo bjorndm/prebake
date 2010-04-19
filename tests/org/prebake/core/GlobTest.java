@@ -1,5 +1,9 @@
 package org.prebake.core;
 
+import org.prebake.util.PbTestCase;
+
+import java.io.IOException;
+import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.List;
 import java.util.regex.Pattern;
@@ -9,12 +13,7 @@ import com.google.common.collect.Lists;
 
 import org.junit.Test;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
-
-public class GlobTest {
+public class GlobTest extends PbTestCase {
   @Test public final void testEmptyGlob() {
     Glob emptyGlob = Glob.fromString("");
     assertEquals(Arrays.<String>asList(), emptyGlob.parts());
@@ -191,6 +190,39 @@ public class GlobTest {
     assertRegexMatches(
         Arrays.<String>asList("/foo/**.txt"),
         "/foo/bar/baz.txt");
+  }
+
+  @Test public final void testGetPathContainingAllMatches() throws IOException {
+    Path base = this.fileSystemFromAsciiArt(
+        "/foo",
+        Joiner.on('\n').join(
+            "/",
+            "  foo/",
+            "    bar/")).getPath("/foo");
+    assertEquals(
+        "/foo/bar",
+        "" + Glob.fromString("bar/*.baz").getPathContainingAllMatches(base));
+    assertEquals(
+        "/foo/bar",
+        "" + Glob.fromString("bar/**.baz").getPathContainingAllMatches(base));
+    assertEquals(
+        "/foo/bar",
+        "" + Glob.fromString("bar/baz.boo").getPathContainingAllMatches(base));
+    assertEquals(
+        "/foo/bar/baz.boo",
+        "" + Glob.fromString("bar/baz.boo/").getPathContainingAllMatches(base));
+    assertEquals(
+        "/",
+        "" + Glob.fromString("/").getPathContainingAllMatches(base));
+    assertEquals(
+        "/boo",
+        "" + Glob.fromString("/boo/").getPathContainingAllMatches(base));
+    assertEquals(
+        "/",
+        "" + Glob.fromString("/boo").getPathContainingAllMatches(base));
+    assertEquals(
+        "/bar",
+        "" + Glob.fromString("/bar/*.baz").getPathContainingAllMatches(base));
   }
 
   private void assertRegexMatches(List<String> globStrs, String... golden) {

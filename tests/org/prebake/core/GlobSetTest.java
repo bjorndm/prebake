@@ -94,10 +94,31 @@ public class GlobSetTest extends PbTestCase {
         Throwables.propagate(th);
       }
     }
-    // Saves about 40% on the naive case, and should perform better where path
+    // Saves about 33% on the naive case, and should perform better where path
     // and glob prefixes&suffixes cluster more tightly as in real file systems.
+    // TODO: verify this assertion of better performance on real data.
     System.err.println("simple took " + simpleTime + " ns");
     System.err.println("fast took   " + fastTime + " ns");
+    System.err.println(
+        String.format("%5.2f%%", ((double) fastTime) / simpleTime));
+  }
+
+  @Test public final void testGroupByPrefix() {
+    GlobSet gset = new GlobSet();
+    gset.add(Glob.fromString("/foo/bar/*.java"));
+    gset.add(Glob.fromString("/foo/bar/*.html"));
+    gset.add(Glob.fromString("/foo/**/*.txt"));
+    gset.add(Glob.fromString("**.css"));
+    assertEquals(
+        (
+         ""
+         + "{"
+         + "=[**.css], "
+         + "foo=[/foo/**/*.txt], "
+         + "foo/bar=[/foo/bar/*.html, /foo/bar/*.java]"
+         + "}"
+         ),
+        "" + gset.getGlobsGroupedByPrefix());
   }
 
   private static final String[] WORDS = {
