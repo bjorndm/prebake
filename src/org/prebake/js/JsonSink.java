@@ -9,6 +9,8 @@ import java.util.Map;
 import javax.annotation.Nullable;
 import javax.annotation.ParametersAreNonnullByDefault;
 
+import com.google.common.base.Throwables;
+
 /**
  * A JSON writer that doesn't require converting lists, maps, and arrays to
  * instances of some other class.
@@ -20,6 +22,30 @@ public final class JsonSink implements Closeable {
   private final Appendable out;
 
   public JsonSink(Appendable out) { this.out = out; }
+
+  /**
+   * Serializes one object to {@link YSON} onto out.
+   * @throws IllegalArgumentException if o cannot be serialized.
+   */
+  public static void stringify(@Nullable Object o, StringBuilder out) {
+    JsonSink sink = new JsonSink(out);
+    try {
+      sink.writeValue(o);
+      sink.close();
+    } catch (IOException ex) {
+      Throwables.propagate(ex);  // Writing to an in-memory buffer.
+    }
+  }
+
+  /**
+   * Serializes one object to a {@link YSON} string.
+   * @throws IllegalArgumentException if o cannot be serialized.
+   */
+  public static String stringify(@Nullable Object o) {
+    StringBuilder sb = new StringBuilder();
+    stringify(o, sb);
+    return sb.toString();
+  }
 
   public void close() throws IOException {
     if (out instanceof Closeable) {
@@ -62,20 +88,38 @@ public final class JsonSink implements Closeable {
     return this;
   }
 
-  public <T> JsonSink writeValue(@Nullable Map<String, T> obj)
-      throws IOException {
+  public JsonSink writeValue(@Nullable Map<String, ?> obj) throws IOException {
     if (obj == null) {
       out.append("null");
       return this;
     }
+    return writeMap(obj);
+  }
+
+  private <K, V> JsonSink writeMap(Map<K, V> obj) throws IOException {
     out.append('{');
-    Iterator<Map.Entry<String, T>> it = obj.entrySet().iterator();
+    Iterator<Map.Entry<K, V>> it = obj.entrySet().iterator();
     if (it.hasNext()) {
-      Map.Entry<String, T> e = it.next();
-      writeValue(e.getKey()).write(":").writeValue(e.getValue());
+      Map.Entry<K, V> e = it.next();
+      Object k = e.getKey();
+      if (k == null) {
+        write("null");
+      } else {
+        writeValue(k.toString());
+      }
+      out.append(':');
+      writeValue(e.getValue());
       while (it.hasNext()) {
+        out.append(',');
         e = it.next();
-        write(",").writeValue(e.getKey()).write(":").writeValue(e.getValue());
+        k = e.getKey();
+        if (k == null) {
+          write("null");
+        } else {
+          writeValue(k.toString());
+        }
+        out.append(':');
+        writeValue(e.getValue());
       }
     }
     out.append('}');
@@ -100,7 +144,9 @@ public final class JsonSink implements Closeable {
     return this;
   }
 
-  @SuppressWarnings("unchecked")
+  /**
+   * @throws IllegalArgumentException if o cannot be serialized.
+   */
   public JsonSink writeValue(@Nullable Object o) throws IOException {
     if (o == null) {
       out.append("null");
@@ -108,7 +154,7 @@ public final class JsonSink implements Closeable {
     } else if (o instanceof String) {
       return writeValue((String) o);
     } else if (o instanceof Map<?, ?>) {
-      return writeValue((Map<String, ?>) o);
+      return writeMap((Map<?, ?>) o);
     } else if (o instanceof Iterable<?>) {
       return writeValue((Iterable<?>) o);
     } else if (o instanceof Boolean) {
@@ -131,8 +177,8 @@ public final class JsonSink implements Closeable {
     } else if (o instanceof Number || o instanceof Boolean) {
       out.append(o.toString());
       return this;
-    } else if (o instanceof Enum) {
-      return writeValue(((Enum) o).name());
+    } else if (o instanceof Enum<?>) {
+      return writeValue(((Enum<?>) o).name());
     } else {
       throw new IllegalArgumentException(
           "" + o + " : " + o.getClass().getName());
