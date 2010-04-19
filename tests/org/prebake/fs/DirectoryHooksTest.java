@@ -60,7 +60,7 @@ public class DirectoryHooksTest extends PbTestCase {
         dir,
         new Predicate<Path>() {
           public boolean apply(Path p) {
-            return p.getName().toString().equals("ignored");
+            return !p.getName().toString().equals("ignored");
           }
         });
     dh.start();

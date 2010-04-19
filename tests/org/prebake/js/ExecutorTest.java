@@ -521,7 +521,6 @@ public class ExecutorTest extends PbTestCase {
             .withActuals(ImmutableMap.of(
                 "foo", execer.toFunction(new Function<Object[], Object>() {
                   public Object apply(Object[] arguments) {
-                    System.err.println("Got args " + Arrays.asList(arguments));
                     StringBuilder sb = new StringBuilder("foo");
                     for (Object argument : arguments) { sb.append(argument); }
                     return sb.toString();

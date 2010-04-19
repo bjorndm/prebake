@@ -193,7 +193,6 @@ public final class Baker {
       Path workingDirInput = workingDir.resolve(input);
       workingDirInputs.add(workingDirInput);
       mkdirs(workingDirInput.getParent());
-      System.err.println("copying " + clientInput + " to " + workingDirInput);
       clientInput.copyTo(workingDirInput);
     }
   }
@@ -278,7 +277,6 @@ public final class Baker {
       }
       productJsSink.writeValue(true);
     }
-    System.err.println(productJs);
     Executor.Input src = Executor.Input.builder(
         productJs.toString(), "product-" + p.name)
         .withBase(workingDir)
@@ -389,7 +387,6 @@ public final class Baker {
     final Map<String, List<Glob>> groupedByDir;
     {
       Multimap<String, Glob> byPrefix = outputMatcher.getGlobsGroupedByPrefix();
-      System.err.println("byPrefix=" + byPrefix);
       groupedByDir = new TreeMap<String, List<Glob>>(new Comparator<String>() {
         // Sort so that shorter paths occur first.  That way we can start
         // walking the prefixes, and pick up the extra globs just in time when
@@ -405,31 +402,25 @@ public final class Baker {
           prefix = prefix.replace("/", separator);
         }
         String pathPrefix = workingDir.resolve(prefix).toString();
-        System.err.println("pathPrefix=" + pathPrefix);
         groupedByDir.put(
             pathPrefix, ImmutableList.copyOf(byPrefix.get(prefix)));
       }
     }
-    System.err.println("groupedByDir=" + groupedByDir);
     class Walker {
       final ImmutableList.Builder<Path> out = ImmutableList.builder();
       final Set<String> walked = Sets.newHashSet();
       void walk(Path dir, GlobSet globs) throws IOException {
-        System.err.println("dir=" + dir);
         // TODO: handle symbolic links
         String dirStr = dir.toString();
         List<Glob> extras = groupedByDir.get(dirStr);
         if (extras != null) {
-          System.err.println("found extra " + extras);
           globs = new GlobSet(globs).addAll(extras);
           walked.add(dirStr);
         }
         for (Path p : dir.newDirectoryStream()) {
-          System.err.println("checking " + p);
           BasicFileAttributes attrs = Attributes.readBasicFileAttributes(p);
           if (attrs.isRegularFile()) {
             Path relPath = workingDir.relativize(p);
-            System.err.println("p=" + p);
             if (globs.matches(relPath)) { out.add(relPath); }
           } else if (attrs.isDirectory()) {
             walk(p, globs);
@@ -441,17 +432,19 @@ public final class Baker {
     for (Map.Entry<String, List<Glob>> e : groupedByDir.entrySet()) {
       String prefix = e.getKey();
       if (w.walked.contains(prefix)) { continue; }  // already walked
-      Path dir = workingDir.resolve(prefix);
-      if (dir.notExists()) {
+      Path p = workingDir.resolve(prefix);
+      if (p.notExists()) {
         logger.log(
             Level.WARNING,
             "No dir {0} in output for product {1} with outputs {2}",
-            new Object[] { dir, productName, toCopyBack });
+            new Object[] { p, productName, toCopyBack });
       } else {
-        w.walk(dir, new GlobSet());
+        BasicFileAttributes atts = Attributes.readBasicFileAttributes(p);
+        if (atts.isDirectory()) {
+          w.walk(p, new GlobSet());
+        }
       }
     }
-    System.err.println("w.out=" + w.out.build());
     return w.out.build();
   }
 
@@ -650,9 +643,6 @@ public final class Baker {
 
     synchronized void setBuildFuture(@Nullable Future<Boolean> newBuildFuture) {
       if (buildFuture == newBuildFuture) { return; }
-      if (newBuildFuture == null) {
-        Thread.dumpStack();
-      }
       if (buildFuture != null) {
         buildFuture.cancel(true);
       }
