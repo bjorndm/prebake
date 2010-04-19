@@ -4,9 +4,10 @@ import org.prebake.channel.Command;
 import org.prebake.channel.Commands;
 import org.prebake.channel.FileNames;
 import org.prebake.core.Documentation;
+import org.prebake.fs.DbFileVersioner;
 import org.prebake.fs.DirectoryHooks;
-import org.prebake.fs.FileHashes;
 import org.prebake.fs.FilePerms;
+import org.prebake.fs.FileVersioner;
 import org.prebake.os.OperatingSystem;
 import org.prebake.service.bake.Baker;
 import org.prebake.service.plan.Ingredient;
@@ -67,8 +68,9 @@ public abstract class Prebakery implements Closeable {
   private final ScheduledExecutorService execer;
   private final OperatingSystem os;
   private Environment env;
-  private FileHashes files;
+  private FileVersioner files;
   private Runnable onClose;
+  private Predicate<Path> toWatch;
   private Consumer<Path> pathConsumer;
   private Consumer<Commands> commandConsumer;
   private ToolBox tools;
@@ -238,9 +240,26 @@ public abstract class Prebakery implements Closeable {
     }
     write(tokenFile, token);
 
+    this.toWatch = new Predicate<Path>() {
+      final Pattern regex;
+      {
+        // Make sure the clientRoot and everything under it is ignored.
+        Pattern base = config.getIgnorePattern() != null
+            ? config.getIgnorePattern() : DEFAULT_IGNORE_PATTERN;
+        String pattern = base.pattern();
+        Path clientRoot = config.getClientRoot();
+        pattern += "|^" + Pattern.quote(clientRoot.toString()) + "(?:$|"
+            + Pattern.quote(clientRoot.getFileSystem().getSeparator()) + ")";
+        regex = Pattern.compile(pattern, base.flags());
+      }
+      public boolean apply(Path p) {
+        return !regex.matcher(p.toString()).find();
+      }
+    };
+
     this.env = createDbEnv(dir);
-    this.files = new FileHashes(env, clientRoot, logger);
-    this.baker = new Baker(os, files, logger, execer);
+    this.files = new DbFileVersioner(env, clientRoot, toWatch, logger);
+    this.baker = new Baker(os, files, config.getUmask(), logger, execer);
     this.tools = new ToolBox(
         files, config.getToolDirs(), logger, baker.toolListener, execer);
     this.baker.setToolBox(this.tools);
@@ -250,15 +269,7 @@ public abstract class Prebakery implements Closeable {
   }
 
   private void setupFileSystemWatcher() {
-    DirectoryHooks hooks = new DirectoryHooks(
-        config.getClientRoot(), new Predicate<Path>() {
-          final Pattern regex = config.getIgnorePattern() != null
-              ? config.getIgnorePattern()
-              : DEFAULT_IGNORE_PATTERN;
-          public boolean apply(Path p) {
-            return !regex.matcher(p.toString()).find();
-          }
-        });
+    DirectoryHooks hooks = new DirectoryHooks(config.getClientRoot(), toWatch);
     pathConsumer = new Consumer<Path>(hooks.getUpdates()) {
       @Override
       protected void consume(BlockingQueue<? extends Path> q, Path x) {

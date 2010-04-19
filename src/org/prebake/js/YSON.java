@@ -446,6 +446,10 @@ public final class YSON {
   public static final class Lambda implements JsonSerializable {
     private final String source;
 
+    // TODO: define a withNameHint method that sets the function self name if
+    // anonymous and use it to make lambdas show up better in stack traces.
+    // So tool.fire for tool with name "cp" -> tool_cp_fire
+
     public Lambda(String source) {
       assert source != null && source.startsWith("function")
           && source.endsWith("}") : source;

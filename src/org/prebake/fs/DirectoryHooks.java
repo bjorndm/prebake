@@ -1,5 +1,7 @@
 package org.prebake.fs;
 
+import org.prebake.channel.FileNames;
+
 import com.google.common.base.Predicate;
 import com.google.common.collect.Maps;
 
@@ -43,14 +45,18 @@ public class DirectoryHooks implements Closeable {
   // Mac : FileSystemEvents http://developer.apple.com/mac/articles/cocoa/filesystemevents.html
   // Windows : http://msdn.microsoft.com/en-us/library/aa365261(VS.85).aspx
 
+  // TODO: handle symbolic links.  First figure out what the watch service
+  // does with them, then maybe keep a db with symbolic link targets in
+  // FileHashes.
+
   private final Path root;
   private final BlockingQueue<Path> q = new LinkedBlockingQueue<Path>(1 << 12);
-  private final Predicate<Path> toIgnore;
+  private final Predicate<Path> toWatch;
   private @Nullable Thread watcher;
 
-  public DirectoryHooks(Path root, Predicate<Path> toIgnore) {
+  public DirectoryHooks(Path root, Predicate<Path> toWatch) {
     this.root = root;
-    this.toIgnore = toIgnore;
+    this.toWatch = toWatch;
   }
 
   public BlockingQueue<Path> getUpdates() { return q; }
@@ -161,6 +167,14 @@ public class DirectoryHooks implements Closeable {
         @Override
         public FileVisitResult preVisitDirectory(Path dir) {
           try {
+            // TODO: if we know the toWatch predicate skips everything under dir
+            // then don't continue.
+            // HACK: don't watch the .prebake directory, especially the
+            // archives.
+            if (root.isSameFile(dir.getParent())
+                && dir.getName().toString().equals(FileNames.DIR)) {
+              return FileVisitResult.SKIP_SUBTREE;
+            }
             WatchKey key = dir.register(
                 ws,
                 StandardWatchEventKind.ENTRY_CREATE,
@@ -188,6 +202,6 @@ public class DirectoryHooks implements Closeable {
   }
 
   private void maybePut(Path p) throws InterruptedException {
-    if (!toIgnore.apply(p)) { q.put(p); }
+    if (toWatch.apply(p)) { q.put(p); }
   }
 }

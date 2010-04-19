@@ -1,11 +1,13 @@
 package org.prebake.js;
 
+import org.prebake.core.Documentation;
 import org.prebake.fs.FilePerms;
 import org.prebake.js.Executor.Input;
 import org.prebake.util.PbTestCase;
 import org.prebake.util.StubFileSystemProvider;
 
 import com.google.common.base.Charsets;
+import com.google.common.base.Function;
 import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableMap;
 
@@ -27,12 +29,12 @@ import java.util.logging.Logger;
 import org.junit.Test;
 
 public class ExecutorTest extends PbTestCase {
-  @Test public final void testResult() throws Exception {
+  @Test public final void testResult() {
     assertResult(2.0, "1 + 1");
     assertResult("Hello, World!", "'Hello, World!'");
   }
 
-  @Test public final void testModuleIsDelayed() throws Exception {
+  @Test public final void testModuleIsDelayed() throws IOException {
     Executor.Output<?> out = doLoad(
         "typeof load('bar.js');",
         "bar.js", "1 + 1;");
@@ -40,7 +42,7 @@ public class ExecutorTest extends PbTestCase {
     assertFalse(out.usedSourceOfKnownNondeterminism);
   }
 
-  @Test public final void testFailedLoadRecovery() throws Exception {
+  @Test public final void testFailedLoadRecovery() throws IOException {
     Executor.Output<?> out = doLoad(
         ""
         + "try {\n"
@@ -54,7 +56,7 @@ public class ExecutorTest extends PbTestCase {
     assertFalse(out.usedSourceOfKnownNondeterminism);
   }
 
-  @Test public final void testMalformedModule() throws Exception {
+  @Test public final void testMalformedModule() throws IOException {
     Executor.Output<?> out = doLoad(
         ""
         + "try {\n"
@@ -69,7 +71,7 @@ public class ExecutorTest extends PbTestCase {
     assertFalse(out.usedSourceOfKnownNondeterminism);
   }
 
-  @Test public final void testModuleResult() throws Exception {
+  @Test public final void testModuleResult() throws IOException {
     Executor.Output<?> out = doLoad(
         "load('baz.js')();",
         "baz.js", "1 + 1;");
@@ -77,7 +79,7 @@ public class ExecutorTest extends PbTestCase {
     assertFalse(out.usedSourceOfKnownNondeterminism);
   }
 
-  @Test public final void testDeterministicModuleUnused() throws Exception {
+  @Test public final void testDeterministicModuleUnused() throws IOException {
     Executor.Output<?> out = doLoad(
         "load('bar/baz.js')({ load: load });",
         "bar/baz.js", "1 + 0 * load('boo.js');",
@@ -86,7 +88,7 @@ public class ExecutorTest extends PbTestCase {
     assertFalse(out.usedSourceOfKnownNondeterminism);
   }
 
-  @Test public final void testDeterministicModuleUsed() throws Exception {
+  @Test public final void testDeterministicModuleUsed() throws IOException {
     Executor.Output<?> out = doLoad(
         "load('bar/baz.js')({ load: load });",
         // boo.js loaded relative to bar/baz.js
@@ -96,12 +98,10 @@ public class ExecutorTest extends PbTestCase {
     assertTrue(out.usedSourceOfKnownNondeterminism);
   }
 
-  @Test public final void testActuals() throws Exception {
+  @Test public final void testActuals() {
     FileSystem fs = new StubFileSystemProvider("mfs").getFileSystem(
         URI.create("mfs:///#/foo"));
-    Executor executor = Executor.Factory.createJsExecutor(
-        Executor.Input.builder("x + 1", fs.getPath("/foo/" + getName() + ".js"))
-        .withActuals(Collections.singletonMap("x", 1)).build());
+    Executor executor = Executor.Factory.createJsExecutor();
     Executor.Output<?> output = executor.run(
         Object.class,
         getLogger(Level.INFO),
@@ -109,14 +109,13 @@ public class ExecutorTest extends PbTestCase {
           public Executor.Input load(Path p) throws IOException {
             throw new IOException("Not testing load");
           }
-        });
+        }, Executor.Input.builder(
+            "x + 1", fs.getPath("/foo/" + getName() + ".js"))
+            .withActuals(Collections.singletonMap("x", 1)).build());
     assertEquals(2.0, output.result);
 
     // They shouldn't by default be visible to loaded modules.
-    executor = Executor.Factory.createJsExecutor(Executor.Input.builder(
-        "load('x')() + 1", fs.getPath("/foo/" + getName() + ".js"))
-        .withActuals(Collections.singletonMap("x", 1))
-        .build());
+    executor = Executor.Factory.createJsExecutor();
     output = executor.run(
         Object.class,
         getLogger(Level.INFO),
@@ -125,14 +124,14 @@ public class ExecutorTest extends PbTestCase {
             return Executor.Input.builder("typeof x !== 'undefined' ? x : 2", p)
                 .build();
           }
-        });
+        }, Executor.Input.builder(
+            "load('x')() + 1", fs.getPath("/foo/" + getName() + ".js"))
+            .withActuals(Collections.singletonMap("x", 1))
+            .build());
     assertEquals(3.0, output.result);
 
     // But a module can always elect to forward its scope.
-    executor = Executor.Factory.createJsExecutor(Executor.Input.builder(
-        "load('x')(this) + 1", fs.getPath("/foo/" + getName() + ".js"))
-        .withActuals(Collections.singletonMap("x", 1))
-        .build());
+    executor = Executor.Factory.createJsExecutor();
     output = executor.run(
         Object.class,
         getLogger(Level.INFO),
@@ -141,14 +140,14 @@ public class ExecutorTest extends PbTestCase {
             return Executor.Input.builder("typeof x !== 'undefined' ? x : 2", p)
                 .build();
           }
-        });
+        }, Executor.Input.builder(
+            "load('x')(this) + 1", fs.getPath("/foo/" + getName() + ".js"))
+            .withActuals(Collections.singletonMap("x", 1))
+            .build());
     assertEquals(2.0, output.result);
 
     // Or substitute its own.
-    executor = Executor.Factory.createJsExecutor(Executor.Input.builder(
-        "load('x')({ x: 3 }) + 1", fs.getPath("/foo/" + getName() + ".js"))
-        .withActuals(Collections.singletonMap("x", 1))
-        .build());
+    executor = Executor.Factory.createJsExecutor();
     output = executor.run(
         Object.class,
         getLogger(Level.INFO),
@@ -157,15 +156,15 @@ public class ExecutorTest extends PbTestCase {
             return Executor.Input.builder("typeof x !== 'undefined' ? x : 2", p)
                 .build();
           }
-        });
+        }, Executor.Input.builder(
+            "load('x')({ x: 3 }) + 1", fs.getPath("/foo/" + getName() + ".js"))
+            .withActuals(Collections.singletonMap("x", 1))
+            .build());
     assertEquals(4.0, output.result);
 
     // But in any case, changes to the module's scope don't affect the loader's.
     // But a module can always elect to forward its scope.
-    executor = Executor.Factory.createJsExecutor(Executor.Input.builder(
-        "load('x')(this) + x", fs.getPath("/foo/" + getName() + ".js"))
-        .withActuals(Collections.singletonMap("x", 1))
-        .build());
+    executor = Executor.Factory.createJsExecutor();
     output = executor.run(
         Object.class,
         getLogger(Level.INFO),
@@ -173,11 +172,14 @@ public class ExecutorTest extends PbTestCase {
           public Executor.Input load(Path p) {
             return Executor.Input.builder("++x", p).build();
           }
-        });
+        }, Executor.Input.builder(
+            "load('x')(this) + x", fs.getPath("/foo/" + getName() + ".js"))
+            .withActuals(Collections.singletonMap("x", 1))
+            .build());
     assertEquals(3.0, output.result);
   }
 
-  @Test public final void testSourcesOfNonDeterminism() throws Exception {
+  @Test public final void testSourcesOfNonDeterminism() {
     assertDeterministic(true, "1 + 1");
     assertDeterministic(false, "new Date()");
     assertDeterministic(true, "new Date(0)");
@@ -194,32 +196,18 @@ public class ExecutorTest extends PbTestCase {
     assertDeterministic(false, "Date.now.call(null)");
     assertDeterministic(false, "Date.now.call(null)");
     assertDeterministic(false, "Date.now.apply(null, [])");
-    try {
-      assertDeterministic(false, "new Date.now()");
-    } catch (Executor.AbnormalExitException ex) {
-      // It's ok for it to be deterministic or to fail with new.
-      Throwable th = ex.getCause();
-      assertEquals(
-          "TypeError: \"now\" is not a constructor."
-          + " (/foo/ExecutorTest.js#1)",
-          th.getMessage());
-    }
+    assertDeterministic(
+        false, "new Date.now()",
+        "TypeError: \"now\" is not a constructor. (/foo/ExecutorTest.js#1)");
     assertDeterministic(false, "Math.random()");
     assertDeterministic(false, "Math.random.call(null)");
     assertDeterministic(false, "Math.random.apply(null, [])");
-    try {
-      assertDeterministic(false, "new Math.random()");
-    } catch (Executor.AbnormalExitException ex) {
-      // It's ok for it to be deterministic or to fail with new.
-      Throwable th = ex.getCause();
-      assertEquals(
-          "TypeError: \"random\" is not a constructor."
-          + " (/foo/ExecutorTest.js#1)",
-          th.getMessage());
-    }
+    assertDeterministic(
+        false, "new Math.random()",
+        "TypeError: \"random\" is not a constructor. (/foo/ExecutorTest.js#1)");
   }
 
-  @Test public final void testConsole() throws Exception {
+  @Test public final void testConsole() {
     // We use logging for the default locale, but the command line test runner
     // runs tests in the Turkish locale to flush out case folding problems.
     // We want to use the default locale for logging, but for these tests, we
@@ -290,11 +278,11 @@ public class ExecutorTest extends PbTestCase {
     }
   }
 
-  @Test public final void testJsWithBOM() throws Exception {
+  @Test public final void testJsWithBOM() {
     assertResult(2.0, "\ufeff1 + 1");
   }
 
-  @Test public final void testGlobalsAvailable() throws Exception {
+  @Test public final void testGlobalsAvailable() throws IOException {
     Executor.Output<?> out;
     out = doLoad(
         "load('foo.js')({});",
@@ -306,7 +294,7 @@ public class ExecutorTest extends PbTestCase {
     assertEquals("function", out.result);
   }
 
-  @Test public final void testModuleEnvironment() throws Exception {
+  @Test public final void testModuleEnvironment() throws IOException {
     Executor.Output<?> out;
     out = doLoad(
         "load('foo.js')({ x: 2, y: 3 });",
@@ -323,14 +311,10 @@ public class ExecutorTest extends PbTestCase {
     assertEquals(6d, out.result);
   }
 
-  @Test public final void testToSource() throws Exception {
+  @Test public final void testToSource() {
     FileSystem fs = new StubFileSystemProvider("mfs").getFileSystem(
         URI.create("mfs:///#/foo"));
-    Executor executor = Executor.Factory.createJsExecutor(
-        Executor.Input.builder(
-            "({ x: 1, y: function () { return 4; }, z: [2] })",
-            fs.getPath("/foo/" + getName() + ".js"))
-        .build());
+    Executor executor = Executor.Factory.createJsExecutor();
     Executor.Output<YSON> out = executor.run(
         YSON.class,
         getLogger(Level.INFO),
@@ -338,17 +322,27 @@ public class ExecutorTest extends PbTestCase {
           public Executor.Input load(Path p) throws IOException {
             throw new IOException("Should not laod");
           }
-        });
+        }, Executor.Input.builder(
+            "({ x: 1, y: function () { return 4; }, z: [2] })",
+            fs.getPath("/foo/" + getName() + ".js"))
+            .build());
     assertEquals(
         "({\"x\": 1.0, \"y\": (function() {\n  return 4;\n}), \"z\": [2.0]})",
         out.result.toSource());
   }
 
-  @Test public final void testToSourceFiltered1() throws Exception {
+  @Test public final void testToSourceFiltered1() {
     FileSystem fs = new StubFileSystemProvider("mfs").getFileSystem(
         URI.create("mfs:///#/foo"));
-    Executor executor = Executor.Factory.createJsExecutor(
-        Executor.Input.builder(
+    Executor executor = Executor.Factory.createJsExecutor();
+    Executor.Output<YSON> out = executor.run(
+        YSON.class,
+        getLogger(Level.INFO),
+        new Loader() {
+          public Executor.Input load(Path p) throws IOException {
+            throw new IOException("Should not laod");
+          }
+        }, Executor.Input.builder(
             ""
             + "({"
             + "  x: 1,"
@@ -357,14 +351,6 @@ public class ExecutorTest extends PbTestCase {
             + "  z: [2]"
             + "})",
             fs.getPath("/foo/" + getName() + ".js")).build());
-    Executor.Output<YSON> out = executor.run(
-        YSON.class,
-        getLogger(Level.INFO),
-        new Loader() {
-          public Executor.Input load(Path p) throws IOException {
-            throw new IOException("Should not laod");
-          }
-        });
     assertEquals(
         ""
         + "({"
@@ -375,18 +361,10 @@ public class ExecutorTest extends PbTestCase {
         out.result.toSource());
   }
 
-  @Test public final void testToSourceFiltered2() throws Exception {
+  @Test public final void testToSourceFiltered2() {
     FileSystem fs = new StubFileSystemProvider("mfs").getFileSystem(
         URI.create("mfs:///#/foo"));
-    Executor executor = Executor.Factory.createJsExecutor(
-        Executor.Input.builder(
-            ""
-            + "({"
-            + "  x: 1,"
-            + "  y: (function (i) { return function () { return i+1; } })(0),"
-            + "  z: [2]"
-            + "})",
-            fs.getPath("/foo/" + getName() + ".js")).build());
+    Executor executor = Executor.Factory.createJsExecutor();
     Executor.Output<YSON> out = executor.run(
         YSON.class,
         getLogger(Level.INFO),
@@ -394,26 +372,29 @@ public class ExecutorTest extends PbTestCase {
           public Executor.Input load(Path p) throws IOException {
             throw new IOException("Should not laod");
           }
-        });
+        }, Executor.Input.builder(
+            ""
+            + "({"
+            + "  x: 1,"
+            + "  y: (function (i) { return function () { return i+1; } })(0),"
+            + "  z: [2]"
+            + "})",
+            fs.getPath("/foo/" + getName() + ".js")).build());
     assertEquals("({\"x\": 1.0, \"z\": [2.0]})", out.result.toSource());
   }
 
-  @Test public final void testNoBase() throws Exception {
-    Executor executor = Executor.Factory.createJsExecutor(
-        Executor.Input.builder("typeof load", "" + getName()).build());
+  @Test public final void testNoBase() {
+    Executor executor = Executor.Factory.createJsExecutor();
     Executor.Output<?> output = executor.run(
-        Object.class, getLogger(Level.INFO), null);
+        Object.class, getLogger(Level.INFO), null,
+        Executor.Input.builder("typeof load", "" + getName()).build());
     assertEquals("undefined", output.result);
   }
 
-  @Test public final void testLoaderVersionSkew() throws Exception {
+  @Test public final void testLoaderVersionSkew() {
     FileSystem fs = new StubFileSystemProvider("mfs").getFileSystem(
         URI.create("mfs:///#/foo"));
-    Executor.Output<Number> result = Executor.Factory.createJsExecutor(
-        Executor.Input.builder(
-            "load('bar.js')() + load('bar.js')()",
-            fs.getPath("/foo/" + getName()))
-            .build())
+    Executor.Output<Number> result = Executor.Factory.createJsExecutor()
         .run(Number.class, getLogger(Level.INFO), new Loader() {
           int count = 0;
           public Input load(Path p) throws IOException {
@@ -422,18 +403,27 @@ public class ExecutorTest extends PbTestCase {
             }
             return Executor.Input.builder("" + (++count), p).build();
           }
-        });
+        }, Executor.Input.builder(
+            "load('bar.js')() + load('bar.js')()",
+            fs.getPath("/foo/" + getName()))
+            .build());
     // If load did not return the same content for the same path within an
     // executor run, then we would expect to see 3.
     assertEquals(2.0, result.result);
   }
 
-  @Test public final void testLoaderVersionSkewForFailingFile()
-      throws Exception {
+  @Test public final void testLoaderVersionSkewForFailingFile() {
     FileSystem fs = new StubFileSystemProvider("mfs").getFileSystem(
         URI.create("mfs:///#/foo"));
-    Executor.Output<String> result = Executor.Factory.createJsExecutor(
-        Executor.Input.builder(
+    Executor.Output<String> result = Executor.Factory.createJsExecutor()
+        .run(String.class, getLogger(Level.INFO), new Loader() {
+          int count = 0;
+          public Input load(Path p) throws IOException {
+            // Will fail on the first load, and succeed on the second.
+            if (count++ == 0) { throw new FileNotFoundException(p.toString()); }
+            return Executor.Input.builder("1", p).build();
+          }
+        }, Executor.Input.builder(
             Joiner.on('\n').join(
                 "var a, b;",
                 "try {",
@@ -448,15 +438,7 @@ public class ExecutorTest extends PbTestCase {
                 "}",
                 "a + ' ; ' + b;"),
             fs.getPath("/foo/" + getName()))
-            .build())
-        .run(String.class, getLogger(Level.INFO), new Loader() {
-          int count = 0;
-          public Input load(Path p) throws IOException {
-            // Will fail on the first load, and succeed on the second.
-            if (count++ == 0) { throw new FileNotFoundException(p.toString()); }
-            return Executor.Input.builder("1", p).build();
-          }
-        });
+            .build());
     // If load did not return the same content for the same path within an
     // executor run, then we would expect to see 3.
     assertEquals(
@@ -466,13 +448,14 @@ public class ExecutorTest extends PbTestCase {
   }
 
   @Test(timeout=10000, expected=Executor.ScriptTimeoutException.class)
-  public final void testRunawayScripts() throws Exception {
-    Executor.Factory.createJsExecutor(Executor.Input.builder(
-        "var i = 0; while (1) { ++i; }", getName()).build())
-        .run(Void.TYPE, getLogger(Level.INFO), null);
+  public final void testRunawayScripts() {
+    Executor.Factory.createJsExecutor()
+        .run(Void.TYPE, getLogger(Level.INFO), null,
+             Executor.Input.builder("var i = 0; while (1) { ++i; }", getName())
+                 .build());
   }
 
-  @Test public final void testActualInputs() throws Exception {
+  @Test public final void testActualInputs() {
     Executor.Input srcX = Executor.Input.builder(
         "3", getName()).build();
     Executor.Input srcY = Executor.Input.builder(
@@ -484,12 +467,12 @@ public class ExecutorTest extends PbTestCase {
             .put("y", srcY)
             .build())
         .build();
-    Executor.Output<?> output = Executor.Factory.createJsExecutor(srcTop)
-        .run(Object.class, getLogger(Level.INFO), null);
+    Executor.Output<?> output = Executor.Factory.createJsExecutor()
+        .run(Object.class, getLogger(Level.INFO), null, srcTop);
     assertEquals(7d, output.result);
   }
 
-  @Test public final void testHelpFunction() throws Exception {
+  @Test public final void testHelpFunction() {
     assertHelpOutput("");
     assertHelpOutput("null");
     assertHelpOutput("{}");
@@ -510,14 +493,49 @@ public class ExecutorTest extends PbTestCase {
         "INFO: Help: description\nContact: foo@bar.baz");
   }
 
-  private void assertHelpOutput(String actuals, String... log)
-      throws Exception {
+  @Test public final void testLambdasAreFunctions() {
+    assertEquals("function", runWithLambdaFoo("typeof foo").result);
+  }
+
+  @Test public final void testLambdasAreNamed() {
+    assertEquals("Foo", runWithLambdaFoo("foo.name").result);
+  }
+
+  @Test public final void testLambdasAreInvokable() {
+    assertEquals("foo1.02.0", runWithLambdaFoo("foo(1, 2)").result);
+  }
+
+  @Test public final void testLambdasAreApplyable() {
+    assertEquals("foo1.02.0", runWithLambdaFoo("foo.apply({}, [1, 2])").result);
+  }
+
+  @Test public final void testLambdasAreCallable() {
+    assertEquals("foo1.02.0", runWithLambdaFoo("foo.call({}, 1, 2)").result);
+  }
+
+  private Executor.Output<String> runWithLambdaFoo(String js) {
+    Executor execer = Executor.Factory.createJsExecutor();
+    return execer.run(
+        String.class, getLogger(Level.INFO), null,
+        Executor.Input.builder(js, getName())
+            .withActuals(ImmutableMap.of(
+                "foo", execer.toFunction(new Function<Object[], Object>() {
+                  public Object apply(Object[] arguments) {
+                    System.err.println("Got args " + Arrays.asList(arguments));
+                    StringBuilder sb = new StringBuilder("foo");
+                    for (Object argument : arguments) { sb.append(argument); }
+                    return sb.toString();
+                  }
+                }, "Foo", new Documentation("hi", "howdy", null)))).build());
+  }
+
+  private void assertHelpOutput(String actuals, String... log) {
     Logger logger = getLogger(Level.INFO);
     getLog().clear();
-    String result = Executor.Factory.createJsExecutor(
-        (Executor.Input.builder("typeof help(" + actuals + ")", getName())
-         .build()))
-        .run(String.class, logger, null)
+    String result = Executor.Factory.createJsExecutor()
+        .run(String.class, logger, null,
+             (Executor.Input.builder("typeof help(" + actuals + ")", getName())
+              .build()))
         .result;
     assertEquals("undefined", result);
     assertEquals(
@@ -525,12 +543,10 @@ public class ExecutorTest extends PbTestCase {
         getLog());
   }
 
-  private void assertResult(Object result, String src) throws Exception {
+  private void assertResult(Object result, String src) {
     FileSystem fs = new StubFileSystemProvider("mfs").getFileSystem(
         URI.create("mfs:///#/foo"));
-    Executor executor = Executor.Factory.createJsExecutor(
-        Executor.Input.builder(src, fs.getPath("/foo/" + getName() + ".js"))
-        .build());
+    Executor executor = Executor.Factory.createJsExecutor();
     Executor.Output<?> output = executor.run(
         Object.class,
         getLogger(Level.INFO),
@@ -538,17 +554,21 @@ public class ExecutorTest extends PbTestCase {
           public Executor.Input load(Path p) throws IOException {
             throw new IOException("Not testing load");
           }
-        });
+        }, Executor.Input.builder(
+            src, fs.getPath("/foo/" + getName() + ".js"))
+            .build());
     assertEquals(src, result, output.result);
   }
 
-  private void assertDeterministic(boolean deterministic, String src)
-      throws Exception {
+  private void assertDeterministic(boolean deterministic, String src) {
+    assertDeterministic(deterministic, src, null);
+  }
+
+  private void assertDeterministic(
+      boolean deterministic, String src, String errorMessage) {
     FileSystem fs = new StubFileSystemProvider("mfs").getFileSystem(
         URI.create("mfs:///#/foo"));
-    Executor executor = Executor.Factory.createJsExecutor(
-        Executor.Input.builder(src, fs.getPath("/foo/" + getName() + ".js"))
-        .build());
+    Executor executor = Executor.Factory.createJsExecutor();
     Executor.Output<?> output = executor.run(
         Object.class,
         getLogger(Level.INFO),
@@ -556,12 +576,19 @@ public class ExecutorTest extends PbTestCase {
           public Executor.Input load(Path p) throws IOException {
             throw new IOException("Not testing load");
           }
-        });
-    assertEquals(src, !deterministic, output.usedSourceOfKnownNondeterminism);
+        }, Executor.Input.builder(
+            src, fs.getPath("/foo/" + getName() + ".js")).build());
+    // If no optional error message specified, the JS should not fail
+    if (errorMessage == null) { assertNull(output.exit); }
+    if (output.exit == null) {
+      assertEquals(src, !deterministic, output.usedSourceOfKnownNondeterminism);
+    } else {
+      assertEquals(errorMessage, output.exit.getCause().getMessage());
+    }
   }
 
   private Executor.Output<?> doLoad(String src, String... files)
-      throws Exception {
+      throws IOException {
     FileSystem fs = new StubFileSystemProvider("mfs").getFileSystem(
         URI.create("mfs:///#/foo"));
     for (int i = 0, n = files.length; i < n; i += 2) {
@@ -575,10 +602,7 @@ public class ExecutorTest extends PbTestCase {
         out.close();
       }
     }
-    Executor executor = Executor.Factory.createJsExecutor(
-        Executor.Input.builder(
-            src, fs.getPath("/foo/" + getName() + ".js"))
-        .build());
+    Executor executor = Executor.Factory.createJsExecutor();
     Executor.Output<?> output = executor.run(
         Object.class,
         getLogger(Level.INFO),
@@ -588,26 +612,25 @@ public class ExecutorTest extends PbTestCase {
                 new InputStreamReader(p.newInputStream(), Charsets.UTF_8), p)
                 .build();
           }
-        });
+        }, Executor.Input.builder(
+            src, fs.getPath("/foo/" + getName() + ".js"))
+            .build());
+    assertNull(output.exit);
     return output;
   }
 
-  private void assertConsole(String src, String... logStmts)
-      throws Exception {
+  private void assertConsole(String src, String... logStmts) {
     assertConsole(Level.INFO, src, logStmts);
   }
 
-  private void assertConsole(Level lvl, String src, String... logStmts)
-      throws Exception {
+  private void assertConsole(Level lvl, String src, String... logStmts) {
     Logger logger = getLogger(lvl);
     final List<String> actualLog = getLog();
     actualLog.clear();
 
     FileSystem fs = new StubFileSystemProvider("mfs").getFileSystem(
         URI.create("mfs:///#/foo"));
-    Executor executor = Executor.Factory.createJsExecutor(
-        Executor.Input.builder(src, fs.getPath("/" + getName() + ".js"))
-            .build());
+    Executor executor = Executor.Factory.createJsExecutor();
     executor.run(
         Object.class,
         logger,
@@ -615,7 +638,9 @@ public class ExecutorTest extends PbTestCase {
           public Executor.Input load(Path p) throws IOException {
             throw new IOException("Not testing load");
           }
-        });
+        }, Executor.Input.builder(
+            src, fs.getPath("/" + getName() + ".js"))
+            .build());
     assertEquals(
         src, Joiner.on('\n').join(logStmts),
         Joiner.on('\n').join(actualLog).replaceAll(

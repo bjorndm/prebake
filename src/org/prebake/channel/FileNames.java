@@ -14,6 +14,7 @@ public final class FileNames {
   public static final String CMD_LINE = "cmdline";
   public static final String PORT = "port";
   public static final String TOKEN = "token";
+  public static final String ARCHIVE = "archive";  // TODO document
 
   private FileNames() { /* not instantiable */ }
 }

@@ -7,6 +7,7 @@ import org.prebake.util.PbTestCase;
 import org.prebake.util.StubFileSystemProvider;
 
 import com.google.common.base.Joiner;
+import com.google.common.base.Predicates;
 import com.google.common.collect.Maps;
 import com.google.common.io.Files;
 import com.sleepycat.je.Environment;
@@ -27,11 +28,11 @@ import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-public class FileHashesTest extends PbTestCase {
+public class DbFileVersionerTest extends PbTestCase {
   private FileSystem fs;
   private Environment env;
   private File tempDir;
-  private FileHashes fh;
+  private FileVersioner fh;
 
   @Before
   public void setUp() throws IOException {
@@ -42,7 +43,9 @@ public class FileHashesTest extends PbTestCase {
     envConfig.setAllowCreate(true);
     tempDir = Files.createTempDir();
     env = new Environment(tempDir, envConfig);
-    fh = new FileHashes(env, fs.getPath("/cwd/root"), getLogger(Level.INFO));
+    fh = new DbFileVersioner(
+        env, fs.getPath("/cwd/root"), Predicates.<Path>alwaysTrue(),
+        getLogger(Level.INFO));
   }
 
   @After
@@ -418,4 +421,6 @@ public class FileHashesTest extends PbTestCase {
   }
 
   private List<Path> paths(Path... paths) { return Arrays.asList(paths); }
+
+  // TODO: test toWatch predicate.
 }

@@ -28,9 +28,9 @@ public class StubFileVersioner extends FileVersioner {
         public List<String> get() { return Lists.newArrayList(); }
       });
 
-  public StubFileVersioner(Path root, Logger logger)
+  public StubFileVersioner(Path root, Predicate<Path> toWatch, Logger logger)
       throws IOException {
-    super(root, logger);
+    super(root, toWatch, logger);
   }
 
   @Override public void close() { /* noop */ }

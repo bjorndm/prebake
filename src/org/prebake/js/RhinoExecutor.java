@@ -1,5 +1,7 @@
 package org.prebake.js;
 
+import org.prebake.core.Documentation;
+
 import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
 import com.google.common.base.Throwables;
@@ -32,6 +34,7 @@ import org.mozilla.javascript.NativeArray;
 import org.mozilla.javascript.NativeObject;
 import org.mozilla.javascript.RhinoException;
 import org.mozilla.javascript.Script;
+import org.mozilla.javascript.ScriptRuntime;
 import org.mozilla.javascript.Scriptable;
 import org.mozilla.javascript.ScriptableObject;
 import org.mozilla.javascript.Undefined;
@@ -46,9 +49,8 @@ import org.mozilla.javascript.WrappedException;
  */
 @ParametersAreNonnullByDefault
 public final class RhinoExecutor implements Executor {
-  private final Executor.Input[] srcs;
 
-  public RhinoExecutor(Executor.Input[] srcs) { this.srcs = srcs.clone(); }
+  public RhinoExecutor() { /* no-op */ }
 
   static final Set<String> OBJECT_CLASS_MEMBERS = ImmutableSet.of(
       // We allow toString since that is part of JS as well, typically has
@@ -156,14 +158,20 @@ public final class RhinoExecutor implements Executor {
     ContextFactory.initGlobal(SANDBOXINGFACTORY);
   }
 
+  public Object toFunction(
+      com.google.common.base.Function<Object[], Object> fn, String name,
+      Documentation doc) {
+    return new WrappedFunction.Skeleton(fn, name, doc);
+  }
+
   /**
    * Stores either the loaded module as a {@link Function} or the exception
    * that caused module loading to fail.
    */
   private final Map<Path, Object> loadedModules = Maps.newHashMap();
-  public <T> Output<T> run(Class<T> expectedResultType,
-      Logger logger, @Nullable Loader loader)
-      throws AbnormalExitException {
+  public <T> Output<T> run(
+      Class<T> expectedResultType, Logger logger, @Nullable Loader loader,
+      Executor.Input... srcs) {
     if (SANDBOXINGFACTORY != ContextFactory.getGlobal()) {
       throw new IllegalStateException();
     }
@@ -171,37 +179,47 @@ public final class RhinoExecutor implements Executor {
     // TODO: figure out appropriate optimization level
     context.setOptimizationLevel(-1);
     try {
-      return runInContext(context, expectedResultType, logger, loader);
+      return runInContext(
+          srcs.clone(), context, expectedResultType, logger, loader);
     } finally {
       Context.exit();
     }
   }
 
   private <T> Output<T> runInContext(
-      Context context, Class<T> expectedResultType, Logger logger,
-      @Nullable Loader loader)
-      throws AbnormalExitException {
+      Executor.Input[] srcs, Context context, Class<T> expectedResultType,
+      Logger logger, @Nullable Loader loader) {
     Runner runner = new Runner(context, logger, loader);
 
     Object result = null;
+    AbnormalExitException exit = null;
     synchronized (context) {
-      for (Input src : srcs) { result = runner.run(src); }
-    }
-    if (result == null) { return null; }
-    if (YSON.class.isAssignableFrom(expectedResultType)
-        && result instanceof Scriptable) {
-      Scriptable s = (Scriptable) result;
-      try {
-        result = toYSON(context, s);
-      } catch (ParseException ex) {
-        logger.log(Level.SEVERE, "Failed to convert output " + result, ex);
+      for (Input src : srcs) {
+        try {
+          result = runner.run(src);
+        } catch (AbnormalExitException ex) {
+          result = null;
+          exit = ex;
+          break;
+        }
       }
     }
-    if (!expectedResultType.isInstance(result)) {
-      result = Context.jsToJava(result, expectedResultType);
+    if (result != null) {
+      if (YSON.class.isAssignableFrom(expectedResultType)
+          && result instanceof Scriptable) {
+        Scriptable s = (Scriptable) result;
+        try {
+          result = toYSON(context, s);
+        } catch (ParseException ex) {
+          logger.log(Level.SEVERE, "Failed to convert output " + result, ex);
+        }
+      }
+      if (!expectedResultType.isInstance(result)) {
+        result = Context.jsToJava(result, expectedResultType);
+      }
     }
     return new Output<T>(
-        expectedResultType.cast(result), runner.nonDeterminism.used);
+        expectedResultType.cast(result), runner.nonDeterminism.used, exit);
   }
 
   private class Runner {
@@ -252,7 +270,8 @@ public final class RhinoExecutor implements Executor {
       int constBits = ScriptableObject.DONTENUM | ScriptableObject.PERMANENT
           | ScriptableObject.READONLY;
       globalScope.defineProperty("console", console, constBits);
-      globalScope.defineProperty("help", new HelpFn(console), constBits);
+      globalScope.defineProperty(
+          "help", new HelpFn(globalScope, console), constBits);
     }
 
     private Object run(Executor.Input src) throws AbnormalExitException {
@@ -265,6 +284,8 @@ public final class RhinoExecutor implements Executor {
         // Inputs can be specified as inputs to other inputs.
         if (value instanceof Executor.Input) {
           value = run((Executor.Input) value);
+        } else if (value instanceof ScriptableSkeleton) {
+          value = ((ScriptableSkeleton) value).fleshOut(globalScope);
         }
         ScriptableObject.putConstProperty(actualsObj, e.getKey(), value);
       }
@@ -297,6 +318,7 @@ public final class RhinoExecutor implements Executor {
       this.loader = loader;
       this.logger = logger;
       this.base = base;
+      ScriptRuntime.setFunctionProtoAndParent(this, globalScope);
     }
 
     @Override
@@ -367,7 +389,7 @@ public final class RhinoExecutor implements Executor {
           logger.log(Level.FINE, "JS Compilation failed {0}", src);
           throw ex;
         }
-        return new Freezer(context).freeze(new LoadedModule(srcName, compiled));
+        return new Freezer().freeze(new LoadedModule(srcName, compiled));
       } finally {
         logger.log(Level.FINE, "Done    {0}", srcName);
       }
@@ -388,6 +410,7 @@ public final class RhinoExecutor implements Executor {
       LoadedModule(String srcName, Script body) {
         this.srcName = srcName;
         this.body = body;
+        ScriptRuntime.setFunctionProtoAndParent(this, globalScope);
       }
 
       @Override public String getFunctionName() {

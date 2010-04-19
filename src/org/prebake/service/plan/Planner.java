@@ -43,6 +43,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import javax.annotation.Nonnull;
 import javax.annotation.ParametersAreNonnullByDefault;
 
 /**
@@ -246,7 +247,7 @@ public final class Planner implements Closeable {
             try {
               Executor.Output<YSON> planFileOut = execPlan(
                   toolDef, pp, hashes, paths);
-              if (planFileOut != null) {
+              if (planFileOut.exit == null) {
                 Object javaObj = planFileOut.result.toJavaObject();
                 ImmutableList<Product> products = unpack(pp, javaObj);
                 if (products != null) {
@@ -268,6 +269,10 @@ public final class Planner implements Closeable {
                       new Object[] { pp.planFile, nAttempts });
                   continue;
                 }
+              } else {
+                logger.log(
+                    Level.WARNING, "Failed to execute plan " + pp.planFile,
+                    planFileOut.exit);
               }
             } catch (FileNotFoundException ex) {
               logger.log(
@@ -288,7 +293,7 @@ public final class Planner implements Closeable {
     }
   }
 
-  private Executor.Output<YSON> execPlan(
+  private @Nonnull Executor.Output<YSON> execPlan(
       Executor.Input toolDef, PlanPart pp,
       final List<Hash> hashes, final List<Path> paths)
       throws IOException {
@@ -298,42 +303,30 @@ public final class Planner implements Closeable {
       hashes.add(h);
       paths.add(pp.planFile);
     }
-    Executor planRunner;
-    try {
-      planRunner = Executor.Factory.createJsExecutor(
-          Executor.Input.builder(
-              pf.getContentAsString(Charsets.UTF_8), pf.getPath())
-          .withActuals(Collections.singletonMap("tools", toolDef))
-          .build());
-    } catch (Executor.MalformedSourceException ex) {
-      logger.log(Level.WARNING, "Failed to execute plan " + pp.planFile, ex);
-      return null;
-    }
-    try {
-      return planRunner.run(YSON.class, logger, new Loader() {
-        public Input load(Path p) throws IOException {
-          FileAndHash rf;
-          try {
-            rf = files.load(p);
-          } catch (IOException ex) {
-            // We need to depend on non-existent files in case they
-            // are later created.
-            paths.add(p);
-            throw ex;
-          }
-          Hash h = rf.getHash();
-          if (h != null) {
-            paths.add(p);
-            hashes.add(h);
-          }
-          return Executor.Input.builder(
-              rf.getContentAsString(Charsets.UTF_8), p).build();
+    Executor planRunner = Executor.Factory.createJsExecutor();
+    return planRunner.run(YSON.class, logger, new Loader() {
+      public Input load(Path p) throws IOException {
+        FileAndHash rf;
+        try {
+          rf = files.load(p);
+        } catch (IOException ex) {
+          // We need to depend on non-existent files in case they
+          // are later created.
+          paths.add(p);
+          throw ex;
         }
-      });
-    } catch (Executor.AbnormalExitException ex) {
-      logger.log(Level.WARNING, "Failed to execute plan " + pp.planFile, ex);
-      return null;
-    }
+        Hash h = rf.getHash();
+        if (h != null) {
+          paths.add(p);
+          hashes.add(h);
+        }
+        return Executor.Input.builder(
+            rf.getContentAsString(Charsets.UTF_8), p).build();
+      }
+    }, Executor.Input.builder(
+        pf.getContentAsString(Charsets.UTF_8), pf.getPath())
+        .withActuals(Collections.singletonMap("tools", toolDef))
+        .build());
   }
 
   private ImmutableList<Product> unpack(PlanPart pp, Object scriptOutput) {

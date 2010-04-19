@@ -87,8 +87,9 @@
      if="runtests.failure"/>
   </target>
 
-  <target name="checks" depends="classes" description="Runs Findbugs">
-    <taskdef name="findbugs" classname="edu.umd.cs.findbugs.anttask.FindBugsTask"
+  <target name="checks" depends="tests" description="Runs Findbugs">
+    <taskdef name="findbugs"
+     classname="edu.umd.cs.findbugs.anttask.FindBugsTask"
      classpath="${third_party}/findbugs/lib/findbugs-ant.jar"/>
     <mkdir dir="${reports}/bugs"/>
     <!-- See http://findbugs.sourceforge.net/manual/anttask.html -->
