@@ -335,13 +335,10 @@ public final class Baker {
     if (!obsoletedPaths.isEmpty()) {
       Path archiveDir = clientRoot.resolve(FileNames.DIR)
           .resolve(FileNames.ARCHIVE);
-      logger.log(
-          Level.FINE, "{0} obsolete file(s) can be found under {1}",
-          new Object[] { obsoletedPaths.size(), archiveDir });
       for (Path p : obsoletedPaths) {
         Path obsoleteDest = archiveDir.resolve(p);
         logger.log(Level.FINE, "Archived {0}", obsoleteDest);
-        mkdirs(obsoleteDest);
+        mkdirs(obsoleteDest.getParent());
         try {
           clientRoot.resolve(p).moveTo(obsoleteDest);
         } catch (IOException ex) {
@@ -354,15 +351,20 @@ public final class Baker {
           logger.log(r);
         }
       }
+      logger.log(
+          Level.INFO, "{0} obsolete file(s) can be found under {1}",
+          new Object[] { obsoletedPaths.size(), archiveDir });
     }
 
+    ImmutableList.Builder<Path> outClientPaths = ImmutableList.builder();
     for (Path p : outPaths) {
       Path working = workingDir.resolve(p);
       Path client = clientRoot.resolve(p);
       working.moveTo(client, StandardCopyOption.REPLACE_EXISTING);
+      outClientPaths.add(client);
     }
 
-    return outPaths;
+    return outClientPaths.build();
   }
 
   /**

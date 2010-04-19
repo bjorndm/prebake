@@ -5,6 +5,7 @@ import org.prebake.core.Glob;
 import org.prebake.fs.FileAndHash;
 import org.prebake.fs.FilePerms;
 import org.prebake.fs.StubFileVersioner;
+import org.prebake.js.JsonSink;
 import org.prebake.js.YSON;
 import org.prebake.os.OperatingSystem;
 import org.prebake.os.StubProcess;
@@ -186,6 +187,27 @@ public class BakerTest extends PbTestCase {
         .assertLog("WARNING: Unrecognized product bar");
   }
 
+  private static final String BORK_TOOL_JS = JsonSink.stringify(
+      ""
+      + "({\n"
+      + "  fire: function (opts, inputs, product, action, exec) {\n"
+      + "    var argv = action.outputs.slice(0);\n"
+      + "    argv.splice(0, 0, 'bork');\n"
+      + "    exec.apply({}, argv);\n"
+      + "  }\n"
+      + "})");
+
+  private static final String SORTED_BORK_TOOL_JS = JsonSink.stringify(
+      ""
+      + "({\n"
+      + "  fire: function (opts, inputs, product, action, exec) {\n"
+      + "    var argv = action.outputs.slice(0);\n"
+      + "    argv.splice(0, 0, 'bork');\n"
+      + "    argv.sort();\n"
+      + "    exec.apply({}, argv);\n"
+      + "  }\n"
+      + "})");
+
   @Test
   public final void testProductStatusDependsOnTools() throws Exception {
     tester.withFileSystem(
@@ -193,22 +215,9 @@ public class BakerTest extends PbTestCase {
         "  cwd/",
         "    root/",
         "      tools/",
-        ("        bork.js \"({\\n"
-         + "  fire: function (opts, inputs, product, action, exec) {\\n"
-         + "    var argv = action.outputs.slice(0);\\n"
-         + "    argv.splice(0, 0, 'bork');\\n"
-         + "    exec.apply({}, argv);\\n"
-         + "  }\\n"
-         + "})\""),
-         "      tools2/",
-        ("        bork.js \"({\\n"
-         + "  fire: function (opts, inputs, product, action, exec) {\\n"
-         + "    var argv = action.outputs.slice(0);\\n"
-         + "    argv.splice(0, 0, 'bork');\\n"
-         + "    argv.sort();\\n"
-         + "    exec.apply({}, argv);\\n"
-         + "  }\\n"
-         + "})\""))
+        "        bork.js " + BORK_TOOL_JS,
+        "      tools2/",
+        "        bork.js " + SORTED_BORK_TOOL_JS)
        .withTool(tool("bork"), "root/tools/bork.js")
        .withProduct(product(
            "swedish_meatballs",
@@ -222,9 +231,230 @@ public class BakerTest extends PbTestCase {
        .assertProductStatus("swedish_meatballs", false);
   }
 
-  // TODO: product invalidated when input changes
-  // TODO: product invalidated when input created
-  // TODO: product invalidated when input deleted
+  @Test
+  public final void testProductStatusDependsOnProductDef() throws Exception {
+    tester.withFileSystem(
+        "/",
+        "  cwd/",
+        "    root/",
+        "      tools/",
+        "        bork.js " + BORK_TOOL_JS)
+       .withTool(tool("bork"), "root/tools/bork.js")
+       .withProduct(product(
+           "swedish_meatballs",
+           action(
+               "bork", ImmutableList.<String>of(),
+               ImmutableList.of("bork!", "bork/bork!", "bork/bork/bork!"))))
+       .expectSuccess(true)
+       .build("swedish_meatballs")
+       .assertProductStatus("swedish_meatballs", true)
+       .withProduct(product(
+           "swedish_meatballs",
+           action(
+               "bork", ImmutableList.<String>of(),
+               ImmutableList.of("unbork!"))))
+       .assertProductStatus("swedish_meatballs", false);
+  }
+
+  @Test
+  public final void testProductStatusDependsOnOtherProductDefs()
+      throws Exception {
+    tester.withFileSystem(
+        "/",
+        "  cwd/",
+        "    root/",
+        "      tools/",
+        "        bork.js " + BORK_TOOL_JS)
+       .withTool(tool("bork"), "root/tools/bork.js")
+       .withProduct(product(
+           "swedish_meatballs",
+           action(
+               "bork", ImmutableList.<String>of(),
+               ImmutableList.of("bork!", "bork/bork!", "bork/bork/bork!"))))
+       .expectSuccess(true)
+       .build("swedish_meatballs")
+       .assertProductStatus("swedish_meatballs", true)
+       .withProduct(product(
+           "french_fries",
+           action(
+               "fries", ImmutableList.<String>of(),
+               ImmutableList.of("fries!"))))
+       .assertProductStatus("swedish_meatballs", true);
+  }
+
+  public static final String COPY_TOOL_JS = JsonSink.stringify(
+      ""
+      + "({ \n"
+      + "  fire: function fire(opts, inputs, product, action, exec) { \n"
+      // Infer outputs from inputs
+      + "    var outGlob = action.outputs[0]; \n"
+      + "    var inGlob = action.inputs[0]; \n"
+      + "    var inPrefix = inGlob.substring(0, inGlob.indexOf('*')); \n"
+      + "    var outPrefix = outGlob.substring(0, outGlob.indexOf('*')); \n"
+      + "    for (var i = 0, n = inputs.length; i < n; ++i) { \n"
+      + "      var input = inputs[i]; \n"
+      + "      var output = outPrefix + input.substring(inPrefix.length);\n"
+      + "      exec('cp', input, output); \n"
+      + "    } \n"
+      + "  } \n"
+      + "})");
+
+  @Test
+  public final void testProductChangesWhenInputChanged() throws Exception {
+    tester.withFileSystem(
+        "/",
+        "  cwd/",
+        "    tools/",
+        "      cp.js " + COPY_TOOL_JS,
+        "    root/",
+        "      i/",
+        "        a \"a\"",
+        "      o/")
+       .withTool(tool("cp"), "/cwd/tools/cp.js")
+       .withProduct(product(
+           "p", action("cp", ImmutableList.of("i/*"), ImmutableList.of("o/*"))))
+       .expectSuccess(true)
+       .build("p")
+       .runPendingTasks()
+       .assertProductStatus("p", true)
+       .assertFileTree(
+           "/",
+           "  cwd/",
+           "    tools/",
+           "      cp.js \"...\"",
+           "    root/",
+           "      i/",
+           "        a \"a\"",
+           "      o/",
+           "        a \"a\"",
+           "  tmpdir/")
+       .assertProductStatus("p", true)
+       .writeFile("/cwd/root/i/a", "A")
+       .assertProductStatus("p", false)
+       .build("p")
+       .runPendingTasks()
+       .assertProductStatus("p", true)
+       .assertFileTree(
+           "/",
+           "  cwd/",
+           "    tools/",
+           "      cp.js \"...\"",
+           "    root/",
+           "      i/",
+           "        a \"A\"",
+           "      o/",
+           "        a \"A\"",
+           "  tmpdir/");
+  }
+
+  @Test
+  public final void testProductChangesWhenInputCreated() throws Exception {
+    tester.withFileSystem(
+        "/",
+        "  cwd/",
+        "    tools/",
+        "      cp.js " + COPY_TOOL_JS,
+        "    root/",
+        "      i/",
+        "        a \"a\"",
+        "      o/")
+       .withTool(tool("cp"), "/cwd/tools/cp.js")
+       .withProduct(product(
+           "p", action("cp", ImmutableList.of("i/*"), ImmutableList.of("o/*"))))
+       .expectSuccess(true)
+       .build("p")
+       .runPendingTasks()
+       .assertProductStatus("p", true)
+       .assertFileTree(
+           "/",
+           "  cwd/",
+           "    tools/",
+           "      cp.js \"...\"",
+           "    root/",
+           "      i/",
+           "        a \"a\"",
+           "      o/",
+           "        a \"a\"",
+           "  tmpdir/")
+       .assertProductStatus("p", true)
+       .writeFile("/cwd/root/i/b", "b")
+       .assertProductStatus("p", false)
+       .build("p")
+       .runPendingTasks()
+       .assertProductStatus("p", true)
+       .assertFileTree(
+           "/",
+           "  cwd/",
+           "    tools/",
+           "      cp.js \"...\"",
+           "    root/",
+           "      i/",
+           "        a \"a\"",
+           "        b \"b\"",
+           "      o/",
+           "        a \"a\"",
+           "        b \"b\"",
+           "  tmpdir/");
+  }
+
+  @Test
+  public final void testProductChangesWhenInputDeleted() throws Exception {
+    tester.withFileSystem(
+        "/",
+        "  cwd/",
+        "    tools/",
+        "      cp.js " + COPY_TOOL_JS,
+        "    root/",
+        "      i/",
+        "        a \"a\"",
+        "        b \"b\"",
+        "      o/")
+       .withTool(tool("cp"), "/cwd/tools/cp.js")
+       .withProduct(product(
+           "p", action("cp", ImmutableList.of("i/*"), ImmutableList.of("o/*"))))
+       .expectSuccess(true)
+       .build("p")
+       .runPendingTasks()
+       .assertProductStatus("p", true)
+       .assertFileTree(
+           "/",
+           "  cwd/",
+           "    tools/",
+           "      cp.js \"...\"",
+           "    root/",
+           "      i/",
+           "        a \"a\"",
+           "        b \"b\"",
+           "      o/",
+           "        a \"a\"",
+           "        b \"b\"",
+           "  tmpdir/")
+       .assertProductStatus("p", true)
+       .deleteFile("/cwd/root/i/b")
+       .assertProductStatus("p", false)
+       .build("p")
+       .runPendingTasks()
+       .assertProductStatus("p", true)
+       .assertFileTree(
+           "/",
+           "  cwd/",
+           "    tools/",
+           "      cp.js \"...\"",
+           "    root/",
+           "      i/",
+           "        a \"a\"",
+           "      o/",
+           "        a \"a\"",
+           "      .prebake/",
+           "        archive/",
+           "          o/",
+           "            b \"b\"",
+           "  tmpdir/")
+      .assertLog(
+          "INFO: 1 obsolete file(s) can be found under "
+          + "/cwd/root/.prebake/archive");
+  }
+
   // TODO: output globs that overlap inputs
   // TODO: process returns error code.
   // TODO: changed output is updated
@@ -320,6 +550,27 @@ public class BakerTest extends PbTestCase {
 
     Tester clearLog() {
       getLog().clear();
+      return this;
+    }
+
+    Tester writeFile(String path, String content) throws IOException {
+      Path p = fs.getPath(path);
+      OutputStream out = p.newOutputStream(
+          StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.CREATE);
+      Writer w = new OutputStreamWriter(out, Charsets.UTF_8);
+      try {
+        w.write(content);
+      } finally {
+        w.close();
+      }
+      files.update(Collections.singleton(p));
+      return this;
+    }
+
+    Tester deleteFile(String path) throws IOException {
+      Path p = fs.getPath(path);
+      p.delete();
+      files.update(Collections.singleton(p));
       return this;
     }
 
