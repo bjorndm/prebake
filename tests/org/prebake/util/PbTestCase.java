@@ -16,6 +16,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
+import java.io.Reader;
 import java.io.StringReader;
 import java.net.URI;
 import java.nio.file.FileSystem;
@@ -151,8 +152,13 @@ public abstract class PbTestCase extends Assert {
           String content = null;
           sb.append(f.getName());
           try {
-            content = CharStreams.toString(
-                new InputStreamReader(f.newInputStream(), Charsets.UTF_8));
+            Reader r = new InputStreamReader(
+                f.newInputStream(), Charsets.UTF_8);
+            try {
+              content = CharStreams.toString(r);
+            } finally {
+              r.close();
+            }
           } catch (IOException ex) {
             ex.printStackTrace();
           }
