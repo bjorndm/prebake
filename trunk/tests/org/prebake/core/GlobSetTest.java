@@ -79,8 +79,6 @@ public class GlobSetTest extends PbTestCase {
               Set<Glob> actual = Sets.newTreeSet(fast.matching(p));
               long t2 = System.nanoTime();
               if (!actual.equals(expected)) {
-                System.err.println("in simple " + simple.globs);
-                System.err.println("p=" + p);
                 assertEquals("" + p, expected, actual);
               }
               simpleTime += t1 - t0;

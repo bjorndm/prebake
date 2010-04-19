@@ -19,7 +19,6 @@ import java.io.FileNotFoundException;
 import java.io.IOError;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.io.Writer;
@@ -52,7 +51,6 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.io.ByteStreams;
-import com.google.common.io.CharStreams;
 import com.google.common.util.concurrent.ValueFuture;
 
 import org.junit.After;
@@ -224,7 +222,6 @@ public class BakerTest extends PbTestCase {
        .assertProductStatus("swedish_meatballs", false);
   }
 
-  // TODO: product invalidated when tool changes
   // TODO: product invalidated when input changes
   // TODO: product invalidated when input created
   // TODO: product invalidated when input deleted
@@ -309,14 +306,6 @@ public class BakerTest extends PbTestCase {
       return this;
     }
 
-    Tester assertFileContent(String path, String golden) throws Exception {
-      Path p = fs.getPath(path);
-      String actual = CharStreams.toString(
-          new InputStreamReader(p.newInputStream(), Charsets.UTF_8));
-      assertEquals(p.toString(), golden, actual);
-      return this;
-    }
-
     Tester assertProductStatus(String productName, boolean upToDate) {
       assertEquals(
           productName + " status", upToDate,
@@ -389,7 +378,6 @@ public class BakerTest extends PbTestCase {
                 mkdirs(out.getParent());
                 Path from = cwd.resolve(argv[0]);
                 from.copyTo(out);
-                System.err.println("COPIED " + from + " to " + out);
                 return 0;
               }
             });
@@ -486,19 +474,10 @@ public class BakerTest extends PbTestCase {
     return tool(name, null, null);
   }
 
-  private static ToolSignature tool(String name, @Nullable Documentation docs) {
-    return tool(name, null, docs);
-  }
-
   private static ToolSignature tool(
       String name, @Nullable String checker, @Nullable Documentation docs) {
     return new ToolSignature(
         name, checker != null ? new YSON.Lambda(checker) : null, docs, true);
-  }
-
-  private static Action action(
-      String tool, String input, String output) {
-    return action(tool, ImmutableMap.<String, Object>of(), input, output);
   }
 
   private static Action action(

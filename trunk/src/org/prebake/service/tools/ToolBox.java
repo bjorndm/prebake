@@ -326,8 +326,6 @@ public class ToolBox implements ToolProvider {
           for (Hash h : hashes) {
             if (h != null) { hb.withHash(h); }
           }
-          System.err.println("paths=" + paths + ", hashes=" + hashes);
-          System.err.println("hb=" + hb.build());
 
           boolean success;
           synchronized (impl.tool) {
