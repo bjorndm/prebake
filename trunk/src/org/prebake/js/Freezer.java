@@ -23,10 +23,8 @@ import org.mozilla.javascript.ScriptableObject;
  */
 @ParametersAreNonnullByDefault
 final class Freezer {
-  final Context cx;
   final Map<ScriptableObject, ScriptableObject> frozenCopies
       = Maps.newIdentityHashMap();
-  Freezer(Context cx) { this.cx = cx; }
 
   private static final int CONST_BITS = ScriptableObject.PERMANENT
       | ScriptableObject.READONLY;

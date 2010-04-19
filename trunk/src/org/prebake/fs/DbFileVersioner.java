@@ -26,13 +26,14 @@ import javax.annotation.ParametersAreNonnullByDefault;
  * @author mikesamuel@gmail.com
  */
 @ParametersAreNonnullByDefault
-public final class FileHashes extends FileVersioner {
+public final class DbFileVersioner extends FileVersioner {
   private final Database fileToHash;
   private final Database fileDerivatives;
 
-  public FileHashes(Environment env, Path root, Logger logger)
+  public DbFileVersioner(
+      Environment env, Path root, Predicate<Path> toWatch, Logger logger)
       throws IOException {
-    super(root, logger);
+    super(root, toWatch, logger);
     DatabaseConfig fileToHashConfig = new DatabaseConfig();
     fileToHashConfig.setAllowCreate(true);
     fileToHashConfig.setTemporary(true);

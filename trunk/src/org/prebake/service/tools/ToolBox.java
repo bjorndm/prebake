@@ -10,20 +10,19 @@ import org.prebake.js.Executor;
 import org.prebake.js.YSON;
 
 import com.google.common.base.Charsets;
+import com.google.common.base.Function;
+import com.google.common.collect.Collections2;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
-import com.google.common.io.CharStreams;
-
 import java.io.BufferedReader;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.io.Reader;
 import java.nio.file.FileSystem;
 import java.nio.file.Path;
 import java.nio.file.StandardWatchEventKind;
@@ -85,8 +84,17 @@ public class ToolBox implements ToolProvider {
                  ScheduledExecutorService execer)
       throws IOException {
     this.logger = logger;
-    toolDirs = this.toolDirs = ImmutableList.copyOf(
-        Sets.newLinkedHashSet(toolDirs));
+    toolDirs = this.toolDirs = ImmutableList.copyOf(Collections2.transform(
+        Sets.newLinkedHashSet(toolDirs),
+        new Function<Path, Path>() {
+          public Path apply(Path p) {
+            try {
+              return p.toRealPath(false);
+            } catch (IOException ex) {
+              throw new IllegalArgumentException(p.toString(), ex);
+            }
+          }
+        }));
     this.fs = files.getFileSystem();
     this.files = files;
     this.listener = ArtifactListener.Factory.loggingListener(listener, logger);
@@ -138,7 +146,7 @@ public class ToolBox implements ToolProvider {
           WatchKey key;
           try {
             key = watcher.take();
-          } catch (InterruptedException x) {
+          } catch (InterruptedException ex) {
             return;
           }
 
@@ -248,76 +256,66 @@ public class ToolBox implements ToolProvider {
           if (impl.isValid()) { return impl.sig; }
         }
         while (--nTriesRemaining >= 0) {
-          Path toolPath = null;
-          InputStream jsIn;
-          final Path base;
-          String js;
+          int index = indexForTool(t);
+          FileAndHash toolJs;
+          if (index < 0) {
+            logger.log(Level.SEVERE, "Tool {0} not on search path", t.toolName);
+            return null;
+          }
           try {
-            // TODO: maybe refactor this to use getTool()
-            if (index == toolDirs.size()) {  // builtin
-              base = null;
-              toolPath = t.localName;
-              jsIn = ToolBox.class.getResourceAsStream(t.localName.toString());
-              if (jsIn == null) { return null; }
-            } else {
-              base = toolDirs.get(index);
-              toolPath = base.resolve(t.localName);
-              jsIn = toolPath.newInputStream();
-            }
-            Reader r = new InputStreamReader(jsIn, Charsets.UTF_8);
-            try {
-              js = CharStreams.toString(r);
-            } finally {
-              try {
-                r.close();
-              } catch (IOException ex) {
-                logger.log(Level.WARNING, "Closing " + toolPath, ex);
-              }
-            }
+            toolJs = getTool(t, index);
           } catch (IOException ex) {
-            logger.log(Level.SEVERE, "Reading " + toolPath, ex);
+            logger.log(
+                Level.SEVERE,
+                "Reading tool " + t.localName + " from " + toolDirs.get(index),
+                ex);
             return null;
           }
           final List<Path> paths = Lists.newArrayList();
           final List<Hash> hashes = Lists.newArrayList();
-          if (base != null) {
+          Path toolPath = toolJs.getPath();
+          boolean isBuiltin = isBuiltin(index);
+          if (toolJs.getHash() != null) {
             paths.add(toolPath);
-            hashes.add(Hash.builder().withString(js).build());
+            hashes.add(toolJs.getHash());
           }
-          Executor executor;
-          try {
-            executor = Executor.Factory.createJsExecutor(Executor.Input.builder(
-                // TODO: with actuals sys and glob.
-                js, toolPath).build());
-          } catch (Executor.MalformedSourceException ex) {
-            logger.log(Level.SEVERE, "Bad tool file " + toolPath, ex);
-            return null;
-          }
+          Executor executor = Executor.Factory.createJsExecutor();
           ToolSignature toolSig;
           try {
+            Executor.Input.Builder toolInput = Executor.Input.builder(
+                toolJs.getContentAsString(Charsets.UTF_8),
+                toolPath.toString())
+                .withBase(
+                    isBuiltin
+                    ? files.getVersionRoot().resolve(t.localName) : toolPath);
+            Path base = isBuiltin ? null : toolDirs.get(index);
+            // TODO: with actuals sys and glob.
             Executor.Output<YSON> result = executor.run(
                 YSON.class, logger,
-                new ToolLoader(base, ToolBox.this, impl, paths, hashes));
-            MessageQueue mq = new MessageQueue();
-            // We need content that we can safely serialize and load into a plan
-            // file.
-            YSON ysonSig = YSON.requireYSON(result.result, FREE_VARS_OK, mq);
+                new ToolLoader(base, ToolBox.this, impl, paths, hashes),
+                toolInput.build());
+            if (result.exit == null) {
+              MessageQueue mq = new MessageQueue();
+              // We need content that we can safely serialize and load into a
+              // plan file.
+              YSON ysonSig = YSON.requireYSON(result.result, FREE_VARS_OK, mq);
 
-            Object ysonSigObj = ysonSig != null ? ysonSig.toJavaObject() : null;
-            toolSig = ToolSignature.converter(
-                t.toolName, !result.usedSourceOfKnownNondeterminism)
-                .convert(ysonSigObj, mq);
-            if (mq.hasErrors()) {
-              for (String message : mq.getMessages()) {
-                // Escape message using MessageFormat rules.
-                logger.warning(MessageQueue.escape(message));
+              toolSig = ToolSignature.converter(
+                  t.toolName, !result.usedSourceOfKnownNondeterminism)
+                  .convert(ysonSig != null ? ysonSig.toJavaObject() : null, mq);
+              if (mq.hasErrors()) {
+                for (String message : mq.getMessages()) {
+                  // Escape message using MessageFormat rules.
+                  logger.warning(MessageQueue.escape(message));
+                }
+                return null;
               }
+            } else {
+              logger.log(
+                  Level.INFO, "Tool " + name + " failed with exception",
+                  result.exit);
               return null;
             }
-          } catch (Executor.AbnormalExitException ex) {
-            logger.log(
-                Level.INFO, "Tool " + name + " failed with exception", ex);
-            return null;
           } catch (RuntimeException ex) {
             logger.log(
                 Level.INFO, "Tool " + name + " failed with exception", ex);
@@ -328,6 +326,8 @@ public class ToolBox implements ToolProvider {
           for (Hash h : hashes) {
             if (h != null) { hb.withHash(h); }
           }
+          System.err.println("paths=" + paths + ", hashes=" + hashes);
+          System.err.println("hb=" + hb.build());
 
           boolean success;
           synchronized (impl.tool) {
@@ -356,19 +356,24 @@ public class ToolBox implements ToolProvider {
     return getTool(tool);
   }
 
+  private int indexForTool(Tool t) {
+    Integer index = t.impls.firstKey();
+    return index != null ? index : -1;
+  }
+
   private FileAndHash getTool(Tool t) throws IOException {
-    final int index;
-    {
-      Integer indexI = t.impls.firstKey();
-      if (indexI == null) {
-        throw new FileNotFoundException("<tool>/" + t.localName.toString());
-      }
-      index = indexI;
+    int index = indexForTool(t);
+    if (index < 0) {
+      throw new FileNotFoundException("<tool>/" + t.localName.toString());
     }
+    return getTool(t, index);
+  }
+
+  private FileAndHash getTool(Tool t, int index) throws IOException {
     Path toolPath;
     InputStream jsIn;
-    boolean isBuiltin = index == toolDirs.size();
-    if (isBuiltin) {
+    boolean underVersionRoot = false;
+    if (isBuiltin(index)) {
       toolPath = t.localName;
       String resourceName = t.localName.toString();
       jsIn = ToolBox.class.getResourceAsStream(resourceName);
@@ -379,8 +384,13 @@ public class ToolBox implements ToolProvider {
       Path base = toolDirs.get(index);
       toolPath = base.resolve(t.localName);
       jsIn = toolPath.newInputStream();
+      underVersionRoot = toolPath.startsWith(files.getVersionRoot());
     }
-    return FileAndHash.fromStream(toolPath, jsIn, !isBuiltin);
+    return FileAndHash.fromStream(toolPath, jsIn, underVersionRoot);
+  }
+
+  private boolean isBuiltin(int index) {
+    return index == toolDirs.size();
   }
 
   FileAndHash nextTool(ToolImpl ti, Path path) throws IOException {
@@ -394,7 +404,7 @@ public class ToolBox implements ToolProvider {
       }
     }
     if (nextIndex != null) {
-      if (nextIndex < toolDirs.size()) {
+      if (!isBuiltin(nextIndex)) {
         return files.load(toolDirs.get(nextIndex).resolve(tool.localName));
       } else {
         InputStream in = ToolBox.class.getResourceAsStream(

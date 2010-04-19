@@ -1,5 +1,8 @@
 package org.prebake.js;
 
+import org.prebake.core.Documentation;
+
+import com.google.common.base.Function;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
@@ -34,8 +37,12 @@ public interface Executor {
    *    expectedReturnType.
    */
   public <T> Output<T> run(
-      Class<T> expectedResultType, Logger logger, @Nullable Loader loader)
-      throws AbnormalExitException;
+      Class<T> expectedResultType, Logger logger,
+      @Nullable Loader loader, Input... input);
+
+  /** Converts to a function object suitable for use in an actuals map. */
+  public Object toFunction(
+      Function<Object[], Object> fn, String name, Documentation doc);
 
   public static class AbnormalExitException extends Exception {
     public AbnormalExitException(String message) { super(message); }
@@ -59,26 +66,16 @@ public interface Executor {
     public ScriptTimeoutException() { super(""); }
   }
 
-  public static class MalformedSourceException extends Exception {
-    public MalformedSourceException(String message) { super(message); }
-    public MalformedSourceException(Throwable cause) { super(cause); }
-    public MalformedSourceException(String message, Throwable cause) {
-      super(message, cause);
-    }
-  }
-
   public static final class Factory {
-    public static Executor createJsExecutor(Input... srcs)
-        throws MalformedSourceException {
+    public static Executor createJsExecutor() {
       Executor executor = null;
       try {
         Class<? extends Executor> execClass = Class.forName(System.getProperty(
             "org.prebake.Executor.JS.class", "org.prebake.js.RhinoExecutor"))
             .asSubclass(Executor.class);
-        executor = execClass.getConstructor(Input[].class)
-            .newInstance((Object) srcs);
+        executor = execClass.getConstructor().newInstance();
       } catch (InvocationTargetException ex) {
-        throw new MalformedSourceException(ex);
+        Throwables.propagate(ex);
       } catch (ClassNotFoundException ex) {
         Throwables.propagate(ex);
       } catch (IllegalAccessException ex) {
@@ -182,12 +179,17 @@ public interface Executor {
 
   /** The results of script execution. */
   public static final class Output<T> {
-    public final T result;
+    @Nullable public final T result;
     public final boolean usedSourceOfKnownNondeterminism;
+    /** Non-null if the script exited abnormally. */
+    @Nullable public final AbnormalExitException exit;
 
-    public Output(@Nullable T result, boolean usedSourceOfKnownNondeterminism) {
+    public Output(
+        @Nullable T result, boolean usedSourceOfKnownNondeterminism,
+        @Nullable AbnormalExitException exit) {
       this.result = result;
       this.usedSourceOfKnownNondeterminism = usedSourceOfKnownNondeterminism;
+      this.exit = exit;
     }
   }
 }

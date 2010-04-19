@@ -6,6 +6,7 @@ import org.prebake.core.Hash;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Predicate;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
@@ -15,7 +16,9 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.FileSystem;
 import java.nio.file.Path;
+import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -39,6 +42,8 @@ import javax.annotation.ParametersAreNonnullByDefault;
 public abstract class FileVersioner {
   protected final Logger logger;
   protected final Path root;
+  /** Paths to ignore. */
+  private final Predicate<Path> toWatch;
   private final List<ArtifactAddresser<?>> addressers = Lists.newArrayList();
   private final Map<ArtifactAddresser<?>, Integer> addressersReverse
       = Maps.newIdentityHashMap();
@@ -52,8 +57,10 @@ public abstract class FileVersioner {
       = new ReentrantReadWriteLock(true);
   private final GlobDispatcher dispatcher;
 
-  public FileVersioner(Path root, Logger logger) throws IOException {
+  public FileVersioner(Path root, Predicate<Path> toWatch, Logger logger)
+      throws IOException {
     this.logger = logger;
+    this.toWatch = toWatch;
     this.root = root.toRealPath(false);
     this.dispatcher = new GlobDispatcher(logger);
   }
@@ -65,8 +72,12 @@ public abstract class FileVersioner {
   protected final @Nullable Path toKeyPath(Path p) {
     try {
       Path relPath = root.relativize(p.toRealPath(false));
-      return (relPath.getNameCount() == 0
-              || !"..".equals(relPath.getName(0).toString())) ? relPath : null;
+      if (relPath.isAbsolute()) { return null; }
+      if (relPath.getNameCount() != 0
+          && "..".equals(relPath.getName(0).toString())) {
+        return null;
+      }
+      return toWatch.apply(relPath) ? relPath : null;
     } catch (IllegalArgumentException ex) {  // p under different root path
       return null;
     } catch (IOException ex) {
@@ -76,10 +87,36 @@ public abstract class FileVersioner {
   }
 
   public FileAndHash load(Path p) throws IOException {
-    p = p.toRealPath(false);
-    InputStream in = p.newInputStream();
-    return FileAndHash.fromStream(p, in, p.startsWith(root));
-    // TODO: maybe update file if hash differs
+    return load(Collections.singletonList(p)).get(0);
+  }
+
+  public List<FileAndHash> load(Iterable<Path> paths) throws IOException {
+    ImmutableList.Builder<FileAndHash> out = ImmutableList.builder();
+    for (Path p : paths) {
+      p = p.toRealPath(false);
+      InputStream in = p.newInputStream();
+      FileAndHash fh = FileAndHash.fromStream(p, in, p.startsWith(root));
+      Path kp = toKeyPath(p);
+      if (kp == null) {
+        fh = fh.withoutHash();
+      } else {
+        RecordLoop rl = makeRecordLoop();
+        rl.start();
+        try {
+          if (rl.find(kp)) {
+            if (!fh.getHash().matches(rl.currentHash())) {
+              rl.updateHash(fh.getHash());
+            }
+          } else {
+            rl.insert(fh.getHash());
+          }
+        } finally {
+          rl.end();
+        }
+      }
+      out.add(fh);
+    }
+    return out.build();
   }
 
   protected abstract List<Path> pathsWithPrefix(
@@ -136,6 +173,7 @@ public abstract class FileVersioner {
 
   /** Called when the system is notified that the given files have changed. */
   public void update(Collection<Path> toUpdate) {
+    System.err.println("Updating " + toUpdate);
     int n = toUpdate.size();
     UpdateRecord[] records = new UpdateRecord[n];
     Iterator<Path> paths = toUpdate.iterator();
@@ -158,6 +196,7 @@ public abstract class FileVersioner {
       }
       records[i] = new UpdateRecord(keyPath, hash);
     }
+    System.err.println("Records=" + Arrays.asList(records));
 
     // For each file, true if derivatives don't need to be invalidated.
     RecordLoop loop = makeRecordLoop();
@@ -176,18 +215,21 @@ public abstract class FileVersioner {
               logger.log(Level.FINER, "Updating hash for {0}", r.keyPath);
               // The cursor is in the right place.  Just update the data.
               success = loop.updateHash(newHash);
+              System.err.println("updated " + r.keyPath);
             } else {
               success = true;
             }
           } else {
             changed.add(r);
             logger.log(Level.FINER, "Removing hash for {0}", r.keyPath);
+            System.err.println("removed " + r.keyPath);
             success = loop.deleteCurrent();
           }
         } else {  // Assume not found
           if (newHash != null) {
             changed.add(r);
             logger.log(Level.FINER, "Storing hash for  {0}", r.keyPath);
+            System.err.println("stored " + r.keyPath);
             success = loop.insert(r.hash);
           } else {
             success = true;
@@ -272,8 +314,10 @@ public abstract class FileVersioner {
       for (int i = 0; i < n; ++i) {
         Path p = it.next();
         Path keyPath = toKeyPath(p);
+        System.err.println("keyPath " + keyPath + " for " + p);
         if (keyPath != null) {
           OperationStatus status = loop.find(keyPath);
+          System.err.println("status for keyPath=" + keyPath + " = " + status);
           switch (status) {
             case SUCCESS: hashes[i] = loop.getHash(); continue;
             case NOTFOUND: continue;
@@ -285,6 +329,7 @@ public abstract class FileVersioner {
     } finally {
       loop.end();
     }
+    System.err.println("getHashes " + Arrays.asList(hashes));
     for (Hash h : hashes) {
       if (h != null) {
         out.withHash(h);

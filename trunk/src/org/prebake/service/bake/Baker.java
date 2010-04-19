@@ -1,6 +1,8 @@
 package org.prebake.service.bake;
 
+import org.prebake.channel.FileNames;
 import org.prebake.core.ArtifactListener;
+import org.prebake.core.Documentation;
 import org.prebake.core.Glob;
 import org.prebake.core.GlobSet;
 import org.prebake.core.Hash;
@@ -25,30 +27,37 @@ import java.nio.file.FileVisitResult;
 import java.nio.file.FileVisitor;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.SimpleFileVisitor;
 import java.nio.file.StandardCopyOption;
+import java.nio.file.attribute.Attributes;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.logging.Level;
+import java.util.logging.LogRecord;
 import java.util.logging.Logger;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.ParametersAreNonnullByDefault;
 
 import com.google.common.base.Charsets;
 import com.google.common.base.Function;
+import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.collect.Multimap;
 import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.ValueFuture;
 
@@ -75,27 +84,27 @@ public final class Baker {
       return productStatuses.get(address);
     }
   };
+  private final int umask;
 
   public Baker(
-      OperatingSystem os, FileVersioner files, Logger logger,
+      OperatingSystem os, FileVersioner files, int umask, Logger logger,
       ScheduledExecutorService execer) {
     this.os = os;
     this.files = files;
+    this.umask = umask;
     this.logger = logger;
     this.execer = execer;
   }
 
   public void setToolBox(ToolProvider toolbox) { this.toolbox = toolbox; }
 
-  public Future<Boolean> build(
-      final String productName, final Function<Boolean, ?> whenBuilt) {
+  public Future<Boolean> build(final String productName) {
     assert toolbox != null;
     final ProductStatus status = productStatuses.get(productName);
     if (status == null) {
       logger.log(Level.WARNING, "Unrecognized product {0}", productName);
       ValueFuture<Boolean> vf = ValueFuture.create();
       vf.set(Boolean.FALSE);
-      whenBuilt.apply(false);
       return vf;
     }
     synchronized (status) {
@@ -103,19 +112,17 @@ public final class Baker {
         final Product product = status.getProduct();
         Future<Boolean> f = execer.submit(new Callable<Boolean>() {
           public Boolean call() {
-            Boolean result = build();
-            whenBuilt.apply(result);
-            return result;
+            return build();
           }
 
           private boolean build() {
+            logger.log(Level.INFO, "Starting bake of product {0}", productName);
             final Path workDir;
             final ImmutableList<Path> inputs;
             boolean passed = false;
 
             try {
-              inputs = ImmutableList.copyOf(files.matching(product.inputs));
-              System.err.println("inputs=" + inputs);  // TODO DEBUG
+              inputs = sortedFilesMatching(product.inputs);
               workDir = createWorkingDirectory(product.name);
               try {
                 final List<Path> paths = Lists.newArrayList();
@@ -125,10 +132,10 @@ public final class Baker {
                 copyToWorkingDirectory(inputs, workDir, workingDirInputs);
                 Executor.Output<Boolean> result = executeActions(
                     workDir, product, inputs, paths, hashes);
-                if (result != null && Boolean.TRUE.equals(result.result)) {
+                if (Boolean.TRUE.equals(result.result)) {
                   ImmutableList<Path> outputs;
                   outputs = copyToRepo(
-                      workDir, workingDirInputs, product.outputs);
+                      product.name, workDir, workingDirInputs, product.outputs);
                   files.update(outputs);
                   synchronized (status) {
                     if (status.product.equals(product)
@@ -139,6 +146,18 @@ public final class Baker {
                       logger.log(
                           Level.WARNING, "Version skew for " + product.name);
                     }
+                  }
+                } else {
+                  if (result.exit != null) {
+                    logger.log(
+                        Level.SEVERE, "Failed to build product " + product.name,
+                        result.exit);
+                  } else {
+                    logger.log(
+                        Level.WARNING, "Failed to build product {0} : {1}",
+                        new Object[] {
+                          product.name, JsonSink.stringify(result.result)
+                        });
                   }
                 }
               } finally {
@@ -168,127 +187,287 @@ public final class Baker {
       Iterable<Path> inputs, Path workingDir, Set<Path> workingDirInputs)
       throws IOException {
     Path root = files.getVersionRoot();
-    int rootLen = root.getNameCount();
     for (Path input : inputs) {
+      Path clientInput = root.resolve(input);
       // /client-dir/foo/bar.txt -> /tmp/working-dir/foo/bar.txt
-      Path workingDirInput = workingDir.resolve(
-          input.subpath(rootLen, input.getNameCount()));
+      Path workingDirInput = workingDir.resolve(input);
       workingDirInputs.add(workingDirInput);
       mkdirs(workingDirInput.getParent());
-      input.copyTo(workingDirInput);
+      System.err.println("copying " + clientInput + " to " + workingDirInput);
+      clientInput.copyTo(workingDirInput);
     }
   }
 
-  private Executor.Output<Boolean> executeActions(
-      Path workingDir, Product p, List<Path> inputs,
+  private @Nonnull Executor.Output<Boolean> executeActions(
+      final Path workingDir, Product p, List<Path> inputs,
       final List<Path> paths, final Hash.Builder hashes)
       throws IOException {
     List<String> inputStrs = Lists.newArrayList();
     for (Path input : inputs) { inputStrs.add(input.toString()); }
     Collections.sort(inputStrs);
-    ImmutableMap.Builder<String, Object> actuals = ImmutableMap.builder();
-    StringBuilder productJs = new StringBuilder();
-    JsonSink productJsSink = new JsonSink(productJs);
-    Map<String, String> toolNameToLocalName = Maps.newHashMap();
-    // First, load each tool module.
-    for (Action a : p.actions) {
-      String toolName = a.toolName;
-      if (toolNameToLocalName.containsKey(toolName)) { continue; }
-      String localName = "tool_" + toolNameToLocalName.size();
-      toolNameToLocalName.put(toolName, localName);
-      FileAndHash tool = toolbox.getTool(toolName);
-      if (tool.getHash() != null) {
-        paths.add(tool.getPath());
-        hashes.withHash(tool.getHash());
-      }
-      actuals.put(localName, tool.getContentAsString(Charsets.UTF_8));
-    }
-    // Second, store the product.
-    productJsSink.write("var product = Object.frozenCopy(")
-        .writeValue(p)
-        .write(");\n");
-    // Third, for each action, invoke its tool's run method with the proper
-    // arguments.
-    for (Action a : p.actions) {
-      productJsSink.write(
-          toolNameToLocalName.get(a.toolName))
-          .write("({load: load})")
-          .write(".run(")
-          .writeValue(a.options).write(", ")
-          // TODO: define exec based on os
-          // TODO: fetch the inputs based on the action's input globs
-          // and
-          .writeValue(inputStrs).write(", product, exec);\n");
-    }
-    productJsSink.writeValue(true);
-    try {
-      Executor exec = Executor.Factory.createJsExecutor(
-          Executor.Input.builder(productJs.toString(), "product-" + p.name)
-              .withBase(workingDir)
-              .build());
-
-      return exec.run(Boolean.class, logger, new Loader() {
-        public Executor.Input load(Path p) throws IOException {
-          FileAndHash fh = files.load(p);
-          if (fh.getHash() != null) {
-            paths.add(fh.getPath());
-            hashes.withHash(fh.getHash());
-          }
-          return Executor.Input.builder(
-              fh.getContentAsString(Charsets.UTF_8), p).build();
+    Executor exec = Executor.Factory.createJsExecutor();
+    Object execFn = exec.toFunction(new Function<Object[], Object>() {
+      public Object apply(Object[] args) {
+        // TODO: check inside args for clientDir
+        if (args.length == 0 || args[0] == null) {
+          throw new IllegalArgumentException("No command specified");
         }
-      });
-    } catch (Executor.AbnormalExitException ex) {
-      logger.log(Level.SEVERE, "Failed to build product " + p.name, ex);
-      return null;
-    } catch (Executor.MalformedSourceException ex) {
-      logger.log(Level.SEVERE, "Failed to build product " + p.name, ex);
-      return null;
+        String cmd = (String) args[0];
+        List<String> argv = Lists.newArrayList();
+        for (int i = 1, n = args.length; i < n; ++i) {
+          if (args[i] != null) { argv.add((String) args[i]); }
+        }
+        try {
+          Process p = os.run(
+              workingDir, cmd, argv.toArray(new String[argv.size()]));
+          p.getOutputStream().close();
+          return Integer.valueOf(p.waitFor());
+        } catch (IOException ex) {
+          throw new IOError(ex);
+        } catch (InterruptedException ex) {
+          Throwables.propagate(ex);
+          return 0;
+        }
+      }
+    },
+    "exec",
+    new Documentation(
+        "exec(cmd, argv...)", "kicks off a command line process",
+        "prebake@prebake.org"));
+    ImmutableMap.Builder<String, Object> actuals = ImmutableMap.builder();
+    actuals.put("exec", execFn);
+    StringBuilder productJs = new StringBuilder();
+    {
+      JsonSink productJsSink = new JsonSink(productJs);
+      Map<String, String> toolNameToLocalName = Maps.newHashMap();
+      for (Action a : p.actions) {
+        // First, load each tool module.
+        String toolName = a.toolName;
+        if (toolNameToLocalName.containsKey(toolName)) { continue; }
+        String localName = "tool_" + toolNameToLocalName.size();
+        toolNameToLocalName.put(toolName, localName);
+        FileAndHash tool = toolbox.getTool(toolName);
+        if (tool.getHash() != null) {
+          paths.add(tool.getPath());
+          hashes.withHash(tool.getHash());
+        }
+        actuals.put(
+            localName,
+            Executor.Input.builder(
+                tool.getContentAsString(Charsets.UTF_8), tool.getPath())
+                .build());
+      }
+      // Second, store the product.
+      productJsSink.write("var product = ").writeValue(p).write(";\n");
+      productJsSink.write("product.name = ").writeValue(p.name).write(";\n");
+      productJsSink.write("product = Object.frozenCopy(product);\n");
+      // Third, for each action, invoke its tool's run method with the proper
+      // arguments.
+      for (Action action : p.actions) {
+        productJsSink
+            .write(toolNameToLocalName.get(action.toolName))
+            .write(".fire(\n    ")
+            .writeValue(action.options).write(",\n    ")
+            // TODO: define exec based on os
+            // TODO: fetch the inputs based on the action's input globs
+            // and
+            .writeValue(inputStrs)
+            .write(",\n    product,\n    ")
+            .writeValue(action)
+            .write(",\n    exec);\n");
+      }
+      productJsSink.writeValue(true);
     }
+    System.err.println(productJs);
+    Executor.Input src = Executor.Input.builder(
+        productJs.toString(), "product-" + p.name)
+        .withBase(workingDir)
+        .withActuals(actuals.build())
+        .build();
+    // Set up output directories.
+    {
+      Set<Path> outPaths = Sets.newHashSet();
+      for (Action a : p.actions) {
+        for (Glob glob : a.outputs) {
+          Path outPath = glob.getPathContainingAllMatches(workingDir);
+          if (outPaths.add(outPath)) { mkdirs(outPath); }
+        }
+      }
+    }
+    // Run the script.
+    return exec.run(Boolean.class, logger, new Loader() {
+      public Executor.Input load(Path p) throws IOException {
+        FileAndHash fh = files.load(p);
+        if (fh.getHash() != null) {
+          paths.add(fh.getPath());
+          hashes.withHash(fh.getHash());
+        }
+        return Executor.Input.builder(fh.getContentAsString(Charsets.UTF_8), p)
+            .build();
+      }
+    }, src);
   }
 
   private ImmutableList<Path> copyToRepo(
-      Path workingDir, final Set<Path> workingDirInputs, List<Glob> toCopyBack)
+      String productName, Path workingDir, final Set<Path> workingDirInputs,
+      ImmutableList<Glob> toCopyBack)
+      throws IOException {
+    ImmutableList<Path> outPaths = outputs(
+        productName, workingDir, workingDirInputs, toCopyBack);
+    ImmutableList<Path> existingPaths = sortedFilesMatching(toCopyBack);
+
+    Set<Path> newPaths = Sets.newLinkedHashSet(outPaths);
+    newPaths.removeAll(existingPaths);
+
+    Set<Path> obsoletedPaths = Sets.newLinkedHashSet(existingPaths);
+    obsoletedPaths.removeAll(outPaths);
+
+    logger.log(
+        Level.FINE, "{0} produced {1} file(s) : {2} new, {3} obsolete.",
+        new Object[] {
+          productName, outPaths.size(), newPaths.size(), obsoletedPaths.size()
+        });
+
+    final Path clientRoot = files.getVersionRoot();
+
+    // Create directories for the new paths
+    for (Path p : newPaths) { mkdirs(clientRoot.resolve(p).getParent()); }
+
+    // Move the obsoleted files into the archive.
+    if (!obsoletedPaths.isEmpty()) {
+      Path archiveDir = clientRoot.resolve(FileNames.DIR)
+          .resolve(FileNames.ARCHIVE);
+      logger.log(
+          Level.FINE, "{0} obsolete file(s) can be found under {1}",
+          new Object[] { obsoletedPaths.size(), archiveDir });
+      for (Path p : obsoletedPaths) {
+        Path obsoleteDest = archiveDir.resolve(p);
+        logger.log(Level.FINE, "Archived {0}", obsoleteDest);
+        mkdirs(obsoleteDest);
+        try {
+          clientRoot.resolve(p).moveTo(obsoleteDest);
+        } catch (IOException ex) {
+          // Junk can accumulate under the archive dir.
+          // Specifically, a directory could be archived, and then all attempts
+          // to archive a regular file of the same name would file.
+          LogRecord r = new LogRecord(Level.WARNING, "Failed to archive {0}");
+          r.setParameters(new Object[] { obsoleteDest });
+          r.setThrown(ex);
+          logger.log(r);
+        }
+      }
+    }
+
+    for (Path p : outPaths) {
+      Path working = workingDir.resolve(p);
+      Path client = clientRoot.resolve(p);
+      working.moveTo(client, StandardCopyOption.REPLACE_EXISTING);
+    }
+
+    return outPaths;
+  }
+
+  /**
+   * Compute the list of files under the working directory that match a
+   * product's output globs.
+   */
+  private ImmutableList<Path> outputs(
+      String productName, final Path workingDir,
+      final Set<Path> workingDirInputs, ImmutableList<Glob> toCopyBack)
       throws IOException {
     final GlobSet outputMatcher = new GlobSet();
     for (Glob outputGlob : toCopyBack) { outputMatcher.add(outputGlob); }
-    final Path clientRoot = files.getVersionRoot();
-    final ImmutableList.Builder<Path> relPathsUpdated = ImmutableList.builder();
-    try {
-      final int workingDirCount = workingDir.getNameCount();
-      Files.walkFileTree(workingDir, new SimpleFileVisitor<Path>() {
-        @Override
-        public FileVisitResult visitFile(Path p, BasicFileAttributes attrs) {
-          if (attrs.isRegularFile() && !workingDirInputs.contains(p)) {
-            Path relPath = p.subpath(workingDirCount, p.getNameCount());
-            if (outputMatcher.matches(relPath)) {
-              relPathsUpdated.add(relPath);
-              Path clientPath = clientRoot.resolve(relPath);
-              try {
-                p.copyTo(
-                    clientPath, StandardCopyOption.REPLACE_EXISTING,
-                    StandardCopyOption.COPY_ATTRIBUTES);
-                // TODO: apply umask
-              } catch (IOException ex) {
-                throw new IOError(ex);
-              }
-            }
-          }
-          return FileVisitResult.CONTINUE;
+    // Get the prefix map so we only walk subtrees that are important.
+    // E.g. for output globs
+    //     [foo/lib/bar/*.lib, foo/lib/**.o, foo/lib/**.so, foo/bin/*.a]
+    // this should yield the map
+    //     "foo/lib" => [foo/lib/**.o, foo/lib/**.so]
+    //     "foo/lib/bar" => [foo/lib/bar/*.lib]
+    //     "foo/bin" => [foo/bin/*.a]
+    // Note that the keys are sorted so that foo/lib always occurs before
+    // foo/lib/bar so that the walker below does not do any unnecessary stating.
+    final Map<String, List<Glob>> groupedByDir;
+    {
+      Multimap<String, Glob> byPrefix = outputMatcher.getGlobsGroupedByPrefix();
+      System.err.println("byPrefix=" + byPrefix);
+      groupedByDir = new TreeMap<String, List<Glob>>(new Comparator<String>() {
+        // Sort so that shorter paths occur first.  That way we can start
+        // walking the prefixes, and pick up the extra globs just in time when
+        // we start walking those paths.
+        public int compare(String a, String b) {
+          long delta = ((long) a.length()) - b.length();
+          return delta < 0 ? -1 : delta != 0 ? 1 : a.compareTo(b);
         }
       });
-    } catch (IOError err) {
-      throw (IOException) err.getCause();
+      String separator = files.getFileSystem().getSeparator();
+      for (String prefix : byPrefix.keySet()) {
+        if (!"/".equals(separator)) {  // Normalize / in glob to \ on Windows.
+          prefix = prefix.replace("/", separator);
+        }
+        String pathPrefix = workingDir.resolve(prefix).toString();
+        System.err.println("pathPrefix=" + pathPrefix);
+        groupedByDir.put(
+            pathPrefix, ImmutableList.copyOf(byPrefix.get(prefix)));
+      }
     }
-    return relPathsUpdated.build();
+    System.err.println("groupedByDir=" + groupedByDir);
+    class Walker {
+      final ImmutableList.Builder<Path> out = ImmutableList.builder();
+      final Set<String> walked = Sets.newHashSet();
+      void walk(Path dir, GlobSet globs) throws IOException {
+        System.err.println("dir=" + dir);
+        // TODO: handle symbolic links
+        String dirStr = dir.toString();
+        List<Glob> extras = groupedByDir.get(dirStr);
+        if (extras != null) {
+          System.err.println("found extra " + extras);
+          globs = new GlobSet(globs).addAll(extras);
+          walked.add(dirStr);
+        }
+        for (Path p : dir.newDirectoryStream()) {
+          System.err.println("checking " + p);
+          BasicFileAttributes attrs = Attributes.readBasicFileAttributes(p);
+          if (attrs.isRegularFile()) {
+            Path relPath = workingDir.relativize(p);
+            System.err.println("p=" + p);
+            if (globs.matches(relPath)) { out.add(relPath); }
+          } else if (attrs.isDirectory()) {
+            walk(p, globs);
+          }
+        }
+      }
+    }
+    Walker w = new Walker();
+    for (Map.Entry<String, List<Glob>> e : groupedByDir.entrySet()) {
+      String prefix = e.getKey();
+      if (w.walked.contains(prefix)) { continue; }  // already walked
+      Path dir = workingDir.resolve(prefix);
+      if (dir.notExists()) {
+        logger.log(
+            Level.WARNING,
+            "No dir {0} in output for product {1} with outputs {2}",
+            new Object[] { dir, productName, toCopyBack });
+      } else {
+        w.walk(dir, new GlobSet());
+      }
+    }
+    System.err.println("w.out=" + w.out.build());
+    return w.out.build();
   }
 
   private void mkdirs(Path p) throws IOException {
     if (p.notExists()) {
       Path parent = p.getParent();
       if (parent != null) { mkdirs(parent); }
-      p.createDirectory(FilePerms.perms(0700, true));
+      p.createDirectory(FilePerms.perms(umask, true));
     }
+  }
+
+  private ImmutableList<Path> sortedFilesMatching(ImmutableList<Glob> globs) {
+    List<Path> matching = Lists.newArrayList(files.matching(globs));
+    // Sort inputs to remove a source of nondeterminism
+    Collections.sort(matching);
+    return ImmutableList.copyOf(matching);
   }
 
   private void cleanWorkingDirectory(Path workingDir) throws IOException {
@@ -365,7 +544,9 @@ public final class Baker {
 
   public final ArtifactListener<ToolSignature> toolListener
       = new ArtifactListener<ToolSignature>() {
-    public void artifactChanged(ToolSignature sig) { invalidate(sig.name); }
+    public void artifactChanged(ToolSignature sig) {
+      invalidate(sig.name);
+    }
     public void artifactDestroyed(String toolName) { invalidate(toolName); }
     private void invalidate(String toolName) {
       for (ProductStatusChain statuses = toolDeps.get(toolName);
@@ -469,6 +650,9 @@ public final class Baker {
 
     synchronized void setBuildFuture(@Nullable Future<Boolean> newBuildFuture) {
       if (buildFuture == newBuildFuture) { return; }
+      if (newBuildFuture == null) {
+        Thread.dumpStack();
+      }
       if (buildFuture != null) {
         buildFuture.cancel(true);
       }
@@ -497,5 +681,23 @@ public final class Baker {
       ProductStatusChain newNext = next.without(toRemove);
       return newNext == next ? this : new ProductStatusChain(ps, newNext);
     }
+  }
+
+  boolean unittestBackdoorProductStatus(String productName) {
+    ProductStatus status = productStatuses.get(productName);
+    if (status == null) { throw new IllegalArgumentException(productName); }
+    Future<Boolean> bf = status.buildFuture;
+    if (bf != null && bf.isDone()) {
+      try {
+        return bf.get().booleanValue();
+      } catch (ExecutionException ex) {
+        // Not done after all.
+        Throwables.propagate(ex);
+      } catch (InterruptedException ex) {
+        // Not done after all.
+        Throwables.propagate(ex);
+      }
+    }
+    return false;
   }
 }

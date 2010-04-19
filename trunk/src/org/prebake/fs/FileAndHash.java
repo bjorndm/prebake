@@ -39,7 +39,7 @@ public final class FileAndHash {
 
   private FileAndHash(Path p, byte[] content, @Nullable Hash hash) {
     this.p = p;
-    this.content = content;  // TODO
+    this.content = content;
     this.hash = hash;
   }
 
@@ -49,4 +49,8 @@ public final class FileAndHash {
     return new String(content, encoding);
   }
   public @Nullable Hash getHash() { return hash; }
+
+  public FileAndHash withoutHash() {
+    return hash == null ? this : new FileAndHash(p, content, null);
+  }
 }

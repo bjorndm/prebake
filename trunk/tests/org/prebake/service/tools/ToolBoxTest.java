@@ -1,12 +1,14 @@
 package org.prebake.service.tools;
 
 import org.prebake.core.ArtifactListener;
-import org.prebake.fs.FileHashes;
+import org.prebake.fs.DbFileVersioner;
+import org.prebake.fs.FileVersioner;
 import org.prebake.js.Executor;
 import org.prebake.util.PbTestCase;
 import org.prebake.util.StubFileSystemProvider;
 
 import com.google.common.base.Joiner;
+import com.google.common.base.Predicates;
 import com.google.common.collect.Lists;
 import com.google.common.io.Files;
 import com.sleepycat.je.Environment;
@@ -33,7 +35,7 @@ public class ToolBoxTest extends PbTestCase {
   private FileSystem fs;
   private Path root;
   private Environment env;
-  private FileHashes fh;
+  private FileVersioner fh;
   private ScheduledExecutorService execer;
   private File tempDir;
 
@@ -47,7 +49,7 @@ public class ToolBoxTest extends PbTestCase {
     envConfig.setAllowCreate(true);
     tempDir = Files.createTempDir();
     env = new Environment(tempDir, envConfig);
-    fh = new FileHashes(env, root, logger);
+    fh = new DbFileVersioner(env, root, Predicates.<Path>alwaysTrue(), logger);
     execer = new ScheduledThreadPoolExecutor(4);
   }
 

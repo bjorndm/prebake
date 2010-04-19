@@ -21,7 +21,7 @@ final class FrozenCopyFn extends BaseFunction {
   public @Nullable Object call(
       Context cx, Scriptable scope, Scriptable thisObj, Object[] args) {
     if (args.length != 1) { return Undefined.instance; }
-    return new Freezer(cx).frozenCopy(args[0]);
+    return new Freezer().frozenCopy(args[0]);
   }
   @Override
   public String getFunctionName() { return "frozenCopy"; }

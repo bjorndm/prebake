@@ -3,6 +3,7 @@ package org.prebake.service.bake;
 import org.prebake.core.Documentation;
 import org.prebake.core.Glob;
 import org.prebake.fs.FileAndHash;
+import org.prebake.fs.FilePerms;
 import org.prebake.fs.StubFileVersioner;
 import org.prebake.js.YSON;
 import org.prebake.os.OperatingSystem;
@@ -18,18 +19,24 @@ import java.io.FileNotFoundException;
 import java.io.IOError;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.io.Writer;
 import java.nio.file.FileSystem;
+import java.nio.file.FileVisitResult;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.SimpleFileVisitor;
 import java.nio.file.StandardOpenOption;
+import java.nio.file.attribute.BasicFileAttributes;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -39,10 +46,13 @@ import javax.annotation.ParametersAreNonnullByDefault;
 import com.google.common.base.Charsets;
 import com.google.common.base.Function;
 import com.google.common.base.Joiner;
+import com.google.common.base.Predicates;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.io.ByteStreams;
+import com.google.common.io.CharStreams;
 import com.google.common.util.concurrent.ValueFuture;
 
 import org.junit.After;
@@ -64,29 +74,28 @@ public class BakerTest extends PbTestCase {
   }
 
   @Test
-  public final void testBake() throws Exception {
-    System.err.println("CP0");
+  public final void testCopyFooDirectoryToBaz() throws Exception {
+    final String fooBuiltLogMessage = "INFO: Starting bake of product foo";
     tester.withFileSystem(
         "/",
-        "  tmp/",
         "  cwd/",
-        "    foo/",
-        "      a.txt  \"foo a text\"",
-        "      a.html \"foo a html\"",
-        "      b.txt  \"foo b text\"",
-        "      b.html \"foo b html\"",
-        "    bar/",
-        "      a.txt  \"bar a text\"",
-        "      a.html \"bar a html\"",
-        "      b.txt  \"bar b text\"",
-        "      b.html \"bar b html\"",
-        "    toos/",
-        ("      cp.js  \"({ \\n"
-         + "  name:'cp', \\n"
-         + "  fire: function (opts, inputs, action, product, exec) { \\n"
+        "    root/",
+        "      foo/",
+        "        a.txt  \"foo a text\"",
+        "        a.html \"foo a html\"",
+        "        b.txt  \"foo b text\"",
+        "        b.html \"foo b html\"",
+        "      bar/",
+        "        a.txt  \"bar a text\"",
+        "        a.html \"bar a html\"",
+        "        b.txt  \"bar b text\"",
+        "        b.html \"bar b html\"",
+        "      tools/",
+        ("        cp.js  \"({ \\n"
+         + "  fire: function fire(opts, inputs, product, action, exec) { \\n"
          // Sanity check all the inputs.
          + "    if (typeof opts !== 'object' \\n"
-         // See options map below
+         // See options map below.
          + "        || (JSON.stringify({foo:'bar'}) \\n"
          + "            !== JSON.stringify(opts))) { \\n"
          + "      throw new Error('wrong options'); \\n"
@@ -95,13 +104,13 @@ public class BakerTest extends PbTestCase {
          + "      throw new Error('' + inputs); \\n"
          + "    } \\n"
          + "    if (action.tool !== 'cp') { \\n"
-         + "      throw new Error('' + tool); \\n"
+         + "      throw new Error('action ' + JSON.stringify(action)); \\n"
          + "    } \\n"
          + "    if ('foo' !== product.name) { \\n"
          + "      throw new Error('product ' + JSON.stringify(product)); \\n"
          + "    } \\n"
          + "    if (typeof exec !== 'function') { \\n"
-         + "      throw new Error('exec=' + exec); \\n"
+         + "      throw new Error('exec ' + exec); \\n"
          + "    } \\n"
          // Infer outputs from inputs
          + "    var outGlob = action.outputs[0]; \\n"
@@ -121,48 +130,117 @@ public class BakerTest extends PbTestCase {
          + "})\""))
         .withProduct(product(
             "foo",
-            action(
-                "cp",
-                ImmutableMap.<String, Object>builder().put("foo", "bar")
-                    .build(),
-                "foo/**", "bar/**")))
-        .withTool(tool("cp"), "/cwd/tools/cp.js")
+            action("cp", ImmutableMap.of("foo", "bar"), "foo/**", "baz/**")))
+        .withTool(tool("cp"), "/cwd/root/tools/cp.js")
         .expectSuccess(true)
-        .build("foo");
+        .build("foo")
+        .runPendingTasks()  // To delete temporary files
+        .assertFileTree(
+            "/",
+            "  cwd/",
+            "    root/",
+            "      foo/",
+            "        a.txt \"foo a text\"",
+            "        a.html \"foo a html\"",
+            "        b.txt \"foo b text\"",
+            "        b.html \"foo b html\"",
+            "      bar/",
+            "        a.txt \"bar a text\"",
+            "        a.html \"bar a html\"",
+            "        b.txt \"bar b text\"",
+            "        b.html \"bar b html\"",
+            "      tools/",
+            "        cp.js \"...\"",
+            "      baz/",
+            "        a.html \"foo a html\"",
+            "        a.txt \"foo a text\"",
+            "        b.html \"foo b html\"",
+            "        b.txt \"foo b text\"",
+            "  tmpdir/")
+        .assertLog(fooBuiltLogMessage)
+        .assertProductStatus("foo", true)
+        .clearLog()
+        .build("foo")  // Second build should do nothing.
+        .assertProductStatus("foo", true);
+    // Now, check that foo was not rebuilt unnecessarily
+    assertFalse(
+        Joiner.on('\n').join(getLog()),
+        getLog().contains(fooBuiltLogMessage));
   }
 
-  // TODO: unrecognized product names
-  // TODO: actions time out
+  @Test()
+  public final void testUnrecognizedProduct() throws Exception {
+    tester.withFileSystem(
+        "/",
+        "  cwd/",
+        "    root/",
+        "      foo/",
+        "        a.txt  \"foo a text\"",
+        "      bar/",
+        "        b.txt  \"bar b text\"",
+        "      tools/",
+        ("        cp.js  \"({fire: function fire() { throw new Error; }}\""))
+        .withProduct(product(
+            "foo", action("cp", ImmutableMap.of("x", "y"), "foo/**", "baz/**")))
+        .withTool(tool("cp"), "/cwd/root/tools/cp.js")
+        .expectSuccess(false)
+        .build("bar")
+        .assertLog("WARNING: Unrecognized product bar");
+  }
+
+  @Test
+  public final void testProductStatusDependsOnTools() throws Exception {
+    tester.withFileSystem(
+        "/",
+        "  cwd/",
+        "    root/",
+        "      tools/",
+        ("        bork.js \"({\\n"
+         + "  fire: function (opts, inputs, product, action, exec) {\\n"
+         + "    var argv = action.outputs.slice(0);\\n"
+         + "    argv.splice(0, 0, 'bork');\\n"
+         + "    exec.apply({}, argv);\\n"
+         + "  }\\n"
+         + "})\""),
+         "      tools2/",
+        ("        bork.js \"({\\n"
+         + "  fire: function (opts, inputs, product, action, exec) {\\n"
+         + "    var argv = action.outputs.slice(0);\\n"
+         + "    argv.splice(0, 0, 'bork');\\n"
+         + "    argv.sort();\\n"
+         + "    exec.apply({}, argv);\\n"
+         + "  }\\n"
+         + "})\""))
+       .withTool(tool("bork"), "root/tools/bork.js")
+       .withProduct(product(
+           "swedish_meatballs",
+           action(
+               "bork", ImmutableList.<String>of(),
+               ImmutableList.of("bork!", "bork/bork!", "bork/bork/bork!"))))
+       .expectSuccess(true)
+       .build("swedish_meatballs")
+       .assertProductStatus("swedish_meatballs", true)
+       .withTool(tool("bork"), "root/tools2/bork.js")
+       .assertProductStatus("swedish_meatballs", false);
+  }
+
   // TODO: product invalidated when tool changes
   // TODO: product invalidated when input changes
   // TODO: product invalidated when input created
   // TODO: product invalidated when input deleted
   // TODO: output globs that overlap inputs
   // TODO: process returns error code.
-  // TODO: process takes a long time.
   // TODO: changed output is updated
-
-  private final class BakerCallback implements Function<Boolean, Void> {
-    final boolean golden;
-    boolean called = false;
-
-    BakerCallback(boolean golden) { this.golden = golden; }
-
-    public synchronized Void apply(Boolean success) {
-      tester.logger.log(Level.INFO, "Callback called with {0}", success);
-      assertFalse(called);
-      called = true;
-      assertEquals(this.golden, success);
-      return null;
-    }
-  }
+  // TODO: source file deleted and generated file archived
+  // TODO: actions time out
+  // TODO: process takes a long time.
 
   private class Tester {
     FileSystem fs;
     private OperatingSystem os;
     private StubFileVersioner files;
     private Logger logger;
-    private ScheduledExecutorService execer;
+    private StubScheduledExecutorService execer;
     private StubToolProvider toolbox;
     private Baker baker;
     private boolean successExpectation;
@@ -176,10 +254,21 @@ public class BakerTest extends PbTestCase {
       this.fs = fs;
       os = new StubOperatingSystem(fs);
       logger = getLogger(Level.INFO);
-      files = new StubFileVersioner(fs.getPath(".").toAbsolutePath(), logger);
+      files = new StubFileVersioner(
+          fs.getPath("root").toAbsolutePath(),
+          Predicates.<Path>alwaysTrue(), logger);
+      final ImmutableList.Builder<Path> b = ImmutableList.builder();
+      Files.walkFileTree(fs.getPath("/"), new SimpleFileVisitor<Path>() {
+        @Override
+        public FileVisitResult visitFile(Path f, BasicFileAttributes atts) {
+          b.add(f);
+          return FileVisitResult.CONTINUE;
+        }
+      });
+      files.update(b.build());
       execer = new StubScheduledExecutorService();
       toolbox = new StubToolProvider();
-      baker = new Baker(os, files, logger, execer);
+      baker = new Baker(os, files, 0700, logger, execer);
       baker.setToolBox(toolbox);
       return this;
     }
@@ -187,6 +276,7 @@ public class BakerTest extends PbTestCase {
     Tester withTool(ToolSignature sig, String path) {
       toolbox.sigs.put(sig.name, sig);
       toolbox.toolPaths.put(sig.name, fs.getPath(path));
+      baker.toolListener.artifactChanged(sig);
       return this;
     }
 
@@ -200,16 +290,47 @@ public class BakerTest extends PbTestCase {
       return this;
     }
 
-    Tester build(String productName) throws Exception {
-      for (Future<ToolSignature> sigF : toolbox.getAvailableToolSignatures()) {
-        baker.toolListener.artifactChanged(sigF.get());
-      }
-      BakerCallback callback = new BakerCallback(successExpectation);
-      Boolean result = baker.build("foo", callback).get();
-      synchronized (callback) {
-        assertTrue(callback.called);
-      }
-      assertEquals(result, successExpectation);
+    Tester build(String productName)
+        throws ExecutionException, InterruptedException {
+      Boolean result = baker.build(productName).get();
+      assertEquals(successExpectation, result);
+      return this;
+    }
+
+    Tester runPendingTasks() {
+      execer.advanceTime(1000, logger);
+      return this;
+    }
+
+    Tester assertFileTree(String... golden) {
+      assertEquals(
+          Joiner.on('\n').join(golden),
+          fileSystemToAsciiArt(files.getFileSystem(), 40).trim());
+      return this;
+    }
+
+    Tester assertFileContent(String path, String golden) throws Exception {
+      Path p = fs.getPath(path);
+      String actual = CharStreams.toString(
+          new InputStreamReader(p.newInputStream(), Charsets.UTF_8));
+      assertEquals(p.toString(), golden, actual);
+      return this;
+    }
+
+    Tester assertProductStatus(String productName, boolean upToDate) {
+      assertEquals(
+          productName + " status", upToDate,
+          baker.unittestBackdoorProductStatus(productName));
+      return this;
+    }
+
+    Tester assertLog(String logEntry) {
+      assertTrue(logEntry, getLog().contains(logEntry));
+      return this;
+    }
+
+    Tester clearLog() {
+      getLog().clear();
       return this;
     }
 
@@ -229,7 +350,7 @@ public class BakerTest extends PbTestCase {
    *   <tr><td>bork<td>appends "Bork!" to the end of each argument</r>
    * </ul>
    */
-  private static class StubOperatingSystem implements OperatingSystem {
+  private final class StubOperatingSystem implements OperatingSystem {
     private final FileSystem fs;
     StubOperatingSystem(FileSystem fs) { this.fs = fs; }
 
@@ -245,8 +366,18 @@ public class BakerTest extends PbTestCase {
       return p;
     }
 
+    private void mkdirs(Path p) throws IOException {
+      if (p.exists()) { return; }
+      Path parent = p.getParent();
+      if (parent != null) { mkdirs(parent); }
+      p.createDirectory(FilePerms.perms(0700, true));
+    }
+
     public Process run(final Path cwd, String command, final String... argv)
         throws IOException {
+      tester.logger.log(
+          Level.INFO, "Running {0} with {1}",
+          new Object[] { cwd, Arrays.asList(argv) });
       if (command.equals("cp")) {
         return new StubProcess(
             new Function<String, String>() {
@@ -254,7 +385,11 @@ public class BakerTest extends PbTestCase {
             }, new Callable<Integer>() {
               public Integer call() throws Exception {
                 if (argv.length != 2) { return -1; }
-                cwd.resolve(argv[0]).copyTo(fs.getPath(argv[1]));
+                Path out = cwd.resolve(argv[1]);
+                mkdirs(out.getParent());
+                Path from = cwd.resolve(argv[0]);
+                from.copyTo(out);
+                System.err.println("COPIED " + from + " to " + out);
                 return 0;
               }
             });
@@ -400,6 +535,6 @@ public class BakerTest extends PbTestCase {
     public FileAndHash getTool(String toolName) throws IOException {
       return tester.files.load(toolPaths.get(toolName));
     }
-    public void close() throws IOException {}
+    public void close() { /* no-op */ }
   }
 }

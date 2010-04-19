@@ -14,6 +14,7 @@ import org.prebake.util.StubScheduledExecutorService;
 
 import com.google.common.base.Charsets;
 import com.google.common.base.Joiner;
+import com.google.common.base.Predicates;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
@@ -365,7 +366,8 @@ public class PlannerTest extends PbTestCase {
       assertNull(fs);
       Logger logger = getLogger(Level.INFO);
       fs = fileSystemFromAsciiArt("/cwd", Joiner.on('\n').join(asciiArt));
-      files = new StubFileVersioner(fs.getPath("/cwd"), logger);
+      files = new StubFileVersioner(
+          fs.getPath("/cwd"), Predicates.<Path>alwaysTrue(), logger);
       toolbox = new ToolProvider() {
         private boolean isClosed;
         public List<Future<ToolSignature>> getAvailableToolSignatures() {
