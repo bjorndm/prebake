@@ -28,6 +28,7 @@ import java.nio.file.LinkOption;
 import java.nio.file.OpenOption;
 import java.nio.file.Path;
 import java.nio.file.PathMatcher;
+import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
 import java.nio.file.StandardWatchEventKind;
 import java.nio.file.WatchEvent;
@@ -329,17 +330,18 @@ class MemPath extends Path {
   @Override
   public Path copyTo(Path target, CopyOption... options) throws IOException {
     Node a = fs.lookup(this);
+    if (a == null) { throw new FileNotFoundException(toString()); }
     Node b = fs.lookup((MemPath) target);
-    if (a == b) { return target; }
-    if (a == null) { throw new IOException(); }
+    if (a == b) { return target; }  // same file
     if (a.isDir()) { throw new IOException(); }
     if (b == null) {
       target.createFile();
       b = fs.lookup((MemPath) target);
+      if (b == null) { throw new FileNotFoundException(target.toString()); }
     }
     if (b.isDir()) { throw new IOException(); }
-    Node a2 = new Node(b.getName(), b.getParent(), a.isDir());
-    a2.content.write(a.content.toByteArray());
+    b.content.reset();
+    b.content.write(a.content.toByteArray());
     return target;
   }
 
@@ -409,6 +411,7 @@ class MemPath extends Path {
 
   @Override
   public Path moveTo(Path target, CopyOption... options) throws IOException {
+    Set<CopyOption> opts = ImmutableSet.of(options);
     Node a = fs.lookup(this);
     Node b = fs.lookup((MemPath) target);
     if (a == b) { return target; }
@@ -420,6 +423,8 @@ class MemPath extends Path {
         target.createFile();
       }
       b = fs.lookup((MemPath) target);
+    } else if (!opts.contains(StandardCopyOption.REPLACE_EXISTING)) {
+      throw new IOException(target + " already exists");
     }
     if (a.isDir() != b.isDir()) { throw new IOException(); }
     a.delete();
@@ -579,7 +584,7 @@ class MemFileSystem extends FileSystem {
   @Override
   public FileSystemProvider provider() { return p; }
 
-  void __mkdir(Path dir) throws IOException {
+  void __mkdir(MemPath dir) throws IOException {
     dir = dir.toAbsolutePath();
     Node n = root;
     for (Path part : dir) {
@@ -727,7 +732,7 @@ class MemFileSystem extends FileSystem {
           || options.contains(StandardOpenOption.CREATE_NEW)) {
         Node parent = lookup(p.subpath(0, p.getNameCount() - 1));
         if (parent == null || !parent.isDir()) {
-          throw new IOException(p.toString());
+          throw new IOException(p.toString() + " is not a directory");
         }
         n = new Node(p.getName().toString(), parent, false);
       } else {
@@ -786,7 +791,9 @@ class MemFileSystem extends FileSystem {
       final MemPath p, final DirectoryStream.Filter<? super Path> filter)
       throws IOException {
     final Node n = lookup(p);
-    if (n == null || !n.isDir()) { throw new IOException(); }
+    if (n == null || !n.isDir()) {
+      throw new IOException("non dir " + p + " has no children");
+    }
     return new DirectoryStream<Path>() {
       Node node = n;
 
@@ -822,10 +829,10 @@ class MemFileSystem extends FileSystem {
                 if ("".equals(name)) { continue; }
                 Node child = node.getChild(name);
                 if (child != null) {
-                  Path p = child.toPath(MemFileSystem.this);
+                  Path childPath = p.resolve(name);
                   try {
-                    if (filter == null || filter.accept(p)) {
-                      pending = p;
+                    if (filter == null || filter.accept(childPath)) {
+                      pending = childPath;
                       return;
                     }
                   } catch (IOException ex) {
@@ -1038,9 +1045,13 @@ final class Node {
     }
     if (newParent != null) {
       Node old = newParent.children.put(name, this);
+      if (old != null) { old.parent = null; }
       parent = newParent;
-      parent.bcast(StandardWatchEventKind.ENTRY_CREATE, name);
-      if (old != null) { old.reparent(null); }
+      parent.bcast(
+          old != null
+              ? StandardWatchEventKind.ENTRY_MODIFY
+              : StandardWatchEventKind.ENTRY_CREATE,
+          name);
     }
   }
 
