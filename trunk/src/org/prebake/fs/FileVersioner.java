@@ -354,6 +354,8 @@ public abstract class FileVersioner {
 
   protected abstract ArtifactUpdateLoop makeArtifactUpdateLoop();
 
+  // TODO: move updates onto execer
+
   private static final Hash NO_FILE_HASH = Hash.builder().build();
   /**
    * @param artifact a newly valid non file artifact.

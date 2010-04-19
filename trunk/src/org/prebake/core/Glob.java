@@ -4,6 +4,8 @@ import org.prebake.js.JsonSerializable;
 import org.prebake.js.JsonSink;
 import org.prebake.js.YSONConverter;
 
+import com.google.common.base.Function;
+import com.google.common.base.Joiner;
 import com.google.common.base.Splitter;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
@@ -177,6 +179,124 @@ public final class Glob implements Comparable<Glob>, JsonSerializable {
       }
     }
     return false;
+  }
+
+  /**
+   * A function that transforms paths that match the input glob into paths
+   * that match the output glob.
+   * @return a function that takes a normalized path
+   *     (<tt>/</tt> as the separator) relative to the client root and returns
+   *     a normalized path relative to the client root.
+   *     The function will return null if the path does not match the input
+   *     glob.
+   */
+  public static Function<String, String> transform(Glob input, Glob output)
+      throws IllegalArgumentException {
+    int m = input.parts.length, n = output.parts.length;
+    // The literal portions of the output glob.
+    // For the output glob "foo/**/bar/baz/*.html", the literal portions are
+    // ["foo/", "/bar/baz/", ".html"]
+    List<String> literals = Lists.newArrayList();
+    // Number of holes in input that don't correspond to any in the output.
+    // E.g., for (input="**/foo/*.txt", output="bar/*.txt")
+    // which would map { a/foo/x.txt => bar/x.txt, b/c/foo/y.txt => bar/y.txt }
+    // nUnusedGroups is 1 since the "**" isn't used in the output.
+    final int nUnusedGroups;
+    {
+      int pos = n;
+      int j = m;
+      // Iterate in reverse so that unused groups fall at the beginning of the
+      // input.  We do this because the tail ends of a path are
+      // more-significant.  I.e., for input "*/*.foo", and output "*.bar",
+      // we want to map "x/y.foo" to "y.bar", not "x.bar".
+      for (int i = n; --i >= 0;) {
+        String outPart = output.parts[i];
+        if (outPart.charAt(0) != '*') { continue; }
+        String inPart = null;
+        while (--j >= 0) {
+          String part = input.parts[j];
+          if (part.charAt(0) == '*') {
+            inPart = part;
+            break;
+          }
+        }
+        // We need to verify that for every wildcard in output, there is a
+        // corresponding wildcard in input that matches a subset.
+        if (inPart == null) {
+          throw new IllegalArgumentException(
+              "Can't transform " + input + " to " + output + "."
+              + "  There is no corresponding hole for "
+              + Joiner.on("").join(output.parts, 0, i + 1));
+        } else if ("**".equals(inPart) && "*".equals(outPart)) {
+          throw new IllegalArgumentException(
+              "Can't transform " + input + " to " + output + "."
+              + "  There is no corresponding hole for the " + outPart
+              + " at the end of " + Joiner.on("").join(output.parts, 0, i + 1));
+        }
+        literals.add(Joiner.on("").join(
+            Arrays.asList(output.parts).subList(i + 1, pos)));
+        pos = i;
+      }
+      literals.add(Joiner.on("").join(
+          Arrays.asList(output.parts).subList(0, pos)));
+      // Since we iterated above in reverse order.
+      Collections.reverse(literals);
+
+      int unusedGroups = 0;
+      while (--j >= 0) {
+        if (input.parts[j].charAt(0) == '*') { ++unusedGroups; }
+      }
+      nUnusedGroups = unusedGroups;
+    }
+    final Pattern inPattern;
+    {
+      StringBuilder inBuf = new StringBuilder();
+      input.toRegex("/", true, inBuf);
+      inPattern = Pattern.compile(inBuf.toString(), Pattern.DOTALL);
+    }
+    final String[] outputParts = literals.toArray(new String[literals.size()]);
+    final boolean[] slashStarts = new boolean[outputParts.length];
+    for (int i = slashStarts.length; --i >= 0;) {
+      slashStarts[i] = outputParts[i].startsWith("/");
+    }
+    final int nSubs = outputParts.length - 1;
+    final int lenDelta;  // Used to presize output StringBuilder.
+    {
+      int delta = 16;
+      for (int i = n; --i >= 0;) { delta += output.parts[i].length(); }
+      for (int i = m; --i >= 0;) { delta -= input.parts[i].length(); }
+      lenDelta = delta;
+    }
+    return new Function<String, String>() {
+      public String apply(String inputPath) {
+        Matcher m = inPattern.matcher(inputPath);
+        if (!m.matches()) { return null; }
+        StringBuilder sb = new StringBuilder(
+            Math.max(0, lenDelta + inputPath.length()));
+        sb.append(outputParts[0]);
+        for (int i = 1; i <= nSubs; ++i) {
+          String group = m.group(i + nUnusedGroups);
+          if (group != null) { sb.append(group); }
+          // Don't double up '/'s.  This might happen for the input
+          // foo/**/*.txt and output bar/**/*.txt are transformed against
+          // the path foo/a.txt to produce bar/a.txt.  The "**" substitution
+          // would match the empty string, leaving the output part, the "/" to
+          // run up against the previous literal portion's "/".
+          String outputPart = outputParts[i];
+          if (slashStarts[i]) {
+            int sblen = sb.length();
+            if (sblen == 0 || sb.charAt(sblen - 1) == '/') {
+              sb.append(outputPart, 1, outputPart.length());
+            } else {
+              sb.append(outputPart);
+            }
+          } else {
+            sb.append(outputPart);
+          }
+        }
+        return sb.toString();
+      }
+    };
   }
 
   public static String commonPrefix(Iterable<Glob> globs) {
@@ -398,13 +518,14 @@ public final class Glob implements Comparable<Glob>, JsonSerializable {
   public boolean match(String path) {
     if (regex == null) {
       StringBuilder sb = new StringBuilder();
-      toRegex(sb);
+      toRegex("/\\\\", false, sb);
       regex = Pattern.compile(sb.toString(), Pattern.DOTALL);
     }
     return regex.matcher(path).matches();
   }
 
-  private void toRegex(StringBuilder sb) {
+  private void toRegex(
+      String separatorChars, boolean capture, StringBuilder sb) {
     for (int i = 0, n = parts.length; i < n; ++i) {
       String part = parts[i];
       switch (part.charAt(0)) {
@@ -412,12 +533,16 @@ public final class Glob implements Comparable<Glob>, JsonSerializable {
           if (part.length() == 2) {
             if (i + 1 < n && "/".equals(parts[i + 1])) {
               // foo/**/bar should match foo/bar.
-              sb.append("(?:.+[/\\\\])?");
+              sb.append("(?:").append(capture ? "(.+)" : ".+")
+                  .append("[").append(separatorChars).append("])?");
+              ++i;
             } else {
-              sb.append(".*");
+              sb.append(capture ? "(.*)" : ".*");
             }
           } else {
-            sb.append("[^/\\\\]*");
+            if (capture) { sb.append('('); }
+            sb.append("[^").append(separatorChars).append("]*");
+            if (capture) { sb.append(')'); }
           }
           break;
         case '/':
@@ -425,16 +550,18 @@ public final class Glob implements Comparable<Glob>, JsonSerializable {
             String nextPart = parts[i + 1];
             if ('*' == nextPart.charAt(0)) {
               // foo/* and foo/** should match foo
-              sb.append(
-                  nextPart.length() == 2
-                  ? "(?:[/\\\\].*)?"
-                  : "(?:[/\\\\][^/\\\\]*)?");
+              if (nextPart.length() == 2) {
+                sb.append("(?:[").append(separatorChars).append("].*)?");
+              } else {
+                sb.append("(?:[").append(separatorChars).append("][^")
+                    .append(separatorChars).append("]*)?");
+              }
               ++i;
             } else {
-              sb.append("[/\\\\]");
+              sb.append("[").append(separatorChars).append("]");
             }
           } else {
-            sb.append("[/\\\\]");
+            sb.append("[").append(separatorChars).append("]");
             // foo/ should match foo
             if (i + 1 == n) { sb.append('?'); }
           }
@@ -452,7 +579,7 @@ public final class Glob implements Comparable<Glob>, JsonSerializable {
     for (Glob g : globs) {
       if (!first) { sb.append('|'); }
       first = false;
-      g.toRegex(sb);
+      g.toRegex("/\\\\", false, sb);
     }
     return Pattern.compile(sb.toString(), Pattern.DOTALL);
   }
