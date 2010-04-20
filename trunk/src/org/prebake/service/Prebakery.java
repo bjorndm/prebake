@@ -21,6 +21,7 @@ import com.google.common.base.Charsets;
 import com.google.common.base.Function;
 import com.google.common.base.Predicate;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.common.io.CharStreams;
@@ -62,6 +63,7 @@ import javax.annotation.ParametersAreNonnullByDefault;
 @ParametersAreNonnullByDefault
 public abstract class Prebakery implements Closeable {
   private final Config config;
+  private final ImmutableMap<String, ?> commonJsEnv;
   private final String token;
   private final LinkedBlockingQueue<Commands> cmdQueue;
   private final Logger logger;
@@ -94,11 +96,12 @@ public abstract class Prebakery implements Closeable {
       Pattern.DOTALL);
 
   public Prebakery(
-      Config config, ScheduledExecutorService execer, OperatingSystem os,
-      Logger logger) {
+      Config config, ImmutableMap<String, ?> commonJsEnv,
+      ScheduledExecutorService execer, OperatingSystem os, Logger logger) {
     assert config != null;
     config = staticCopy(config);
     this.config = config;
+    this.commonJsEnv = commonJsEnv;
     this.execer = execer;
     this.os = os;
     this.logger = logger;
@@ -259,12 +262,14 @@ public abstract class Prebakery implements Closeable {
 
     this.env = createDbEnv(dir);
     this.files = new DbFileVersioner(env, clientRoot, toWatch, logger);
-    this.baker = new Baker(os, files, config.getUmask(), logger, execer);
+    this.baker = new Baker(
+        os, files, commonJsEnv, config.getUmask(), logger, execer);
     this.tools = new ToolBox(
-        files, config.getToolDirs(), logger, baker.toolListener, execer);
+        files, commonJsEnv, config.getToolDirs(), logger, baker.toolListener,
+        execer);
     this.baker.setToolBox(this.tools);
     this.planner = new Planner(
-        files, tools, config.getPlanFiles(), logger,
+        files, commonJsEnv, tools, config.getPlanFiles(), logger,
         this.baker.prodListener, execer);
   }
 

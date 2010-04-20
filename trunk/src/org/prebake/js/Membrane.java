@@ -564,7 +564,7 @@ final class Membrane {
   }
 
   private BaseFunction makeFunctionWrapper(MembranableFunction fn) {
-    return wrap(fn, new WrappedFunction(this, fn, fn.getName(), fn.getHelp()));
+    return wrap(fn, new WrappedFunction(this, fn));
   }
 
   private <T> T wrap(Object original, T wrapper) {

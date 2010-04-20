@@ -7,7 +7,6 @@ import java.io.ObjectOutputStream;
 
 import com.google.common.base.Function;
 
-import javax.annotation.Nullable;
 import javax.annotation.ParametersAreNonnullByDefault;
 
 import org.mozilla.javascript.BaseFunction;
@@ -27,25 +26,25 @@ import org.mozilla.javascript.ScriptableObject;
 final class WrappedFunction extends BaseFunction {
   private final Membrane membrane;
   private final Function<Object[], Object> body;
-  private final String name;
 
   WrappedFunction(
-      Membrane membrane, Function<Object[], Object> body, @Nullable String name,
-      @Nullable Documentation doc) {
+      Membrane membrane, Function<Object[], Object> body) {
     this.membrane = membrane;
-    this.name = name;
     this.body = body;
     ScriptRuntime.setFunctionProtoAndParent(this, membrane.scope);
-    if (doc != null) {
-      NativeObject helpObj = new NativeObject();
-      ScriptableObject.putConstProperty(
-          helpObj, Documentation.Field.summary.name(), doc.summaryHtml);
-      ScriptableObject.putConstProperty(
-          helpObj, Documentation.Field.detail.name(), doc.detailHtml);
-      ScriptableObject.putConstProperty(
-          helpObj, Documentation.Field.contact.name(), doc.contactEmail);
-      new Freezer().freeze(helpObj);
-      ScriptableObject.putProperty(this, "help_", helpObj);
+    if (body instanceof MembranableFunction) {
+      Documentation doc = ((MembranableFunction) body).getHelp();
+      if (doc != null) {
+        NativeObject helpObj = new NativeObject();
+        ScriptableObject.putConstProperty(
+            helpObj, Documentation.Field.summary.name(), doc.summaryHtml);
+        ScriptableObject.putConstProperty(
+            helpObj, Documentation.Field.detail.name(), doc.detailHtml);
+        ScriptableObject.putConstProperty(
+            helpObj, Documentation.Field.contact.name(), doc.contactEmail);
+        new Freezer().freeze(helpObj);
+        ScriptableObject.putProperty(this, "help_", helpObj);
+      }
     }
     new Freezer().freeze(this);
   }
@@ -63,7 +62,16 @@ final class WrappedFunction extends BaseFunction {
   }
   @Override
   public String getFunctionName() {
+    String name = null;
+    if (body instanceof MembranableFunction) {
+      name = ((MembranableFunction) body).getName();
+    }
     return name != null ? name : super.getFunctionName();
+  }
+  @Override
+  public int getArity() {
+    return body instanceof MembranableFunction
+        ? ((MembranableFunction) body).getArity() : 0;
   }
 
   // Instances cannot be serialized since console cannot be serialized.
@@ -74,21 +82,5 @@ final class WrappedFunction extends BaseFunction {
   /** @param str unused */
   private void writeObject(ObjectOutputStream str) {
     throw new UnsupportedOperationException();
-  }
-
-  static final class Skeleton implements ScriptableSkeleton {
-    final Function<Object[], Object> body;
-    final String name;
-    final Documentation help;
-
-    Skeleton(Function<Object[], Object> body, String name, Documentation help) {
-      this.body = body;
-      this.name = name;
-      this.help = help;
-    }
-
-    public BaseFunction fleshOut(Membrane membrane) {
-      return new WrappedFunction(membrane, body, name, help);
-    }
   }
 }

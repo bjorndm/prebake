@@ -16,4 +16,6 @@ public interface MembranableFunction extends Function<Object[], Object> {
   /** A JavaScript identifier which will show up in stack traces. */
   @Nullable String getName();
   @Nullable Documentation getHelp();
+  /** The minimum number of arguments needed by the function. */
+  int getArity();
 }

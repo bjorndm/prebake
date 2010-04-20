@@ -495,7 +495,7 @@ public class BakerTest extends PbTestCase {
       files.update(b.build());
       execer = new StubScheduledExecutorService();
       toolbox = new StubToolProvider();
-      baker = new Baker(os, files, 0700, logger, execer);
+      baker = new Baker(os, files, getCommonJsEnv(), 0700, logger, execer);
       baker.setToolBox(toolbox);
       return this;
     }

@@ -401,7 +401,7 @@ public class PlannerTest extends PbTestCase {
       List<Path> planFileList = b.build();
       files.update(planFileList);
       planner = new Planner(
-          files, toolbox, planFileList, logger,
+          files, getCommonJsEnv(), toolbox, planFileList, logger,
           ArtifactListener.Factory.<Product>noop(), execer);
       return this;
     }

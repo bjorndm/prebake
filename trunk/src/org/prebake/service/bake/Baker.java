@@ -70,6 +70,7 @@ import com.google.common.util.concurrent.ValueFuture;
 public final class Baker {
   private final OperatingSystem os;
   private final FileVersioner files;
+  private final ImmutableMap<String, ?> commonJsEnv;
   private final Logger logger;
   private final ScheduledExecutorService execer;
   private final ConcurrentHashMap<String, ProductStatus> productStatuses
@@ -87,10 +88,12 @@ public final class Baker {
   private final int umask;
 
   public Baker(
-      OperatingSystem os, FileVersioner files, int umask, Logger logger,
+      OperatingSystem os, FileVersioner files,
+      ImmutableMap<String, ?> commonJsEnv, int umask, Logger logger,
       ScheduledExecutorService execer) {
     this.os = os;
     this.files = files;
+    this.commonJsEnv = commonJsEnv;
     this.umask = umask;
     this.logger = logger;
     this.execer = execer;
@@ -228,6 +231,7 @@ public final class Baker {
           return 0;
         }
       }
+      public int getArity() { return 1; }
       public String getName() { return "exec"; }
       public Documentation getHelp() {
         return new Documentation(
@@ -236,6 +240,7 @@ public final class Baker {
       }
     };
     ImmutableMap.Builder<String, Object> actuals = ImmutableMap.builder();
+    actuals.putAll(commonJsEnv);
     actuals.put("exec", execFn);
     StringBuilder productJs = new StringBuilder();
     {

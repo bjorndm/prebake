@@ -172,7 +172,7 @@ public final class Glob implements Comparable<Glob>, JsonSerializable {
     return new Intersector(p, q).intersection();
   }
 
-  public static boolean overlaps(List<Glob> unionA, List<Glob> unionB) {
+  public static boolean overlaps(Iterable<Glob> unionA, Iterable<Glob> unionB) {
     for (Glob a : unionA) {
       for (Glob b : unionB) {
         if (new Intersector(a, b).intersects()) { return true; }
@@ -628,7 +628,7 @@ public final class Glob implements Comparable<Glob>, JsonSerializable {
     Matcher m = SHELL_EXP.matcher(glob);
     if (!m.find()) {
       try {
-        out.add(Glob.fromString(glob));
+        out.add(Glob.fromString(normGlob(glob)));
       } catch (GlobSyntaxException ex) {
         mq.error("Bad glob: '" + glob + "'");
       }
@@ -651,7 +651,7 @@ public final class Glob implements Comparable<Glob>, JsonSerializable {
         void expand(int i) {
           sb.append(lits.get(i));
           if (i == options.size()) {
-            out.add(Glob.fromString(sb.toString()));
+            out.add(Glob.fromString(normGlob(sb.toString())));
           } else {
             int len = sb.length();
             for (String opt : options.get(i)) {
@@ -666,6 +666,15 @@ public final class Glob implements Comparable<Glob>, JsonSerializable {
       mq.error(
           "Bad glob '" + ex.getMessage() + "' expanded from '" + glob + "'");
     }
+  }
+
+  private static String normGlob(String glob) {
+    String globStr = glob.replaceAll("/{2,}", "/");
+    int globStrLen = globStr.length();
+    if (globStrLen > 1 && globStr.charAt(globStrLen - 1) == '/') {
+      globStr = globStr.substring(0, globStrLen - 1);
+    }
+    return globStr;
   }
 
   public static class GlobSyntaxException extends IllegalArgumentException {
