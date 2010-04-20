@@ -7,9 +7,11 @@ import org.prebake.util.PbTestCase;
 import org.prebake.util.StubFileSystemProvider;
 
 import com.google.common.base.Charsets;
-import com.google.common.base.Function;
 import com.google.common.base.Joiner;
+import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -20,9 +22,9 @@ import java.nio.file.FileSystem;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -111,7 +113,7 @@ public class ExecutorTest extends PbTestCase {
           }
         }, Executor.Input.builder(
             "x + 1", fs.getPath("/foo/" + getName() + ".js"))
-            .withActuals(Collections.singletonMap("x", 1)).build());
+            .withActual("x", 1).build());
     assertEquals(2.0, output.result);
 
     // They shouldn't by default be visible to loaded modules.
@@ -126,8 +128,7 @@ public class ExecutorTest extends PbTestCase {
           }
         }, Executor.Input.builder(
             "load('x')() + 1", fs.getPath("/foo/" + getName() + ".js"))
-            .withActuals(Collections.singletonMap("x", 1))
-            .build());
+            .withActual("x", 1).build());
     assertEquals(3.0, output.result);
 
     // But a module can always elect to forward its scope.
@@ -142,8 +143,7 @@ public class ExecutorTest extends PbTestCase {
           }
         }, Executor.Input.builder(
             "load('x')(this) + 1", fs.getPath("/foo/" + getName() + ".js"))
-            .withActuals(Collections.singletonMap("x", 1))
-            .build());
+            .withActual("x", 1).build());
     assertEquals(2.0, output.result);
 
     // Or substitute its own.
@@ -158,8 +158,7 @@ public class ExecutorTest extends PbTestCase {
           }
         }, Executor.Input.builder(
             "load('x')({ x: 3 }) + 1", fs.getPath("/foo/" + getName() + ".js"))
-            .withActuals(Collections.singletonMap("x", 1))
-            .build());
+            .withActual("x", 1).build());
     assertEquals(4.0, output.result);
 
     // But in any case, changes to the module's scope don't affect the loader's.
@@ -174,8 +173,7 @@ public class ExecutorTest extends PbTestCase {
           }
         }, Executor.Input.builder(
             "load('x')(this) + x", fs.getPath("/foo/" + getName() + ".js"))
-            .withActuals(Collections.singletonMap("x", 1))
-            .build());
+            .withActual("x", 1).build());
     assertEquals(3.0, output.result);
   }
 
@@ -461,11 +459,8 @@ public class ExecutorTest extends PbTestCase {
     Executor.Input srcY = Executor.Input.builder(
         "4", getName()).build();
     Executor.Input srcTop = Executor.Input.builder("x + y", getName())
-        .withActuals(
-            ImmutableMap.<String, Object>builder()
-            .put("x", srcX)
-            .put("y", srcY)
-            .build())
+        .withActual("x", srcX)
+        .withActual("y", srcY)
         .build();
     Executor.Output<?> output = Executor.Factory.createJsExecutor()
         .run(Object.class, getLogger(Level.INFO), null, srcTop);
@@ -513,19 +508,235 @@ public class ExecutorTest extends PbTestCase {
     assertEquals("foo1.02.0", runWithLambdaFoo("foo.call({}, 1, 2)").result);
   }
 
+  private Object run(Executor.Input input) {
+    Executor exec = Executor.Factory.createJsExecutor();
+    Executor.Output<?> out = exec.run(
+        Object.class, getLogger(Level.INFO), null, input);
+    if (out.exit != null) { Throwables.propagate(out.exit); }
+    return out.result;
+   }
+
+  @Test public final void testMembraneString() {
+    assertEquals(
+        "Hello, World!",
+        run(Executor.Input.builder("foo", getName())
+            .withActual("foo", "Hello, World!").build()));
+  }
+
+  @Test public final void testMembraneNull() {
+    assertEquals(
+        null,
+        run(Executor.Input.builder("foo", getName())
+            .withActual("foo", null).build()));
+  }
+
+  @Test public final void testMembranableList() {
+    List<Object> list = MembranableList.Factory.create(Lists.newArrayList());
+    list.add(list);
+    list.add(null);
+    list.add("foo");
+    assertEquals(
+        5.0d,  // Length after push
+        run(Executor.Input.builder(
+            Joiner.on('\n').join(
+                "function assertEq(a, b) {",
+                "  if (a !== b) { throw new Error(a + ' !== ' + b); }",
+                "}",
+                "assertEq(a.length, 3);",
+                "assertEq(a[0], a);",
+                "assertEq(a[1], null);",
+                "assertEq(a[2], 'foo');",
+                "assertEq(a[3], void 0);",
+                "assertEq(a[-1], void 0);",
+                "assertEq(a.x, void 0);",
+                "a[0] = 1;",
+                "delete a[1];",
+                "assertEq('1.0,foo', '' + a);",
+                "assertEq(true, 'push' in a);",
+                "a[a.length] = 2;",
+                "a.push(2.0, { foo: 'bar' });"),
+            getName())
+            .withActual("a", list)
+            .build()));
+    assertEquals(
+        Lists.newArrayList(
+            1.0d, "foo", 2.0, 2.0, ImmutableMap.of("foo", "bar")),
+        list);
+  }
+
+  @Test public final void testMembranableArray() {
+    double[] ints = { 0, 1, 2, 3, 4 };
+    assertEquals(
+        false,  // delete failed
+        run(Executor.Input.builder(
+            Joiner.on('\n').join(
+                "function assertEq(a, b) {",
+                "  if (a !== b) { throw new Error(a + ' !== ' + b); }",
+                "}",
+                "assertEq('0.0,1.0,2.0,3.0,4.0', '' + a);",
+                "assertEq(a.length, 5);",
+                "assertEq(a[0], 0);",
+                "assertEq(a[1], 1);",
+                "assertEq(a[2], 2);",
+                "assertEq(a[5], void 0);",
+                "assertEq(a[-1], void 0);",
+                "assertEq(a.x, void 0);",
+                "a[0] = -1;",
+                "delete a[1];"),
+            getName())
+            .withActual("a", ints)
+            .build()));
+    assertEquals("[-1.0, 0.0, 2.0, 3.0, 4.0]", Arrays.toString(ints));
+  }
+
+  @Test public final void testNonMembranableList() {
+    List<Object> list = Lists.newArrayList();
+    list.add(null);
+    list.add("foo");
+    assertEquals(
+        2,  // Length after push
+        run(Executor.Input.builder(
+            Joiner.on('\n').join(
+                "function assertEq(a, b) {",
+                "  if (a !== b) { throw new Error(a + ' !== ' + b); }",
+                "}",
+                "assertEq(a.length, 2);",
+                "assertEq(a[0], null);",
+                "assertEq(a[1], 'foo');",
+                "assertEq(a[2], void 0);",
+                "assertEq(a[-1], void 0);",
+                "assertEq(a.x, void 0);",
+                "a[0] = 1;",
+                "delete a[1];",
+                "assertEq('null,foo', '' + a);",
+                "assertEq(true, 'push' in a);",
+                "a[a.length] = 3;",
+                "a.push(2.0, { foo: 'bar' });",
+                "a.length"),
+            getName())
+            .withActual("a", list)
+            .build()));
+    assertEquals(Lists.newArrayList(null, "foo"), list);
+  }
+
+  @Test public final void testMembranableMap() {
+    Map<String, Object> map = MembranableMap.Factory.create(
+        Maps.<String, Object>newLinkedHashMap());
+    map.put("foo", 3.0d);
+    assertEquals(
+        "bar,baz,boo",
+        run(Executor.Input.builder(
+            Joiner.on('\n').join(
+                "function assertEq(a, b) {",
+                "  if (a !== b) { throw new Error(a + ' !== ' + b); }",
+                "}",
+                "assertEq(3, a.foo);",
+                "a.bar = 4;",
+                "assertEq(4, a.bar);",
+                "a.baz = a;",
+                "delete a.foo",
+                "a.boo = [1, 2, 3];",
+                "assertEq(false, 'zoicks' in a);",
+                "assertEq(true, 'hasOwnProperty' in a);",
+                "var keys = [];",
+                "for (keys[keys.length] in a);",
+                "keys.join();"),
+            getName())
+            .withActual("a", map)
+            .build()));
+    assertEquals(
+        "{bar=4.0, baz=(this Map), boo=[1.0, 2.0, 3.0]}", "" + map);
+  }
+
+  @Test public final void testNonMembranableMap() {
+    Map<String, Object> map = Maps.<String, Object>newLinkedHashMap();
+    map.put("foo", 3.0d);
+    assertEquals(
+        "foo",
+        run(Executor.Input.builder(
+            Joiner.on('\n').join(
+                "function assertEq(a, b) {",
+                "  if (a !== b) { throw new Error(a + ' !== ' + b); }",
+                "}",
+                "assertEq(3, a.foo);",
+                "a.bar = 4;",
+                "assertEq(void 0, a.bar);",
+                "a.baz = a;",
+                "delete a.foo",
+                "a.boo = [1, 2, 3];",
+                "assertEq(false, 'zoicks' in a);",
+                "assertEq(true, 'hasOwnProperty' in a);",
+                "var keys = [];",
+                "for (keys[keys.length] in a);",
+                "keys.join();"),
+            getName())
+            .withActual("a", map)
+            .build()));
+    assertEquals("{foo=3.0}", "" + map);
+  }
+
+  @Test public final void testMembranableFunction() {
+    MembranableFunction fn = new MembranableFunction() {
+      public Documentation getHelp() { return null; }
+      public String getName() { return "counterMaker"; }
+      public Object apply(Object[] from) {
+        final int start = from.length > 0 ? ((Number) from[0]).intValue() : 0;
+        return new MembranableFunction() {
+          double num = start;
+          public Documentation getHelp() {
+            return new Documentation("summary", "details", null);
+          }
+          public String getName() { return "counter"; }
+          public Object apply(Object[] from) { return num++; }
+        };
+      }
+    };
+    Object result = run(Executor.Input.builder(
+        Joiner.on('\n').join(
+            "function assertEq(a, b) {",
+            "  if (a !== b) { throw new Error(a + ' !== ' + b); }",
+            "}",
+            "assertEq('function', typeof a);",
+            "assertEq('function', typeof a());",
+            "assertEq(0, a()());",
+            "assertEq(4, a(4)());",
+            "var c1 = a(), c2 = a(-2);",
+            "assertEq(0, c1());",
+            "assertEq(1, c1());",
+            "assertEq(-2, c2());",
+            "assertEq(2, c1());",
+            "assertEq('function', typeof a.call);",
+            "assertEq('function', typeof c1.call);",
+            "assertEq('counterMaker', a.name);",
+            "assertEq('counter', c1.name);",
+            "help(c2);",
+            "c1"),
+            getName())
+        .withActual("a", fn)
+        .build());
+    assertTrue("" + result, result instanceof MembranableFunction);
+    assertEquals(
+        Lists.newArrayList("INFO: Help: counter\nsummary\ndetails"),
+        getLog());
+  }
+
   private Executor.Output<String> runWithLambdaFoo(String js) {
     Executor execer = Executor.Factory.createJsExecutor();
     return execer.run(
         String.class, getLogger(Level.INFO), null,
         Executor.Input.builder(js, getName())
-            .withActuals(ImmutableMap.of(
-                "foo", execer.toFunction(new Function<Object[], Object>() {
+            .withActual(
+                "foo", new MembranableFunction() {
                   public Object apply(Object[] arguments) {
                     StringBuilder sb = new StringBuilder("foo");
                     for (Object argument : arguments) { sb.append(argument); }
                     return sb.toString();
                   }
-                }, "Foo", new Documentation("hi", "howdy", null)))).build());
+                  public String getName() { return "Foo"; }
+                  public Documentation getHelp() {
+                    return new Documentation("hi", "howdy", null);
+                  }
+                }).build());
   }
 
   private void assertHelpOutput(String actuals, String... log) {
