@@ -1,8 +1,5 @@
 package org.prebake.js;
 
-import org.prebake.core.Documentation;
-
-import com.google.common.base.Function;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
@@ -39,10 +36,6 @@ public interface Executor {
   public <T> Output<T> run(
       Class<T> expectedResultType, Logger logger,
       @Nullable Loader loader, Input... input);
-
-  /** Converts to a function object suitable for use in an actuals map. */
-  public Object toFunction(
-      Function<Object[], Object> fn, String name, Documentation doc);
 
   public static class AbnormalExitException extends Exception {
     public AbnormalExitException(String message) { super(message); }
@@ -117,7 +110,7 @@ public interface Executor {
       private final String content;
       private final String source;
       private Path base;
-      private Map<String, ?> actuals;
+      private Map<String, Object> actuals;
 
       private Builder(String content, String source) {
         assert content != null;
@@ -132,7 +125,18 @@ public interface Executor {
       }
 
       public Builder withActuals(Map<String, ?> actuals) {
-        this.actuals = actuals;
+        if (this.actuals == null) {
+          this.actuals = Maps.newLinkedHashMap();
+        }
+        this.actuals.putAll(actuals);
+        return this;
+      }
+
+      public Builder withActual(String name, @Nullable Object value) {
+        if (this.actuals == null) {
+          this.actuals = Maps.newLinkedHashMap();
+        }
+        this.actuals.put(name, value);
         return this;
       }
 
@@ -140,11 +144,8 @@ public interface Executor {
         Map<String, Object> actuals;
         if (this.actuals == null) {
           actuals = ImmutableMap.of();
-        } else if (!this.actuals.containsValue(null)) {
-          actuals = ImmutableMap.copyOf(this.actuals);
         } else {
-          actuals = Collections.unmodifiableMap(
-              Maps.newLinkedHashMap(this.actuals));
+          actuals = Collections.unmodifiableMap(this.actuals);
         }
         return new Input(content, source, base, actuals);
       }

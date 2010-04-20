@@ -192,6 +192,8 @@ public final class Glob implements Comparable<Glob>, JsonSerializable {
    */
   public static Function<String, String> transform(Glob input, Glob output)
       throws IllegalArgumentException {
+    // TODO: document these conventions on the glob wiki page, and expose to
+    // tools.
     int m = input.parts.length, n = output.parts.length;
     // The literal portions of the output glob.
     // For the output glob "foo/**/bar/baz/*.html", the literal portions are

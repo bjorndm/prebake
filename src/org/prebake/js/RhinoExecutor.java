@@ -213,9 +213,14 @@ public final class RhinoExecutor implements Executor {
         } catch (ParseException ex) {
           logger.log(Level.SEVERE, "Failed to convert output " + result, ex);
         }
-      }
-      if (!expectedResultType.isInstance(result)) {
-        result = Context.jsToJava(result, expectedResultType);
+      } else {
+        if (!expectedResultType.isInstance(result)) {
+          result = Context.jsToJava(result, expectedResultType);
+        }
+        Object demembraned = runner.membrane.fromJs(result);
+        if (!(demembraned instanceof Membrane.OpaqueWrapper)) {
+          result = demembraned;
+        }
       }
     }
     return new Output<T>(
@@ -230,6 +235,7 @@ public final class RhinoExecutor implements Executor {
     private final NonDeterminism nonDeterminism;
     private final Map<Input, Object> moduleResults
         = new WeakHashMap<Input, Object>();
+    private final Membrane membrane;
 
     Runner(Context context, Logger logger, @Nullable Loader loader) {
       this.context = context;
@@ -272,6 +278,7 @@ public final class RhinoExecutor implements Executor {
       globalScope.defineProperty("console", console, constBits);
       globalScope.defineProperty(
           "help", new HelpFn(globalScope, console), constBits);
+      this.membrane = new Membrane(context, globalScope);
     }
 
     private Object run(Executor.Input src) throws AbnormalExitException {
@@ -284,8 +291,8 @@ public final class RhinoExecutor implements Executor {
         // Inputs can be specified as inputs to other inputs.
         if (value instanceof Executor.Input) {
           value = run((Executor.Input) value);
-        } else if (value instanceof ScriptableSkeleton) {
-          value = ((ScriptableSkeleton) value).fleshOut(globalScope);
+        } else {
+          value = membrane.toJs(value);
         }
         ScriptableObject.putConstProperty(actualsObj, e.getKey(), value);
       }

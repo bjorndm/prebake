@@ -15,6 +15,7 @@ import org.prebake.fs.NonFileArtifact;
 import org.prebake.js.Executor;
 import org.prebake.js.JsonSink;
 import org.prebake.js.Loader;
+import org.prebake.js.MembranableFunction;
 import org.prebake.os.OperatingSystem;
 import org.prebake.service.plan.Action;
 import org.prebake.service.plan.Product;
@@ -50,7 +51,6 @@ import javax.annotation.Nullable;
 import javax.annotation.ParametersAreNonnullByDefault;
 
 import com.google.common.base.Charsets;
-import com.google.common.base.Function;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -205,7 +205,7 @@ public final class Baker {
     for (Path input : inputs) { inputStrs.add(input.toString()); }
     Collections.sort(inputStrs);
     Executor exec = Executor.Factory.createJsExecutor();
-    Object execFn = exec.toFunction(new Function<Object[], Object>() {
+    MembranableFunction execFn = new MembranableFunction() {
       public Object apply(Object[] args) {
         // TODO: check inside args for clientDir
         if (args.length == 0 || args[0] == null) {
@@ -228,11 +228,13 @@ public final class Baker {
           return 0;
         }
       }
-    },
-    "exec",
-    new Documentation(
-        "exec(cmd, argv...)", "kicks off a command line process",
-        "prebake@prebake.org"));
+      public String getName() { return "exec"; }
+      public Documentation getHelp() {
+        return new Documentation(
+            "exec(cmd, argv...)", "kicks off a command line process",
+          "prebake@prebake.org");
+      }
+    };
     ImmutableMap.Builder<String, Object> actuals = ImmutableMap.builder();
     actuals.put("exec", execFn);
     StringBuilder productJs = new StringBuilder();

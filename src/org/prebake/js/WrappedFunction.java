@@ -25,15 +25,17 @@ import org.mozilla.javascript.ScriptableObject;
  */
 @ParametersAreNonnullByDefault
 final class WrappedFunction extends BaseFunction {
+  private final Membrane membrane;
   private final Function<Object[], Object> body;
   private final String name;
 
   WrappedFunction(
-      Scriptable scope, Function<Object[], Object> body, String name,
+      Membrane membrane, Function<Object[], Object> body, @Nullable String name,
       @Nullable Documentation doc) {
+    this.membrane = membrane;
     this.name = name;
     this.body = body;
-    ScriptRuntime.setFunctionProtoAndParent(this, scope);
+    ScriptRuntime.setFunctionProtoAndParent(this, membrane.scope);
     if (doc != null) {
       NativeObject helpObj = new NativeObject();
       ScriptableObject.putConstProperty(
@@ -51,9 +53,13 @@ final class WrappedFunction extends BaseFunction {
   @Override
   public Object call(
       Context cx, Scriptable scope, Scriptable thisObj, Object[] args) {
+    Object[] membranedInputs = new Object[args.length];
+    for (int i = 0, n = args.length; i < n; ++i) {
+      membranedInputs[i] = membrane.fromJs(args[i]);
+    }
     // TODO: properly translate arrays, and objects
     // to lists and maps respectively.
-    return body.apply(args);
+    return membrane.toJs(body.apply(args));
   }
   @Override
   public String getFunctionName() {
@@ -81,8 +87,8 @@ final class WrappedFunction extends BaseFunction {
       this.help = help;
     }
 
-    public BaseFunction fleshOut(Scriptable scope) {
-      return new WrappedFunction(scope, body, name, help);
+    public BaseFunction fleshOut(Membrane membrane) {
+      return new WrappedFunction(membrane, body, name, help);
     }
   }
 }

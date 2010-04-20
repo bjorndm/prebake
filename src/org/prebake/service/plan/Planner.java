@@ -325,8 +325,7 @@ public final class Planner implements Closeable {
       }
     }, Executor.Input.builder(
         pf.getContentAsString(Charsets.UTF_8), pf.getPath())
-        .withActuals(Collections.singletonMap("tools", toolDef))
-        .build());
+        .withActual("tools", toolDef).build());
   }
 
   private ImmutableList<Product> unpack(PlanPart pp, Object scriptOutput) {
