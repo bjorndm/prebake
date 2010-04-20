@@ -530,9 +530,11 @@ public class ExecutorTest extends PbTestCase {
             .withActual("foo", null).build()));
   }
 
+  private static void addToSelf(List<Object> a, Object b) { a.add(b); }
+
   @Test public final void testMembranableList() {
     List<Object> list = MembranableList.Factory.create(Lists.newArrayList());
-    list.add(list);
+    addToSelf(list, list);  // Ignore findbug warning in unittest.
     list.add(null);
     list.add("foo");
     assertEquals(
