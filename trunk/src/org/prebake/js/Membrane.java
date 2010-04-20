@@ -28,7 +28,7 @@ import org.mozilla.javascript.Undefined;
 
 final class Membrane {
   private final Map<Object, Object> membrane
-      = new WeakIdentityHashMap<Object, Object>();
+      = new WeakIdentityHashMap<Object, Object>(Object.class);
   private final Context cx;
   final Scriptable scope;
 
