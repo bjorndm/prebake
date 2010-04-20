@@ -64,6 +64,7 @@ public final class Planner implements Closeable {
 
   private final ImmutableMap<Path, PlanPart> planParts;
   private final FileVersioner files;
+  private final ImmutableMap<String, ?> commonJsEnv;
   private final ToolProvider toolbox;
   private final Logger logger;
   private final ScheduledExecutorService execer;
@@ -81,10 +82,11 @@ public final class Planner implements Closeable {
   private final PlanGrapher grapher = new PlanGrapher();
 
   public Planner(
-      FileVersioner files, ToolProvider toolbox,
-      Iterable<Path> planFiles, Logger logger,
+      FileVersioner files, ImmutableMap<String, ?> commonJsEnv,
+      ToolProvider toolbox, Iterable<Path> planFiles, Logger logger,
       ArtifactListener<Product> listener, ScheduledExecutorService execer) {
     this.files = files;
+    this.commonJsEnv = commonJsEnv;
     this.toolbox = toolbox;
     this.logger = logger;
     this.execer = execer;
@@ -325,6 +327,7 @@ public final class Planner implements Closeable {
       }
     }, Executor.Input.builder(
         pf.getContentAsString(Charsets.UTF_8), pf.getPath())
+        .withActuals(commonJsEnv)
         .withActual("tools", toolDef).build());
   }
 

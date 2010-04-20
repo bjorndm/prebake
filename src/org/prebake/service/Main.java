@@ -2,6 +2,7 @@ package org.prebake.service;
 
 import org.prebake.channel.Commands;
 import org.prebake.core.MessageQueue;
+import org.prebake.js.CommonEnvironment;
 import org.prebake.js.JsonSource;
 import org.prebake.os.OperatingSystem;
 import org.prebake.util.CommandLineArgs;
@@ -9,6 +10,7 @@ import org.prebake.util.CommandLineArgs;
 import com.google.common.base.Charsets;
 import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.io.ByteStreams;
 import com.google.common.util.concurrent.Executors;
 import com.sleepycat.je.Environment;
@@ -25,6 +27,7 @@ import java.nio.file.FileSystem;
 import java.nio.file.FileSystems;
 import java.nio.file.Path;
 import java.security.SecureRandom;
+import java.util.Map;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
@@ -63,6 +66,8 @@ public final class Main {
 
     MessageQueue mq = new MessageQueue();
     final FileSystem fs = FileSystems.getDefault();
+    ImmutableMap<String, ?> env = CommonEnvironment.makeEnvironment(
+        getSystemPropertyMap());
     Config config = new CommandLineConfig(fs, mq, args);
     if (mq.hasErrors()) {
       System.err.println(USAGE);
@@ -88,7 +93,7 @@ public final class Main {
         return pb.start();
       }
     };
-    final Prebakery pb = new Prebakery(config, execer, os, logger) {
+    final Prebakery pb = new Prebakery(config, env, execer, os, logger) {
       @Override
       protected String makeToken() {
         byte[] bytes = new byte[256];
@@ -180,4 +185,12 @@ public final class Main {
       + "Usage: prebakery --root <dir> [--ignore <pattern>] [--tools <dirs>]\n"
       + "       [--umask <octal>] [<plan-file> ...]\n"
       + "       [-v | -vv | -q | -qq | --logLevel=<level]");
+
+  private static Map<String, String> getSystemPropertyMap() {
+    ImmutableMap.Builder<String, String> sysProps = ImmutableMap.builder();
+    for (Map.Entry<?, ?> e : System.getProperties().entrySet()) {
+      sysProps.put((String) e.getKey(), (String) e.getValue());
+    }
+    return sysProps.build();
+  }
 }

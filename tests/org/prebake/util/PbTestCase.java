@@ -1,10 +1,12 @@
 package org.prebake.util;
 
 import org.prebake.fs.FilePerms;
+import org.prebake.js.CommonEnvironment;
 import org.prebake.js.JsonSink;
 import org.prebake.js.JsonSource;
 
 import com.google.common.base.Charsets;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.io.CharStreams;
 import com.google.common.io.Files;
@@ -85,6 +87,14 @@ public abstract class PbTestCase extends Assert {
     }
     logger.setLevel(level);
     return logger;
+  }
+
+  public ImmutableMap<String, ?> getCommonJsEnv() {
+    return CommonEnvironment.makeEnvironment(ImmutableMap.of(
+        "file.separator", "/",
+        "os.arch", "i386",
+        "os.name", "generic-posix",
+        "os.version", "1"));
   }
 
   protected static void rmDirTree(File f) {

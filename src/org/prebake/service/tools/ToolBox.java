@@ -55,6 +55,7 @@ import javax.annotation.ParametersAreNonnullByDefault;
 public class ToolBox implements ToolProvider {
   private final FileSystem fs;
   final FileVersioner files;
+  private final ImmutableMap<String, ?> commonJsEnv;
   private final Logger logger;
   private final @Nullable WatchService watcher;
   private final ScheduledExecutorService execer;
@@ -79,8 +80,9 @@ public class ToolBox implements ToolProvider {
   private final Future<?> updater;
   private final ArtifactListener<ToolSignature> listener;
 
-  public ToolBox(FileVersioner files, Iterable<Path> toolDirs,
-                 Logger logger, ArtifactListener<ToolSignature> listener,
+  public ToolBox(FileVersioner files, ImmutableMap<String, ?> commonJsEnv,
+                 Iterable<Path> toolDirs, Logger logger,
+                 ArtifactListener<ToolSignature> listener,
                  ScheduledExecutorService execer)
       throws IOException {
     this.logger = logger;
@@ -97,6 +99,7 @@ public class ToolBox implements ToolProvider {
         }));
     this.fs = files.getFileSystem();
     this.files = files;
+    this.commonJsEnv = commonJsEnv;
     this.listener = ArtifactListener.Factory.loggingListener(listener, logger);
     this.execer = execer;
     if (!this.toolDirs.isEmpty()) {
@@ -285,6 +288,7 @@ public class ToolBox implements ToolProvider {
             Executor.Input.Builder toolInput = Executor.Input.builder(
                 toolJs.getContentAsString(Charsets.UTF_8),
                 toolPath.toString())
+                .withActuals(commonJsEnv)
                 .withBase(
                     isBuiltin
                     ? files.getVersionRoot().resolve(t.localName) : toolPath);
@@ -298,7 +302,12 @@ public class ToolBox implements ToolProvider {
               MessageQueue mq = new MessageQueue();
               // We need content that we can safely serialize and load into a
               // plan file.
-              YSON ysonSig = YSON.requireYSON(result.result, FREE_VARS_OK, mq);
+              YSON ysonSig = YSON.requireYSON(
+                  result.result,
+                  ImmutableSet.<String>builder()
+                      .addAll(FREE_VARS_OK).addAll(commonJsEnv.keySet())
+                      .build(),
+                  mq);
 
               toolSig = ToolSignature.converter(
                   t.toolName, !result.usedSourceOfKnownNondeterminism)

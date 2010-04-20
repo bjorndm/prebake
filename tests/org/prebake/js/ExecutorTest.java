@@ -681,6 +681,7 @@ public class ExecutorTest extends PbTestCase {
     MembranableFunction fn = new MembranableFunction() {
       public Documentation getHelp() { return null; }
       public String getName() { return "counterMaker"; }
+      public int getArity() { return 1; }
       public Object apply(Object[] from) {
         final int start = from.length > 0 ? ((Number) from[0]).intValue() : 0;
         return new MembranableFunction() {
@@ -688,6 +689,7 @@ public class ExecutorTest extends PbTestCase {
           public Documentation getHelp() {
             return new Documentation("summary", "details", null);
           }
+          public int getArity() { return 0; }
           public String getName() { return "counter"; }
           public Object apply(Object[] from) { return num++; }
         };
@@ -722,6 +724,32 @@ public class ExecutorTest extends PbTestCase {
         getLog());
   }
 
+  @Test
+  public final void testMembranableEQ() {
+    Object immutableMap1 = ImmutableMap.of(
+        "foo", "bar",
+        "baz", 4.0);
+    Object immutableMap2 = ImmutableMap.of(
+        "foo", "bar",
+        "baz", 4.0);
+    assertEquals(immutableMap1, immutableMap2);
+    run(Executor.Input.builder(
+        Joiner.on('\n').join(
+            "function assertEq(a, b) {",
+            "  if (a !== b) { throw new Error(a + ' !== ' + b); }",
+            "}",
+            "assertEq(a, b);",
+            "assertEq(true, b != c);",
+            "assertEq(true, a != d);",
+            "assertEq(c, d);"),
+            getName())
+        .withActual("a", immutableMap1)
+        .withActual("b", immutableMap1)
+        .withActual("c", immutableMap2)
+        .withActual("d", immutableMap2)
+        .build());
+  }
+
   private Executor.Output<String> runWithLambdaFoo(String js) {
     Executor execer = Executor.Factory.createJsExecutor();
     return execer.run(
@@ -734,6 +762,7 @@ public class ExecutorTest extends PbTestCase {
                     for (Object argument : arguments) { sb.append(argument); }
                     return sb.toString();
                   }
+                  public int getArity() { return 0; }
                   public String getName() { return "Foo"; }
                   public Documentation getHelp() {
                     return new Documentation("hi", "howdy", null);

@@ -35,7 +35,7 @@ public class ToolBoxTest extends PbTestCase {
   private FileSystem fs;
   private Path root;
   private Environment env;
-  private FileVersioner fh;
+  private FileVersioner files;
   private ScheduledExecutorService execer;
   private File tempDir;
 
@@ -49,14 +49,14 @@ public class ToolBoxTest extends PbTestCase {
     envConfig.setAllowCreate(true);
     tempDir = Files.createTempDir();
     env = new Environment(tempDir, envConfig);
-    fh = new DbFileVersioner(env, root, Predicates.<Path>alwaysTrue(), logger);
+    files = new DbFileVersioner(env, root, Predicates.<Path>alwaysTrue(), logger);
     execer = new ScheduledThreadPoolExecutor(4);
   }
 
   @After
   public void closeAll() throws IOException {
     execer.shutdown();
-    fh.close();
+    files.close();
     env.close();
     fs.close();
     rmDirTree(tempDir);
@@ -169,7 +169,7 @@ public class ToolBoxTest extends PbTestCase {
         writeFile(p, namesAndContent[i + 1]);
         toUpdate.add(p);
       }
-      fh.update(toUpdate);
+      files.update(toUpdate);
       return this;
     }
 
@@ -180,7 +180,7 @@ public class ToolBoxTest extends PbTestCase {
 
     void assertSigs(String... expectedSigs) throws Exception {
       ToolBox tb = new ToolBox(
-          fh, toolDirs, getLogger(Level.FINE),
+          files, getCommonJsEnv(), toolDirs, getLogger(Level.FINE),
           ArtifactListener.Factory.<ToolSignature>noop(), execer) {
         @Override
         protected Iterable<String> getBuiltinToolNames() { return builtins; }

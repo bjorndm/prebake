@@ -156,10 +156,7 @@ public class GlobTest extends PbTestCase {
         "[foo/*.x, foo/*.y, foo/bar]",
         "" + Glob.CONV.convert("foo/{*.x,*.y,bar}", mq));
     assertTrue(mq.getMessages().isEmpty());
-    Glob.CONV.convert("foo/{/,bar}", mq);
-    assertEquals(
-        "[Bad glob 'foo//' expanded from 'foo/{/,bar}']",
-        "" + mq.getMessages());
+    assertEquals("[foo, foo/bar]", "" + Glob.CONV.convert("foo/{/,bar}", mq));
   }
 
   @Test public final void testCommonPrefix() {

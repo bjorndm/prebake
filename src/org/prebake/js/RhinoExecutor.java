@@ -1,7 +1,5 @@
 package org.prebake.js;
 
-import org.prebake.core.Documentation;
-
 import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
 import com.google.common.base.Throwables;
@@ -156,12 +154,6 @@ public final class RhinoExecutor implements Executor {
   };
   static {
     ContextFactory.initGlobal(SANDBOXINGFACTORY);
-  }
-
-  public Object toFunction(
-      com.google.common.base.Function<Object[], Object> fn, String name,
-      Documentation doc) {
-    return new WrappedFunction.Skeleton(fn, name, doc);
   }
 
   /**
