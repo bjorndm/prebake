@@ -124,12 +124,6 @@ public final class RhinoExecutor implements Executor {
 
     // The below is adapted from the ContextFactory Javadoc to time out on
     // infinite loops.
-    /** Custom Context to store execution time. */
-    final class CpuQuotaContext extends Context {
-      CpuQuotaContext(ContextFactory f) { super(f); }
-      long startTimeNanos = System.nanoTime();
-    }
-
     @Override
     protected void observeInstructionCount(Context cx, int instructionCount) {
       CpuQuotaContext qcx = (CpuQuotaContext) cx;
