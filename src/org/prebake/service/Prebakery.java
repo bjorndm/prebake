@@ -39,6 +39,7 @@ import java.nio.file.FileSystem;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.nio.file.attribute.DosFileAttributeView;
+import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.BlockingQueue;
@@ -292,6 +293,11 @@ public abstract class Prebakery implements Closeable {
       @Override
       protected void consume(BlockingQueue<? extends Commands> q, Commands c) {
         boolean authed = false;
+        final Appendable out = c.getResponse();
+        // TODO: create a logger and thread it through to command execution so
+        // that any problems that occur while running a command are reported
+        // to the client as well as to the prebakery log.
+        boolean closeChannel = true;
         try {
           for (Command cmd : c) {
             if (cmd.verb != Command.Verb.handshake && !authed) {
@@ -300,7 +306,14 @@ public abstract class Prebakery implements Closeable {
             }
             switch (cmd.verb) {
               case build:
-                // TODO
+                try {
+                  doBake(planner.getPlanGraph().makeRecipe(
+                      ((Command.BuildCommand) cmd).products),
+                      (Closeable) out);
+                  closeChannel = false;
+                } catch (PlanGraph.DependencyCycleException ex) {
+                  logger.log(Level.WARNING, "{0}", ex.getMessage());
+                }
                 break;
               case files_changed:
                 files.update(((Command.FilesChangedCommand) cmd).paths);
@@ -308,7 +321,7 @@ public abstract class Prebakery implements Closeable {
               case graph:
                 DotRenderer.render(
                     planner.getPlanGraph(),
-                    ((Command.GraphCommand) cmd).products, c.getResponse());
+                    ((Command.GraphCommand) cmd).products, out);
                 break;
               case handshake:
                 authed = ((Command.HandshakeCommand) cmd).token.equals(token);
@@ -317,8 +330,8 @@ public abstract class Prebakery implements Closeable {
                 try {
                   Recipe recipe = planner.getPlanGraph()
                       .makeRecipe(((Command.PlanCommand) cmd).products);
-                  final Appendable out = c.getResponse();
                   final StringBuilder sb = new StringBuilder();
+                  final Appendable planOut = out;
                   recipe.cook(new Recipe.Chef() {
                     public void cook(
                         Ingredient ingredient, Function<Boolean, ?> whenDone) {
@@ -328,7 +341,7 @@ public abstract class Prebakery implements Closeable {
                     public void done(boolean allSucceeded) {
                       assert allSucceeded;
                       try {
-                        out.append(sb.toString());
+                        planOut.append(sb.toString());
                       } catch (IOException ex) {
                         throw new IOError(ex);
                       }
@@ -349,7 +362,6 @@ public abstract class Prebakery implements Closeable {
                 }
                 break;
               case tool_help:
-                Appendable out = c.getResponse();
                 List<ToolSignature> sigs = Lists.newArrayList();
                 for (Future<ToolSignature> f
                      : tools.getAvailableToolSignatures()) {
@@ -381,10 +393,51 @@ public abstract class Prebakery implements Closeable {
               Level.INFO, "Failed to service command " + c, ex.getCause());
         } catch (IOException ex) {  // Client disconnect?
           logger.log(Level.INFO, "Failed to service command " + c, ex);
+        } finally {
+          if (closeChannel) { Closeables.closeQuietly((Closeable) out); }
         }
       }
     };
     commandConsumer.start();
+  }
+
+  private void doBake(Recipe recipe, final Closeable outChannel) {
+    recipe.cook(new Recipe.Chef() {
+      List<String> ok = Collections.synchronizedList(
+          Lists.<String>newArrayList());
+      List<String> failed = Collections.synchronizedList(
+          Lists.<String>newArrayList());
+
+      public void cook(
+          final Ingredient ingredient, final Function<Boolean, ?> whenDone) {
+        execer.submit(new Runnable() {
+          public void run() {
+            String prod = ingredient.product;
+            boolean status = false;
+            try {
+              status = baker.build(prod).get();
+            } catch (ExecutionException ex) {
+              logger.log(Level.SEVERE, "Failed to build " + prod, ex);
+            } catch (InterruptedException ex) {
+              logger.log(Level.SEVERE, "Failed to build " + prod, ex);
+            } catch (RuntimeException ex) {
+              logger.log(Level.SEVERE, "Failed to build " + prod, ex);
+            } finally {
+              (status ? ok : failed).add(prod);
+              whenDone.apply(status);
+            }
+          }
+        });
+      }
+
+      public void done(boolean allSucceeded) {
+        logger.log(Level.FINE, "Built {0}", ok);
+        if (!failed.isEmpty()) {
+          logger.log(Level.WARNING, "Failed to build {0}", failed.size());
+        }
+        Closeables.closeQuietly(outChannel);
+      }
+    });
   }
 
   /**

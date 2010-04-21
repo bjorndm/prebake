@@ -16,10 +16,13 @@ import com.google.common.util.concurrent.Executors;
 import com.sleepycat.je.Environment;
 import com.sleepycat.je.EnvironmentConfig;
 
+import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStreamWriter;
 import java.io.StringReader;
+import java.io.Writer;
 import java.math.BigInteger;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -115,22 +118,22 @@ public final class Main {
               try {
                 Socket sock = ss.accept();
                 // TODO: move sock handling to a worker or use java.nio stuff.
-                byte[] bytes;
+                InputStream in = sock.getInputStream();
                 try {
-                  bytes = ByteStreams.toByteArray(sock.getInputStream());
+                  byte[] bytes = ByteStreams.toByteArray(sock.getInputStream());
+                  in.close();
                   String commandText = new String(bytes, Charsets.UTF_8);
                   try {
                     q.put(Commands.fromJson(
                         getFileSystem(),
-                        new JsonSource(
-                            new StringReader(commandText)),
-                        new OutputStreamWriter(
-                            sock.getOutputStream(), Charsets.UTF_8)));
+                        new JsonSource(new StringReader(commandText)),
+                        makeOutputChannel(sock)));
+                    sock = null;
                   } catch (InterruptedException ex) {
                     continue;
                   }
                 } finally {
-                  sock.close();
+                  if (sock != null) { sock.close(); }
                 }
               } catch (IOException ex) {
                 ex.printStackTrace();
@@ -192,5 +195,36 @@ public final class Main {
       sysProps.put((String) e.getKey(), (String) e.getValue());
     }
     return sysProps.build();
+  }
+
+  private static Appendable makeOutputChannel(Socket sock) throws IOException {
+    class OutputChannel implements Appendable, Closeable {
+      final Writer w;
+      final Socket sock;
+
+      OutputChannel(Socket sock) throws IOException {
+        this.sock = sock;
+        this.w = new OutputStreamWriter(sock.getOutputStream(), Charsets.UTF_8);
+      }
+
+      public Appendable append(CharSequence s) throws IOException {
+        w.append(s);
+        return this;
+      }
+
+      public Appendable append(char c) throws IOException {
+        w.append(c);
+        return this;
+      }
+
+      public Appendable append(CharSequence s, int start, int end)
+          throws IOException {
+        w.append(s, start, end);
+        return this;
+      }
+
+      public void close() throws IOException { sock.close(); }
+    }
+    return new OutputChannel(sock);
   }
 }
