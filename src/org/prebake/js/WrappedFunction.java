@@ -52,13 +52,20 @@ final class WrappedFunction extends BaseFunction {
   @Override
   public Object call(
       Context cx, Scriptable scope, Scriptable thisObj, Object[] args) {
+    // Let external operations take some time.  Don't count them against quota.
+    // When a tool file kicks off an external op, it needs to wait for the
+    // result.
+    long t0 = System.nanoTime();
+
     Object[] membranedInputs = new Object[args.length];
     for (int i = 0, n = args.length; i < n; ++i) {
       membranedInputs[i] = membrane.fromJs(args[i]);
     }
     // TODO: properly translate arrays, and objects
     // to lists and maps respectively.
-    return membrane.toJs(body.apply(membranedInputs));
+    Object result = membrane.toJs(body.apply(membranedInputs));
+    ((CpuQuotaContext) cx).startTimeNanos += System.nanoTime() - t0;
+    return result;
   }
   @Override
   public String getFunctionName() {
