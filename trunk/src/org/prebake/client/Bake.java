@@ -33,14 +33,14 @@ import javax.annotation.ParametersAreNonnullByDefault;
  * @author mikesamuel@gmail.com
  */
 @ParametersAreNonnullByDefault
-abstract class Bake {
+public abstract class Bake {
   private final Logger logger;
 
-  Bake(Logger logger) { this.logger = logger; }
+  public Bake(Logger logger) { this.logger = logger; }
 
-  abstract Connection connect(int port) throws IOException;
-  abstract void launch(String... argv) throws IOException;
-  abstract void sleep(int millis) throws InterruptedException;
+  protected abstract Connection connect(int port) throws IOException;
+  protected abstract void launch(String... argv) throws IOException;
+  protected abstract void sleep(int millis) throws InterruptedException;
 
   Path findPrebakeDir(Path cwd) throws IOException {
     cwd = cwd.toRealPath(false).normalize();

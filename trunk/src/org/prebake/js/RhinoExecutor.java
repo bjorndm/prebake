@@ -7,6 +7,8 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Maps;
 
 import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.net.URI;
 import java.nio.file.Path;
 import java.text.ParseException;
@@ -112,12 +114,14 @@ public final class RhinoExecutor implements Executor {
     @Override
     public boolean hasFeature(Context c, int feature) {
       switch (feature) {
-        case Context.FEATURE_LOCATION_INFORMATION_IN_ERROR: return true;
-        case Context.FEATURE_E4X: return false;
-        case Context.FEATURE_ENHANCED_JAVA_ACCESS: return false;
-        case Context.FEATURE_PARENT_PROTO_PROPERTIES: return false;
-        case Context.FEATURE_STRICT_VARS: return true;
-        case Context.FEATURE_STRICT_EVAL: return true;
+        case Context.FEATURE_LOCATION_INFORMATION_IN_ERROR:
+        case Context.FEATURE_STRICT_VARS:
+        case Context.FEATURE_STRICT_EVAL:
+          return true;
+        case Context.FEATURE_E4X:
+        case Context.FEATURE_ENHANCED_JAVA_ACCESS:
+        case Context.FEATURE_PARENT_PROTO_PROPERTIES:
+          return false;
         default: return super.hasFeature(c, feature);
       }
     }
@@ -456,6 +460,16 @@ public final class RhinoExecutor implements Executor {
       public Scriptable construct(Context c, Scriptable scope, Object[] args) {
         throw new UnsupportedOperationException();
       }
+    }
+
+    // Instances cannot be serialized since console cannot be serialized.
+    /** @param str unused */
+    private void readObject(ObjectInputStream str) {
+      throw new UnsupportedOperationException();
+    }
+    /** @param str unused */
+    private void writeObject(ObjectOutputStream str) {
+      throw new UnsupportedOperationException();
     }
   }
 

@@ -687,7 +687,8 @@ public final class Baker {
   boolean unittestBackdoorProductStatus(String productName) {
     ProductStatus status = productStatuses.get(productName);
     if (status == null) { throw new IllegalArgumentException(productName); }
-    Future<Boolean> bf = status.buildFuture;
+    Future<Boolean> bf;
+    synchronized (status) { bf = status.buildFuture; }
     if (bf != null && bf.isDone()) {
       try {
         return bf.get().booleanValue();

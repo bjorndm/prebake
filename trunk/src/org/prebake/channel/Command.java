@@ -59,10 +59,12 @@ public abstract class Command implements JsonSerializable {
       throws IOException {
     src.expect("[");
     String verb = src.expectString();
-    Verb v = Verb.valueOf(verb);
-    if (v == null) {
+    Verb v;
+    try {
+      v = Verb.valueOf(verb);
+    } catch (IllegalArgumentException ex) {
       throw new IOException(DidYouMean.toMessage(
-          "Unknown verb " + verb, verb, VERB_NAMES.toArray(new String[0])));
+          "Unknown verb " + verb, verb, VERB_NAMES.toArray(new String[0])), ex);
     }
     src.expect(",");
     /*Map<String, Object> options =*/ src.nextObject();

@@ -52,7 +52,7 @@ public final class Main {
     Bake bake = new Bake(logger) {
 
       @Override
-      Connection connect(int port) throws IOException {
+      protected Connection connect(int port) throws IOException {
         final Socket socket = new Socket(InetAddress.getLocalHost(), port);
         return new Connection() {
           public InputStream getInputStream() throws IOException {
@@ -70,12 +70,12 @@ public final class Main {
       }
 
       @Override
-      void launch(String... argv) throws IOException {
+      protected void launch(String... argv) throws IOException {
         new ProcessBuilder(argv).inheritIO().start();
       }
 
       @Override
-      void sleep(int millis) throws InterruptedException {
+      protected void sleep(int millis) throws InterruptedException {
         Thread.sleep(millis);
       }
     };

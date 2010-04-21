@@ -54,6 +54,7 @@ import java.util.logging.Logger;
 import java.util.regex.Pattern;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import javax.annotation.ParametersAreNonnullByDefault;
 
 /**
@@ -186,7 +187,7 @@ public abstract class Prebakery implements Closeable {
   protected abstract @Nonnull Environment createDbEnv(Path dir)
       throws IOException;
 
-  public synchronized void start(Runnable onClose) {
+  public synchronized void start(@Nullable Runnable onClose) {
     if (this.onClose != null) { throw new IllegalStateException(); }
     if (onClose == null) {
       onClose = new Runnable() { public void run() { /* no op */} };
@@ -294,10 +295,8 @@ public abstract class Prebakery implements Closeable {
       protected void consume(BlockingQueue<? extends Commands> q, Commands c) {
         boolean authed = false;
         final Appendable out = c.getResponse();
-        // TODO: create a logger and thread it through to command execution so
-        // that any problems that occur while running a command are reported
-        // to the client as well as to the prebakery log.
         boolean closeChannel = true;
+        ClientChannel ccl = null;
         try {
           for (Command cmd : c) {
             if (cmd.verb != Command.Verb.handshake && !authed) {
@@ -307,10 +306,13 @@ public abstract class Prebakery implements Closeable {
             switch (cmd.verb) {
               case build:
                 try {
+                  ccl = new ClientChannel(out);
                   doBake(planner.getPlanGraph().makeRecipe(
-                      ((Command.BuildCommand) cmd).products),
-                      (Closeable) out);
+                      ((Command.BuildCommand) cmd).products), ccl);
+                  // Closing the channel, and unregistering the log handler is
+                  // now the recipe callback's responsibility
                   closeChannel = false;
+                  ccl = null;
                 } catch (PlanGraph.DependencyCycleException ex) {
                   logger.log(Level.WARNING, "{0}", ex.getMessage());
                 }
@@ -385,7 +387,7 @@ public abstract class Prebakery implements Closeable {
                         .append('\n');
                   }
                 }
-              break;
+                break;
             }
           }
         } catch (IOError ex) {
@@ -395,13 +397,17 @@ public abstract class Prebakery implements Closeable {
           logger.log(Level.INFO, "Failed to service command " + c, ex);
         } finally {
           if (closeChannel) { Closeables.closeQuietly((Closeable) out); }
+          if (ccl != null) {
+            Closeables.closeQuietly(ccl);
+            logger.removeHandler(ccl);
+          }
         }
       }
     };
     commandConsumer.start();
   }
 
-  private void doBake(Recipe recipe, final Closeable outChannel) {
+  private void doBake(Recipe recipe, final ClientChannel outChannel) {
     recipe.cook(new Recipe.Chef() {
       List<String> ok = Collections.synchronizedList(
           Lists.<String>newArrayList());
@@ -436,6 +442,7 @@ public abstract class Prebakery implements Closeable {
           logger.log(Level.WARNING, "Failed to build {0}", failed.size());
         }
         Closeables.closeQuietly(outChannel);
+        logger.removeHandler(outChannel);
       }
     });
   }

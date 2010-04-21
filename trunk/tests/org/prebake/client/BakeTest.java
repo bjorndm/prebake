@@ -208,7 +208,7 @@ public class BakeTest extends PbTestCase {
 
     private Bake bake = new Bake(Logger.getLogger(getName())) {
       @Override
-      Connection connect(int port) throws IOException {
+      protected Connection connect(int port) throws IOException {
         Expectation exp = expectations.remove(0);
         assertEquals("conn", exp.type);
         assertEquals(port, exp.value);
@@ -233,7 +233,7 @@ public class BakeTest extends PbTestCase {
       }
 
       @Override
-      void launch(String... argv) throws IOException {
+      protected void launch(String... argv) throws IOException {
         Expectation exp = expectations.remove(0);
         assertEquals("launch", exp.type);
         assertEquals(Arrays.asList((String[]) exp.value), Arrays.asList(argv));
@@ -241,7 +241,7 @@ public class BakeTest extends PbTestCase {
       }
 
       @Override
-      void sleep(int millis) throws InterruptedException {
+      protected void sleep(int millis) throws InterruptedException {
         Expectation exp = expectations.remove(0);
         assertEquals("sleep", exp.type);
         assertEquals(exp.value, Integer.valueOf(millis));

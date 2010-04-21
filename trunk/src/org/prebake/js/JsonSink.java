@@ -66,7 +66,7 @@ public final class JsonSink implements Closeable {
     out.append('"');
     int pos = 0, n = s.length();
     for (int i = 0; i < n; ++i) {
-      int sub = -1;
+      int sub;
       char ch = s.charAt(i);
       switch (s.charAt(i)) {
         case '\b': sub = 'b'; break;
@@ -75,6 +75,7 @@ public final class JsonSink implements Closeable {
         case '\f': sub = 'f'; break;
         case '\r': sub = 'r'; break;
         case '"': case '\\': sub = ch; break;
+        default: sub = -1; break;
       }
       if (sub != -1) {
         out.append(s, pos, i);

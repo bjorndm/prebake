@@ -185,14 +185,14 @@ public class CommandLineConfigTest extends PbTestCase {
         + "\"/foo/bar/project/recipe2.js\","
         + "\"/foo/bar/project/recipe.js\"]",
         CommandLineConfig.toArgv(c));
-    c = assertConfig(
+    assertConfig(
         new String[] {
             "--root=project",
             "project/recipe2.js", "project/recipe.js",
             "/foo/bar/project/recipe.js" },
         false,
         "Duplicate plan file /foo/bar/project/recipe.js");
-    c = assertConfig(
+    assertConfig(
         new String[] {
             "--root=project",
             "project/recipe2.js", "/foo/bar/project/recipe.js",

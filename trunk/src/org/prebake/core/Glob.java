@@ -91,6 +91,7 @@ public final class Glob implements Comparable<Glob>, JsonSerializable {
         case 2: if ('.' != part.charAt(1)) { break; }
           // $FALL-THROUGH$
         case 1: if ('.' == part.charAt(0)) { badGlob(s); } break;
+        default: break;  // OK
       }
       parts[++k] = part;
     }
@@ -505,6 +506,7 @@ public final class Glob implements Comparable<Glob>, JsonSerializable {
           switch (strategy.outPart) {
             case 0: result.add(a); break;
             case 1: result.add(b); break;
+            default: break;  // output nothing
           }
           return result;
         }

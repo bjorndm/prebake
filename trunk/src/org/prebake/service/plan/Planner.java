@@ -382,6 +382,7 @@ public final class Planner implements Closeable {
                   // Previously the product was masked, but no longer.
                   listener.artifactChanged(prods.iterator().next());
                   break;
+                default: break;  // Still masked.
               }
             }
           }

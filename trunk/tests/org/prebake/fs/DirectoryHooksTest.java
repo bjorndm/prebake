@@ -81,8 +81,11 @@ public class DirectoryHooksTest extends PbTestCase {
     Path boocc = baz.resolve(fs.getPath("boo.cc"));
     OutputStream out = boocc.newOutputStream();
     Writer w = new OutputStreamWriter(out, Charsets.UTF_8);
-    w.write("\nprintf(\"Hello, World!\\n\");\n");
-    w.close();
+    try {
+      w.write("\nprintf(\"Hello, World!\\n\");\n");
+    } finally {
+      w.close();
+    }
     assertChanged(q, delay, boocc);
 
     // Delete a file
