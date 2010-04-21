@@ -60,7 +60,7 @@ public final class RhinoExecutor implements Executor {
       Boolean.class.getName(),
       Character.class.getName(),
       Double.class.getName(),
-      // TODO: does exceptions expose non-determinism via stack details?
+      // TODO: do exceptions expose non-determinism via stack details?
       EcmaError.class.getName(),
       EvaluatorException.class.getName(),
       Float.class.getName(),
