@@ -128,6 +128,7 @@ public final class Main {
                         getFileSystem(),
                         new JsonSource(new StringReader(commandText)),
                         makeOutputChannel(sock)));
+                    // Closing sock is now the service's responsibility.
                     sock = null;
                   } catch (InterruptedException ex) {
                     continue;

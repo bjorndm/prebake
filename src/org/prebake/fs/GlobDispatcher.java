@@ -32,17 +32,11 @@ final class GlobDispatcher {
   private final Multimap<Glob, GlobUnion> globsContaining
       = Multimaps.synchronizedListMultimap(Multimaps.newListMultimap(
           Maps.<Glob, Collection<GlobUnion>>newHashMap(),
-          new Supplier<List<GlobUnion>>() {
-            public List<GlobUnion> get() { return Lists.newArrayList(); }
-          }));
+          new ArrayListSupplier<GlobUnion>()));
   private final Multimap<GlobUnion, ArtifactListener<GlobUnion>> listeners
       = Multimaps.synchronizedListMultimap(Multimaps.newListMultimap(
           Maps.<GlobUnion, Collection<ArtifactListener<GlobUnion>>>newHashMap(),
-          new Supplier<List<ArtifactListener<GlobUnion>>>() {
-            public List<ArtifactListener<GlobUnion>> get() {
-              return Lists.newArrayList();
-            }
-          }));
+          new ArrayListSupplier<ArtifactListener<GlobUnion>>()));
   private final GlobSet gset = new GlobSet();
   private final Logger logger;
 
@@ -108,5 +102,9 @@ final class GlobDispatcher {
     }
     Collections.sort(globKeys);
     return globKeys.toString();
+  }
+
+  private static class ArrayListSupplier<T> implements Supplier<List<T>> {
+    public List<T> get() { return Lists.newArrayList(); }
   }
 }

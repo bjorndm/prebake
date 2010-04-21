@@ -293,7 +293,6 @@ public class ToolBox implements ToolProvider {
                     isBuiltin
                     ? files.getVersionRoot().resolve(t.localName) : toolPath);
             Path base = isBuiltin ? null : toolDirs.get(index);
-            // TODO: with actuals sys and glob.
             Executor.Output<YSON> result = executor.run(
                 YSON.class, logger,
                 new ToolLoader(base, ToolBox.this, impl, paths, hashes),

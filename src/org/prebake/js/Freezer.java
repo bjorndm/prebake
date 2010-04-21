@@ -62,22 +62,6 @@ final class Freezer {
     ScriptableObject copy = frozenCopies.get(so);
     if (copy != null) { return copy; }
     if (so instanceof Function) {
-      class DelegatingFunction extends ScriptableObject implements Function {
-        private final Function fn;
-        DelegatingFunction(Function fn) {
-          super(fn.getParentScope(), fn.getPrototype());
-          this.fn = fn;
-        }
-        @Override public String getClassName() { return fn.getClassName(); }
-        public Object call(
-            Context arg0, Scriptable arg1, Scriptable arg2, Object[] arg3) {
-          return fn.call(arg0, arg1, arg2, arg3);
-        }
-        public Scriptable construct(
-            Context arg0, Scriptable arg1, Object[] arg2) {
-          return fn.construct(arg0, arg1, arg2);
-        }
-      }
       copy = new DelegatingFunction((Function) so);
     } else if (so instanceof NativeArray) {
       copy = new NativeArray(((NativeArray) so).getLength());
@@ -117,6 +101,31 @@ final class Freezer {
     } else {
       copy.preventExtensions();
       return copy;
+    }
+  }
+
+  static final class DelegatingFunction extends BaseFunction {
+    private final Function fn;
+    DelegatingFunction(Function fn) {
+      super(fn.getParentScope(), fn.getPrototype());
+      this.fn = fn;
+    }
+    @Override public String getClassName() { return fn.getClassName(); }
+    @Override public String getFunctionName() {
+      return fn instanceof BaseFunction
+          ? ((BaseFunction) fn).getFunctionName() : super.getFunctionName();
+    }
+    @Override public int getArity() {
+      return fn instanceof BaseFunction
+          ? ((BaseFunction) fn).getArity() : 0;
+    }
+    @Override public Object call(
+        Context arg0, Scriptable arg1, Scriptable arg2, Object[] arg3) {
+      return fn.call(arg0, arg1, arg2, arg3);
+    }
+    @Override public Scriptable construct(
+        Context arg0, Scriptable arg1, Object[] arg2) {
+      return fn.construct(arg0, arg1, arg2);
     }
   }
 }

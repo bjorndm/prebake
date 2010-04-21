@@ -36,8 +36,12 @@ public class StubScheduledExecutorService implements ScheduledExecutorService {
       if (!shutdown && task.dt > 0) {
         task.time += task.dt;
         tasks.add(task);
+        task.done = false;
+      } else {
+        task.scheduled = false;
       }
     }
+    t = t1;
   }
 
   public ScheduledFuture<?> schedule(Runnable r, long t, TimeUnit u) {
@@ -141,7 +145,7 @@ public class StubScheduledExecutorService implements ScheduledExecutorService {
     final long dt;
     long time;
     T result;
-    boolean cancelled, scheduled, done;
+    boolean cancelled, scheduled = true, done;
 
     Task(Callable<T> toRun, long time, long dt) {
       this.toRun = toRun;
@@ -170,6 +174,7 @@ public class StubScheduledExecutorService implements ScheduledExecutorService {
       if (cancelled) { return false; }
       cancelled = true;
       if (!scheduled) { return false; }
+      scheduled = false;
       return true;
     }
 
