@@ -552,12 +552,14 @@ public final class Glob implements Comparable<Glob>, JsonSerializable {
             String nextPart = parts[i + 1];
             if ('*' == nextPart.charAt(0)) {
               // foo/* and foo/** should match foo
+              sb.append(capture ? "(" : "(?:");
               if (nextPart.length() == 2) {
-                sb.append("(?:[").append(separatorChars).append("].*)?");
+                sb.append('[').append(separatorChars).append("].*");
               } else {
-                sb.append("(?:[").append(separatorChars).append("][^")
-                    .append(separatorChars).append("]*)?");
+                sb.append('[').append(separatorChars).append("][^")
+                    .append(separatorChars).append("]*");
               }
+              sb.append(")?");
               ++i;
             } else {
               sb.append("[").append(separatorChars).append("]");

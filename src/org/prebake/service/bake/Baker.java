@@ -261,6 +261,7 @@ public final class Baker {
             localName,
             Executor.Input.builder(
                 tool.getContentAsString(Charsets.UTF_8), tool.getPath())
+                .withActuals(commonJsEnv)
                 .build());
       }
       // Second, store the product.
