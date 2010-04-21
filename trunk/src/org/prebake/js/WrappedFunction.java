@@ -58,7 +58,7 @@ final class WrappedFunction extends BaseFunction {
     }
     // TODO: properly translate arrays, and objects
     // to lists and maps respectively.
-    return membrane.toJs(body.apply(args));
+    return membrane.toJs(body.apply(membranedInputs));
   }
   @Override
   public String getFunctionName() {
