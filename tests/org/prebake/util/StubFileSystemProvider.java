@@ -39,6 +39,8 @@ import java.nio.file.WatchEvent.Kind;
 import java.nio.file.WatchEvent.Modifier;
 import java.nio.file.attribute.BasicFileAttributeView;
 import java.nio.file.attribute.BasicFileAttributes;
+import java.nio.file.attribute.DosFileAttributeView;
+import java.nio.file.attribute.DosFileAttributes;
 import java.nio.file.attribute.FileAttribute;
 import java.nio.file.attribute.FileAttributeView;
 import java.nio.file.attribute.FileTime;
@@ -499,52 +501,86 @@ class MemPath extends Path {
 
   public <V extends FileAttributeView> V getFileAttributeView(
       Class<V> type, final LinkOption... options) {
-    if (!BasicFileAttributeView.class.equals(type)) {
-      throw new IllegalArgumentException();
+    if (BasicFileAttributeView.class.equals(type)) {
+      return type.cast(new BasicFileAttributeView() {
+
+        public String name() { return getName().toString(); }
+
+        public BasicFileAttributes readAttributes() throws IOException {
+          final Map<String, ?> attrs
+              = MemPath.this.readAttributes("*", options);  // TODO: only basic
+          return new BasicFileAttributes() {
+            public FileTime creationTime() {
+              return (FileTime) attrs.get("creationTime");
+            }
+            public Object fileKey() {
+              return attrs.get("fileKey");
+            }
+            public boolean isDirectory() {
+              return (Boolean) attrs.get("isDirectory");
+            }
+            public boolean isOther() {
+              return (Boolean) attrs.get("isOther");
+            }
+            public boolean isRegularFile() {
+              return (Boolean) attrs.get("isRegularFile");
+            }
+            public boolean isSymbolicLink() {
+              return (Boolean) attrs.get("isSymbolicLink");
+            }
+            public FileTime lastAccessTime() {
+              return (FileTime) attrs.get("lastAccessTime");
+            }
+            public FileTime lastModifiedTime() {
+              return (FileTime) attrs.get("lastModifiedTime");
+            }
+            public long size() { return (Long) attrs.get("size"); }
+          };
+        }
+        public void setTimes(
+            FileTime lastModifiedTime, FileTime lastAccessTime,
+            FileTime createTime) {
+          MemPath.this.setAttribute("lastModifiedTime", lastModifiedTime);
+          MemPath.this.setAttribute("lastAccessTime", lastModifiedTime);
+          MemPath.this.setAttribute("createTime", lastModifiedTime);
+        }
+      });
+    } else if (DosFileAttributeView.class.equals(type)) {
+      return type.cast(new DosFileAttributeView() {
+
+        public String name() { return getName().toString(); }
+
+        public DosFileAttributes readAttributes() throws IOException {
+          throw new UnsupportedOperationException();
+        }
+
+        public void setArchive(boolean archive) throws IOException {
+          throw new UnsupportedOperationException();
+        }
+
+        public void setHidden(boolean hidden) throws IOException {
+          if (getName().toString().startsWith(".") == hidden) {
+            return;
+          }
+          throw new UnsupportedOperationException();
+        }
+
+        public void setReadOnly(boolean readOnly) throws IOException {
+          throw new UnsupportedOperationException();
+        }
+
+        public void setSystem(boolean system) throws IOException {
+          throw new UnsupportedOperationException();
+        }
+
+        public void setTimes(FileTime arg0, FileTime arg1, FileTime arg2)
+            throws IOException {
+          throw new UnsupportedOperationException();
+        }
+      });
+    } else {
+      throw new IllegalArgumentException(type.getName());
     }
-    return type.cast(new BasicFileAttributeView() {
-
-      public String name() { return getName().toString(); }
-
-      public BasicFileAttributes readAttributes() throws IOException {
-        final Map<String, ?> attrs = MemPath.this.readAttributes("*", options);
-        return new BasicFileAttributes() {
-          public FileTime creationTime() {
-            return (FileTime) attrs.get("creationTime");
-          }
-          public Object fileKey() {
-            return attrs.get("fileKey");
-          }
-          public boolean isDirectory() {
-            return (Boolean) attrs.get("isDirectory");
-          }
-          public boolean isOther() {
-            return (Boolean) attrs.get("isOther");
-          }
-          public boolean isRegularFile() {
-            return (Boolean) attrs.get("isRegularFile");
-          }
-          public boolean isSymbolicLink() {
-            return (Boolean) attrs.get("isSymbolicLink");
-          }
-          public FileTime lastAccessTime() {
-            return (FileTime) attrs.get("lastAccessTime");
-          }
-          public FileTime lastModifiedTime() {
-            return (FileTime) attrs.get("lastModifiedTime");
-          }
-          public long size() { return (Long) attrs.get("size"); }
-        };
-      }
-
-      public void setTimes(
-          FileTime lastModifiedTime, FileTime lastAccessTime,
-          FileTime createTime) {
-        MemPath.this.setAttribute("lastModifiedTime", lastModifiedTime);
-        MemPath.this.setAttribute("lastAccessTime", lastModifiedTime);
-        MemPath.this.setAttribute("createTime", lastModifiedTime);
-      }
-    });
   }
 
   public Map<String, ?> readAttributes(String attributes, LinkOption... options)

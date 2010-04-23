@@ -10,24 +10,37 @@ import com.google.common.collect.ImmutableList;
 
 /**
  * A listener that is alerted when a named artifact's state changes.
+ * An artifact is any input, output, or intermediate or ancillary structure
+ * that can change and need to be updated as files under the client dirs change.
+ * Artifacts include files,
+ * {@link org.prebake.service.tools.ToolSignature tool signatures},
+ * {@link org.prebake.service.plan.Product products}, and
+ * {@link org.prebake.service.plan.Action actions}.
  *
  * @author mikesamuel@gmail.com
  */
 @ParametersAreNonnullByDefault
 public interface ArtifactListener<ART> {
 
+  /** Called when an artifact is destroyed. */
   void artifactDestroyed(String artifactName);
+
+  /** Called when an artifact changes or comes into existence. */
   void artifactChanged(ART artifact);
 
+  /** Provides factory methods for common listener types. */
   public static final class Factory {
     private Factory() { /* no-op */ }
+    /** A listener that takes no action. */
     public static @Nonnull <ART> ArtifactListener<ART> noop() {
       return NoopListener.<ART>instance();
     }
+    /** A listener that multicasts to other listeners. */
     public static @Nonnull <ART> ArtifactListener<ART> chain(
         ArtifactListener<ART> a, ArtifactListener<ART> b) {
       return chain(ImmutableList.of(a, b));
     }
+    /** A listener that multicasts to other listeners. */
     public static @Nonnull <ART> ArtifactListener<ART> chain(
         Iterable<ArtifactListener<ART>> listeners) {
       ImmutableList.Builder<ArtifactListener<ART>> unrolled
@@ -47,6 +60,10 @@ public interface ArtifactListener<ART> {
         default: return new ArtifactListenerChain<ART>(listenerList);
       }
     }
+    /**
+     * A listener that logs an exceptions raised by the given listener and
+     * continues on.
+     */
     public static @Nonnull <ART> ArtifactListener<ART> loggingListener(
         final ArtifactListener<ART> listener, final Logger logger) {
       if (listener instanceof NoopListener<?>) { return listener; }

@@ -32,9 +32,11 @@ import java.io.Closeable;
 import java.io.IOError;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.io.Reader;
 import java.io.Writer;
+import java.lang.Thread.UncaughtExceptionHandler;
 import java.nio.file.FileSystem;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
@@ -189,6 +191,7 @@ public abstract class Prebakery implements Closeable {
 
   public synchronized void start(@Nullable Runnable onClose) {
     if (this.onClose != null) { throw new IllegalStateException(); }
+    logger.log(Level.INFO, "Starting");
     if (onClose == null) {
       onClose = new Runnable() { public void run() { /* no op */} };
     }
@@ -197,16 +200,25 @@ public abstract class Prebakery implements Closeable {
     try {
       try {
         setupChannel();
+        logger.log(Level.INFO, "Set up channel");
         setupFileSystemWatcher();
+        logger.log(Level.INFO, "Set up file system watcher");
         setupCommandHandler();
+        logger.log(Level.INFO, "Set up command handler");
+        setupSucceeded = true;
       } catch (Throwable th) {
-        // Handle any problems in case the shutdown hook causes VM exit.
-        Thread.getDefaultUncaughtExceptionHandler().uncaughtException(
-            Thread.currentThread(), th);
+        UncaughtExceptionHandler handler
+            = Thread.getDefaultUncaughtExceptionHandler();
+        if (handler != null) {
+          // Handle any problems in case the shutdown hook causes VM exit.
+          handler.uncaughtException(Thread.currentThread(), th);
+        }
+        logger.log(Level.WARNING, "Exception during start", th);
       }
     } finally {
       if (!setupSucceeded) { close(); }
     }
+    logger.log(Level.INFO, "Started");
   }
 
   /**
@@ -253,12 +265,15 @@ public abstract class Prebakery implements Closeable {
             ? config.getIgnorePattern() : DEFAULT_IGNORE_PATTERN;
         String pattern = base.pattern();
         Path clientRoot = config.getClientRoot();
-        pattern += "|^" + Pattern.quote(clientRoot.toString()) + "(?:$|"
-            + Pattern.quote(clientRoot.getFileSystem().getSeparator()) + ")";
+        pattern += "|^" + Pattern.quote(clientRoot.toString()) + "(?:"
+            + Pattern.quote(clientRoot.getFileSystem().getSeparator()) + ")?$";
         regex = Pattern.compile(pattern, base.flags());
       }
       public boolean apply(Path p) {
-        return !regex.matcher(p.toString()).find();
+        String pathStr = p.toString();
+        String sep = p.getFileSystem().getSeparator();
+        if (!"/".equals(sep)) { pathStr = pathStr.replace(sep, "/"); }
+        return !regex.matcher(pathStr).find();
       }
     };
 
@@ -287,6 +302,11 @@ public abstract class Prebakery implements Closeable {
       }
     };
     pathConsumer.start();
+    try {
+      hooks.start();
+    } catch (IOException ex) {
+      logger.log(Level.SEVERE, "Failed to start directory hooks", ex);
+    }
   }
 
   private void setupCommandHandler() {
@@ -294,7 +314,8 @@ public abstract class Prebakery implements Closeable {
       @Override
       protected void consume(BlockingQueue<? extends Commands> q, Commands c) {
         boolean authed = false;
-        final Appendable out = c.getResponse();
+        final OutputStream out = c.getResponse();
+        final Writer w = new OutputStreamWriter(out, Charsets.UTF_8);
         boolean closeChannel = true;
         ClientChannel ccl = null;
         try {
@@ -304,16 +325,22 @@ public abstract class Prebakery implements Closeable {
               return;
             }
             switch (cmd.verb) {
-              case build:
+              case bake:
+                ccl = new ClientChannel(w);
+                logger.addHandler(ccl);
                 try {
-                  ccl = new ClientChannel(out);
-                  doBake(planner.getPlanGraph().makeRecipe(
-                      ((Command.BuildCommand) cmd).products), ccl);
+                  planner.getProducts();
+                  Set<String> products = ((Command.BakeCommand) cmd).products;
+                  doBake(
+                      products, planner.getPlanGraph().makeRecipe(products),
+                      ccl);
                   // Closing the channel, and unregistering the log handler is
                   // now the recipe callback's responsibility
                   closeChannel = false;
                   ccl = null;
                 } catch (PlanGraph.DependencyCycleException ex) {
+                  logger.log(Level.WARNING, "{0}", ex.getMessage());
+                } catch (PlanGraph.MissingProductsException ex) {
                   logger.log(Level.WARNING, "{0}", ex.getMessage());
                 }
                 break;
@@ -323,17 +350,20 @@ public abstract class Prebakery implements Closeable {
               case graph:
                 DotRenderer.render(
                     planner.getPlanGraph(),
-                    ((Command.GraphCommand) cmd).products, out);
+                    ((Command.GraphCommand) cmd).products, w);
                 break;
               case handshake:
                 authed = ((Command.HandshakeCommand) cmd).token.equals(token);
                 break;
               case plan:
+                ccl = new ClientChannel(w);
+                logger.addHandler(ccl);
                 try {
+                  planner.getProducts();
                   Recipe recipe = planner.getPlanGraph()
                       .makeRecipe(((Command.PlanCommand) cmd).products);
                   final StringBuilder sb = new StringBuilder();
-                  final Appendable planOut = out;
+                  final Appendable planOut = w;
                   recipe.cook(new Recipe.Chef() {
                     public void cook(
                         Ingredient ingredient, Function<Boolean, ?> whenDone) {
@@ -350,6 +380,8 @@ public abstract class Prebakery implements Closeable {
                     }
                   });
                 } catch (PlanGraph.DependencyCycleException ex) {
+                  logger.log(Level.WARNING, "{0}", ex.getMessage());
+                } catch (PlanGraph.MissingProductsException ex) {
                   logger.log(Level.WARNING, "{0}", ex.getMessage());
                 }
                 break;
@@ -371,20 +403,19 @@ public abstract class Prebakery implements Closeable {
                   try {
                     sig = f.get(5, TimeUnit.SECONDS);
                   } catch (ExecutionException ex) {
-                    out.append("Failed to update tool: ").append(ex.toString());
+                    w.append("Failed to update tool: ").append(ex.toString());
                   } catch (InterruptedException ex) {
-                    out.append("Failed to update tool: ").append(ex.toString());
+                    w.append("Failed to update tool: ").append(ex.toString());
                   } catch (TimeoutException ex) {
-                    out.append("Failed to update tool: ").append(ex.toString());
+                    w.append("Failed to update tool: ").append(ex.toString());
                   }
                   if (sig != null) { sigs.add(sig); }
                 }
                 for (ToolSignature sig : sigs) {
-                  out.append(sig.name).append('\n');
+                  w.append(sig.name).append('\n');
                   Documentation doc = sig.help;
                   if (doc != null) {
-                    out.append(indent(htmlToText(doc.summaryHtml)))
-                        .append('\n');
+                    w.append(indent(htmlToText(doc.summaryHtml))).append('\n');
                   }
                 }
                 break;
@@ -396,10 +427,18 @@ public abstract class Prebakery implements Closeable {
         } catch (IOException ex) {  // Client disconnect?
           logger.log(Level.INFO, "Failed to service command " + c, ex);
         } finally {
-          if (closeChannel) { Closeables.closeQuietly((Closeable) out); }
           if (ccl != null) {
             Closeables.closeQuietly(ccl);
             logger.removeHandler(ccl);
+          }
+          if (closeChannel) {
+            try {
+              w.flush();
+              out.write((byte) 0);
+              w.close();
+            } catch (IOException ex) {
+              logger.log(Level.WARNING, "Failed to close client stream", ex);
+            }
           }
         }
       }
@@ -407,7 +446,9 @@ public abstract class Prebakery implements Closeable {
     commandConsumer.start();
   }
 
-  private void doBake(Recipe recipe, final ClientChannel outChannel) {
+  private void doBake(
+      final Set<String> products, Recipe recipe,
+      final ClientChannel outChannel) {
     recipe.cook(new Recipe.Chef() {
       List<String> ok = Collections.synchronizedList(
           Lists.<String>newArrayList());
@@ -418,10 +459,11 @@ public abstract class Prebakery implements Closeable {
           final Ingredient ingredient, final Function<Boolean, ?> whenDone) {
         execer.submit(new Runnable() {
           public void run() {
+            logger.log(Level.INFO, "Cooking {0}", ingredient.product);
             String prod = ingredient.product;
             boolean status = false;
             try {
-              status = baker.build(prod).get();
+              status = baker.bake(prod).get();
             } catch (ExecutionException ex) {
               logger.log(Level.SEVERE, "Failed to build " + prod, ex);
             } catch (InterruptedException ex) {
@@ -430,6 +472,12 @@ public abstract class Prebakery implements Closeable {
               logger.log(Level.SEVERE, "Failed to build " + prod, ex);
             } finally {
               (status ? ok : failed).add(prod);
+              if (status) {
+                logger.log(Level.INFO, "Cooked {0}", ingredient.product);
+              } else {
+                logger.log(
+                    Level.WARNING, "Failed to cook {0}", ingredient.product);
+              }
               whenDone.apply(status);
             }
           }
@@ -437,12 +485,20 @@ public abstract class Prebakery implements Closeable {
       }
 
       public void done(boolean allSucceeded) {
-        logger.log(Level.FINE, "Built {0}", ok);
+        logger.log(
+            Level.FINE, "Bake of {0} {1}",
+            new Object[] { products, allSucceeded ? "succeeded" : "failed" });
         if (!failed.isEmpty()) {
           logger.log(Level.WARNING, "Failed to build {0}", failed.size());
         }
-        Closeables.closeQuietly(outChannel);
         logger.removeHandler(outChannel);
+        try {
+          outChannel.flush();
+          outChannel.out.append('\0');
+        } catch (IOException ex) {
+          logger.log(Level.INFO, "Failed to close channel", ex);
+        }
+        Closeables.closeQuietly(outChannel);
       }
     });
   }

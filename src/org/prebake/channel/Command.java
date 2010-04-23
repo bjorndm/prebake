@@ -32,7 +32,7 @@ import javax.annotation.ParametersAreNonnullByDefault;
 public abstract class Command implements JsonSerializable {
   public enum Verb {
     handshake,
-    build,
+    bake,
     files_changed,
     graph,
     plan,
@@ -74,7 +74,7 @@ public abstract class Command implements JsonSerializable {
     }
     src.expect("]");
     switch (v) {
-      case build:         return new BuildCommand(toProducts(args));
+      case bake:          return new BakeCommand(toProducts(args));
       case files_changed: return new FilesChangedCommand(toPaths(args, fs));
       case graph:         return new GraphCommand(toProducts(args));
       case handshake:     return new HandshakeCommand((String) args.get(0));
@@ -140,11 +140,11 @@ public abstract class Command implements JsonSerializable {
     return paths;
   }
 
-  public static final class BuildCommand extends Command {
+  public static final class BakeCommand extends Command {
     public final Set<String> products;
 
-    public BuildCommand(Set<String> products) {
-      super(Verb.build);
+    public BakeCommand(Set<String> products) {
+      super(Verb.bake);
       this.products = ImmutableSet.copyOf(products);
     }
 

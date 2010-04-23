@@ -103,7 +103,7 @@ public class PlanGrapherTest extends PbTestCase {
         "A", "B", "C", "D", "E", "F", "FAIL");
   }
 
-  public void testRecipeMakingLoopWithDependencyLeaf() {
+  public void testRecipeMakingLoopWithDependencyLeaf() throws Exception {
     PlanGraph g = PlanGraph.builder("A", "B", "C", "D")
         .edge("A", "B")  // D - B = A
         .edge("B", "A")  //       \
@@ -119,7 +119,7 @@ public class PlanGrapherTest extends PbTestCase {
     fail("Loop");
   }
 
-  public void testRecipeMakingLoopWithoutDependencyLeaf() {
+  public void testRecipeMakingLoopWithoutDependencyLeaf() throws Exception {
     PlanGraph g = PlanGraph.builder("A", "B", "C")
         .edge("A", "B")  // B = A
         .edge("B", "A")  //   \

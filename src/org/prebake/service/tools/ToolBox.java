@@ -187,8 +187,8 @@ public class ToolBox implements ToolProvider {
   protected Iterable<String> getBuiltinToolNames() throws IOException {
     List<String> builtins = Lists.newArrayList();
     InputStream builtinFiles = ToolBox.class.getResourceAsStream("tools.txt");
-    BufferedReader in = new BufferedReader(
-        new InputStreamReader(builtinFiles, Charsets.UTF_8));
+    BufferedReader in = new BufferedReader(new InputStreamReader(
+        builtinFiles, Charsets.UTF_8));
     try {
       for (String line; (line = in.readLine()) != null;) { builtins.add(line); }
     } finally {

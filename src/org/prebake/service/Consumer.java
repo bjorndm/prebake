@@ -24,6 +24,7 @@ abstract class Consumer<T> implements Closeable {
             T one;
             try {
               synchronized (mutex) {
+                if (q == null) { break; }
                 one = q.poll();
                 if (one == null) { mutex.notifyAll(); }
               }
@@ -54,9 +55,11 @@ abstract class Consumer<T> implements Closeable {
   }
 
   public void close() {
-    mutex.notifyAll();
-    q = null;
-    if (th != null) { th.interrupt(); }
+    synchronized (mutex) {
+      q = null;
+      if (th != null) { th.interrupt(); }
+      mutex.notifyAll();
+    }
   }
 
   protected abstract void consume(BlockingQueue<? extends T> q, T x);

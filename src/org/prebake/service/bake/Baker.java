@@ -101,7 +101,7 @@ public final class Baker {
 
   public void setToolBox(ToolProvider toolbox) { this.toolbox = toolbox; }
 
-  public Future<Boolean> build(final String productName) {
+  public Future<Boolean> bake(final String productName) {
     assert toolbox != null;
     final ProductStatus status = productStatuses.get(productName);
     if (status == null) {
