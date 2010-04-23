@@ -32,13 +32,13 @@ public class BakeTest extends PbTestCase {
         .withCwd("/foo/bar/baz/boo")
         .withFile("/foo/bar/.prebake/port", "1234")
         .withFile("/foo/bar/.prebake/token", "S3cR37")
-        .withArgv("build", "this", "that")
+        .withArgv("bake", "this", "that")
         .withResponse("OK\0")
         .expectConnect(1234, false)
         .issue()
         .expectResult(0)
         .expectSent(
-            "[[\"handshake\",{},\"S3cR37\"],[\"build\",{},\"this\",\"that\"]]")
+            "[[\"handshake\",{},\"S3cR37\"],[\"bake\",{},\"this\",\"that\"]]")
         .expectOutput("OK")
         .expectConnClosed();
   }
@@ -47,7 +47,7 @@ public class BakeTest extends PbTestCase {
     try {
       new BakeTestRunner()
           .withCwd("/foo/bar/baz/boo")
-          .withArgv("build", "this", "that");
+          .withArgv("bake", "this", "that");
     } catch (IOException ex) {
       assertEquals(
           "No .prebake in an ancestor of /foo/bar/baz/boo."
@@ -65,7 +65,7 @@ public class BakeTest extends PbTestCase {
         .withFile("/foo/bar/.prebake/token", "S3cR37")
         .withFile("/foo/bar/.prebake/cmdline",
                   "[\"prebakery\",\"--root=/foo/bar\"]")
-        .withArgv("build", "this", "that")
+        .withArgv("bake", "this", "that")
         .withResponse("OK\0")
         .expectLaunch("prebakery", "--root=/foo/bar")
         .expectSleep(500, false)
@@ -74,7 +74,7 @@ public class BakeTest extends PbTestCase {
         .issue()
         .expectResult(0)
         .expectSent(
-            "[[\"handshake\",{},\"S3cR37\"],[\"build\",{},\"this\",\"that\"]]")
+            "[[\"handshake\",{},\"S3cR37\"],[\"bake\",{},\"this\",\"that\"]]")
         .expectOutput("OK")
         .expectConnClosed();
   }
@@ -87,7 +87,7 @@ public class BakeTest extends PbTestCase {
           .withFile("/foo/bar/.prebake/token", "S3cR37")
           .withFile("/foo/bar/.prebake/cmdline",
                     "[\"prebakery\",\"--root=/foo/bar")  // string not closed
-          .withArgv("build", "this", "that")
+          .withArgv("bake", "this", "that")
           .issue();
     } catch (IOException ex) {
       assertEquals(
@@ -104,7 +104,7 @@ public class BakeTest extends PbTestCase {
       new BakeTestRunner()
           .withCwd("/foo/bar/baz/boo")
           .withFile("/foo/bar/.prebake/port", "1234")
-          .withArgv("build", "this", "that")
+          .withArgv("bake", "this", "that")
           .expectConnect(1234, false)
           .issue();
     } catch (FileNotFoundException ex) {
@@ -121,7 +121,7 @@ public class BakeTest extends PbTestCase {
         .withFile("/foo/bar/.prebake/token", "S3cR37")
         .withFile("/foo/bar/.prebake/cmdline",
                   "[\"prebakery\",\"--root=/foo/bar\"]")
-        .withArgv("build", "this", "that")
+        .withArgv("bake", "this", "that")
         .withResponse("OK\0")
         // Client fails to connect at old port.
         .expectConnect(1234, true)
@@ -138,7 +138,7 @@ public class BakeTest extends PbTestCase {
         .expectResult(0)
         // And sends over the updated token.
         .expectSent(
-            "[[\"handshake\",{},\"70K3n\"],[\"build\",{},\"this\",\"that\"]]")
+            "[[\"handshake\",{},\"70K3n\"],[\"bake\",{},\"this\",\"that\"]]")
         .expectOutput("OK")
         .expectConnClosed();
   }
@@ -150,7 +150,7 @@ public class BakeTest extends PbTestCase {
         .withFile("/foo/bar/.prebake/token", "S3cR37")
         .withFile("/foo/bar/.prebake/cmdline",
                   "[\"prebakery\",\"--root=/foo/bar\"]")
-        .withArgv("build", "this", "that")
+        .withArgv("bake", "this", "that")
         .withResponse("OK\0")
         .expectConnect(1234, true)
         .expectLaunch("prebakery", "--root=/foo/bar")
@@ -169,7 +169,7 @@ public class BakeTest extends PbTestCase {
         .expectResult(0)
         // and sends the new token.
         .expectSent(
-            "[[\"handshake\",{},\"70K3n\"],[\"build\",{},\"this\",\"that\"]]")
+            "[[\"handshake\",{},\"70K3n\"],[\"bake\",{},\"this\",\"that\"]]")
         .expectOutput("OK")
         .expectConnClosed();
   }

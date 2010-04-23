@@ -110,8 +110,13 @@ public class ToolBoxTest extends PbTestCase {
         .assertSigs(
             ("{"
                + "\"name\":\"cp\","
-               + "\"help\":\"Copies files to a directory tree.  TODO usage\""
-             + "}"),
+               + "\"help\":{\"summary\":\"Copies files to a directory tree.\","
+               + "\"detail\":\"This version of the cp command copies by glob"
+               + " transform.\\nE.g. to copy all html files under the doc/"
+               + " directory to \\nthe same location under the www directory do"
+               + "\\n  tools.cp(\\\"doc/**.html\\\", \\\"www/**.html\\\");\","
+               + "\"contact\":\"Mike Samuel <mikesamuel@gmail.com>\""
+             + "}}"),
             ("{"
              + "\"name\":\"bar\","
                + "\"help\":\"an example tool\","

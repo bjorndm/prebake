@@ -7,6 +7,7 @@ import org.prebake.js.JsonSink;
 import org.prebake.js.JsonSource;
 import org.prebake.service.Prebakery;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Charsets;
 import com.google.common.collect.Lists;
 import com.google.common.io.CharStreams;
@@ -42,7 +43,8 @@ public abstract class Bake {
   protected abstract void launch(String... argv) throws IOException;
   protected abstract void sleep(int millis) throws InterruptedException;
 
-  Path findPrebakeDir(Path cwd) throws IOException {
+  @VisibleForTesting
+  public Path findPrebakeDir(Path cwd) throws IOException {
     cwd = cwd.toRealPath(false).normalize();
     Path dirName = cwd.getFileSystem().getPath(FileNames.DIR);
     for (Path d = cwd; d != null; d = d.getParent()) {
@@ -58,7 +60,8 @@ public abstract class Bake {
         + "  Please run the prebakery first.");
   }
 
-  Commands decodeArgv(Path cwd, String... argv) throws IOException {
+  @VisibleForTesting
+  public Commands decodeArgv(Path cwd, String... argv) throws IOException {
     int n = argv.length;
     Command cmd = null;
     if (n != 0) {
@@ -159,7 +162,8 @@ public abstract class Bake {
     }
   }
 
-  int issueCommands(Path prebakeDir, Commands commands, OutputStream out)
+  @VisibleForTesting
+  public int issueCommands(Path prebakeDir, Commands commands, OutputStream out)
       throws IOException {
     Connection conn = connectOrSpawn(prebakeDir);
 

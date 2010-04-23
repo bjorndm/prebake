@@ -17,17 +17,17 @@ import com.google.common.io.Flushables;
  * @author mikesamuel@gmail.com
  */
 final class ClientChannel extends Handler implements Closeable {
-  private final Appendable out;
+  final Appendable out;
 
-  ClientChannel(Appendable out) { this.out = out; }
+  ClientChannel(Appendable out) {
+    this.out = out;
+  }
 
-  @Override
-  public void close() {
+  @Override public void close() {
     if (out instanceof Closeable) { Closeables.closeQuietly((Closeable) out); }
   }
 
-  @Override
-  public void flush() {
+  @Override public void flush() {
     if (out instanceof Flushable) { Flushables.flushQuietly((Flushable) out); }
   }
 
@@ -39,6 +39,7 @@ final class ClientChannel extends Handler implements Closeable {
           .append('\n');
     } catch (IOException ex) {
       // Ignore.  We can't recover but shouldn't interrupt existing operations.
+      ex.printStackTrace();
     }
   }
 }

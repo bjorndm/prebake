@@ -16,13 +16,12 @@ import com.google.common.util.concurrent.Executors;
 import com.sleepycat.je.Environment;
 import com.sleepycat.je.EnvironmentConfig;
 
-import java.io.Closeable;
 import java.io.File;
+import java.io.FilterOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.OutputStreamWriter;
+import java.io.OutputStream;
 import java.io.StringReader;
-import java.io.Writer;
 import java.math.BigInteger;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -198,34 +197,22 @@ public final class Main {
     return sysProps.build();
   }
 
-  private static Appendable makeOutputChannel(Socket sock) throws IOException {
-    class OutputChannel implements Appendable, Closeable {
-      final Writer w;
-      final Socket sock;
-
-      OutputChannel(Socket sock) throws IOException {
-        this.sock = sock;
-        this.w = new OutputStreamWriter(sock.getOutputStream(), Charsets.UTF_8);
-      }
-
-      public Appendable append(CharSequence s) throws IOException {
-        w.append(s);
-        return this;
-      }
-
-      public Appendable append(char c) throws IOException {
-        w.append(c);
-        return this;
-      }
-
-      public Appendable append(CharSequence s, int start, int end)
-          throws IOException {
-        w.append(s, start, end);
-        return this;
-      }
-
-      public void close() throws IOException { sock.close(); }
-    }
+  private static OutputStream makeOutputChannel(Socket sock)
+      throws IOException {
     return new OutputChannel(sock);
+  }
+}
+
+final class OutputChannel extends FilterOutputStream {
+  private final Socket sock;
+
+  OutputChannel(Socket sock) throws IOException {
+    super(sock.getOutputStream());
+    this.sock = sock;
+  }
+
+  @Override public void close() throws IOException {
+    super.close();
+    sock.close();
   }
 }

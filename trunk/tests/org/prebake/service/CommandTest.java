@@ -29,10 +29,10 @@ public class CommandTest {
   @After
   public void tearDown() { fs = null; }
 
-  @Test public final void testBuildCommand() throws IOException {
-    Command.BuildCommand c = new Command.BuildCommand(ImmutableSet.of(
+  @Test public final void testBakeCommand() throws IOException {
+    Command.BakeCommand c = new Command.BakeCommand(ImmutableSet.of(
         "foo", "bar"));
-    assertEquals("[\"build\",{},\"foo\",\"bar\"]", c.toString());
+    assertEquals("[\"bake\",{},\"foo\",\"bar\"]", c.toString());
     reparse(c);
   }
 

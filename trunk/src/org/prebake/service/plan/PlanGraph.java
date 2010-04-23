@@ -85,8 +85,16 @@ public final class PlanGraph {
    * @param prods
    */
   public Recipe makeRecipe(final Set<String> prods)
-      throws DependencyCycleException {
-    assert nodes.containsAll(prods);
+      throws DependencyCycleException, MissingProductsException {
+    {
+      Set<String> prodsNeeded = Sets.newHashSet(prods);
+      prodsNeeded.removeAll(nodes);
+      if (!prodsNeeded.isEmpty()) {
+        throw new MissingProductsException(
+            "Undefined products " + Joiner.on(", ").join(prodsNeeded));
+      }
+    }
+
     final Multimap<String, String> postReqGraph;
     {
       ImmutableMultimap.Builder<String, String> b = ImmutableMultimap.builder();
@@ -169,5 +177,9 @@ public final class PlanGraph {
   /** Thrown when a product is transitively its own prerequisite. */
   public static class DependencyCycleException extends Exception {
     public DependencyCycleException(String msg) { super(msg); }
+  }
+
+  public static class MissingProductsException extends Exception {
+    public MissingProductsException(String msg) { super(msg); }
   }
 }

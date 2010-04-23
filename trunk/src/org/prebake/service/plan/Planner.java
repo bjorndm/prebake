@@ -183,16 +183,16 @@ public final class Planner implements Closeable {
               .write("    }\n")
               .write("    inputs = frozenCopy(inputs);\n")
               .write("    outputs = frozenCopy(outputs);\n")
-              .write("    options = frozenCopy(options);\n");
-          if (sig.productChecker != null) {
-            sink.write("    (").writeValue(sig.productChecker)
-                .write(")(options);\n");
-          }
-          sink.write("    return freeze({ tool: ")
-              .writeValue(sig.name)
+              .write("    options = frozenCopy(options);\n")
+              .write("    var action = freeze({ tool: ").writeValue(sig.name)
               .write(", outputs: outputs")
               .write(", inputs: inputs")
-              .write(", options: options });\n")
+              .write(", options: options });\n");
+          if (sig.productChecker != null) {
+            sink.write("    (").writeValue(sig.productChecker)
+                .write(")(action);\n");
+          }
+          sink.write("    return action;\n")
               .write("  }))\n");
           sawOne = true;
         } catch (ExecutionException ex) {

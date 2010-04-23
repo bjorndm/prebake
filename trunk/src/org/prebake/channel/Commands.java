@@ -7,6 +7,7 @@ import org.prebake.js.JsonSource;
 import com.google.common.collect.ImmutableList;
 
 import java.io.IOException;
+import java.io.OutputStream;
 import java.nio.file.FileSystem;
 import java.util.Iterator;
 
@@ -21,20 +22,20 @@ import javax.annotation.ParametersAreNonnullByDefault;
 @ParametersAreNonnullByDefault
 public final class Commands implements Iterable<Command>, JsonSerializable {
   private final ImmutableList<Command> commands;
-  private final @Nullable Appendable response;
+  private final @Nullable OutputStream response;
 
   private Commands(
-      ImmutableList<Command> commands, @Nullable Appendable response) {
+      ImmutableList<Command> commands, @Nullable OutputStream response) {
     this.commands = commands;
     this.response = response;
   }
 
   public Iterator<Command> iterator() { return commands.iterator(); }
 
-  public Appendable getResponse() { return response; }
+  public OutputStream getResponse() { return response; }
 
   public static Commands fromJson(
-      FileSystem fs, JsonSource src, @Nullable Appendable response)
+      FileSystem fs, JsonSource src, @Nullable OutputStream response)
       throws IOException {
     ImmutableList.Builder<Command> cmds = ImmutableList.builder();
     src.expect("[");
@@ -48,7 +49,7 @@ public final class Commands implements Iterable<Command>, JsonSerializable {
   }
 
   public static Commands valueOf(
-      Iterable<Command> cmds, @Nullable Appendable response) {
+      Iterable<Command> cmds, @Nullable OutputStream response) {
     return new Commands(ImmutableList.copyOf(cmds), response);
   }
 
