@@ -4,5 +4,5 @@
  *
  * @see org.prebake.service.Main#USAGE
  */
-
+@javax.annotation.ParametersAreNonnullByDefault
 package org.prebake.service;

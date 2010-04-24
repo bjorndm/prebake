@@ -29,6 +29,8 @@ import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
 
+import javax.annotation.Nullable;
+
 import com.google.common.collect.Sets;
 
 /**
@@ -61,14 +63,14 @@ public class WeakIdentityHashMap<K, V> implements Map<K, V> {
         reap();
     }
 
-    public boolean containsKey(Object key) {
+    public boolean containsKey(@Nullable Object key) {
         reap();
         if (key != null && !keyType.isInstance(key)) { return false; }
         return backingStore.containsKey(
             new IdentityWeakReference<K>(keyType.cast(key), queue));
     }
 
-    public boolean containsValue(Object value)  {
+    public boolean containsValue(@Nullable Object value)  {
         reap();
         return backingStore.containsValue(value);
     }
@@ -105,13 +107,13 @@ public class WeakIdentityHashMap<K, V> implements Map<K, V> {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
         return o != null && o.getClass() == getClass()
             && backingStore.equals(
                 ((WeakIdentityHashMap<?, ?>) o).backingStore);
     }
 
-    public V get(Object key) {
+    public V get(@Nullable Object key) {
         reap();
         if (key != null && !keyType.isInstance(key)) { return null; }
         return backingStore.get(
@@ -135,7 +137,7 @@ public class WeakIdentityHashMap<K, V> implements Map<K, V> {
     public void putAll(Map<? extends K, ? extends V> t) {
         throw new UnsupportedOperationException();
     }
-    public V remove(Object key) {
+    public V remove(@Nullable Object key) {
         reap();
         if (key != null && !keyType.isInstance(key)) { return null; }
         return backingStore.remove(new IdentityWeakReference<K>(
@@ -163,7 +165,7 @@ public class WeakIdentityHashMap<K, V> implements Map<K, V> {
     static final class IdentityWeakReference<K> extends WeakReference<K> {
         final int hash;
 
-        IdentityWeakReference(K key, ReferenceQueue<Object> queue) {
+        IdentityWeakReference(@Nullable K key, ReferenceQueue<Object> queue) {
             super(key, queue);
             hash = System.identityHashCode(key);
         }
@@ -174,7 +176,7 @@ public class WeakIdentityHashMap<K, V> implements Map<K, V> {
         }
 
         @Override
-        public boolean equals(Object o) {
+        public boolean equals(@Nullable Object o) {
             if (this == o) {
                 return true;
             }

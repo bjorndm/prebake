@@ -11,6 +11,8 @@ import org.junit.Test;
 import java.io.IOException;
 import java.text.ParseException;
 
+import javax.annotation.Nullable;
+
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
@@ -98,7 +100,9 @@ public class DocumentationTest {
         "Unexpected key \"details\". Did you mean \"detail\"?");
   }
 
-  private void assertConverter(String golden, String yson, String... messages) {
+  private void assertConverter(
+      @Nullable String golden, @Nullable String yson,
+      @Nullable String... messages) {
     Object input;
     try {
       input = yson != null ? YSON.parseExpr(yson).toJavaObject() : null;

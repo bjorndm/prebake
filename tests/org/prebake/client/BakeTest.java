@@ -25,6 +25,8 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.logging.Logger;
 
+import javax.annotation.Nullable;
+
 public class BakeTest extends PbTestCase {
 
   @Test public final void testEverythingWorksFirstTime() throws IOException {
@@ -184,7 +186,7 @@ public class BakeTest extends PbTestCase {
     final Object result;
     final List<Action> actions = Lists.newArrayList();
 
-    Expectation(String type, Object value, Object result) {
+    Expectation(String type, Object value, @Nullable Object result) {
       this.type = type;
       this.value = value;
       this.result = result;

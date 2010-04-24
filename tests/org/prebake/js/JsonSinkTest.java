@@ -4,6 +4,8 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collections;
 
+import javax.annotation.Nullable;
+
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
@@ -30,7 +32,8 @@ public class JsonSinkTest {
             Collections.emptyMap()));
   }
 
-  private void assertValueJson(String golden, Object o) throws IOException {
+  private void assertValueJson(String golden, @Nullable Object o)
+      throws IOException {
     StringBuilder sb = new StringBuilder();
     JsonSink sink = new JsonSink(sb);
     sink.writeValue(o);

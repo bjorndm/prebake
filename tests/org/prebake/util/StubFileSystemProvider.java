@@ -60,6 +60,8 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 
+import javax.annotation.Nullable;
+
 public class StubFileSystemProvider extends FileSystemProvider {
   final Map<String, MemFileSystem> cwdToFs = Collections.synchronizedMap(
       Maps.<String, MemFileSystem>newHashMap());
@@ -456,7 +458,8 @@ class MemPath extends Path {
   }
 
   @Override
-  public DirectoryStream<Path> newDirectoryStream(Filter<? super Path> filter)
+  public DirectoryStream<Path> newDirectoryStream(
+      @Nullable Filter<? super Path> filter)
       throws IOException {
     return fs.__children(this, filter);
   }
@@ -824,7 +827,8 @@ class MemFileSystem extends FileSystem {
   }
 
   DirectoryStream<Path> __children(
-      final MemPath p, final DirectoryStream.Filter<? super Path> filter)
+      final MemPath p,
+      @Nullable final DirectoryStream.Filter<? super Path> filter)
       throws IOException {
     final Node n = lookup(p);
     if (n == null || !n.isDir()) {
@@ -1051,7 +1055,7 @@ final class Node {
   final List<StubWatchKey> watchers;
   private int openCount;
 
-  Node(String name, Node parent, boolean isDir) {
+  Node(String name, @Nullable Node parent, boolean isDir) {
     this.name = name;
     if (isDir) {
       children = Maps.newLinkedHashMap();
@@ -1071,7 +1075,7 @@ final class Node {
     reparent(null);
   }
 
-  void reparent(Node newParent) {
+  void reparent(@Nullable Node newParent) {
     if (parent == newParent) { return; }
     if (parent != null) {
       parent.children.remove(name);
