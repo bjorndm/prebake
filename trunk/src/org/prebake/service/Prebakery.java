@@ -180,11 +180,11 @@ public abstract class Prebakery implements Closeable {
   public Config getConfig() { return config; }
 
   /**
-   * @param portHint the port to use or -1 to let the system choose a port.
+   * @param portHint the port to use or 0 to let the system choose a port.
    * @param q receives commands from the outside.
    * @return the port opened
    * @throws IOException if a port could not be opened.  Always thrown if
-   *     a port other than -1 was thrown and it could not be acquired.
+   *     a port other than 0 was specified and it could not be acquired.
    */
   protected abstract int openChannel(int portHint, BlockingQueue<Commands> q)
       throws IOException;
@@ -245,7 +245,9 @@ public abstract class Prebakery implements Closeable {
     Path dir = clientRoot.resolve(fs.getPath(FileNames.DIR));
     if (!dir.exists()) {
       dir.createDirectory(FilePerms.perms(config.getUmask(), true));
-      dir.getFileAttributeView(DosFileAttributeView.class).setHidden(true);
+      DosFileAttributeView dosAttrs = dir.getFileAttributeView(
+          DosFileAttributeView.class);
+      if (dosAttrs != null) { dosAttrs.setHidden(true); }
     }
     Path cmdlineFile = dir.resolve(fs.getPath(FileNames.CMD_LINE));
     Path portFile = dir.resolve(fs.getPath(FileNames.PORT));
@@ -254,12 +256,12 @@ public abstract class Prebakery implements Closeable {
       cmdlineFile.createFile(FilePerms.perms(config.getUmask(), false));
     }
     write(cmdlineFile, CommandLineConfig.toArgv(config));
-    int port = -1;
+    int port = 0;
     if (portFile.exists()) {
       try {
         port = Integer.parseInt(read(portFile));
       } catch (NumberFormatException ex) {
-        port = -1;  // Let openChannel choose a port.
+        port = 0;  // Let openChannel choose a port.
       }
     } else {
       portFile.createFile(FilePerms.perms(config.getUmask(), false));
