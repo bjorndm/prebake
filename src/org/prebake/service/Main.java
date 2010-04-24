@@ -30,10 +30,7 @@ import com.sleepycat.je.Environment;
 import com.sleepycat.je.EnvironmentConfig;
 
 import java.io.File;
-import java.io.FilterOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
 import java.io.StringReader;
 import java.math.BigInteger;
 import java.net.ServerSocket;
@@ -117,17 +114,17 @@ public final class Main {
             while (true) {
               try {
                 boolean closeSock = true;
-                Socket sock = ss.accept();
+                final Socket sock = ss.accept();
                 // TODO: move sock handling to a worker or use java.nio stuff.
-                InputStream in = sock.getInputStream();
                 try {
-                  byte[] bytes = ByteStreams.toByteArray(in);
+                  byte[] bytes = ByteStreams.toByteArray(sock.getInputStream());
+                  sock.shutdownInput();
                   String commandText = new String(bytes, Charsets.UTF_8);
                   try {
                     q.put(Commands.fromJson(
                         getFileSystem(),
                         new JsonSource(new StringReader(commandText)),
-                        makeOutputChannel(sock)));
+                        sock.getOutputStream()));
                     // Closing sock is now the service's responsibility.
                     closeSock = false;
                   } catch (InterruptedException ex) {
@@ -160,7 +157,7 @@ public final class Main {
       public void run() { pb.close(); }
     }));
 
-    final Object exitMutex = new Object();
+    final boolean[] exitMutex = new boolean[1];
     synchronized (exitMutex) {
       // Start the prebakery with a handler that will cause the main thread to
       // complete when it receives a shutdown command or is programatically
@@ -169,15 +166,19 @@ public final class Main {
         public void run() {
           // When a shutdown command is received, signal the main thread so
           // it can complete.
-          synchronized (exitMutex) { exitMutex.notify(); }
+          synchronized (exitMutex) {
+            exitMutex[0] = true;
+            exitMutex.notifyAll();
+          }
         }
       });
       // The loop below gets findbugs to shut up about a wait outside a loop.
-      for (boolean needToWait = true; needToWait; needToWait = false) {
+      while (!exitMutex[0]) {
         try {
           exitMutex.wait();
         } catch (InterruptedException ex) {
-          // just exit below if the main thread is interrupted
+          // Just exit below if the main thread is interrupted.
+          break;
         }
       }
     }
@@ -196,24 +197,5 @@ public final class Main {
       sysProps.put((String) e.getKey(), (String) e.getValue());
     }
     return sysProps.build();
-  }
-
-  private static OutputStream makeOutputChannel(Socket sock)
-      throws IOException {
-    return new OutputChannel(sock);
-  }
-}
-
-final class OutputChannel extends FilterOutputStream {
-  private final Socket sock;
-
-  OutputChannel(Socket sock) throws IOException {
-    super(sock.getOutputStream());
-    this.sock = sock;
-  }
-
-  @Override public void close() throws IOException {
-    super.close();
-    sock.close();
   }
 }
