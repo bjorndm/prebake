@@ -488,7 +488,7 @@ final class Membrane {
   }
 
   private Scriptable makeObjWrapper(
-      final Map<?, ?> map, final Map<String, Object> writeFacet) {
+      final Map<?, ?> map, @Nullable final Map<String, Object> writeFacet) {
     return wrap(map, new Scriptable() {
       public void delete(String k) {
         if (k != null && writeFacet != null) { writeFacet.remove(k); }

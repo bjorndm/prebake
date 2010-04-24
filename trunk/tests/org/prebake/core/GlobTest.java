@@ -9,6 +9,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.regex.Pattern;
 
+import javax.annotation.Nullable;
+
 import com.google.common.base.Function;
 import com.google.common.base.Joiner;
 import com.google.common.collect.Lists;
@@ -288,7 +290,7 @@ public class GlobTest extends PbTestCase {
   }
 
   private void assertTransform(
-      String golden, String input, String output, String path) {
+      @Nullable String golden, String input, String output, String path) {
     Function<String, String> xform = Glob.transform(
         Glob.fromString(input), Glob.fromString(output));
     assertEquals(golden, xform.apply(path));

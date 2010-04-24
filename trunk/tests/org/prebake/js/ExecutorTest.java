@@ -28,6 +28,8 @@ import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import javax.annotation.Nullable;
+
 import org.junit.Test;
 
 public class ExecutorTest extends PbTestCase {
@@ -806,7 +808,7 @@ public class ExecutorTest extends PbTestCase {
   }
 
   private void assertDeterministic(
-      boolean deterministic, String src, String errorMessage) {
+      boolean deterministic, String src, @Nullable String errorMessage) {
     FileSystem fs = new StubFileSystemProvider("mfs").getFileSystem(
         URI.create("mfs:///#/foo"));
     Executor executor = Executor.Factory.createJsExecutor();

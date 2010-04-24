@@ -40,6 +40,8 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import javax.annotation.Nullable;
+
 public class PlannerTest extends PbTestCase {
   // TODO: HIGH.  Let checker infer outputs from inputs, so that
   //   gcc('**.cc') -> {
@@ -476,12 +478,12 @@ public class PlannerTest extends PbTestCase {
     return tool(name, null, null);
   }
 
-  private static ToolSignature tool(String name, Documentation docs) {
+  private static ToolSignature tool(String name, @Nullable Documentation docs) {
     return tool(name, null, docs);
   }
 
   private static ToolSignature tool(
-      String name, String checker, Documentation docs) {
+      String name, @Nullable String checker, @Nullable Documentation docs) {
     return new ToolSignature(
         name, checker != null ? new YSON.Lambda(checker) : null, docs, true);
   }
