@@ -17,7 +17,16 @@
   checker: function (product) {
     // TODO
   },
-  fire: function (product) {
-    // TODO
+  fire: function fire(opts, inputs, product, action, exec) {
+    // Infer outputs from inputs
+    var outGlob = action.outputs[0];
+    var outDir;
+    if ({}.hasOwnProperty.call(opts, 'd') && typeof opts.d === 'string') {
+      outDir = opts.d;
+    } else {
+      outDir = outGlob.match(/^.*?(?=\/com\/|\/org\/|\/net\/|\/\*)/)[0];
+    }
+    var argv = ['javac', '-d', outDir].concat(inputs);
+    exec.apply({}, argv);
   }
 });
