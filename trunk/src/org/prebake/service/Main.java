@@ -115,6 +115,7 @@ public final class Main {
           public void run() {
             while (true) {
               try {
+                boolean closeSock = true;
                 Socket sock = ss.accept();
                 // TODO: move sock handling to a worker or use java.nio stuff.
                 InputStream in = sock.getInputStream();
@@ -128,12 +129,12 @@ public final class Main {
                         new JsonSource(new StringReader(commandText)),
                         makeOutputChannel(sock)));
                     // Closing sock is now the service's responsibility.
-                    sock = null;
+                    closeSock = false;
                   } catch (InterruptedException ex) {
                     continue;
                   }
                 } finally {
-                  if (sock != null) { sock.close(); }
+                  if (closeSock) { sock.close(); }
                 }
               } catch (IOException ex) {
                 ex.printStackTrace();

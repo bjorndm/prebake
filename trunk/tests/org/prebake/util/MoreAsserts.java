@@ -1,0 +1,30 @@
+package org.prebake.util;
+
+import java.util.List;
+
+import junit.framework.ComparisonFailure;
+
+import com.google.common.base.Joiner;
+import com.google.common.collect.ImmutableList;
+
+public final class MoreAsserts {
+  public static void assertContainsInOrder(
+      String[] actual, String... required) {
+    assertContainsInOrder(ImmutableList.of(actual), required);
+  }
+
+  public static void assertContainsInOrder(
+      List<String> actual, String... required) {
+    int pos = 0;
+    for (String req : required) {
+      int idx = actual.subList(pos, actual.size()).indexOf(req);
+      if (idx < 0) {
+        throw new ComparisonFailure(
+            "Did not find " + req,
+            Joiner.on('\n').join(required),
+            Joiner.on('\n').join(actual));
+      }
+      pos = idx;
+    }
+  }
+}
