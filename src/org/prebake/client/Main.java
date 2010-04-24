@@ -49,16 +49,11 @@ public final class Main {
       System.exit(0);
     }
 
-    if (!args.getFlags().isEmpty()
-        || !args.getValues().isEmpty()) {
+    if (!args.getFlags().isEmpty()) {
       System.err.println(USAGE);
       if (!args.getFlags().isEmpty()) {
         System.err.println(
             "Unused flags : " + Joiner.on(' ').join(args.getFlags()));
-      }
-      if (!args.getValues().isEmpty()) {
-        System.err.println(
-            "Unused values : " + Joiner.on(' ').join(args.getValues()));
       }
       System.exit(-1);
     }
@@ -97,7 +92,8 @@ public final class Main {
     int result;
     try {
       Path prebakeDir = bake.findPrebakeDir(cwd);
-      Commands commands = bake.decodeArgv(cwd, argv);
+      Commands commands = bake.decodeArgv(
+          cwd, args.getValues().toArray(new String[0]));
       result = bake.issueCommands(prebakeDir, commands, System.out);
     } catch (IOException ex) {
       ex.printStackTrace();

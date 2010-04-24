@@ -15,6 +15,7 @@
 package org.prebake.service;
 
 import java.io.Closeable;
+import java.lang.Thread.UncaughtExceptionHandler;
 import java.util.concurrent.BlockingQueue;
 
 import javax.annotation.ParametersAreNonnullByDefault;
@@ -49,8 +50,13 @@ abstract class Consumer<T> implements Closeable {
             try {
               consume(q, one);
             } catch (RuntimeException ex) {
-              Thread.getDefaultUncaughtExceptionHandler().uncaughtException(
-                  Thread.currentThread(), ex);
+              UncaughtExceptionHandler h
+                  = Thread.getDefaultUncaughtExceptionHandler();
+              if (h != null) {
+                h.uncaughtException(Thread.currentThread(), ex);
+              } else {
+                ex.printStackTrace();
+              }
             }
           }
         } finally {

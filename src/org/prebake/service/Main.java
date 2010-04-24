@@ -22,7 +22,6 @@ import org.prebake.os.OperatingSystem;
 import org.prebake.util.CommandLineArgs;
 
 import com.google.common.base.Charsets;
-import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.io.ByteStreams;
@@ -47,6 +46,7 @@ import java.util.Map;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import javax.annotation.ParametersAreNonnullByDefault;
@@ -60,24 +60,11 @@ import javax.annotation.ParametersAreNonnullByDefault;
 @ParametersAreNonnullByDefault
 public final class Main {
   public static final void main(String[] argv) {
-    Logger logger = Logger.getLogger(Main.class.getName());
+    final Logger logger = Logger.getLogger(Main.class.getName());
     CommandLineArgs args = new CommandLineArgs(argv);
     if (!CommandLineArgs.setUpLogger(args, logger)) {
       System.out.println(USAGE);
       System.exit(0);
-    }
-
-    if (!args.getFlags().isEmpty() || !args.getValues().isEmpty()) {
-      System.err.println(USAGE);
-      if (!args.getFlags().isEmpty()) {
-        System.err.println(
-            "Unused flags : " + Joiner.on(' ').join(args.getFlags()));
-      }
-      if (!args.getValues().isEmpty()) {
-        System.err.println(
-            "Unused values : " + Joiner.on(' ').join(args.getValues()));
-      }
-      System.exit(-1);
     }
 
     MessageQueue mq = new MessageQueue();
@@ -134,8 +121,7 @@ public final class Main {
                 // TODO: move sock handling to a worker or use java.nio stuff.
                 InputStream in = sock.getInputStream();
                 try {
-                  byte[] bytes = ByteStreams.toByteArray(sock.getInputStream());
-                  in.close();
+                  byte[] bytes = ByteStreams.toByteArray(in);
                   String commandText = new String(bytes, Charsets.UTF_8);
                   try {
                     q.put(Commands.fromJson(
@@ -151,7 +137,7 @@ public final class Main {
                   if (closeSock) { sock.close(); }
                 }
               } catch (IOException ex) {
-                ex.printStackTrace();
+                logger.log(Level.WARNING, "Connection failed", ex);
               }
             }
           }

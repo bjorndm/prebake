@@ -151,14 +151,33 @@
   </target>
 
   <target name="jars" depends="classes">
-    <jar destfile="${jars}/prebake.jar">
-      <manifest>
-        <attribute name="Main-Class"
-         value="org.prebake.prebakery"/>
-      </manifest>
+    <jar destfile="${jars}/client.jar">
       <fileset dir="${lib}">
-        <include name="org/prebake/**"/>
+	<include name="**/*.class"/>
+	<include name="**/*.js"/>
+        <exclude name="org/prebake/service/**/*"/>
       </fileset>
+      <manifest>
+        <attribute name="Main-Class" value="org.prebake.client.Main"/>
+        <attribute name="Class-Path"
+         value="../third_party/guava-libraries/guava.jar"/>
+      </manifest>
+    </jar>
+    <jar destfile="${jars}/service.jar">
+      <fileset dir="${lib}">
+	<include name="**/*.class"/>
+	<include name="**/*.js"/>
+	<include name="**/*.txt"/>
+        <exclude name="org/prebake/client/**/*"/>
+      </fileset>
+      <manifest>
+        <attribute name="Main-Class" value="org.prebake.service.Main"/>
+        <attribute name="Class-Path"
+         value="../third_party/guava-libraries/guava.jar
+                ../third_party/bdb/je.jar
+                ../third_party/fast-md5/fast-md5.jar
+                ../third_party/rhino/js.jar"/>
+      </manifest>
     </jar>
   </target>
 </project>
