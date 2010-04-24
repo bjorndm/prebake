@@ -20,7 +20,7 @@ import javax.annotation.ParametersAreNonnullByDefault;
  * An executable class that wires the bake command to the file system and
  * network.
  *
- * @author mikesamuel@gmail.com
+ * @author Mike Samuel <mikesamuel@gmail.com>
  */
 @ParametersAreNonnullByDefault
 public final class Main {

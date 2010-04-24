@@ -27,7 +27,7 @@ import javax.annotation.ParametersAreNonnullByDefault;
  * {@link YSON#toJavaObject()}.
  *
  * @param <T> the type to which this converter converts.
- * @author mikesamuel@gmail.com
+ * @author Mike Samuel <mikesamuel@gmail.com>
  */
 @ParametersAreNonnullByDefault
 public interface YSONConverter<T> {
@@ -37,10 +37,18 @@ public interface YSONConverter<T> {
    * @param problems receives error messages.
    */
   @Nullable T convert(@Nullable Object ysonValue, MessageQueue problems);
-
+  /** Describes the structure the converter expects for error messages. */
   @Nonnull String exampleText();
 
+  /** A factory for common {@link YSONConverter converter} types. */
   public static class Factory {
+    /**
+     * Converts literals to the given type.
+     * If the given type has a static {@code T valueOf(String)} or
+     * {@code T fromString(String)} method, then it will be called to convert
+     * string literals to T.
+     * @param <T> the type the output converts to.
+     */
     public static <T> YSONConverter<T> withType(final Class<T> type) {
       final Function<String, T> fromString;
       Method strConverter;
@@ -100,10 +108,18 @@ public interface YSONConverter<T> {
       };
     }
 
+    /**
+     * Yields a converter that converts {@code null} to {@code null} but
+     * delegates all other values to the given converter.
+     */
     public static <T> YSONConverter<T> optional(final YSONConverter<T> conv) {
       return withDefault(conv, null);
     }
 
+    /**
+     * Yields a converter that converts {@code null} to the given default value,
+     * but delegates all other values to the given converter.
+     */
     public static <T> YSONConverter<T> withDefault(
         final YSONConverter<? extends T> conv, @Nullable final T def) {
       return new YSONConverter<T>() {
@@ -115,11 +131,10 @@ public interface YSONConverter<T> {
       };
     }
 
-    public static <K, V> YSONMapConverterBuilder<K, V> mapConverter(
-        Class<K> keyType) {
-      return new YSONMapConverterBuilder<K, V>(keyType);
-    }
-
+    /**
+     * Yields a converter that converts a homogeneous JavaScript object into
+     * a homogeneous map.
+     */
     public static <K, V> YSONConverter<Map<K, V>> mapConverter(
         final YSONConverter<K> keyConv, final YSONConverter<V> valueConv) {
       return new YSONConverter<Map<K, V>>() {
@@ -147,6 +162,11 @@ public interface YSONConverter<T> {
       };
     }
 
+    /**
+     * Yields a homogeneous list converter that works with
+     * native JavaScript arrays.
+     * @param elementConverter the converter for list elements.
+     */
     public static <T> YSONConverter<List<T>> listConverter(
         final YSONConverter<T> elementConverter) {
       assert elementConverter != null;
@@ -172,6 +192,18 @@ public interface YSONConverter<T> {
       };
     }
 
+    /**
+     * Yields a builder for a heterogeneous map converter.
+     * @param keyType the type of the keys in the output map.
+     *    Since JavaScript objects always use strings as keys, the output
+     *    map has a homogeneous key type.
+     */
+    public static <K, V> YSONMapConverterBuilder<K, V> mapConverter(
+        Class<K> keyType) {
+      return new YSONMapConverterBuilder<K, V>(keyType);
+    }
+
+    /** A builder for a heterogeneous map converter. */
     public static final class YSONMapConverterBuilder<K, V> {
       private final Class<K> keyType;
       private final YSONConverter<K> keyIdentity;
@@ -203,6 +235,13 @@ public interface YSONConverter<T> {
       }
       List<Entry<K, V>> entries = Lists.newArrayList();
 
+      /**
+       * Defines a required field.
+       * @param key the name of a required property on the input object.
+       * @param keyConv converts the property to the output key type.
+       * @param valueConv converts the property value.
+       * @return {@code this}
+       */
       public YSONMapConverterBuilder<K, V> require(
           String key, YSONConverter<? extends K> keyConv,
           YSONConverter<? extends V> valueConv) {
@@ -210,11 +249,25 @@ public interface YSONConverter<T> {
         return this;
       }
 
+      /**
+       * Defines a required field.
+       * @param key the name of a required property on the input object.
+       * @param valueConv converts the property value.
+       * @return {@code this}
+       */
       public YSONMapConverterBuilder<K, V> require(
           String key, YSONConverter<? extends V> valueConv) {
         return require(key, keyIdentity, valueConv);
       }
 
+      /**
+       * Defines an optional field.
+       * @param key the name of a required property on the input object.
+       * @param keyConv converts the property to the output key type.
+       * @param valueConv converts the property value.
+       * @param defaultValue used if the property is not present.
+       * @return {@code this}
+       */
       public YSONMapConverterBuilder<K, V> optional(
           String key, YSONConverter<? extends K> keyConv,
           YSONConverter<? extends V> valueConv, @Nullable V defaultValue) {
@@ -223,12 +276,23 @@ public interface YSONConverter<T> {
         return this;
       }
 
+      /**
+       * Defines an optional field.
+       * @param key the name of a required property on the input object.
+       * @param valueConv converts the property value.
+       * @param defaultValue used if the property is not present.
+       * @return {@code this}
+       */
       public YSONMapConverterBuilder<K, V> optional(
           String key, YSONConverter<? extends V> valueConv,
           @Nullable V defaultValue) {
         return optional(key, keyIdentity, valueConv, defaultValue);
       }
 
+      /**
+       * Constructs the converter based on the property definitions defined
+       * prior.
+       */
       public YSONConverter<Map<K, V>> build() {
         ImmutableSet.Builder<String> keyAggregator = ImmutableSet.builder();
         for (Entry<K, V> e : entries) { keyAggregator.add(e.key); }

@@ -29,7 +29,7 @@ import javax.annotation.ParametersAreNonnullByDefault;
 /**
  * Configuration derived from command line arguments.
  *
- * @author mikesamuel@gmail.com
+ * @author Mike Samuel <mikesamuel@gmail.com>
  */
 @ParametersAreNonnullByDefault
 final class CommandLineConfig implements Config {

@@ -10,7 +10,7 @@ import javax.annotation.ParametersAreNonnullByDefault;
  * A named group of {@link Glob}s corresponding to the inputs of a product or
  * action.
  *
- * @author mikesamuel@gmail.com
+ * @author Mike Samuel <mikesamuel@gmail.com>
  */
 @ParametersAreNonnullByDefault
 public final class GlobUnion {

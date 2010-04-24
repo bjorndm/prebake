@@ -17,7 +17,7 @@ import javax.annotation.ParametersAreNonnullByDefault;
 /**
  * A bundle of commands from a single source.
  *
- * @author mikesamuel@gmail.com
+ * @author Mike Samuel <mikesamuel@gmail.com>
  */
 @ParametersAreNonnullByDefault
 public final class Commands implements Iterable<Command>, JsonSerializable {

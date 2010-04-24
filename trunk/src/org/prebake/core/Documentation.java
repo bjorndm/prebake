@@ -14,16 +14,29 @@ import javax.annotation.ParametersAreNonnullByDefault;
 /**
  * Structured documentation of a system artifact.
  *
+ * <p>When {@link Documentation#CONVERTER converted} from JSON, the
+ * {@link Documentation#summaryHtml summary} is inferred by looking at the
+ * first sentence.  This class uses {@link Documentation#summaryOf JavaDoc}
+ * conventions for finding the first sentence instead of trying to segment human
+ * languages.
+ *
  * @see <a href="http://code.google.com/p/prebake/wiki/DocumentationRecord">
  *   wiki</a>
- * @author mikesamuel@gmail.com
+ * @author Mike Samuel <mikesamuel@gmail.com>
  */
 @ParametersAreNonnullByDefault
 public final class Documentation implements JsonSerializable {
+  /** A short summary, usually in one sentence. */
   public final @Nonnull String summaryHtml;
+  /** A more detailed description. */
   public final @Nonnull String detailHtml;
+  /**
+   * The name and email address of the artifact's maintainer, ideally as a
+   * mailbox production per RFC 2822, e.g. {@code John Doe <john.doe@host.tld>}.
+   */
   public final @Nullable String contactEmail;
 
+  /** Correspond to JavaScript property names in the JSON form. */
   public enum Field {
     summary,
     detail,
@@ -94,6 +107,7 @@ public final class Documentation implements JsonSerializable {
                 + 31 * (contactEmail != null ? contactEmail.hashCode() : 0));
   }
 
+  /** Coerces a JSON string or object to documentation. */
   public static final YSONConverter<Documentation> CONVERTER
       = new YSONConverter<Documentation>() {
     final YSONConverter<String> strIdent = YSONConverter.Factory

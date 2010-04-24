@@ -23,7 +23,7 @@ import javax.annotation.ParametersAreNonnullByDefault;
  * As files changes, maintains a table of file hashes, and invalidates non-file
  * artifacts such as the toolbox, and dependency graph.
  *
- * @author mikesamuel@gmail.com
+ * @author Mike Samuel <mikesamuel@gmail.com>
  */
 @ParametersAreNonnullByDefault
 public final class DbFileVersioner extends FileVersioner {

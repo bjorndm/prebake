@@ -45,7 +45,7 @@ import org.mozilla.javascript.WrappedException;
  * This will be obsoleted once a JDK ships with built-in scripting language
  * support and proper sand-boxing.
  *
- * @author mikesamuel@gmail.com
+ * @author Mike Samuel <mikesamuel@gmail.com>
  */
 @ParametersAreNonnullByDefault
 public final class RhinoExecutor implements Executor {

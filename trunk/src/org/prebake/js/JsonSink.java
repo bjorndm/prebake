@@ -15,7 +15,7 @@ import com.google.common.base.Throwables;
  * A JSON writer that doesn't require converting lists, maps, and arrays to
  * instances of some other class.
  *
- * @author mikesamuel@gmail.com
+ * @author Mike Samuel <mikesamuel@gmail.com>
  */
 @ParametersAreNonnullByDefault
 public final class JsonSink implements Closeable {

@@ -22,7 +22,7 @@ import javax.annotation.ParametersAreNonnullByDefault;
 /**
  * Abstracts away execution of script.
  *
- * @author mikesamuel@gmail.com
+ * @author Mike Samuel <mikesamuel@gmail.com>
  */
 @ParametersAreNonnullByDefault
 public interface Executor {
@@ -37,6 +37,9 @@ public interface Executor {
       Class<T> expectedResultType, Logger logger,
       @Nullable Loader loader, Input... input);
 
+  /**
+   * Exposed via {@link Output#exit} when JavaScript raises an exception.
+   */
   public static class AbnormalExitException extends Exception {
     public AbnormalExitException(String message) { super(message); }
     public AbnormalExitException(Throwable cause) { super(cause); }
@@ -44,6 +47,9 @@ public interface Executor {
       super(message, cause);
     }
 
+    /**
+     * Returns the JavaScript stack trace.
+     */
     public String getScriptTrace() {
       Throwable th = this;
       if (th.getCause() != null) { th = th.getCause(); }
@@ -55,11 +61,16 @@ public interface Executor {
     }
   }
 
+  /**
+   * Raised by {@link Executor#run} when a script runs for too long.
+   */
   public static class ScriptTimeoutException extends RuntimeException {
     public ScriptTimeoutException() { super(""); }
   }
 
+  /** Creates instances of {@link Executor}. */
   public static final class Factory {
+    /** Creates a JavaScript executor. */
     public static Executor createJsExecutor() {
       Executor executor = null;
       try {
@@ -86,6 +97,7 @@ public interface Executor {
 
   /** An input JavaScript file. */
   public static final class Input {
+    /** The module source code. */
     public final String content;
     /** A string identifying the input which will show up in logs and stacks. */
     public final String source;
@@ -94,6 +106,13 @@ public interface Executor {
      * Null indicates module cannot load.
      */
     public final Path base;
+    /**
+     * The globals available to the module.
+     * Values may be any object that can be manipulated by the script.
+     * @see MembranableFunction
+     * @see MembranableList
+     * @see MembranableMap
+     */
     public final Map<String, ?> actuals;
 
     private Input(
@@ -112,6 +131,11 @@ public interface Executor {
       private Path base;
       private Map<String, Object> actuals;
 
+      /**
+       * @param content the JavaScript program.
+       * @param source the location from which the program came.  Used in
+       *     stack traces.
+       */
       private Builder(String content, String source) {
         assert content != null;
         assert source != null;
@@ -119,11 +143,22 @@ public interface Executor {
         this.source = source;
       }
 
+      /**
+       * Specifies the location relative to which the {@link Loader} resolves
+       * loaded paths.  If null, the module will not have any loader.
+       */
       public Builder withBase(@Nullable Path base) {
         this.base = base;
         return this;
       }
 
+      /**
+       * Specifies the globals available to the module.
+       * Values may be any object that can be manipulated by the script.
+       * @see MembranableFunction
+       * @see MembranableList
+       * @see MembranableMap
+       */
       public Builder withActuals(Map<String, ?> actuals) {
         if (this.actuals == null) {
           this.actuals = Maps.newLinkedHashMap();
@@ -132,6 +167,9 @@ public interface Executor {
         return this;
       }
 
+      /**
+       * @see #withActuals
+       */
       public Builder withActual(String name, @Nullable Object value) {
         if (this.actuals == null) {
           this.actuals = Maps.newLinkedHashMap();
@@ -180,12 +218,16 @@ public interface Executor {
 
   /** The results of script execution. */
   public static final class Output<T> {
+    /**
+     * The result of the script execution or null if the script did not
+     * execute normally.
+     */
     @Nullable public final T result;
     public final boolean usedSourceOfKnownNondeterminism;
     /** Non-null if the script exited abnormally. */
     @Nullable public final AbnormalExitException exit;
 
-    public Output(
+    Output(
         @Nullable T result, boolean usedSourceOfKnownNondeterminism,
         @Nullable AbnormalExitException exit) {
       this.result = result;

@@ -32,7 +32,7 @@ import org.mozilla.javascript.Scriptable;
  * It is not meant to be used outside this package otherwise.
  *
  * @see <a href="http://code.google.com/p/prebake/wiki/JsConsole">wiki</a>
- * @author mikesamuel@gmail.com
+ * @author Mike Samuel <mikesamuel@gmail.com>
  */
 @ParametersAreNullableByDefault
 public final class Console {

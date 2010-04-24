@@ -19,7 +19,7 @@ import org.mozilla.javascript.ScriptableObject;
  * Exposes the EcmaScript 5 {@code Object.freeze} semantics to java code that
  * is setting up an JavaScript context.
  *
- * @author mikesamuel@gmail.com
+ * @author Mike Samuel <mikesamuel@gmail.com>
  */
 @ParametersAreNonnullByDefault
 final class Freezer {

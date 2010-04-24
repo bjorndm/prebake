@@ -64,7 +64,7 @@ import com.google.common.util.concurrent.ValueFuture;
 /**
  * Maintains a set of products and whether they're up to date.
  *
- * @author mikesamuel@gmail.com
+ * @author Mike Samuel <mikesamuel@gmail.com>
  */
 @ParametersAreNonnullByDefault
 public final class Baker {
@@ -87,6 +87,15 @@ public final class Baker {
   };
   private final int umask;
 
+  /**
+   * @param os used to kick off processes when executing {@link Action action}s.
+   * @param files versions the client directory.
+   * @param umask for all files and directories created by the baker.
+   * @param logger receives messages about {@link Product product} statuses and
+   *     from plan files, tool files, and external processes.
+   * @param execer an executor which is used to schedule periodic maintenance
+   *     tasks and which is used to update product definitions.
+   */
   public Baker(
       OperatingSystem os, FileVersioner files,
       ImmutableMap<String, ?> commonJsEnv, int umask, Logger logger,
@@ -99,8 +108,21 @@ public final class Baker {
     this.execer = execer;
   }
 
-  public void setToolBox(ToolProvider toolbox) { this.toolbox = toolbox; }
+  /**
+   * Must be called exactly once before {@link #bake} to arrange the set of
+   * tools available to plan files.
+   */
+  public void setToolBox(ToolProvider toolbox) {
+    if (toolbox == null) { throw new IllegalArgumentException(); }
+    if (this.toolbox != null) { throw new IllegalStateException(); }
+    this.toolbox = toolbox;
+  }
 
+  /**
+   * Returns a promise to bring the named product up-to-date.
+   * @return a future whose result is true if the product is up-to-date, and
+   *     false if it cannot be brought up-to-date.
+   */
   public Future<Boolean> bake(final String productName) {
     assert toolbox != null;
     final ProductStatus status = productStatuses.get(productName);
@@ -527,6 +549,10 @@ public final class Baker {
   }
 
   // TODO: move listener results onto execer
+  /**
+   * Should be linked to the {@link org.prebake.service.plan.Planner} to receive
+   * updates when product definitions change.
+   */
   public final ArtifactListener<Product> prodListener
       = new ArtifactListener<Product>() {
     public void artifactDestroyed(String productName) {
@@ -546,6 +572,10 @@ public final class Baker {
     }
   };
 
+  /**
+   * Should be linked to the {@link ToolProvider} to receive updates when tool
+   * definitions change.
+   */
   public final ArtifactListener<ToolSignature> toolListener
       = new ArtifactListener<ToolSignature>() {
     public void artifactChanged(ToolSignature sig) {

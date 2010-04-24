@@ -17,7 +17,7 @@ import javax.annotation.ParametersAreNonnullByDefault;
  * A JSON parser that generates generic collection classes instead of
  * introducing new collection classes.
  *
- * @author mikesamuel@gmail.com
+ * @author Mike Samuel <mikesamuel@gmail.com>
  */
 @ParametersAreNonnullByDefault
 public final class JsonSource implements Closeable {

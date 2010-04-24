@@ -16,7 +16,7 @@ import javax.annotation.ParametersAreNonnullByDefault;
 /**
  * A description of a tool as seen by a plan file.
  *
- * @author mikesamuel@gmail.com
+ * @author Mike Samuel <mikesamuel@gmail.com>
  */
 @ParametersAreNonnullByDefault
 public final class ToolSignature implements JsonSerializable {

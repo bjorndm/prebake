@@ -12,7 +12,7 @@ import org.mozilla.javascript.Undefined;
  * A JavaScript function that returns a
  * {@link Freezer#frozenCopy(Object) frozen copy} of its input.
  *
- * @author mikesamuel@gmail.com
+ * @author Mike Samuel <mikesamuel@gmail.com>
  */
 @ParametersAreNonnullByDefault
 final class FrozenCopyFn extends BaseFunction {

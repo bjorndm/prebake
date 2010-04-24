@@ -21,7 +21,7 @@ import javax.annotation.ParametersAreNonnullByDefault;
  * {@link org.prebake.service.tools.ToolSignature tool}.
  *
  * @see <a href="http://code.google.com/p/prebake/wiki/BuildAction">wiki</a>
- * @author mikesamuel@gmail.com
+ * @author Mike Samuel <mikesamuel@gmail.com>
  */
 @ParametersAreNonnullByDefault
 public final class Action implements JsonSerializable {
@@ -40,6 +40,7 @@ public final class Action implements JsonSerializable {
     assert ObjUtil.isDeeplyImmutable(options);
   }
 
+  /** Property names in the YSON representation. */
   public enum Field {
     tool,
     inputs,

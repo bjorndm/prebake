@@ -8,7 +8,7 @@ import java.io.OutputStream;
 /**
  * A test primitive that models a pipe between processes when both ends of the
  * pipe are being tested in the same memory space.
- * @author mikesamuel@gmail.com
+ * @author Mike Samuel <mikesamuel@gmail.com>
  */
 public final class StubPipe implements Closeable {
   private final Object mutex = new Object();

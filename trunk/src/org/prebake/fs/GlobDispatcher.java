@@ -25,7 +25,7 @@ import com.google.common.collect.Sets;
 /**
  * Dispatches changed paths to listeners based on unions of globs.
  *
- * @author mikesamuel@gmail.com
+ * @author Mike Samuel <mikesamuel@gmail.com>
  */
 @ParametersAreNonnullByDefault
 final class GlobDispatcher {

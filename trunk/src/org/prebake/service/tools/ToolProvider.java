@@ -13,7 +13,7 @@ import javax.annotation.ParametersAreNonnullByDefault;
 /**
  * Interface that allows {@link ToolBox} to be stubbed out.
  *
- * @author mikesamuel@gmail.com
+ * @author Mike Samuel <mikesamuel@gmail.com>
  */
 @ParametersAreNonnullByDefault
 public interface ToolProvider extends Closeable {

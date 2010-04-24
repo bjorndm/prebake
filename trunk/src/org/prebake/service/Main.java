@@ -41,7 +41,7 @@ import javax.annotation.ParametersAreNonnullByDefault;
  * An executable class that hooks the Prebakery to the real file system and
  * network, and starts it running.
  *
- * @author mikesamuel@gmail.com
+ * @author Mike Samuel <mikesamuel@gmail.com>
  */
 @ParametersAreNonnullByDefault
 public final class Main {

@@ -16,7 +16,7 @@ import javax.annotation.ParametersAreNonnullByDefault;
 /**
  * An MD5 hash generated from files, strings, or groups of hashes.
  *
- * @author mikesamuel@gmail.com
+ * @author Mike Samuel <mikesamuel@gmail.com>
  */
 @ParametersAreNonnullByDefault
 public final class Hash {

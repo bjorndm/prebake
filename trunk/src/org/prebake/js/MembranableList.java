@@ -10,7 +10,7 @@ import java.util.ListIterator;
  * Marker interface for a list that can pass across the JavaScript membrane to
  * be exposed as an array-like object.
  *
- * @author mikesamuel@gmail.com
+ * @author Mike Samuel <mikesamuel@gmail.com>
  */
 public interface MembranableList extends List<Object> {
   public static final class Factory {

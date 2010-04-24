@@ -31,7 +31,7 @@ import javax.annotation.ParametersAreNonnullByDefault;
 /**
  * Sends commands to a {@link Prebakery} to drive builds.
  *
- * @author mikesamuel@gmail.com
+ * @author Mike Samuel <mikesamuel@gmail.com>
  */
 @ParametersAreNonnullByDefault
 public abstract class Bake {

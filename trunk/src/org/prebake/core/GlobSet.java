@@ -20,7 +20,7 @@ import javax.annotation.ParametersAreNonnullByDefault;
  * A set of {@link Glob}s that can be applied to an input path to
  * figure out the set of globs that match it.
  *
- * @author mikesamuel@gmail.com
+ * @author Mike Samuel <mikesamuel@gmail.com>
  */
 @ParametersAreNonnullByDefault
 public class GlobSet {
@@ -28,6 +28,7 @@ public class GlobSet {
 
   public GlobSet() { /* no-op */ }
 
+  /** A copy of the given glob set. */
   public GlobSet(GlobSet gset) {
     copy(gset.prefixTree, prefixTree);
   }
@@ -53,19 +54,39 @@ public class GlobSet {
     return t;
   }
 
+  /**
+   * Adds a glob to the set so subsequent calls to {@link #matching} will
+   * include it for paths that match glob.
+   */
   public void add(Glob glob) {
     lookup(glob, true).add(glob);
   }
 
+  /**
+   * Adds all the given globs.
+   * @see #add
+   * @see #remove
+   */
   public GlobSet addAll(Iterable<Glob> globs) {
     for (Glob g : globs) { add(g); }
     return this;
   }
 
+  /**
+   * Removes the given glob so that subsequent calls to {@link #matching} will
+   * not include it.
+   * @return true iff the glob changes.  I.e., true iff glob was added and not
+   *     subsequently removed prior to this call.
+   */
   public boolean remove(Glob glob) {
     return lookup(glob, false).remove(glob);
   }
 
+  /**
+   * Returns a collection of globs grouped by path prefix.
+   * A path prefix is a normalized path to a directory or file that is a
+   * (non-strict) ancestor of all paths that match the glob.
+   */
   public Multimap<String, Glob> getGlobsGroupedByPrefix() {
     ImmutableMultimap.Builder<String, Glob> b = ImmutableMultimap.builder();
     groupByPrefixInto(prefixTree, b, new StringBuilder());
@@ -87,7 +108,11 @@ public class GlobSet {
     }
   }
 
-  /** All globs that match the given path in no-particular order. */
+  /**
+   * All component globs that match the given path in no-particular order.
+   * @param normPath a path that has been normalized to use {@code /} to
+   *     separate individual file and directory names.
+   */
   public Iterable<Glob> matching(Path normPath) {
     PrefixTree t = prefixTree;
     for (Path p : normPath) {
@@ -112,6 +137,7 @@ public class GlobSet {
     return b.build();
   }
 
+  /** True iff any glob in the set matches the given normalized path. */
   public boolean matches(Path normPath) {
     PrefixTree t = prefixTree;
     for (Path p : normPath) {

@@ -12,7 +12,7 @@ import javax.annotation.Nonnull;
 /**
  * Utilities for dealing with file permissions.
  *
- * @author mikesamuel@gmail.com
+ * @author Mike Samuel <mikesamuel@gmail.com>
  */
 public final class FilePerms {
   /**
