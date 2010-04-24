@@ -35,13 +35,16 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import javax.annotation.Nonnull;
 
 import com.google.common.base.Charsets;
 import com.google.common.base.Throwables;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
@@ -93,7 +96,13 @@ final class Oven {
           Process p = os.run(
               workingDir, cmd, argv.toArray(new String[argv.size()]));
           p.getOutputStream().close();
-          return Integer.valueOf(p.waitFor());
+          Integer result = Integer.valueOf(p.waitFor());
+          if (result.intValue() != 0) {
+            logger.log(
+                Level.INFO, "{0} exited with {1}",
+                new Object[] { cmd, result });
+          }
+          return result;
         } catch (IOException ex) {
           throw new IOError(ex);
         } catch (InterruptedException ex) {
@@ -141,14 +150,17 @@ final class Oven {
       // Third, for each action, invoke its tool's run method with the proper
       // arguments.
       for (Action action : p.actions) {
+        ImmutableList.Builder<String> actionInputs = ImmutableList.builder();
+        for (Path actionInput : WorkingDir.matching(
+                 workingDir, ImmutableSet.<Path>of(), action.inputs)) {
+          actionInputs.add(actionInput.toString());
+        }
         productJsSink
             .write(toolNameToLocalName.get(action.toolName))
             .write(".fire(\n    ")
             .writeValue(action.options).write(",\n    ")
             // TODO: define exec based on os
-            // TODO: fetch the inputs based on the action's input globs
-            // and
-            .writeValue(inputStrs)
+            .writeValue(actionInputs.build())
             .write(",\n    product,\n    ")
             .writeValue(action)
             .write(",\n    exec);\n");

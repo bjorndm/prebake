@@ -16,25 +16,17 @@ package org.prebake.service.bake;
 
 import org.prebake.channel.FileNames;
 import org.prebake.core.Glob;
-import org.prebake.core.GlobSet;
 import org.prebake.fs.FileVersioner;
 
 import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
-import java.nio.file.attribute.Attributes;
-import java.nio.file.attribute.BasicFileAttributes;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Map;
 import java.util.Set;
-import java.util.TreeMap;
 import java.util.logging.Level;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Multimap;
 import com.google.common.collect.Sets;
 
 /**
@@ -60,8 +52,13 @@ final class Finisher {
       String productName, Path workingDir, final Set<Path> workingDirInputs,
       ImmutableList<Glob> toCopyBack)
       throws IOException {
-    ImmutableList<Path> outPaths = outputs(
-        productName, workingDir, workingDirInputs, toCopyBack);
+    // TODO: respect the ignorable pattern for outPaths.
+
+    // Compute the list of files under the working directory that match a
+    // product's output globs.
+    ImmutableList<Path> outPaths = WorkingDir.matching(
+        workingDir, workingDirInputs, toCopyBack);
+    // Compute the set of files that are already in the client directory.
     ImmutableList<Path> existingPaths
         = Baker.sortedFilesMatching(files, toCopyBack);
 
@@ -118,88 +115,5 @@ final class Finisher {
     }
 
     return outClientPaths.build();
-  }
-
-  /**
-   * Compute the list of files under the working directory that match a
-   * product's output globs.
-   */
-  private ImmutableList<Path> outputs(
-      String productName, final Path workingDir,
-      final Set<Path> workingDirInputs, ImmutableList<Glob> toCopyBack)
-      throws IOException {
-    final GlobSet outputMatcher = new GlobSet();
-    for (Glob outputGlob : toCopyBack) { outputMatcher.add(outputGlob); }
-    // Get the prefix map so we only walk subtrees that are important.
-    // E.g. for output globs
-    //     [foo/lib/bar/*.lib, foo/lib/**.o, foo/lib/**.so, foo/bin/*.a]
-    // this should yield the map
-    //     "foo/lib" => [foo/lib/**.o, foo/lib/**.so]
-    //     "foo/lib/bar" => [foo/lib/bar/*.lib]
-    //     "foo/bin" => [foo/bin/*.a]
-    // Note that the keys are sorted so that foo/lib always occurs before
-    // foo/lib/bar so that the walker below does not do any unnecessary stating.
-    final Map<String, List<Glob>> groupedByDir;
-    {
-      Multimap<String, Glob> byPrefix = outputMatcher.getGlobsGroupedByPrefix();
-      groupedByDir = new TreeMap<String, List<Glob>>(new Comparator<String>() {
-        // Sort so that shorter paths occur first.  That way we can start
-        // walking the prefixes, and pick up the extra globs just in time when
-        // we start walking those paths.
-        public int compare(String a, String b) {
-          long delta = ((long) a.length()) - b.length();
-          return delta < 0 ? -1 : delta != 0 ? 1 : a.compareTo(b);
-        }
-      });
-      String separator = files.getFileSystem().getSeparator();
-      for (String prefix : byPrefix.keySet()) {
-        if (!"/".equals(separator)) {  // Normalize / in glob to \ on Windows.
-          prefix = prefix.replace("/", separator);
-        }
-        String pathPrefix = workingDir.resolve(prefix).toString();
-        groupedByDir.put(
-            pathPrefix, ImmutableList.copyOf(byPrefix.get(prefix)));
-      }
-    }
-    class Walker {
-      final ImmutableList.Builder<Path> out = ImmutableList.builder();
-      final Set<String> walked = Sets.newHashSet();
-      void walk(Path dir, GlobSet globs) throws IOException {
-        // TODO: handle symbolic links
-        String dirStr = dir.toString();
-        List<Glob> extras = groupedByDir.get(dirStr);
-        if (extras != null) {
-          globs = new GlobSet(globs).addAll(extras);
-          walked.add(dirStr);
-        }
-        for (Path p : dir.newDirectoryStream()) {
-          BasicFileAttributes attrs = Attributes.readBasicFileAttributes(p);
-          if (attrs.isRegularFile()) {
-            Path relPath = workingDir.relativize(p);
-            if (globs.matches(relPath)) { out.add(relPath); }
-          } else if (attrs.isDirectory()) {
-            walk(p, globs);
-          }
-        }
-      }
-    }
-    Walker w = new Walker();
-    for (Map.Entry<String, List<Glob>> e : groupedByDir.entrySet()) {
-      String prefix = e.getKey();
-      if (w.walked.contains(prefix)) { continue; }  // already walked
-      Path p = workingDir.resolve(prefix);
-      if (p.notExists()) {
-        logger.log(
-            Level.WARNING,
-            "No dir {0} in output for product {1} with outputs {2}",
-            new Object[] { p, productName, toCopyBack });
-      } else {
-        BasicFileAttributes atts = Attributes.readBasicFileAttributes(p);
-        if (atts.isDirectory()) {
-          w.walk(p, new GlobSet());
-        }
-      }
-    }
-    return w.out.build();
   }
 }
