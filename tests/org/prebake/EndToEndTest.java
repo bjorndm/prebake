@@ -10,6 +10,7 @@ import org.prebake.os.OperatingSystem;
 import org.prebake.os.StubOperatingSystem;
 import org.prebake.service.Config;
 import org.prebake.service.Prebakery;
+import org.prebake.util.MoreAsserts;
 import org.prebake.util.PbTestCase;
 
 import java.io.ByteArrayOutputStream;
@@ -39,16 +40,13 @@ import com.sleepycat.je.Environment;
 import com.sleepycat.je.EnvironmentConfig;
 
 import org.junit.After;
+import org.junit.Before;
 import org.junit.Test;
 
 public class EndToEndTest extends PbTestCase {
-  private File tempDir;
-  private BlockingQueue<Commands> commandQueue;
-  private ScheduledThreadPoolExecutor execer;
-  private FileSystem fs;
-  private Prebakery service;
+  private Tester tester;
 
-  public static final String CP_TOOL_JS = JsonSink.stringify(
+  private static final String CP_TOOL_JS = JsonSink.stringify(
       ""
       + "({ \n"
       + "  fire: function fire(opts, inputs, product, action, exec) { \n"
@@ -64,31 +62,17 @@ public class EndToEndTest extends PbTestCase {
       + "  } \n"
       + "})");
 
-  @After public void cleanup() {
-    if (service != null) {
-      service.close();
-      service = null;
-    }
-    if (tempDir != null) {
-      rmDirTree(tempDir);
-      tempDir = null;
-    }
-    if (commandQueue != null) {
-      commandQueue.clear();
-      commandQueue = null;
-    }
-    if (execer != null) {
-      execer.shutdown();
-      execer = null;
-    }
-    if (fs != null) {
-      Closeables.closeQuietly(fs);
-      fs = null;
-    }
+  @Before public final void setUp() {
+    tester = new Tester();
+  }
+
+  @After public final void cleanup() {
+    tester.close();
+    tester = null;
   }
 
   @Test public final void testClientAndService() throws Exception {
-    fs = fileSystemFromAsciiArt(
+    tester.withFileSystem(fileSystemFromAsciiArt(
         "/cwd",
         Joiner.on('\n').join(
             "/",
@@ -99,188 +83,242 @@ public class EndToEndTest extends PbTestCase {
             ("      plan.js \"({ foo: tools.cp('src/*.foo', 'out/*.bar') })\""),
             "  tools/",
             "    cp.js " + JsonSink.stringify(CP_TOOL_JS),
-            "  tmpdir/"));
+            "  tmpdir/")))
+        .start()
+        .withClientWorkingDir("root")
+        .sendCommand("sync")
+        .assertResult(0)
+        .sendCommand("bake", "foo")
+        .assertResult(0)
+        .sendCommand("shutdown")
+        .assertResult(0)
+        .waitForShutdown()
+        .assertLog(
+            "INFO:Cooking foo",
+            "INFO:Starting bake of product foo",
+            "INFO:Running cp with [src/a.foo, out/a.bar]",
+            "INFO:Cooked foo")
+        .assertFileSystem(
+            "/",
+            "  cwd/",
+            "    root/",
+            "      src/",
+            "        a.foo \"foo\"",
+            "      plan.js \"...\"",
+            "      .prebake/",
+            "        cmdline \"...\"",
+            "      out/",
+            "        a.bar \"foo\"",
+            "  tools/",
+            "    cp.js \"...\"",
+            "  tmpdir/");
+  }
 
-    Logger logger = getLogger(Level.INFO);
+  private class Tester {
+    /** Directory used for DB files. */
+    private File tempDir;
+    /** Queue between service and client. */
+    private BlockingQueue<Commands> commandQueue;
+    /** Used to schedule future tasks. */
+    private ScheduledThreadPoolExecutor execer
+        = new ScheduledThreadPoolExecutor(16);
+    /** An in-memory file-system. */
+    private FileSystem fs;
+    /** The service under test. */
+    private Prebakery service;
+    /** Issues commands to the service. */
+    private Bake client;
+    private Logger logger = getLogger(Level.INFO);
+    /** The working directory for the client. */
+    private Path clientWorkingDir;
+    /** Invoked when the service shuts down. */
+    private final OnClose onClose = new OnClose();
+    /** The result of the last command the client issued. */
+    private int commandResult;
+    /**
+     * A stream to which output received by the client from the service is
+     * written.
+     */
+    private final ByteArrayOutputStream clientOut = new ByteArrayOutputStream();
 
-    execer = new ScheduledThreadPoolExecutor(16);
-    Config config = new Config() {
-      public Path getClientRoot() { return fs.getPath("/cwd/root"); }
-      public Pattern getIgnorePattern() { return null; }
-      public String getPathSeparator() { return ":"; }
-      public Set<Path> getPlanFiles() {
-        return ImmutableSet.of(fs.getPath("/cwd/root/plan.js"));
-      }
-      public List<Path> getToolDirs() {
-        return ImmutableList.of(fs.getPath("/tools"));
-      }
-      public int getUmask() { return 700; }
-    };
-    OperatingSystem os = new StubOperatingSystem(fs, logger);
+    Tester withFileSystem(FileSystem fs) {
+      this.fs = fs;
+      return this;
+    }
 
-    Bake client = new Bake(logger) {
-      @Override
-      protected Connection connect(int port) throws IOException {
-        assertEquals(1234, port);
+    Tester start() {
+      Config config = new Config() {
+        public Path getClientRoot() { return fs.getPath("/cwd/root"); }
+        public Pattern getIgnorePattern() { return null; }
+        public String getPathSeparator() { return ":"; }
+        public Set<Path> getPlanFiles() {
+          return ImmutableSet.of(fs.getPath("/cwd/root/plan.js"));
+        }
+        public List<Path> getToolDirs() {
+          return ImmutableList.of(fs.getPath("/tools"));
+        }
+        public int getUmask() { return 700; }
+      };
+      OperatingSystem os = new StubOperatingSystem(fs, logger);
 
-        return new Connection() {
-          private final ByteArrayOutputStream clientBytes
-              = new ByteArrayOutputStream();
-          private final StubPipe pipe = new StubPipe(1024);
-          private final OutputStream connOut
-              = new FilterOutputStream(clientBytes) {
-                boolean closed = false;
-                @Override public synchronized void close() throws IOException {
-                  if (!closed) {
-                    clientBytes.close();
-                    closed = true;
-                    byte[] commandBytes = clientBytes.toByteArray();
-                    Commands commands = Commands.fromJson(
-                        fs,
-                        new JsonSource(new StringReader(
-                            new String(commandBytes, Charsets.UTF_8))),
-                        pipe.out);
-                    try {
-                      commandQueue.put(commands);
-                    } catch (InterruptedException ex) {
-                      throw new IOException(ex);
+      client = new Bake(logger) {
+        @Override
+        protected Connection connect(int port) throws IOException {
+          assertEquals(1234, port);
+
+          return new Connection() {
+            private final ByteArrayOutputStream clientBytes
+                = new ByteArrayOutputStream();
+            private final StubPipe pipe = new StubPipe(1024);
+            private final OutputStream connOut
+                = new FilterOutputStream(clientBytes) {
+                  boolean closed = false;
+                  @Override public synchronized void close() throws IOException {
+                    if (!closed) {
+                      clientBytes.close();
+                      closed = true;
+                      byte[] commandBytes = clientBytes.toByteArray();
+                      Commands commands = Commands.fromJson(
+                          fs,
+                          new JsonSource(new StringReader(
+                              new String(commandBytes, Charsets.UTF_8))),
+                          pipe.out);
+                      try {
+                        commandQueue.put(commands);
+                      } catch (InterruptedException ex) {
+                        throw new IOException(ex);
+                      }
                     }
                   }
-                }
-              };
+                };
 
-          public InputStream getInputStream() throws IOException {
-            if (pipe.isClosed()) { throw new IOException(); }
-            return pipe.in;
-          }
+            public InputStream getInputStream() throws IOException {
+              if (pipe.isClosed()) { throw new IOException(); }
+              return pipe.in;
+            }
 
-          public OutputStream getOutputStream() throws IOException {
-            if (pipe.isClosed()) { throw new IOException(); }
-            return connOut;
-          }
+            public OutputStream getOutputStream() throws IOException {
+              if (pipe.isClosed()) { throw new IOException(); }
+              return connOut;
+            }
 
-          public void close() throws IOException { pipe.close(); }
-        };
-      }
+            public void close() throws IOException { pipe.close(); }
+          };
+        }
 
-      @Override
-      protected void launch(String... argv) {
-        throw new UnsupportedOperationException("NOT NEEDED FOR THIS TEST");
-      }
+        @Override
+        protected void launch(String... argv) {
+          throw new UnsupportedOperationException("NOT NEEDED FOR THIS TEST");
+        }
 
-      @Override
-      protected void sleep(int millis) {
-        throw new UnsupportedOperationException("NOT NEEDED FOR THIS TEST");
-      }
-    };
+        @Override
+        protected void sleep(int millis) {
+          throw new UnsupportedOperationException("NOT NEEDED FOR THIS TEST");
+        }
+      };
 
-    service = new Prebakery(
-        config, getCommonJsEnv(), execer, os, logger) {
-          @Override
-          protected Environment createDbEnv(Path dir) throws IOException {
-            EnvironmentConfig envConfig = new EnvironmentConfig();
-            envConfig.setAllowCreate(true);
-            tempDir = Files.createTempDir();
-            return new Environment(tempDir, envConfig);
-          }
+      service = new Prebakery(
+          config, getCommonJsEnv(), execer, os, logger) {
+            @Override
+            protected Environment createDbEnv(Path dir) throws IOException {
+              EnvironmentConfig envConfig = new EnvironmentConfig();
+              envConfig.setAllowCreate(true);
+              tempDir = Files.createTempDir();
+              return new Environment(tempDir, envConfig);
+            }
 
-          @Override protected String makeToken() { return "super-secret"; }
+            @Override protected String makeToken() { return "super-secret"; }
 
-          @Override
-          protected int openChannel(int portHint, BlockingQueue<Commands> q)
-              throws IOException {
-            commandQueue = q;
-            return portHint == -1 ? 1234 : portHint;
-          }
-        };
+            @Override
+            protected int openChannel(int portHint, BlockingQueue<Commands> q)
+                throws IOException {
+              commandQueue = q;
+              return portHint == -1 ? 1234 : portHint;
+            }
+          };
 
-    final class OnClose implements Runnable {
-      boolean closed = false;
-      public synchronized void run() {
-        closed = true;
-        this.notifyAll();
-      }
+      service.start(onClose);
+      // Should be ready for connections now.
+
+      return this;
     }
-    OnClose onClose = new OnClose();
-    service.start(onClose);
-    // Should be ready for connections now.
 
-    ByteArrayOutputStream clientOut = new ByteArrayOutputStream();
+    Tester withClientWorkingDir(String cwd) {
+      clientWorkingDir = fs.getPath(cwd).toAbsolutePath();
+      return this;
+    }
 
-    boolean ok = false;
-    try {
-      Path clientWorkingDir = fs.getPath("root").toAbsolutePath();
-
+    Tester sendCommand(String... argv) {
       int result;
       try {
         Path prebakeDir = client.findPrebakeDir(clientWorkingDir);
-        Commands commands = client.decodeArgv(clientWorkingDir, "sync");
+        Commands commands = client.decodeArgv(clientWorkingDir, argv);
         result = client.issueCommands(prebakeDir, commands, clientOut);
       } catch (IOException ex) {
         ex.printStackTrace();
         result = -1;
       }
-      assertEquals(0, result);
+      commandResult = result;
+      return this;
+    }
 
-      try {
-        Path prebakeDir = client.findPrebakeDir(clientWorkingDir);
-        Commands commands = client.decodeArgv(clientWorkingDir, "bake", "foo");
-        result = client.issueCommands(prebakeDir, commands, clientOut);
-      } catch (IOException ex) {
-        ex.printStackTrace();
-        result = -1;
-      }
-      assertEquals(0, result);
+    Tester assertResult(int expectedResult) {
+      assertEquals(expectedResult, commandResult);
+      return this;
+    }
 
-      try {
-        Path prebakeDir = client.findPrebakeDir(clientWorkingDir);
-        Commands commands = client.decodeArgv(clientWorkingDir, "shutdown");
-        result = client.issueCommands(prebakeDir, commands, clientOut);
-      } catch (IOException ex) {
-        ex.printStackTrace();
-        result = -1;
-      }
-      assertEquals(0, result);
-
+    Tester waitForShutdown() throws InterruptedException {
       synchronized (onClose) {
         while (!onClose.closed) {
           onClose.wait();
         }
       }
-      assertTrue(onClose.closed);
+      return this;
+    }
 
-      // TODO: make this less brittle.  We shouldn't disallow extra logging.
-      assertEquals(
-          Joiner.on('\n').join(
-              "INFO:Cooking foo",
-              "INFO:Starting bake of product foo",
-              "INFO:Running cp with [src/a.foo, out/a.bar]",
-              "INFO:Cooked foo",
-              ""),
-          new String(clientOut.toByteArray(), Charsets.UTF_8));
+    Tester assertLog(String... expectedLog) {
+      MoreAsserts.assertContainsInOrder(
+          new String(clientOut.toByteArray(), Charsets.UTF_8).split("\n"),
+          expectedLog);
+      return this;
+    }
 
+    Tester assertFileSystem(String... expectedFsAsciiArt) {
       assertEquals(
-          Joiner.on('\n').join(
-              "/",
-              "  cwd/",
-              "    root/",
-              "      src/",
-              "        a.foo \"foo\"",
-              "      plan.js \"...\"",
-              "      .prebake/",
-              "        cmdline \"...\"",
-              "      out/",
-              "        a.bar \"foo\"",
-              "  tools/",
-              "    cp.js \"...\"",
-              "  tmpdir/",
-              ""),
-          fileSystemToAsciiArt(fs, 40));
-      ok = true;
-    } finally {
-      if (!ok) {
-        System.err.println(fileSystemToAsciiArt(fs, 40));
+          Joiner.on('\n').join(expectedFsAsciiArt),
+          fileSystemToAsciiArt(fs, 40).trim());
+      return this;
+    }
+
+    void close() {
+      if (service != null) {
+        service.close();
+        service = null;
+      }
+      if (commandQueue != null) {
+        commandQueue.clear();
+        commandQueue = null;
+      }
+      if (execer != null) {
+        execer.shutdown();
+        execer = null;
+      }
+      if (fs != null) {
+        Closeables.closeQuietly(fs);
+        fs = null;
+      }
+      if (tempDir != null) {
+        rmDirTree(tempDir);
+        tempDir = null;
       }
     }
+  }
+}
+
+final class OnClose implements Runnable {
+  boolean closed = false;
+  public synchronized void run() {
+    closed = true;
+    this.notifyAll();
   }
 }

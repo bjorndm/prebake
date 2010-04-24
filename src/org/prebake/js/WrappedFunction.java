@@ -52,6 +52,7 @@ final class WrappedFunction extends BaseFunction {
   @Override
   public Object call(
       Context cx, Scriptable scope, Scriptable thisObj, Object[] args) {
+    assert cx instanceof CpuQuotaContext;
     // Let external operations take some time.  Don't count them against quota.
     // When a tool file kicks off an external op, it needs to wait for the
     // result.
