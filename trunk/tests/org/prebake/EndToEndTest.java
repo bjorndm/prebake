@@ -247,7 +247,7 @@ public class EndToEndTest extends PbTestCase {
             protected int openChannel(int portHint, BlockingQueue<Commands> q)
                 throws IOException {
               commandQueue = q;
-              return portHint == -1 ? 1234 : portHint;
+              return portHint == 0 ? 1234 : portHint;
             }
           };
 
