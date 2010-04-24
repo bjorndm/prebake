@@ -19,6 +19,8 @@ import org.prebake.util.CommandLineArgs;
 
 import com.google.common.base.Joiner;
 
+import java.io.FilterInputStream;
+import java.io.FilterOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -65,11 +67,19 @@ public final class Main {
         final Socket socket = new Socket(InetAddress.getLocalHost(), port);
         return new Connection() {
           public InputStream getInputStream() throws IOException {
-            return socket.getInputStream();
+            return new FilterInputStream(socket.getInputStream()) {
+              @Override public void close() throws IOException {
+                socket.shutdownInput();
+              }
+            };
           }
 
           public OutputStream getOutputStream() throws IOException {
-            return socket.getOutputStream();
+            return new FilterOutputStream(socket.getOutputStream()) {
+              @Override public void close() throws IOException {
+                socket.shutdownOutput();
+              }
+            };
           }
 
           public void close() throws IOException {
