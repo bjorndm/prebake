@@ -13,7 +13,7 @@ import javax.annotation.Nullable;
  * <p>
  * The getters below should consistently return the same value.
  *
- * @author mikesamuel@gmail.com
+ * @author Mike Samuel <mikesamuel@gmail.com>
  */
 public interface Config {
   /**

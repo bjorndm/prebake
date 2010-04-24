@@ -9,7 +9,7 @@ import java.util.Set;
  * Marker interface for a map that can pass across the JavaScript membrane to
  * be exposed as an object.
  *
- * @author mikesamuel@gmail.com
+ * @author Mike Samuel <mikesamuel@gmail.com>
  */
 public interface MembranableMap extends Map<String, Object> {
   public static final class Factory {

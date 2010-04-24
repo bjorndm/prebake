@@ -21,7 +21,7 @@ import com.google.common.collect.Sets;
  * to nodes where the source produces outputs that might be inputs to the
  * target.
  *
- * @author mikesamuel@gmail.com
+ * @author Mike Samuel <mikesamuel@gmail.com>
  */
 @ParametersAreNonnullByDefault
 public final class PlanGraph {

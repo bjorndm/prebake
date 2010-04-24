@@ -28,7 +28,7 @@ import javax.annotation.ParametersAreNonnullByDefault;
 /**
  * Publishes events when files change.
  *
- * @author mikesamuel@gmail.com
+ * @author Mike Samuel <mikesamuel@gmail.com>
  */
 @ParametersAreNonnullByDefault
 public class DirectoryHooks implements Closeable {

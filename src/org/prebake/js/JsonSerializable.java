@@ -10,7 +10,7 @@ import javax.annotation.ParametersAreNonnullByDefault;
  * A JavaScript object that can be serialized to JSON.
  * See {@link YSONConverter} for the dual.
  *
- * @author mikesamuel@gmail.com
+ * @author Mike Samuel <mikesamuel@gmail.com>
  */
 @ParametersAreNonnullByDefault
 public interface JsonSerializable {

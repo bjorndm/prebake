@@ -25,7 +25,7 @@ import javax.annotation.ParametersAreNonnullByDefault;
 /**
  * Commands between the client and service.
  *
- * @author mikesamuel@gmail.com
+ * @author Mike Samuel <mikesamuel@gmail.com>
  * @see <a href="http://code.google.com/p/prebake/wiki/PreBakeCommand">wiki</a>
  */
 @ParametersAreNonnullByDefault

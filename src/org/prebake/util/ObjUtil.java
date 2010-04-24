@@ -14,7 +14,7 @@ import javax.annotation.ParametersAreNonnullByDefault;
 /**
  * Utilities for dealing with object graphs.
  *
- * @author mikesamuel@gmail.com
+ * @author Mike Samuel <mikesamuel@gmail.com>
  */
 @ParametersAreNonnullByDefault
 public final class ObjUtil {

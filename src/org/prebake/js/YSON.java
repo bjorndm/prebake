@@ -51,13 +51,18 @@ import org.mozilla.javascript.ast.VariableInitializer;
  * Extends JSON to allow for functions with no free variables.
  * The letter Y is a crude transliteration of &lambda; into the Roman alphabet.
  *
- * @author mikesamuel@gmail.com
+ * @author Mike Samuel <mikesamuel@gmail.com>
  */
 @ParametersAreNonnullByDefault
 public final class YSON {
   private final AstNode root;
   private YSON(AstNode root) { this.root = root; }
 
+  /**
+   * The set of names that are free.  E.g.
+   * in {@code function (x) { return y + x }}, {@code y} is free but {@code x}
+   * is not since it is a parameter to the function.
+   */
   public Set<String> getFreeNames() {
     // The free names of a production P are union(RN(P), LSD(P), VSD(P))
     Set<String> fn = Sets.newLinkedHashSet();
@@ -93,6 +98,10 @@ public final class YSON {
     return YSON.toJavaObject(root);
   }
 
+  /**
+   * The set of identifiers allowed freely in YSON by default.
+   * Includes all the intrinsics defined by the JavaScript language specs.
+   */
   public static final Set<String> DEFAULT_YSON_ALLOWED = ImmutableSet.of(
       "Array",
       "Boolean",
@@ -123,11 +132,23 @@ public final class YSON {
       "undefined"
       );
 
+  /**
+   * True if js is valid YSON with free variables that are a subset of the given
+   * set.
+   * @param mq receives an explanation of why js is not valid YSON if it is not.
+   * @return true iff js is valid YSON with the given restrictions.
+   */
   public static boolean isYSON(
       String js, Set<String> allowedFreeVars, @Nullable MessageQueue mq) {
     return requireYSON(js, allowedFreeVars, mq) != null;
   }
 
+  /**
+   * Converts the given JavaScript source to YSON if it is valid YSON
+   * and if its free variables are a subset of the given allowed free variables.
+   * @param mq receives an explanation of why js is not valid YSON if it is not.
+   * @return null if js is not YSON.
+   */
   public static YSON requireYSON(
       String js, Set<String> allowedFreeVars, @Nullable MessageQueue mq) {
     if (js == null) {
@@ -145,6 +166,12 @@ public final class YSON {
     return requireYSON(yson, allowedFreeVars, mq);
   }
 
+  /**
+   * Returns the input if it is valid YSON and if its free variables are a
+   * subset of the given set, or null otherwise.
+   * @param mq receives an explanation of why it is not valid YSON if it is not.
+   * @return null if yson does not meet the restrictions above.
+   */
   public static YSON requireYSON(
       YSON yson, Set<String> allowedFreeVars, @Nullable MessageQueue mq) {
     Set<String> freeNames = yson.getFreeNames();
@@ -192,6 +219,10 @@ public final class YSON {
     }
   }
 
+  /**
+   * Parses js to YSON without verifying any of the YSON restrictions.
+   * @param js a JavaScript program production.
+   */
   public static @Nonnull YSON parse(String js) throws ParseException {
     try {
       return new YSON(new Parser().parse(js, "YSON", 1));
@@ -255,6 +286,11 @@ public final class YSON {
       + ")*"
       // The keyword function or an open curly brace
       + "(?:\\{|function[^\\w$_])");
+
+  /**
+   * Parses js to YSON without verifying any of the YSON restrictions.
+   * @param js a JavaScript expression production.
+   */
   public static YSON parseExpr(String js) throws ParseException {
     // If the input could be confused with a block or function declaration,
     // parenthesize it.  Don't always do this because that could let some
@@ -443,6 +479,9 @@ public final class YSON {
     }
   }
 
+  /**
+   * A JavaScript function expression.
+   */
   public static final class Lambda implements JsonSerializable {
     private final String source;
 
@@ -456,6 +495,7 @@ public final class YSON {
       this.source = source;
     }
 
+    /** The source code of a JavaScript function expression. */
     public String getSource() { return source; }
 
     @Override

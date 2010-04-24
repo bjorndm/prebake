@@ -11,7 +11,7 @@ import javax.annotation.Nonnull;
  * Abstracts the important parts of a socket so that we can easily create test
  * stubs.
  *
- * @author mikesamuel@gmail.com
+ * @author Mike Samuel <mikesamuel@gmail.com>
  */
 public interface Connection extends Closeable {
   @Nonnull InputStream getInputStream() throws IOException;

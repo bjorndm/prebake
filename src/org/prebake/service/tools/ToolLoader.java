@@ -18,7 +18,7 @@ import com.google.common.base.Charsets;
  * A custom loader that lets one tool file load the next tool file in the
  * tool lookup path.  This allows easy wrapping and extending of tools.
  *
- * @author mikesamuel@gmail.com
+ * @author Mike Samuel <mikesamuel@gmail.com>
  */
 @ParametersAreNonnullByDefault
 public class ToolLoader implements Loader{

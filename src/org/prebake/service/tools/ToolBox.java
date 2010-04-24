@@ -49,7 +49,7 @@ import javax.annotation.ParametersAreNonnullByDefault;
 /**
  * Watches the set of tools available to plan files.
  *
- * @author mikesamuel@gmail.com
+ * @author Mike Samuel <mikesamuel@gmail.com>
  */
 @ParametersAreNonnullByDefault
 public class ToolBox implements ToolProvider {
@@ -80,6 +80,17 @@ public class ToolBox implements ToolProvider {
   private final Future<?> updater;
   private final ArtifactListener<ToolSignature> listener;
 
+  /**
+   * An initialized but inactive tool-box.  Call {@link #start} to activate it.
+   * @param files versions any tool files that are under the client directory.
+   * @param commonJsEnv symbols available to tool files and plan files.
+   * @param toolDirs the set of directories to search for tools.
+   * @param logger receives messages about tool building progress.
+   * @param listener is updated when tool definitions are invalidated or
+   *     validated.
+   * @param execer an executor which is used to schedule periodic maintenance
+   *     tasks and which is used to update tool definitions.
+   */
   public ToolBox(FileVersioner files, ImmutableMap<String, ?> commonJsEnv,
                  Iterable<Path> toolDirs, Logger logger,
                  ArtifactListener<ToolSignature> listener,
@@ -126,6 +137,11 @@ public class ToolBox implements ToolProvider {
     }, 1000, 1000, TimeUnit.MILLISECONDS);
   }
 
+  /**
+   * Makes the tool-box active.  After this is called, the tool-box will attempt
+   * to keep tool definitions up-to-date.
+   * @see #close
+   */
   public void start() throws IOException {
     if (watcher != null) {
       final Map<WatchKey, Path> keyToDir = Maps.newHashMap();
@@ -197,6 +213,10 @@ public class ToolBox implements ToolProvider {
     return builtins;
   }
 
+  /**
+   * Gets the signatures of all available tools.
+   * @return a list of promises to tool signatures.
+   */
   public final List<Future<ToolSignature>> getAvailableToolSignatures() {
     List<Future<ToolSignature>> promises = Lists.newArrayList();
     List<Tool> tools;
@@ -354,6 +374,13 @@ public class ToolBox implements ToolProvider {
     });
   }
 
+  /**
+   * Loads a tool file from disk.
+   * @param name a tool name, not a file name so without any ".js" suffix.
+   *     Tool names are resolved by looking for a file like
+   *     {@code <tool_name>.js} in the tool directories passed to the
+   *     constructor.
+   */
   public FileAndHash getTool(String name) throws IOException {
     Tool tool = tools.get(name);
     if (tool == null) {
@@ -423,6 +450,9 @@ public class ToolBox implements ToolProvider {
     throw new FileNotFoundException(path.toString());
   }
 
+  /**
+   * Shuts down all the external state created at {@link #start} time.
+   */
   public final void close() throws IOException {
     if (watcher != null) { watcher.close(); }
     synchronized (tools) { tools.clear(); }

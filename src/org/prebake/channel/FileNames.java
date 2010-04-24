@@ -7,7 +7,7 @@ import org.prebake.service.Prebakery;
  *
  * @see <a href="http://code.google.com/p/prebake/wiki/PrebakeDirectory">wiki
  *     </a>
- * @author mikesamuel@gmail.com
+ * @author Mike Samuel <mikesamuel@gmail.com>
  */
 public final class FileNames {
   public static final String DIR = ".prebake";

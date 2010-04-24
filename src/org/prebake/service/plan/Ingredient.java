@@ -5,9 +5,9 @@ import javax.annotation.ParametersAreNonnullByDefault;
 import com.google.common.collect.ImmutableList;
 
 /**
- * An ordered list of {@link Product products} to build.
+ * A step in a {@link Recipe recipe} that involves producing a {@link Product}.
  *
- * @author mikesamuel@gmail.com
+ * @author Mike Samuel <mikesamuel@gmail.com>
  */
 @ParametersAreNonnullByDefault
 public final class Ingredient {

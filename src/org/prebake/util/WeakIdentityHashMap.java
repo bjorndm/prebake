@@ -32,19 +32,19 @@ import java.util.Set;
 import com.google.common.collect.Sets;
 
 /**
- * Implements a combination of WeakHashMap and IdentityHashMap.
- * Useful for caches that need to key off of a == comparison
- * instead of a .equals.
+ * Implements a combination of {@link java.util.WeakHashMap} and
+ * {@link java.util.IdentityHashMap}.
+ * Useful for caches that need to key off a {@code ==} comparison
+ * instead of {@link Object#equals}.
  *
- * <b>
+ * <p><b>
  * This class is not a general-purpose Map implementation! While
  * this class implements the Map interface, it intentionally violates
  * Map's general contract, which mandates the use of the equals method
  * when comparing objects. This class is designed for use only in the
- * rare cases wherein reference-equality semantics are required.
- *
- * Note that this implementation is not synchronized.
- * </b>
+ * rare cases wherein reference-equality semantics are required.</b>
+ * <p>
+ * <b>Note that this implementation is not synchronized.</b>
  */
 public class WeakIdentityHashMap<K, V> implements Map<K, V> {
     private final ReferenceQueue<Object> queue = new ReferenceQueue<Object>();

@@ -17,7 +17,7 @@ import com.google.common.collect.ImmutableList;
  * {@link org.prebake.service.plan.Product products}, and
  * {@link org.prebake.service.plan.Action actions}.
  *
- * @author mikesamuel@gmail.com
+ * @author Mike Samuel <mikesamuel@gmail.com>
  */
 @ParametersAreNonnullByDefault
 public interface ArtifactListener<ART> {

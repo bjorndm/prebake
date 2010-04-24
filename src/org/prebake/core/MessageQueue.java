@@ -10,7 +10,7 @@ import javax.annotation.ParametersAreNonnullByDefault;
  * Collects human readable messages and tracks whether a larger operation has
  * failed.
  *
- * @author mikesamuel@gmail.com
+ * @author Mike Samuel <mikesamuel@gmail.com>
  */
 @ParametersAreNonnullByDefault
 public class MessageQueue {

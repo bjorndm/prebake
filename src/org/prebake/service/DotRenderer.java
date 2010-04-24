@@ -17,7 +17,7 @@ import javax.annotation.ParametersAreNonnullByDefault;
  * Converts a plan graph to
  * <a href="http://www.graphviz.org/doc/info/lang.html">DOT format</a>.
  *
- * @author mikesamuel@gmail.com
+ * @author Mike Samuel <mikesamuel@gmail.com>
  */
 @ParametersAreNonnullByDefault
 final class DotRenderer {

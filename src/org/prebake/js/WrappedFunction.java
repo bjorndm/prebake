@@ -20,7 +20,7 @@ import org.mozilla.javascript.ScriptableObject;
  * A JavaScript function that finds documentation attached to an object or
  * function.
  *
- * @author mikesamuel@gmail.com
+ * @author Mike Samuel <mikesamuel@gmail.com>
  */
 @ParametersAreNonnullByDefault
 final class WrappedFunction extends BaseFunction {

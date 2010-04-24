@@ -103,13 +103,16 @@
 
   <target name="docs" description="Builds javadoc documentation."
    depends="dirs">
-    <javadoc sourcepath="${src}" destdir="${docs}" access="private"
+    <javadoc sourcepath="${src}" destdir="${docs}" access="protected"
      author="true"
      docencoding="utf-8"
      packagenames="org/prebake/*"
      classpathref="classpath.compile"
      includenosourcepackages="true"
-     linksource="yes"/>
+     linksource="yes">
+      <link offline="false" href="http://download.java.net/jdk7/docs/api/"/>
+      <link offline="false" href="http://guava-libraries.googlecode.com/svn/trunk/javadoc/"/>
+    </javadoc>
   </target>
 
   <target name="classes" depends="dirs">

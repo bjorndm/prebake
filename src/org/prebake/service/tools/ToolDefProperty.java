@@ -3,7 +3,7 @@ package org.prebake.service.tools;
 /**
  * JavaScript object property names used in the output of a tool file.
  *
- * @author mikesamuel@gmail.com
+ * @author Mike Samuel <mikesamuel@gmail.com>
  */
 public enum ToolDefProperty {
   /** The name of a documentation string. */

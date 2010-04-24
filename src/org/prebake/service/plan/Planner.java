@@ -50,7 +50,7 @@ import javax.annotation.ParametersAreNonnullByDefault;
  * Keeps the set of {@link Product products} and the {@link PlanGrapher}
  * up-to-date.
  *
- * @author mikesamuel@gmail.com
+ * @author Mike Samuel <mikesamuel@gmail.com>
  */
 @ParametersAreNonnullByDefault
 public final class Planner implements Closeable {
@@ -81,6 +81,15 @@ public final class Planner implements Closeable {
   private final ArtifactListener<Product> listener;
   private final PlanGrapher grapher = new PlanGrapher();
 
+  /**
+   * @param files versions plan files.
+   * @param commonJsEnv symbols available to plan file and tool file JavaScript.
+   * @param toolbox defines the tools available to plan files.
+   * @param logger receives messages about product definitions.
+   * @param listener receives updates as products are defined or destroyed.
+   * @param execer an executor which is used to schedule periodic maintenance
+   *     tasks and which is used to update product definitions.
+   */
   public Planner(
       FileVersioner files, ImmutableMap<String, ?> commonJsEnv,
       ToolProvider toolbox, Iterable<Path> planFiles, Logger logger,
@@ -100,10 +109,25 @@ public final class Planner implements Closeable {
         grapher.productListener, listener);
   }
 
+  /** Tears down non-local state. */
   public void close() {
     updater.cancel(true);
+    for (PlanPart pp : planParts.values()) {
+      synchronized (pp) {
+        if (pp.future != null) {
+          pp.future.cancel(true);
+          pp.future = null;
+        }
+      }
+    }
   }
 
+  /**
+   * Gets a map of names to products.  This makes a best-effort to ensure that
+   * products are up-to-date.
+   * The output will not include any products that are masked -- that are named
+   * in two or more plan files that run to completion.
+   */
   public Map<String, Product> getProducts() {
     Map<String, Product> allProducts = Maps.newLinkedHashMap();
     for (Future<ImmutableList<Product>> pp : getProductLists()) {
@@ -137,6 +161,10 @@ public final class Planner implements Closeable {
     return allProducts;
   }
 
+  /**
+   * A snapshot of the product graph.  This does not wait for products to be
+   * brought up-to-date.
+   */
   public PlanGraph getPlanGraph() { return grapher.snapshot(); }
 
   private List<Future<ImmutableList<Product>>> getProductLists() {

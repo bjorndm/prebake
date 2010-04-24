@@ -26,8 +26,13 @@ import javax.annotation.ParametersAreNonnullByDefault;
 /**
  * A pattern that matches a group of files.
  *
+ * <p>Parts of the below talk about <b>normalized paths</b>.  Normalized paths
+ * use {@code /} to separate individual file and directory names instead of
+ * using the system dependent separator.  E.g., on Windows, the normalized form
+ * of {@code C:\foo} is {@code C:/foo}.
+ *
  * @see <a href="http://code.google.com/p/prebake/wiki/Glob">Wiki Docs</a>
- * @author mikesamuel@gmail.com
+ * @author Mike Samuel <mikesamuel@gmail.com>
  */
 @ParametersAreNonnullByDefault
 public final class Glob implements Comparable<Glob>, JsonSerializable {
@@ -169,10 +174,18 @@ public final class Glob implements Comparable<Glob>, JsonSerializable {
   //     the fourth element is the index of the zeroed pair.
   //     E.g. on for (1 => 1, 4 => 0, else => -1).
 
+  /**
+   * A glob that matches only (but not necessarily all) paths matched by both
+   * p and q, or null if no such path exists.
+   */
   public static Glob intersection(Glob p, Glob q) {
     return new Intersector(p, q).intersection();
   }
 
+  /**
+   * True iff there exists a path that is matched by at least one of the globs in
+   * unionA and at least one of the globs in unionB.
+   */
   public static boolean overlaps(Iterable<Glob> unionA, Iterable<Glob> unionB) {
     for (Glob a : unionA) {
       for (Glob b : unionB) {
@@ -302,6 +315,11 @@ public final class Glob implements Comparable<Glob>, JsonSerializable {
     };
   }
 
+  /**
+   * A prefix common to all these globs that is also a path that is an ancestor
+   * (non-strict) of all paths matched by any of the input globs.
+   * @return {@code ""} if there are no inputs.
+   */
   public static String commonPrefix(Iterable<Glob> globs) {
     Iterator<Glob> it = globs.iterator();
     if (!it.hasNext()) { return ""; }
@@ -328,6 +346,10 @@ public final class Glob implements Comparable<Glob>, JsonSerializable {
     return sb.toString();
   }
 
+  /**
+   * A value that if passed to {@link #fromString} would return an
+   * {@link #equals equivalent} glob.
+   */
   @Override
   public String toString() {
     StringBuilder sb = new StringBuilder();
@@ -343,7 +365,7 @@ public final class Glob implements Comparable<Glob>, JsonSerializable {
   @Override
   public int hashCode() { return Arrays.hashCode(parts); }
 
-  public List<String> parts() {
+  List<String> parts() {
     return Collections.unmodifiableList(Arrays.asList(parts));
   }
 
@@ -515,10 +537,12 @@ public final class Glob implements Comparable<Glob>, JsonSerializable {
     }
   }
 
+  /** The JSON form of a glob is a string literal. */
   public void toJson(JsonSink sink) throws IOException {
     sink.writeValue(toString());
   }
 
+  /** True iff this glob matches the given path. */
   public boolean match(String path) {
     if (regex == null) {
       StringBuilder sb = new StringBuilder();
@@ -681,6 +705,7 @@ public final class Glob implements Comparable<Glob>, JsonSerializable {
     return globStr;
   }
 
+  /** Thrown when trying to convert a malformed string into a glob. */
   public static class GlobSyntaxException extends IllegalArgumentException {
     public GlobSyntaxException(String glob) { super(glob); }
   }

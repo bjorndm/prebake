@@ -14,7 +14,7 @@ import javax.annotation.ParametersAreNonnullByDefault;
 /**
  * Wraps argv from the command line to provide a key/value pair view.
  *
- * @author mikesamuel@gmail.com
+ * @author Mike Samuel <mikesamuel@gmail.com>
  */
 @ParametersAreNonnullByDefault
 public class CommandLineArgs {

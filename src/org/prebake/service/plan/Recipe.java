@@ -35,7 +35,7 @@ import com.google.common.collect.Maps;
  * <p>
  * If all goes well, you will end up with a cake.
  *
- * @author mikesamuel@gmail.com
+ * @author Mike Samuel <mikesamuel@gmail.com>
  */
 @ParametersAreNonnullByDefault
 public final class Recipe {

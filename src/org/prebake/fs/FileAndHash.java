@@ -15,7 +15,7 @@ import com.google.common.io.ByteStreams;
 /**
  * The contents of a file and its hash if it is under the project root.
  *
- * @author mikesamuel@gmail.com
+ * @author Mike Samuel <mikesamuel@gmail.com>
  */
 @ParametersAreNonnullByDefault
 public final class FileAndHash {

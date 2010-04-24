@@ -62,7 +62,7 @@ import javax.annotation.ParametersAreNonnullByDefault;
 /**
  * A service that services requests by the {@link org.prebake.client.Main}.
  *
- * @author mikesamuel@gmail.com
+ * @author Mike Samuel <mikesamuel@gmail.com>
  */
 @ParametersAreNonnullByDefault
 public abstract class Prebakery implements Closeable {

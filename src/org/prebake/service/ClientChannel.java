@@ -14,7 +14,7 @@ import com.google.common.io.Flushables;
  * A log handler that channels log output to clients for the time their
  * operations are being processed.
  *
- * @author mikesamuel@gmail.com
+ * @author Mike Samuel <mikesamuel@gmail.com>
  */
 final class ClientChannel extends Handler implements Closeable {
   final Appendable out;

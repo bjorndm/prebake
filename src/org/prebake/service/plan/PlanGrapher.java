@@ -30,7 +30,7 @@ import com.google.common.collect.Sets;
  * At any time the graph can be {@link #snapshot}ted as an
  * {@link PlanGraph immutable graph} that allows efficient edge traversal.
  *
- * @author mikesamuel@gmail.com
+ * @author Mike Samuel <mikesamuel@gmail.com>
  */
 @ParametersAreNonnullByDefault
 public final class PlanGrapher {

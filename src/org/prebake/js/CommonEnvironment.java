@@ -21,7 +21,7 @@ import com.google.common.collect.ImmutableMap;
  * Encapsulates a set of symbols that can be provided as part of a JavaScript
  * {@link Executor.Input.Builder#withActuals execution environment}.
  *
- * @author mikesamuel@gmail.com
+ * @author Mike Samuel <mikesamuel@gmail.com>
  */
 @ParametersAreNonnullByDefault
 public final class CommonEnvironment {
@@ -75,7 +75,7 @@ public final class CommonEnvironment {
    * @param properties the
    *     {@link java.lang.System#getProperties() system environment}.
    *     At least the "file.separator" must be specified, and it helps
-   *     tool files to have access to the "os.*" properties.
+   *     tool files to have access to the {@code os.*} properties.
    */
   public static final ImmutableMap<String, Object> makeEnvironment(
       Map<String, String> properties) {

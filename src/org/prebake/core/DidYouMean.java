@@ -6,7 +6,7 @@ import javax.annotation.ParametersAreNonnullByDefault;
 /**
  * Suggests alternatives to possibly misspelled names.
  *
- * @author mikesamuel@gmail.com
+ * @author Mike Samuel <mikesamuel@gmail.com>
  */
 @ParametersAreNonnullByDefault
 public final class DidYouMean {
