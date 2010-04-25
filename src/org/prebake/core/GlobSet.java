@@ -124,18 +124,16 @@ public class GlobSet {
 
   /**
    * All component globs that match the given path in no-particular order.
-   * @param normPath a path that has been normalized to use {@code /} to
-   *     separate individual file and directory names.
    */
-  public Iterable<Glob> matching(Path normPath) {
+  public Iterable<Glob> matching(Path path) {
     PrefixTree t = prefixTree;
-    for (Path p : normPath) {
+    for (Path p : path) {
       PrefixTree child = t.children.get(p.toString());
       if (child == null) { break; }
       t = child;
     }
-    String pathStr = normPath.toString();
-    String extension = extensionFor(normPath);
+    String pathStr = normPath(path);
+    String extension = extensionFor(pathStr);
     if ("".equals(extension)) { extension = null; }
     ImmutableList.Builder<Glob> b = ImmutableList.builder();
     for (; t != null; t = t.parent) {
@@ -152,15 +150,15 @@ public class GlobSet {
   }
 
   /** True iff any glob in the set matches the given normalized path. */
-  public boolean matches(Path normPath) {
+  public boolean matches(Path path) {
     PrefixTree t = prefixTree;
-    for (Path p : normPath) {
+    for (Path p : path) {
       PrefixTree child = t.children.get(p.toString());
       if (child == null) { break; }
       t = child;
     }
-    String pathStr = normPath.toString();
-    String extension = extensionFor(normPath);
+    String pathStr = normPath(path);
+    String extension = extensionFor(pathStr);
     if ("".equals(extension)) { extension = null; }
     for (; t != null; t = t.parent) {
       if (extension != null) {
@@ -235,12 +233,17 @@ public class GlobSet {
     return extensionFor(lastPart);
   }
 
-  private static String extensionFor(Path p) {
-    return extensionFor(p.getName().toString());
-  }
-
   private static String extensionFor(String lastPart) {
     int dot = lastPart.lastIndexOf('.');
     return dot < 0 ? "" : lastPart.substring(dot);
+  }
+
+  private static String normPath(Path p) {
+    String sep = p.getFileSystem().getSeparator();
+    String pathStr = p.toString();
+    if (!"/".equals(sep)) {
+      pathStr = pathStr.replace(sep, "/");
+    }
+    return pathStr;
   }
 }

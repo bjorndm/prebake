@@ -133,6 +133,14 @@ public class GlobSetTest extends PbTestCase {
         "" + gset.getGlobsGroupedByPrefix());
   }
 
+  @Test public final void testExactPath() {
+    GlobSet gset = new GlobSet();
+    gset.add(Glob.fromString("foo/bar/Foo.java"));
+    gset.add(Glob.fromString("baz/*.html"));
+    assertTrue(gset.matches(new StubPath("foo/bar/Foo.java")));
+    assertFalse(gset.matches(new StubPath("foo/bar/Bar.java")));
+  }
+
   private static final String[] WORDS = {
     "foo", "bar", "baz", "boo", "far", "faz",
     "FOO", "BAR", "BAZ", "BOO", "FAR", "FAZ"
