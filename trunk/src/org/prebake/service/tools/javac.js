@@ -15,18 +15,45 @@
 ({
   help: 'Java compiler.  // TODO: usage',
   checker: function (product) {
-    // TODO
+    // TODO check d, cp options.
   },
   fire: function fire(opts, inputs, product, action, exec) {
+    function opt(name, opt_defaultValue) {
+      if ({}.hasOwnProperty.call(opts, name)) {
+        return opts[name];
+      } else {
+        return opt_defaultValue;
+      }
+    }
     // Infer outputs from inputs
     var outGlob = action.outputs[0];
-    var outDir;
-    if ({}.hasOwnProperty.call(opts, 'd') && typeof opts.d === 'string') {
-      outDir = opts.d;
-    } else {
+    var outDir = opt('d');
+    if (typeof outDir !== 'string') {
       outDir = outGlob.match(/^.*?(?=\/com\/|\/org\/|\/net\/|\/\*)/)[0];
     }
-    var argv = ['javac', '-d', outDir].concat(inputs);
-    exec.apply({}, argv);
+    var pathSeparator = sys.io.path.separator;
+    var classpath = opt('cp') || opt('classpath');
+    if (classpath instanceof Array) {
+      classpath = classpath.join(pathSeparator);
+    } else if (classpath) {
+      classpath = String(classpath);
+    } else {
+      classpath = '';
+    }
+    var extraClasspath = [];
+    var endsWithJar = /.jar$/;
+    for (var i = 0, n = inputs.length; i < n; ++i) {
+      if (endsWithJar.test(inputs[i])) {
+	extraClasspath.push(inputs[i]);
+        inputs.splice(i, 1);
+	--n, --i;
+      }
+    }
+    if (extraClasspath.length) {
+      classpath = classpath.split(pathSeparator).concat(extraClasspath)
+          .join(pathSeparator);
+    }
+    var command = ['javac', '-d', outDir, '-cp', classpath].concat(inputs);
+    exec.apply({}, command);
   }
 });

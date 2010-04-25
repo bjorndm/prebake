@@ -45,7 +45,7 @@ final class WorkingDir {
       ImmutableList<Glob> toMatch)
       throws IOException {
     final GlobSet outputMatcher = new GlobSet();
-    for (Glob outputGlob : toMatch) { outputMatcher.add(outputGlob); }
+    outputMatcher.addAll(toMatch);
     // Get the prefix map so we only walk subtrees that are important.
     // E.g. for output globs
     //     [foo/lib/bar/*.lib, foo/lib/**.o, foo/lib/**.so, foo/bin/*.a]
@@ -80,22 +80,20 @@ final class WorkingDir {
     class Walker {
       final ImmutableList.Builder<Path> out = ImmutableList.builder();
       final Set<String> walked = Sets.newHashSet();
-      void walk(Path dir, GlobSet globs) throws IOException {
+      void walk(Path p, GlobSet globs) throws IOException {
         // TODO: handle symbolic links
-        String dirStr = dir.toString();
-        List<Glob> extras = groupedByDir.get(dirStr);
+        String pStr = p.toString();
+        List<Glob> extras = groupedByDir.get(pStr);
         if (extras != null) {
           globs = new GlobSet(globs).addAll(extras);
-          walked.add(dirStr);
+          walked.add(pStr);
         }
-        for (Path p : dir.newDirectoryStream()) {
-          BasicFileAttributes attrs = Attributes.readBasicFileAttributes(p);
-          if (attrs.isRegularFile()) {
-            Path relPath = workingDir.relativize(p);
-            if (globs.matches(relPath)) { out.add(relPath); }
-          } else if (attrs.isDirectory()) {
-            walk(p, globs);
-          }
+        BasicFileAttributes attrs = Attributes.readBasicFileAttributes(p);
+        if (attrs.isRegularFile()) {
+          Path relPath = workingDir.relativize(p);
+          if (globs.matches(relPath)) { out.add(relPath); }
+        } else {
+          for (Path child : p.newDirectoryStream()) { walk(child, globs); }
         }
       }
     }
@@ -104,12 +102,7 @@ final class WorkingDir {
       String prefix = e.getKey();
       if (w.walked.contains(prefix)) { continue; }  // already walked
       Path p = workingDir.resolve(prefix);
-      if (!p.notExists()) {
-        BasicFileAttributes atts = Attributes.readBasicFileAttributes(p);
-        if (atts.isDirectory()) {
-          w.walk(p, new GlobSet());
-        }
-      }
+      if (!p.notExists()) { w.walk(p, new GlobSet()); }
     }
     return w.out.build();
   }

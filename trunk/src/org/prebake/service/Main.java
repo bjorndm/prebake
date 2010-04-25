@@ -39,6 +39,7 @@ import java.nio.file.FileSystem;
 import java.nio.file.FileSystems;
 import java.nio.file.Path;
 import java.security.SecureRandom;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ScheduledExecutorService;
@@ -88,8 +89,12 @@ public final class Main {
           throws IOException {
         ProcessBuilder pb = new ProcessBuilder();
         pb.directory(new File(cwd.toString()));
-        pb.command(
-            ImmutableList.<String>builder().add(command).add(argv).build());
+        // TODO: figure out how to get the error and output to the logger/tool.
+        pb.redirectError(ProcessBuilder.Redirect.INHERIT);
+        pb.redirectOutput(ProcessBuilder.Redirect.INHERIT);
+        List<String> args = ImmutableList.<String>builder().add(command)
+            .add(argv).build();
+        pb.command(args);
         return pb.start();
       }
     };

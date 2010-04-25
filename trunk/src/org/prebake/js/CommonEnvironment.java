@@ -178,7 +178,14 @@ public final class CommonEnvironment {
                 "os", ImmutableMap.of(
                     "arch", propget(properties.get("os.arch"), ""),
                     "name", propget(properties.get("os.name"), ""),
-                    "version", propget(properties.get("os.version"), ""))))
+                    "version", propget(properties.get("os.version"), "")),
+                "io", ImmutableMap.of(
+                    "path", ImmutableMap.of(
+                        "separator",
+                        propget(properties.get("path.separator"), ":")),
+                    "file", ImmutableMap.of(
+                        "separator",
+                        propget(properties.get("file.separator"), "/")))))
         .build();
   }
 
