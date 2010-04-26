@@ -53,10 +53,11 @@ import com.google.common.collect.Maps;
  * {@code index}.
  *
  * <h2>Integration Points -- Scripts and CSS</h2>
- * Each HTML page loads a CSS and JavaScript file, {@code junit_report.{css,js}}
+ * Each HTML page loads a CSS and JavaScript file,
+ * <code>junit_report.{css,js}}</code>
  * from the same directory that contains the {@code index.html} file.
  * The CSS can hook into the HTML classes
- * (see {@link JsunitHtmlReportGeneratorTest} for examples), and the JS file
+ * (see {@link JunitHtmlReportGeneratorTest} for examples), and the JS file
  * should define a {@code startup} method that takes as input a string of
  * arrays describing the scope of the file
  * {@code ['index', '<package-name>', '<class-name>', '<test-name>']}, and a

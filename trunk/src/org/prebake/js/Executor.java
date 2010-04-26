@@ -43,7 +43,8 @@ public interface Executor {
   /**
    * Execute in the context of the given bindings and coerce the result to the
    * given type.
-   * @throws AbnormalExitException if the script could not produce a result.
+   * @return a result with exit set to an {@link AbnormalExitException} if the
+   *     script could not produce a result.
    * @throws ClassCastException if the result could not be coerced to the
    *    expectedReturnType.
    */

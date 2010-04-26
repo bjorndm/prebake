@@ -105,7 +105,7 @@ public final class JUnitRunner {
         final int testDumpSizeLimit = 1 << 14;
         final PrintStream testOut = new PrintStream(new OutputStream() {
           @Override
-          public void write(int b) throws IOException {
+          public void write(int b) {
             TestState[] tests;
             synchronized (runningTests) {
               tests = runningTests.values().toArray(noTests);
@@ -118,7 +118,7 @@ public final class JUnitRunner {
           }
 
           @Override
-          public void write(byte[] bytes, int pos, int len) throws IOException {
+          public void write(byte[] bytes, int pos, int len) {
             TestState[] tests;
             synchronized (runningTests) {
               tests = runningTests.values().toArray(noTests);

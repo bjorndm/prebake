@@ -74,8 +74,8 @@ public final class YSON {
 
   /**
    * The set of names that are free.  E.g.
-   * in {@code function (x) { return y + x }}, {@code y} is free but {@code x}
-   * is not since it is a parameter to the function.
+   * in <code>function (x) { return y + x }</code>, {@code y} is free but
+   * {@code x} is not since it is a parameter to the function.
    */
   public Set<String> getFreeNames() {
     // The free names of a production P are union(RN(P), LSD(P), VSD(P))
