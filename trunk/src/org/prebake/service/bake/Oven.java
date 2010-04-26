@@ -26,6 +26,8 @@ import org.prebake.js.MembranableFunction;
 import org.prebake.os.OperatingSystem;
 import org.prebake.service.plan.Action;
 import org.prebake.service.plan.Product;
+import org.prebake.service.tools.BuiltinToolHooks;
+import org.prebake.service.tools.ToolContent;
 import org.prebake.service.tools.ToolProvider;
 
 import java.io.IOError;
@@ -131,16 +133,20 @@ final class Oven {
         if (toolNameToLocalName.containsKey(toolName)) { continue; }
         String localName = "tool_" + toolNameToLocalName.size();
         toolNameToLocalName.put(toolName, localName);
-        FileAndHash tool = toolbox.getTool(toolName);
-        if (tool.getHash() != null) {
-          paths.add(tool.getPath());
-          hashes.withHash(tool.getHash());
+        ToolContent tool = toolbox.getTool(toolName);
+        if (tool.fh.getHash() != null) {
+          paths.add(tool.fh.getPath());
+          hashes.withHash(tool.fh.getHash());
         }
+        ImmutableMap<String, ?> extraEnv = tool.isBuiltin
+            ? BuiltinToolHooks.extraEnvironmentFor(toolName)
+            : ImmutableMap.<String, Object>of();
         actuals.put(
             localName,
             Executor.Input.builder(
-                tool.getContentAsString(Charsets.UTF_8), tool.getPath())
+                tool.fh.getContentAsString(Charsets.UTF_8), tool.fh.getPath())
                 .withActuals(commonJsEnv)
+                .withActuals(extraEnv)
                 .build());
       }
       // Second, store the product.

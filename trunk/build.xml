@@ -20,15 +20,14 @@
     <pathelement path="${third_party}/guava-libraries/guava.jar"/>
     <pathelement path="${third_party}/findbugs/lib/jsr305.jar"/>
     <pathelement path="${third_party}/rhino/js.jar"/>
+    <pathelement path="${third_party}/junit/junit.jar"/>
   </path>
   <path id="classpath.tests.compile">
     <path refid="classpath.compile"/>
-    <pathelement path="${third_party}/junit/junit.jar"/>
   </path>
   <path id="classpath.tests.run">
     <path refid="classpath.tests.compile"/>
     <pathelement path="${lib}"/>
-    <pathelement path="${third_party}/junit/junit.jar"/>
   </path>
 
   <target name="default" depends="classes"

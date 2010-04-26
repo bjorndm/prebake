@@ -28,6 +28,7 @@ import java.nio.file.FileSystem;
 import java.nio.file.LinkOption;
 import java.nio.file.OpenOption;
 import java.nio.file.Path;
+import java.nio.file.PathMatcher;
 import java.nio.file.WatchKey;
 import java.nio.file.WatchService;
 import java.nio.file.DirectoryStream.Filter;
@@ -35,6 +36,8 @@ import java.nio.file.WatchEvent.Kind;
 import java.nio.file.WatchEvent.Modifier;
 import java.nio.file.attribute.FileAttribute;
 import java.nio.file.attribute.FileAttributeView;
+import java.nio.file.attribute.UserPrincipalLookupService;
+import java.nio.file.spi.FileSystemProvider;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -199,8 +202,43 @@ public class GlobSetTest extends PbTestCase {
   }
 }
 
+final class StubFileSystem extends FileSystem {
+  @Override public void close() {
+    throw new UnsupportedOperationException();
+  }
+  @Override public Iterable<FileStore> getFileStores() {
+    throw new UnsupportedOperationException();
+  }
+  @Override public Path getPath(String arg0) {
+    throw new UnsupportedOperationException();
+  }
+  @Override public PathMatcher getPathMatcher(String arg0) {
+    throw new UnsupportedOperationException();
+  }
+  @Override public Iterable<Path> getRootDirectories() {
+    throw new UnsupportedOperationException();
+  }
+  @Override public String getSeparator() { return "/"; }
+  @Override
+  public UserPrincipalLookupService getUserPrincipalLookupService() {
+    throw new UnsupportedOperationException();
+  }
+  @Override public boolean isOpen() { return true; }
+  @Override public boolean isReadOnly() { return false; }
+  @Override public WatchService newWatchService() {
+    throw new UnsupportedOperationException();
+  }
+  @Override public FileSystemProvider provider() {
+    throw new UnsupportedOperationException();
+  }
+  @Override public Set<String> supportedFileAttributeViews() {
+    throw new UnsupportedOperationException();
+  }
+}
+
 final class StubPath extends Path {
   private final String s;
+  private static final FileSystem FS = new StubFileSystem();
 
   StubPath(String s) { this.s = s; }
   StubPath(String s, Path[] parts) { this(s); this.parts = parts; }
@@ -256,9 +294,7 @@ final class StubPath extends Path {
     throw new UnsupportedOperationException();
   }
   @Override
-  public FileSystem getFileSystem() {
-    throw new UnsupportedOperationException();
-  }
+  public FileSystem getFileSystem() { return FS; }
   @Override
   public Path getName() {
     return getName(getNameCount() - 1);

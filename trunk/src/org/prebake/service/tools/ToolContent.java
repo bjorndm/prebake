@@ -14,21 +14,19 @@
 
 package org.prebake.service.tools;
 
-import java.io.Closeable;
-import java.io.IOException;
-import java.util.List;
-import java.util.concurrent.Future;
-
-import javax.annotation.Nonnull;
-import javax.annotation.ParametersAreNonnullByDefault;
+import org.prebake.fs.FileAndHash;
 
 /**
- * Interface that allows {@link ToolBox} to be stubbed out.
+ * The JavaScript source for an up-to-date tool file and meta-data.
  *
  * @author Mike Samuel <mikesamuel@gmail.com>
  */
-@ParametersAreNonnullByDefault
-public interface ToolProvider extends Closeable {
-  @Nonnull List<Future<ToolSignature>> getAvailableToolSignatures();
-  @Nonnull ToolContent getTool(String toolName) throws IOException;
+public final class ToolContent {
+  public final FileAndHash fh;
+  public final boolean isBuiltin;
+
+  public ToolContent(FileAndHash fh, boolean isBuiltin) {
+    this.fh = fh;
+    this.isBuiltin = isBuiltin;
+  }
 }
