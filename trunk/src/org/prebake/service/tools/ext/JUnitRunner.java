@@ -49,7 +49,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 
-import org.junit.internal.RealSystem;
+import org.junit.internal.JUnitSystem;
 import org.junit.runner.Description;
 import org.junit.runner.JUnitCore;
 import org.junit.runner.Result;
@@ -80,11 +80,18 @@ public final class JUnitRunner {
     String[] testClassNames = Arrays.asList(argv).subList(0, argv.length)
         .toArray(new String[0]);
     int result = run(
+        new JUnitSystem() {
+          public void exit(int result) {
+            throw new UnsupportedOperationException();
+          }
+          public PrintStream out() { return System.out; }
+        },
         testReportFilter, reportOutputDir, reportTypes, testClassNames);
     System.exit(result);
   }
 
   public static int run(
+      JUnitSystem junitSystem,
       @Nullable YSON.Lambda testReportFilter, Path reportOutputDir,
       Set<String> reportTypes, String... testClassNames) {
     JUnitCore core = new JUnitCore();
@@ -93,36 +100,10 @@ public final class JUnitRunner {
       final Map<TestKey, TestState> runningTests = Collections.synchronizedMap(
           Maps.<TestKey, TestState>newLinkedHashMap());
       final List<TestState> allTests = Lists.newArrayList();
-      core.addListener(new RunListener() {
-        @Override public void testFailure(Failure failure) {
-          TestKey k = new TestKey(failure.getDescription());
-          runningTests.get(k).recordFailure(failure);
-        }
-        @Override public void testStarted(Description d) {
-          TestState t = new TestState(d);
-          runningTests.put(t.key, t);
-          allTests.add(t);
-        }
-        @Override public void testFinished(Description d) {
-          TestKey k = new TestKey(d);
-          TestState t = runningTests.remove(k);
-          if (t.result == null) { t.result = TestResult.success; }
-        }
-        @Override public void testIgnored(Description d) {
-          TestKey k = new TestKey(d);
-          runningTests.get(k).result = TestResult.ignored;
-        }
-        @Override public void testRunStarted(Description d) {
-          // no-op
-        }
-        @Override public void testRunFinished(Result result) {
-          // no-op
-        }
-      });
       {
         final TestState[] noTests = new TestState[0];
         final int testDumpSizeLimit = 1 << 14;
-        PrintStream testOut = new PrintStream(new OutputStream() {
+        final PrintStream testOut = new PrintStream(new OutputStream() {
           @Override
           public void write(int b) throws IOException {
             TestState[] tests;
@@ -150,19 +131,41 @@ public final class JUnitRunner {
             }
           }
         });
-        System.setOut(testOut);
-        System.setErr(testOut);
-        try {
-          // Run the tests.
-          // We intentionally ignore the result since the summary is inferrable
-          // from AllTests and can be adjusted by the filter.
-          core.runMain(new RealSystem(), testClassNames);
-        } finally {
-          System.setOut(
-              new PrintStream(new FileOutputStream(FileDescriptor.out)));
-          System.setErr(
-              new PrintStream(new FileOutputStream(FileDescriptor.err)));
-        }
+        core.addListener(new RunListener() {
+          @Override public void testFailure(Failure failure) {
+            TestKey k = new TestKey(failure.getDescription());
+            runningTests.get(k).recordFailure(failure);
+          }
+          @Override public void testStarted(Description d) {
+            TestState t = new TestState(d);
+            runningTests.put(t.key, t);
+            allTests.add(t);
+          }
+          @Override public void testFinished(Description d) {
+            TestKey k = new TestKey(d);
+            TestState t = runningTests.remove(k);
+            if (t.result == null) { t.result = TestResult.success; }
+          }
+          @Override public void testIgnored(Description d) {
+            TestState t = new TestState(d);
+            t.result = TestResult.ignored;
+            allTests.add(t);
+          }
+          @Override public void testRunStarted(Description d) {
+            System.setOut(testOut);
+            System.setErr(testOut);
+          }
+          @Override public void testRunFinished(Result result) {
+            System.setOut(
+                new PrintStream(new FileOutputStream(FileDescriptor.out)));
+            System.setErr(
+                new PrintStream(new FileOutputStream(FileDescriptor.err)));
+          }
+        });
+        // Run the tests.
+        // We intentionally ignore the result since the summary is inferrable
+        // from AllTests and can be adjusted by the filter.
+        core.runMain(junitSystem, testClassNames);
       }
 
       assert runningTests.isEmpty();
@@ -208,7 +211,7 @@ public final class JUnitRunner {
       generatedReports = false;
     }
 
-    boolean allSucceeded = writeSummary(jsonReport);
+    boolean allSucceeded = writeSummary(jsonReport, junitSystem.out());
 
     return generatedReports ? allSucceeded ? 0 : -1 : -2;
   }
@@ -250,14 +253,18 @@ public final class JUnitRunner {
       if (!t.annotations.isEmpty()) {
         ImmutableList.Builder<Object> annotations = ImmutableList.builder();
         for (Annotation a : t.annotations) {
-          annotations.add(ImmutableList.of(
+          annotations.add(ImmutableMap.of(
               "class_name", a.annotationType().getName(),
               "text", a.toString()));
         }
         b.put("annotations", annotations.build());
       }
-      b.put("failure_message", t.message);
-      b.put("failure_trace", t.trace);
+      if (t.message != null) {
+        b.put("failure_message", t.message);
+      }
+      if (t.trace != null) {
+        b.put("failure_trace", t.trace);
+      }
       if (t.out.size() > 0) {
         b.put("out", new String(t.out.toByteArray(), Charsets.UTF_8));
       }
@@ -275,14 +282,15 @@ public final class JUnitRunner {
         "summary", summaryJson.build());
   }
 
-  private static boolean writeSummary(Map<String, ?> jsonReport) {
+  private static boolean writeSummary(
+      Map<String, ?> jsonReport, PrintStream out) {
     Object summary = jsonReport.get("summary");
     if (!(summary instanceof Map<?, ?>)) {
       System.err.println("Bad summary");
       return false;
     }
     boolean ok = true;
-    int total = 0, count = 0;
+    int total = 0, count = 0, nFailed = 0;
     List<String> parts = Lists.newArrayList();
     for (Map.Entry<?, ?> e : ((Map<?, ?>) summary).entrySet()) {
       Object key = e.getKey();
@@ -297,13 +305,17 @@ public final class JUnitRunner {
         total = n;
       } else {
         count += n;
+        if (TestResult.failure.name().equals(key)
+            || TestResult.error.name().equals(key)) {
+          nFailed += n;
+        }
         parts.add(key + ": " + n);
       }
     }
     Collections.sort(parts);
     parts.add("total: " + total);
-    System.out.println(Joiner.on(", ").join(parts));
-    return ok;
+    out.println(Joiner.on(", ").join(parts));
+    return ok && total != 0 && nFailed == 0;
   }
 
   private static Map<String, ?> applyReportFilter(
