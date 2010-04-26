@@ -177,7 +177,7 @@ public class EndToEndTest extends PbTestCase {
 
       client = new Bake(logger) {
         @Override
-        protected Connection connect(int port) throws IOException {
+        protected Connection connect(int port) {
           assertEquals(1234, port);
 
           return new Connection() {
@@ -234,7 +234,7 @@ public class EndToEndTest extends PbTestCase {
       service = new Prebakery(
           config, getCommonJsEnv(), execer, os, logger) {
             @Override
-            protected Environment createDbEnv(Path dir) throws IOException {
+            protected Environment createDbEnv(Path dir) {
               EnvironmentConfig envConfig = new EnvironmentConfig();
               envConfig.setAllowCreate(true);
               tempDir = Files.createTempDir();
@@ -244,8 +244,7 @@ public class EndToEndTest extends PbTestCase {
             @Override protected String makeToken() { return "super-secret"; }
 
             @Override
-            protected int openChannel(int portHint, BlockingQueue<Commands> q)
-                throws IOException {
+            protected int openChannel(int portHint, BlockingQueue<Commands> q) {
               commandQueue = q;
               return portHint == 0 ? 1234 : portHint;
             }

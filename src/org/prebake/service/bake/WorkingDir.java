@@ -91,7 +91,9 @@ final class WorkingDir {
         BasicFileAttributes attrs = Attributes.readBasicFileAttributes(p);
         if (attrs.isRegularFile()) {
           Path relPath = workingDir.relativize(p);
-          if (globs.matches(relPath)) { out.add(relPath); }
+          if (globs.matches(relPath) && !exclusions.contains(relPath)) {
+            out.add(relPath);
+          }
         } else {
           for (Path child : p.newDirectoryStream()) { walk(child, globs); }
         }

@@ -567,31 +567,30 @@ class MemPath extends Path {
 
         public String name() { return getName().toString(); }
 
-        public DosFileAttributes readAttributes() throws IOException {
+        public DosFileAttributes readAttributes() {
           throw new UnsupportedOperationException();
         }
 
-        public void setArchive(boolean archive) throws IOException {
+        public void setArchive(boolean archive) {
           throw new UnsupportedOperationException();
         }
 
-        public void setHidden(boolean hidden) throws IOException {
+        public void setHidden(boolean hidden) {
           if (getName().toString().startsWith(".") == hidden) {
             return;
           }
           throw new UnsupportedOperationException();
         }
 
-        public void setReadOnly(boolean readOnly) throws IOException {
+        public void setReadOnly(boolean readOnly) {
           throw new UnsupportedOperationException();
         }
 
-        public void setSystem(boolean system) throws IOException {
+        public void setSystem(boolean system) {
           throw new UnsupportedOperationException();
         }
 
-        public void setTimes(FileTime arg0, FileTime arg1, FileTime arg2)
-            throws IOException {
+        public void setTimes(FileTime arg0, FileTime arg1, FileTime arg2) {
           throw new UnsupportedOperationException();
         }
       });
