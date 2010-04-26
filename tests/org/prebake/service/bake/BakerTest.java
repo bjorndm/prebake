@@ -16,7 +16,6 @@ package org.prebake.service.bake;
 
 import org.prebake.core.Documentation;
 import org.prebake.core.Glob;
-import org.prebake.fs.FileAndHash;
 import org.prebake.fs.StubFileVersioner;
 import org.prebake.js.JsonSink;
 import org.prebake.js.YSON;
@@ -24,6 +23,7 @@ import org.prebake.os.OperatingSystem;
 import org.prebake.os.StubOperatingSystem;
 import org.prebake.service.plan.Action;
 import org.prebake.service.plan.Product;
+import org.prebake.service.tools.ToolContent;
 import org.prebake.service.tools.ToolProvider;
 import org.prebake.service.tools.ToolSignature;
 import org.prebake.util.PbTestCase;
@@ -628,8 +628,8 @@ public class BakerTest extends PbTestCase {
       }
       return out;
     }
-    public FileAndHash getTool(String toolName) throws IOException {
-      return tester.files.load(toolPaths.get(toolName));
+    public ToolContent getTool(String toolName) throws IOException {
+      return new ToolContent(tester.files.load(toolPaths.get(toolName)), false);
     }
     public void close() { /* no-op */ }
   }

@@ -14,7 +14,7 @@
 
 ({
   help: 'Java compiler.  // TODO: usage',
-  checker: function (product) {
+  checker: function (action) {
     // TODO check d, cp options.
   },
   fire: function fire(opts, inputs, product, action, exec) {

@@ -14,6 +14,14 @@
 
 // This is a prebake plan file, the PreBake analogue of a Makefile.
 // See http://code.google.com/p/prebake/wiki/PlanFile for details.
+
+var jars = [
+    "third_party/bdb/je.jar",
+    "third_party/guava-libraries/guava.jar",
+    "third_party/fast-md5/fast-md5.jar",
+    "third_party/rhino/js.jar",
+    "third_party/findbugs/lib/jsr305.jar"];
+
 ({
   classes: {
     help: {
@@ -26,17 +34,32 @@
     },
     actions: [{
       tool:    "javac",
-      inputs:  ["src/**.java",
-                "third_party/bdb/je.jar",
-                "third_party/guava-libraries/guava.jar",
-                "third_party/fast-md5/fast-md5.jar",
-                "third_party/rhino/js.jar",
-                "third_party/findbugs/lib/jsr305.jar"],
+      inputs:  ["src/**.java"].concat(jars),
       outputs: "lib/**.class",
     }, {
       tool:    "cp",
       inputs:  "src/**.{js,txt}",
       outputs: "lib/**.{js,txt}"
+    }]
+  },
+  tests: {
+    help: {
+      summary: "Puts all the java tests classes and resources under test-lib",
+      detail:  "Puts under test-lib/ everything needed for junit tests",
+      contact: "Mike Samuel <mikesamuel@gmail.com>"
+    },
+    actions: [{
+      tool:    "javac",
+      inputs:  ["tests/**.java", "third_party/junit/junit.jar"].concat(jars)
+      outputs: "test-lib/**.class"
+    }]
+  },
+  runtests: {
+    help: 'Runs JUnit tests putting test results under reports',
+    actions: [{
+      tool:    'junit',
+      inputs:  'test-lib/**',
+      outputs: 'reports/tests/**.{xml,html}'
     }]
   }
 })

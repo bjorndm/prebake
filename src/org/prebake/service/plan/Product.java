@@ -215,7 +215,7 @@ public final class Product implements JsonSerializable {
     return b.build();
   }
 
-  private static boolean looksLikeAction(Object o) {
+  private static boolean looksLikeAction(@Nullable Object o) {
     if (!(o instanceof Map<?, ?>)) { return false; }
     Map<?, ?> m = (Map<?, ?>) o;
     return !m.containsKey(Field.actions.name())

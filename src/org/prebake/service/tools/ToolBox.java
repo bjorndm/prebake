@@ -293,14 +293,13 @@ public class ToolBox implements ToolProvider {
           if (impl.isValid()) { return impl.sig; }
         }
         while (--nTriesRemaining >= 0) {
-          int index = indexForTool(t);
-          FileAndHash toolJs;
+          ToolContent toolJs;
           if (index < 0) {
             logger.log(Level.SEVERE, "Tool {0} not on search path", t.toolName);
             return null;
           }
           try {
-            toolJs = getTool(t, index);
+            toolJs = getTool(t);
           } catch (IOException ex) {
             logger.log(
                 Level.SEVERE,
@@ -310,17 +309,17 @@ public class ToolBox implements ToolProvider {
           }
           final List<Path> paths = Lists.newArrayList();
           final List<Hash> hashes = Lists.newArrayList();
-          Path toolPath = toolJs.getPath();
-          boolean isBuiltin = isBuiltin(index);
-          if (toolJs.getHash() != null) {
+          Path toolPath = toolJs.fh.getPath();
+          boolean isBuiltin = toolJs.isBuiltin;
+          if (toolJs.fh.getHash() != null) {
             paths.add(toolPath);
-            hashes.add(toolJs.getHash());
+            hashes.add(toolJs.fh.getHash());
           }
           Executor executor = Executor.Factory.createJsExecutor();
           ToolSignature toolSig;
           try {
             Executor.Input.Builder toolInput = Executor.Input.builder(
-                toolJs.getContentAsString(Charsets.UTF_8),
+                toolJs.fh.getContentAsString(Charsets.UTF_8),
                 toolPath.toString())
                 .withActuals(commonJsEnv)
                 .withBase(
@@ -395,7 +394,7 @@ public class ToolBox implements ToolProvider {
    *     {@code <tool_name>.js} in the tool directories passed to the
    *     constructor.
    */
-  public FileAndHash getTool(String name) throws IOException {
+  public ToolContent getTool(String name) throws IOException {
     Tool tool = tools.get(name);
     if (tool == null) {
       throw new FileNotFoundException("<tool>/" + name + ".js");
@@ -408,7 +407,7 @@ public class ToolBox implements ToolProvider {
     return index != null ? index : -1;
   }
 
-  private FileAndHash getTool(Tool t) throws IOException {
+  private ToolContent getTool(Tool t) throws IOException {
     int index = indexForTool(t);
     if (index < 0) {
       throw new FileNotFoundException("<tool>/" + t.localName.toString());
@@ -416,11 +415,12 @@ public class ToolBox implements ToolProvider {
     return getTool(t, index);
   }
 
-  private FileAndHash getTool(Tool t, int index) throws IOException {
+  private ToolContent getTool(Tool t, int index) throws IOException {
     Path toolPath;
     InputStream jsIn;
     boolean underVersionRoot = false;
-    if (isBuiltin(index)) {
+    boolean isBuiltin = isBuiltin(index);
+    if (isBuiltin) {
       toolPath = t.localName;
       String resourceName = t.localName.toString();
       jsIn = ToolBox.class.getResourceAsStream(resourceName);
@@ -433,7 +433,8 @@ public class ToolBox implements ToolProvider {
       jsIn = toolPath.newInputStream();
       underVersionRoot = toolPath.startsWith(files.getVersionRoot());
     }
-    return FileAndHash.fromStream(toolPath, jsIn, underVersionRoot);
+    return new ToolContent(
+        FileAndHash.fromStream(toolPath, jsIn, underVersionRoot), isBuiltin);
   }
 
   private boolean isBuiltin(int index) {

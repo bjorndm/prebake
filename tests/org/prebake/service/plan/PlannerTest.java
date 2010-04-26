@@ -17,10 +17,10 @@ package org.prebake.service.plan;
 import org.prebake.core.ArtifactListener;
 import org.prebake.core.Documentation;
 import org.prebake.core.Glob;
-import org.prebake.fs.FileAndHash;
 import org.prebake.fs.StubFileVersioner;
 import org.prebake.js.Executor;
 import org.prebake.js.YSON;
+import org.prebake.service.tools.ToolContent;
 import org.prebake.service.tools.ToolProvider;
 import org.prebake.service.tools.ToolSignature;
 import org.prebake.util.PbTestCase;
@@ -390,7 +390,7 @@ public class PlannerTest extends PbTestCase {
           if (isClosed) { throw new IllegalStateException(); }
           return sigs.build();
         }
-        public FileAndHash getTool(String toolName) {
+        public ToolContent getTool(String toolName) {
           throw new Error("Unsupported by " + PlannerTest.class);
         }
         public void close() { isClosed = true; }

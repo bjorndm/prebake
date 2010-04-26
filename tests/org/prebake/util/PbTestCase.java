@@ -284,8 +284,9 @@ public abstract class PbTestCase extends Assert {
             pos = end + 1;
             break;
           }
-          default: throw new IllegalArgumentException(
-              line.charAt(pos) + " in " + line);
+          default:
+            throw new IllegalArgumentException(
+                line.charAt(pos) + " in " + line);
         }
       }
 
