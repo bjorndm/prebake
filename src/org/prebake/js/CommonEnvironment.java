@@ -18,6 +18,7 @@ import org.prebake.core.Documentation;
 import org.prebake.core.Glob;
 import org.prebake.core.MessageQueue;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
@@ -85,6 +86,10 @@ public final class CommonEnvironment {
       "xform('src/far.h');  // => null.  Input glob does not match .h files",
       "</code>");
 
+  private static final String PREFIX_HELP = Joiner.on('\n').join(
+      "Given globs, finds the common prefix, the maximal path which",
+      "all paths matching any of the globs must be descendants of.");
+
   /**
    * @param properties the
    *     {@link java.lang.System#getProperties() system environment}.
@@ -112,8 +117,8 @@ public final class CommonEnvironment {
       public int getArity() { return 2; }
       public Documentation getHelp() {
         return new Documentation(
-            "A function that maps inputs to outputs given"
-            + " input and output glbos",
+            "xform(input_globs, output_globs) -> function (input_path)"
+            + " -> output_path",
             XFORMER_HELP, null);
       }
       public String getName() { return "xformer"; }
@@ -162,6 +167,30 @@ public final class CommonEnvironment {
       }
     };
 
+    MembranableFunction globPrefix = new MembranableFunction() {
+      public int getArity() { return 1; }  // One or more globs.
+
+      public Documentation getHelp() {
+        return new Documentation(
+            getName() + "(globs) -> path", PREFIX_HELP,
+            "Mike Samuel <mikesamuel@gmail.com>");
+      }
+
+      public String getName() { return "prefix"; }
+
+      public String apply(Object[] args) {
+        MessageQueue mq = new MessageQueue();
+        List<Glob> globs = Glob.CONV.convert(
+            args.length == 1 ? args[0] : Arrays.asList(args), mq);
+        if (mq.hasErrors()) {
+          throw new IllegalArgumentException(
+              Joiner.on('\n').join(mq.getMessages()));
+        }
+        return Glob.commonPrefix(globs);
+      }
+
+    };
+
     return ImmutableMap.<String, Object>builder()
         .put(
             "glob",
@@ -171,6 +200,7 @@ public final class CommonEnvironment {
                     GLOB_HELP))
                 .put("intersect", globIntersect)
                 .put("xformer", globXformer)
+                .put("prefix", globPrefix)
                 .build())
         .put(
             "sys",
