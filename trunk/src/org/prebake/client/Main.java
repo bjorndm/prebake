@@ -64,7 +64,8 @@ public final class Main {
 
       @Override
       protected Connection connect(int port) throws IOException {
-        final Socket socket = new Socket(InetAddress.getLocalHost(), port);
+        final Socket socket = new Socket(
+            InetAddress.getLoopbackAddress(), port);
         return new Connection() {
           public InputStream getInputStream() throws IOException {
             return new FilterInputStream(socket.getInputStream()) {
@@ -90,6 +91,10 @@ public final class Main {
 
       @Override
       protected void launch(String... argv) throws IOException {
+        // TODO: prepend the JVM and jar file onto argv.
+        // Maybe get the prebake_home directory from a system variable.
+        // Make sure this is propagated in the bin file, or see whether there
+        // is a way to find the URL of the JAR containing this class.
         new ProcessBuilder(argv).inheritIO().start();
       }
 

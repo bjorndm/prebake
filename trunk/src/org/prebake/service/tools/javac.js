@@ -41,19 +41,28 @@
       classpath = '';
     }
     var extraClasspath = [];
-    var endsWithJar = /.jar$/;
+    var sources = [];
     for (var i = 0, n = inputs.length; i < n; ++i) {
-      if (endsWithJar.test(inputs[i])) {
-	extraClasspath.push(inputs[i]);
-        inputs.splice(i, 1);
-	--n, --i;
+      var input = inputs[i];
+      var dot = input.lastIndexOf('.');
+      switch (input.substring(dot + 1)) {
+        case 'jar': extraClasspath.push(input); break;
+        case 'class': break;
+        default: sources.push(input); break;  // java, jsp, etc.
+      }
+    }
+    var endsWithClass = /.class$/;
+    for (var i = 0, n = action.inputs.length; i < n; ++i) {
+      var input = action.inputs[i];
+      if (endsWithClass.test(input)) {  // E.g. lib/**.class
+        extraClasspath.push(glob.prefix(input));
       }
     }
     if (extraClasspath.length) {
       classpath = classpath.split(pathSeparator).concat(extraClasspath)
           .join(pathSeparator);
     }
-    var command = ['javac', '-d', outDir, '-cp', classpath].concat(inputs);
+    var command = ['javac', '-d', outDir, '-cp', classpath].concat(sources);
     exec.apply({}, command);
   }
 });

@@ -40,6 +40,14 @@ public class CommonEnvironmentTest extends PbTestCase {
         Lists.newArrayList("lib/foo/bar.o", "lib/baz.o", null));
   }
 
+  @Test public final void testPrefix() {
+    assertJsProduces("glob.prefix('lib/**.class')", "lib/");
+    assertJsProduces(
+        "glob.prefix('lib/org/**.class', 'lib/com/**.class')", "lib/");
+    assertJsProduces(
+        "glob.prefix(['lib/org/**.class', 'lib/com/**.class'])", "lib/");
+  }
+
   @Test public final void testSys() {
     assertJsProduces("sys.os.arch", "i386");
     assertJsProduces("sys.os.name", "generic-posix");
