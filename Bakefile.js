@@ -59,8 +59,9 @@ var jars = [
     help: 'Runs JUnit tests putting test results under reports',
     actions: [{
       tool:    'junit',
-      inputs:  'test-lib/**',
-      outputs: 'reports/tests/**.{xml,html}'
+      inputs:  ['test-lib/**.class', 'lib/**.class'].concat(jars),
+      outputs: 'reports/tests/**.{xml,html}',
+      options: { test_class_filter: '**Test.class' }
     }]
   }
 })

@@ -39,6 +39,10 @@ import javax.annotation.ParametersAreNonnullByDefault;
  */
 @ParametersAreNonnullByDefault
 public final class Action implements JsonSerializable {
+  // TODO: get rid of options map in json form and just use property names in
+  // the action object.  { inputs: ..., outputs, ..., options: { x, ... } } =>
+  // { inputs: ..., outputs: ..., x: ... }
+
   public final String toolName;
   public final ImmutableList<Glob> inputs;
   public final ImmutableList<Glob> outputs;

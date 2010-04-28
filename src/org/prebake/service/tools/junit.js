@@ -15,7 +15,8 @@
 ({
   help: 'JUnit Test Runner',
   checker: function (action) {
-    // TODO check options.
+    // TODO require the test_class_filter
+    glob.matcher(action.options.test_class_filter);
   },
   fire: function fire(opts, inputs, product, action, exec) {
     function opt(name, opt_defaultValue) {
@@ -37,42 +38,53 @@
     }
     var extraClasspath = [];
     var testClasses = [];
-    var extRe = /.[^\/\\.]$/;
+    var testClassFilter = glob.matcher(action.options.test_class_filter);
     for (var i = 0, n = inputs.length; i < n; ++i) {
       var input = inputs[i];
-      var ext = extRe.match(input);
-      if (ext) {
-        switch (ext[0]) {
+      var dot = input.lastIndexOf('.');
+      if (dot >= 0) {
+        switch (input.substring(dot)) {
           case '.jar': extraClasspath.push(input); break;
-          case '.class': testClasses.push(input); break;
+          case '.class':
+            if (testClassFilter(input)) { testClasses.push(input); }
+            break;
         }
       }
     }
-    if (extraClasspath.length) {
-      classpath = Array.filter(
-          classpath.split(pathSeparator).concat(java_classpath.split(pathSeparator)),
-          function (x) { return !!x; })
-          .concat(extraClasspath)
-          .join(pathSeparator);
+    var endsWithClass = /.class$/;
+    for (var i = 0, n = action.inputs.length; i < n; ++i) {
+      var input = action.inputs[i];
+      if (endsWithClass.test(input)) {  // E.g. lib/**.class
+        // TODO: Strip off directories if there is a com/org/net as a path element.
+        // TODO: make this common with javac, and java tasks?
+        extraClasspath.push(glob.prefix(input));
+      }
     }
+    classpath = Array.filter(
+        classpath.split(pathSeparator).concat(java_classpath.split(pathSeparator)),
+        function (x) { return !!x; })
+        .concat(extraClasspath)
+        .join(pathSeparator);
     var wantsHtmlReport = false,
         wantsJsonReport = false,
         wantsXmlReport = false;
-    var reportDir = opt('reportDir', null);
+    var reportDir = opt('report_dir', null);
     var inferReportDir = reportDir === null;
     for (var i = 0, n = action.outputs.length; i < n; ++i) {
       var output = action.outputs[i];
-      var ext = extRe.match(output);
-      if (ext) {
-        switch (ext[0]) {
+      var dot = output.lastIndexOf('.');
+      if (dot >= 0) {
+        switch (output.substring(dot)) {
           case '.html': wantsHtmlReport = true; break;
           case '.json': wantsJsonReport = true; break;
           case '.xml':  wantsXmlReport = true; break;
           default: continue;
         }
         if (inferReportDir) {
-          // The report directory is the one that contains the 
-          var m = /^.+?(?=\/[^\/]$|\*{1,2}(?:\/|[^*]+\*))/.match(output);
+          // The report directory is the one that contains the json output dump
+          // or index.html.
+          console.log('comparing ' + output);
+          var m = output.match(/^[^*]+?(?=\/[^\/]*$|\*(?:\/|$))/);
           if (m) {
             var prefix = m[0];
             if (reportDir === null
