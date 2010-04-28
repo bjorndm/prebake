@@ -19,6 +19,8 @@
     glob.matcher(action.options.test_class_filter);
   },
   fire: function fire(opts, inputs, product, action, exec) {
+    // TODO: JVM system properties
+    // TODO: copy over junit_report.css and junit_report.js and tie to options.
     function opt(name, opt_defaultValue) {
       if ({}.hasOwnProperty.call(opts, name)) {
         return opts[name];

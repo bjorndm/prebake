@@ -26,12 +26,19 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
 import javax.annotation.Nullable;
 import com.google.common.base.Charsets;
 import com.google.common.base.Function;
+import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMultimap;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
 
 /**
  * This class generates a tree of HTML files based on the results of running
@@ -69,13 +76,14 @@ import com.google.common.collect.Maps;
 final class JunitHtmlReportGenerator {
   // TODO: move property name string literals into constants shared with
   // JUnitRunner.
-  static void generateHtmlReport(
-      Map<String, ?> jsonReport, Path reportDir)
+  static void generateHtmlReport(Map<String, ?> jsonReport, Path reportDir)
       throws IOException {
     // Group tests by packages so we can let users examine the results by
     // logical groupings.
     ImmutableMultimap<String, Map<?, ?>> byPackage;
+    List<String> resultTypes;
     {
+      Set<String> resultTypeSet = Sets.newHashSet();
       ImmutableList.Builder<Map<?, ?>> b = ImmutableList.builder();
       // We can't trust the jsonReport to have the same structure as the method
       // above, since a filter could arbitrarily change it.
@@ -85,7 +93,10 @@ final class JunitHtmlReportGenerator {
           if (!(testVal instanceof Map<?, ?>)) {
             continue;  // If filter nulls out elements.
           }
-          b.add((Map<?, ?>) testVal);
+          Map<?, ?> test = (Map<?, ?>) testVal;
+          b.add(test);
+          String result = getIfOfType(test, "result", String.class);
+          resultTypeSet.add(result);
         }
       }
       byPackage = groupBy(b.build(), new Function<Map<?, ?>, String>() {
@@ -96,6 +107,9 @@ final class JunitHtmlReportGenerator {
           return (lastDot >= 0) ? className.substring(0, lastDot) : "";
         }
       });
+      String[] resultTypeArr = resultTypeSet.toArray(NO_STRINGS);
+      Arrays.sort(resultTypeArr);
+      resultTypes = ImmutableList.of(resultTypeArr);
     }
     Map<String, Integer> summary = Maps.newHashMap();
     ImmutableList.Builder<Html> table = ImmutableList.builder();
@@ -113,16 +127,20 @@ final class JunitHtmlReportGenerator {
     for (String packageName : packageNames) {
       Collection<Map<?, ?>> tests = byPackage.get(packageName);
       Map<String, Integer> itemSummary = generateHtmlReportOnePackage(
-          packageName, tests, reportDir.resolve("index"));
+          packageName, tests, reportDir.resolve("index"), resultTypes);
       bagPutAll(itemSummary, summary);
       table.add(htmlLink("index/" + packageName + ".html", packageName))
-          .add(htmlSpan("summary", summaryToHtml(itemSummary)));
+          .add(htmlSpan("summary", summaryToHtml(itemSummary, resultTypes)));
     }
-    writeReport(outFile, "JUnit", table.build(), summary, jsonReport, "index");
+    writeReport(
+        outFile, "JUnit", KEY_VAL, table.build(), summary, jsonReport,
+        resultTypes,
+        "index");
   }
 
   private static Map<String, Integer> generateHtmlReportOnePackage(
-      String packageName, Collection<Map<?, ?>> tests, Path reportDir)
+      String packageName, Collection<Map<?, ?>> tests, Path reportDir,
+      List<String> resultTypes)
       throws IOException {
     ImmutableMultimap<String, Map<?, ?>> byClass = groupBy(
         tests, new Function<Map<?, ?>, String>() {
@@ -143,20 +161,22 @@ final class JunitHtmlReportGenerator {
     for (String className : classNames) {
       Collection<Map<?, ?>> classTests = byClass.get(className);
       Map<String, Integer> itemSummary = generateHtmlReportOneClass(
-          packageName, className, classTests, reportDir.resolve(packageName));
+          packageName, className, classTests, reportDir.resolve(packageName),
+          resultTypes);
       bagPutAll(itemSummary, summary);
       table.add(htmlLink(packageName + "/" + className + ".html", className))
-          .add(htmlSpan("summary", summaryToHtml(itemSummary)));
+          .add(htmlSpan("summary", summaryToHtml(itemSummary, resultTypes)));
     }
     writeReport(
-        outFile, "package " + packageName, table.build(), summary, tests,
+        outFile, "package " + packageName, KEY_VAL, table.build(), summary,
+        tests, resultTypes,
         "index", packageName);
     return summary;
   }
 
   private static Map<String, Integer> generateHtmlReportOneClass(
       String packageName, String className, Collection<Map<?, ?>> tests,
-      Path reportDir)
+      Path reportDir, List<String> resultTypes)
       throws IOException {
     ImmutableMultimap<String, Map<?, ?>> byTestName = groupBy(
         tests, new Function<Map<?, ?>, String>() {
@@ -183,22 +203,26 @@ final class JunitHtmlReportGenerator {
         int testIndex = counter++;
         Map<String, Integer> itemSummary = generateHtmlReportOneTest(
             packageName, className, testName, testIndex, test,
-            reportDir.resolve(className));
+            reportDir.resolve(className), resultTypes);
         bagPutAll(itemSummary, summary);
         table.add(htmlLink(
             className + "/" + testName + "_" + testIndex + ".html", testName))
-            .add(htmlSpan("summary", summaryToHtml(itemSummary)));
+            .add(htmlSpan("summary", summaryToHtml(itemSummary, resultTypes)));
+        Object cause = test.get("failure_message");
+        table.add(htmlFromString(
+            cause instanceof String ? (String) cause : ""));
       }
     }
     writeReport(
-        outFile, "class " + className, table.build(), summary, tests,
+        outFile, "class " + className, KEY_VAL_PREVIEW, table.build(), summary,
+        tests, resultTypes,
         "index", packageName, className);
     return summary;
   }
 
   private static Map<String, Integer> generateHtmlReportOneTest(
       String packageName, String className, String testName, int testIndex,
-      Map<?, ?> test, Path reportDir)
+      Map<?, ?> test, Path reportDir, List<String> resultTypes)
       throws IOException {
     String testId = testName + "_" + testIndex;
     String result = getIfOfType(test, "result", String.class);
@@ -225,7 +249,7 @@ final class JunitHtmlReportGenerator {
       if (failureTrace != null && !"".equals(failureTrace)) {
         // TODO: highlight comparison sections, and add spans around
         // filtered stack trace portions.
-        table.add(htmlFromString("Trace")).add(htmlFromString(failureTrace));
+        table.add(htmlFromString("Trace")).add(htmlFromTrace(failureTrace));
       }
     }
     {
@@ -239,8 +263,9 @@ final class JunitHtmlReportGenerator {
       outFile.getParent().createDirectory();
     }
     writeReport(
-        outFile, "test " + displayName, table.build(), summary,
-        ImmutableList.of(test),  // wrap in a list for consistency
+        outFile, "test " + displayName, KEY_VAL, table.build(), summary,
+        // Wrap test in a list for consistency.
+        ImmutableList.of(test), resultTypes,
         "index", packageName, className, testId);
     return summary;
   }
@@ -251,9 +276,15 @@ final class JunitHtmlReportGenerator {
     return sb.toString();
   }
 
+  private static final ImmutableList<String> KEY_VAL
+      = ImmutableList.of("key", "value");
+  private static final ImmutableList<String> KEY_VAL_PREVIEW
+      = ImmutableList.<String>builder().addAll(KEY_VAL).add("preview").build();
+
   private static void writeReport(
-      Path outFile, String title, List<Html> table,
-      Map<String, Integer> summary, Object json, String... navBar)
+      Path outFile, String title, List<String> columns, List<Html> table,
+      Map<String, Integer> summary, Object json, List<String> resultTypes,
+      String... navBar)
       throws IOException {
     int depth = navBar.length;
     String baseDir = nParent(depth - 1);
@@ -296,20 +327,27 @@ final class JunitHtmlReportGenerator {
         out.append("</span></h1>");
       }
       out.append("<span class=\"page_summary\">");  // The summary
-      summaryToHtml(summary).appendTo(out);
+      summaryToHtml(summary, resultTypes).appendTo(out);
       out.append("</span>");
 
       out.append("<table class=\"data_table\">");
-      for (int i = 0, n = table.size(); i < n; i += 2) {
-        Html name = table.get(i), value = table.get(i + 1);
+      for (int i = 0, r = 0, n = table.size(); i < n; ++r) {
+        Html name = table.get(i);
         out.append("<tr class=\"data_row ");
-        out.append((i & 2) == 0 ? "even " : "odd ");
-        appendHtml(out, name.asPlainText());
-        out.append("\"><td class=\"key\">");
-        name.appendTo(out);
-        out.append("</td><td class=\"value\">");
-        value.appendTo(out);
-        out.append("</tr>");
+        out.append((r & 1) == 0 ? "even " : "odd ");
+        String plainName = name.asPlainText();
+        if (plainName.indexOf('.') < 0  // not valid in class names
+            && plainName.indexOf(' ') < 0) {
+          appendHtml(out, plainName);
+        }
+        out.append("\">");
+        for (String column : columns) {
+          out.append("<td class=\"");
+          appendHtml(out, column);
+          out.append("\">");
+          table.get(i++).appendTo(out);
+          out.append("</td>");
+        }
       }
       out.append("</table></body></html>");
     } finally {
@@ -317,17 +355,31 @@ final class JunitHtmlReportGenerator {
     }
   }
 
-  private static Html summaryToHtml(Map<String, Integer> summary) {
-    String[] summaryKeys = summary.keySet().toArray(NO_STRINGS);
-    Arrays.sort(summaryKeys);
+  static Html summaryToHtml(
+      Map<String, Integer> summary, List<String> resultTypes) {
     int total = 0;
     ImmutableList.Builder<Html> parts = ImmutableList.builder();
     Html sep = htmlSpan("summary_sep", ",");
-    for (String summaryKey : summaryKeys) {
-      int n = summary.get(summaryKey);
-      parts.add(summaryPairToHtml(summaryKey, n)).add(sep);
-      total += n;
+    Html nonzeroSep = htmlSpan("summary_sep nonzero", ",");
+    boolean first = true, sawNonzero = false;
+    for (String summaryKey : resultTypes) {
+      Integer n = summary.get(summaryKey);
+      int count = n != null ? n : 0;
+      if (!first) {
+        if (count != 0) {
+          parts.add(sawNonzero ? nonzeroSep : sep);
+          sawNonzero = true;
+        } else {
+          parts.add(sep);
+        }
+      } else {
+        first = false;
+        sawNonzero = count != 0;
+      }
+      parts.add(summaryPairToHtml(summaryKey, count));
+      total += count;
     }
+    if (!first) { parts.add(sawNonzero ? nonzeroSep : sep); }
     parts.add(summaryPairToHtml("total", total));
     return htmlConcat(parts.build());
   }
@@ -336,6 +388,7 @@ final class JunitHtmlReportGenerator {
     return new Html() {
       public void appendTo(Appendable out) throws IOException {
         out.append("<span class=\"summary_pair ");
+        if (n != 0) { out.append("nonzero "); }
         appendHtml(out, summaryKey);
         out.append("\"><span class=\"summary_key\">");
         appendHtml(out, summaryKey);
@@ -345,9 +398,7 @@ final class JunitHtmlReportGenerator {
             .append("</span></span>");
       }
 
-      public String asPlainText() {
-        return summaryKey + ":" + n;
-      }
+      public String asPlainText() { return summaryKey + ":" + n; }
     };
   }
 
@@ -410,7 +461,7 @@ final class JunitHtmlReportGenerator {
     return null;
   }
 
-  private static interface Html {
+  static interface Html {
     void appendTo(Appendable out) throws IOException;
     String asPlainText();
   }
@@ -422,6 +473,78 @@ final class JunitHtmlReportGenerator {
       }
       public String asPlainText() { return plainText; }
     };
+  }
+
+  // TODO: could this logic move out of java and CSS if I just styled lines like
+  // "\tat (classname)" with classes for each package prefix and the full class
+  // name?
+  // and added CSS like
+  //    .stack_trace.org_junit_Asserts { color: #888 }
+  private static final Pattern STACK_TRACE_FILTER_SUFFIX = Pattern.compile(
+      ""
+      + "^\tat (?:"
+      + "org\\.prebake\\.service\\.tools\\.ext\\.JUnitRunner"
+      + "|org\\.junit\\."
+      + "|junit\\."
+      + "|java\\.lang\\.reflect\\."
+      + "|sun\\.reflect\\.)");
+
+  private static final Pattern STACK_TRACE_FILTER_PREFIX = Pattern.compile(
+      "^\tat (?:org\\.junit\\.Assert|junit\\.framework\\.Assert)\\b");
+
+  private static final Pattern GOLDEN_VS_ACTUAL = Pattern.compile(
+      "^(.* expected:<)(.*?)(> but was:<)(.*)(>)$", Pattern.DOTALL);
+
+  /**
+   * Split the stack trace into filtered portions and unfiltered portions.
+   */
+  static Html htmlFromTrace(final String stackTrace) {
+    String[] lines = stackTrace.split("(?:\r\n?|\n)(?=\tat )");
+    int n = lines.length;
+    int f = 0;
+    while (f < n && !lines[f].startsWith("\tat ")) { ++f; }
+    int s = f;
+    int e = n;
+    while (s < n && STACK_TRACE_FILTER_PREFIX.matcher(lines[s]).find()) { ++s; }
+    while (e > s && STACK_TRACE_FILTER_SUFFIX.matcher(lines[e - 1]).find()) {
+      --e;
+    }
+    List<Html> parts = Lists.newArrayList();
+    if (f > 0) {
+      String th = Joiner.on('\n').join(Arrays.asList(lines).subList(0, f));
+      Matcher m = GOLDEN_VS_ACTUAL.matcher(th);
+      if (m.matches()) {
+        List<Html> thParts = Lists.newArrayList();
+        thParts.add(htmlFromString(m.group(1)));
+        thParts.add(htmlSpan("golden", m.group(2)));
+        thParts.add(htmlFromString(m.group(3)));
+        thParts.add(htmlSpan("actual", m.group(4)));
+        thParts.add(htmlFromString(m.group(5)));
+        parts.add(htmlSpan("throwable", htmlConcat(thParts)));
+      } else {
+        parts.add(htmlSpan("throwable", th));
+      }
+      parts.add(htmlFromString("\n"));
+    }
+    if (s > f) {
+      parts.add(htmlSpan(
+          "filtered",
+          Joiner.on('\n').join(Arrays.asList(lines).subList(f, s))));
+      parts.add(htmlFromString("\n"));
+    }
+    if (s < e) {
+      parts.add(htmlSpan(
+          "unfiltered",
+          Joiner.on('\n').join(Arrays.asList(lines).subList(s, e))));
+      parts.add(htmlFromString("\n"));
+    }
+    if (e < n) {
+      parts.add(htmlSpan(
+          "filtered",
+          Joiner.on('\n').join(Arrays.asList(lines).subList(e, n))));
+      parts.add(htmlFromString("\n"));
+    }
+    return htmlConcat(parts);
   }
 
   static Html htmlLink(String href, String body) {
@@ -458,7 +581,8 @@ final class JunitHtmlReportGenerator {
     };
   }
 
-  static Html htmlConcat(Iterable<Html> html) {
+  static Html htmlConcat(Collection<Html> html) {
+    if (html.size() == 1) { return html.iterator().next(); }
     final ImmutableList<Html> parts = ImmutableList.copyOf(html);
     return new Html() {
       public void appendTo(Appendable out) throws IOException {
