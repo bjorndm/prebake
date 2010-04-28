@@ -55,6 +55,7 @@
     for (var i = 0, n = action.inputs.length; i < n; ++i) {
       var input = action.inputs[i];
       if (endsWithClass.test(input)) {  // E.g. lib/**.class
+        // TODO: Strip off directories if there is a com/org/net as a path element.
         extraClasspath.push(glob.prefix(input));
       }
     }

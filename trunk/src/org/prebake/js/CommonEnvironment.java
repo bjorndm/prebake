@@ -21,6 +21,7 @@ import org.prebake.core.MessageQueue;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Pattern;
 
 import javax.annotation.Nullable;
 import javax.annotation.ParametersAreNonnullByDefault;
@@ -85,6 +86,10 @@ public final class CommonEnvironment {
       "xform('src/foo/baz/boo.c');  // => 'lib/foo/baz/boo.o'",
       "xform('src/far.h');  // => null.  Input glob does not match .h files",
       "</code>");
+
+  private static final String MATCHER_HELP = Joiner.on('\n').join(
+      "Returns a function (path) that returns true iff the given path",
+      "matches glob.");
 
   private static final String PREFIX_HELP = Joiner.on('\n').join(
       "Given globs, finds the common prefix, the maximal path which",
@@ -167,6 +172,43 @@ public final class CommonEnvironment {
       }
     };
 
+    MembranableFunction globMatcher = new MembranableFunction() {
+      public int getArity() { return 1; }  // One or more globs.
+
+      public Documentation getHelp() {
+        return new Documentation(
+            getName() + "(globs) -> function (path) -> boolean", MATCHER_HELP,
+            "Mike Samuel <mikesamuel@gmail.com>");
+      }
+
+      public String getName() { return "matcher"; }
+
+      public MembranableFunction apply(Object[] args) {
+        MessageQueue mq = new MessageQueue();
+        final List<Glob> globs = Glob.CONV.convert(
+            args.length == 1 ? args[0] : Arrays.asList(args), mq);
+        if (mq.hasErrors()) {
+          throw new IllegalArgumentException(
+              Joiner.on('\n').join(mq.getMessages()));
+        }
+        final Pattern p = Glob.toRegex(globs);
+        return new MembranableFunction() {
+          public int getArity() { return 1; }
+          public Documentation getHelp() {
+            return new Documentation(
+                "match(path) -> boolean",
+                "True iff the given path matches at least one of " + globs,
+                "Mike Samuel <mikesamuel@gmail.com>");
+          }
+          public String getName() { return "match"; }
+          public Object apply(Object[] args) {
+            return args.length >= 1 && args[0] instanceof String
+                && p.matcher((String) args[0]).matches();
+          }
+        };
+      }
+    };
+
     MembranableFunction globPrefix = new MembranableFunction() {
       public int getArity() { return 1; }  // One or more globs.
 
@@ -188,7 +230,6 @@ public final class CommonEnvironment {
         }
         return Glob.commonPrefix(globs);
       }
-
     };
 
     return ImmutableMap.<String, Object>builder()
@@ -199,8 +240,9 @@ public final class CommonEnvironment {
                     "Path matching tools",
                     GLOB_HELP))
                 .put("intersect", globIntersect)
-                .put("xformer", globXformer)
+                .put("matcher", globMatcher)
                 .put("prefix", globPrefix)
+                .put("xformer", globXformer)
                 .build())
         .put(
             "sys",

@@ -30,7 +30,6 @@ import java.lang.annotation.Annotation;
 import java.nio.file.FileSystems;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.EnumMap;
 import java.util.List;
@@ -77,8 +76,17 @@ public final class JUnitRunner {
     Path reportOutputDir = FileSystems.getDefault().getPath(argv[1]);
     Set<String> reportTypes = Sets.newHashSet(
         argv[2].toLowerCase(Locale.ENGLISH).split(","));
-    String[] testClassNames = Arrays.asList(argv).subList(0, argv.length)
-        .toArray(new String[0]);
+    String[] testClassNames = new String[argv.length - 3];
+    ClassNameFinder classNameFinder = new ClassNameFinder();
+    int okResult = 0;
+    for (int i = argv.length; --i >= 3;) {
+      try {
+        testClassNames[i - 3] = classNameFinder.forClassFile(argv[i]);
+      } catch (IOException ex) {
+        System.err.println("Failed to read class file " + argv[i]);
+        okResult = -3;
+      }
+    }
     int result = run(
         new JUnitSystem() {
           public void exit(int result) {
@@ -87,7 +95,7 @@ public final class JUnitRunner {
           public PrintStream out() { return System.out; }
         },
         testReportFilter, reportOutputDir, reportTypes, testClassNames);
-    System.exit(result);
+    System.exit(result == 0 ? okResult : result);
   }
 
   public static int run(

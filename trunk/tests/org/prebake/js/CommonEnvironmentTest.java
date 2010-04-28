@@ -48,6 +48,14 @@ public class CommonEnvironmentTest extends PbTestCase {
         "glob.prefix(['lib/org/**.class', 'lib/com/**.class'])", "lib/");
   }
 
+  @Test public final void testMatcher() {
+    assertJsProduces("glob.matcher('foo/**')('foo/bar')", true);
+    assertJsProduces("glob.matcher('foo/**')('baz/bar')", false);
+    assertJsProduces("glob.matcher('foo/**', 'baz/*')('baz/bar')", true);
+    assertJsProduces("glob.matcher('foo/**', 'baz/*')('foo/bar')", true);
+    assertJsProduces("glob.matcher('foo/**', 'baz/*')('baz/boo/far')", false);
+  }
+
   @Test public final void testSys() {
     assertJsProduces("sys.os.arch", "i386");
     assertJsProduces("sys.os.name", "generic-posix");
