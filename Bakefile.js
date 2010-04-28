@@ -33,15 +33,8 @@ var jars = [
           "test files."].join("\n"),
       contact: "Mike Samuel <mikesamuel@gmail.com>"
     },
-    actions: [{
-      tool:    "javac",
-      inputs:  ["src/**.java"].concat(jars),
-      outputs: "lib/**.class",
-    }, {
-      tool:    "cp",
-      inputs:  "src/**.{js,txt}",
-      outputs: "lib/**.{js,txt}"
-    }]
+    actions: [tools.javac(["src/**.java"].concat(jars), "lib/**.class"),
+              tools.cp("src/**.{js,txt}", "lib/**.{js,txt}")]
   },
   tests: {
     help: {
@@ -49,19 +42,13 @@ var jars = [
       detail:  "Puts under test-lib/ everything needed for junit tests",
       contact: "Mike Samuel <mikesamuel@gmail.com>"
     },
-    actions: [{
-      tool:    "javac",
-      inputs:  ["tests/**.java", "lib/**.class"].concat(jars),
-      outputs: "test-lib/**.class"
-    }]
+    actions: [tools.javac(["tests/**.java", "lib/**.class"].concat(jars),
+                          "test-lib/**.class")]
   },
   runtests: {
     help: 'Runs JUnit tests putting test results under reports',
-    actions: [{
-      tool:    'junit',
-      inputs:  ['test-lib/**.class', 'lib/**.class'].concat(jars),
-      outputs: 'reports/tests/**.{xml,html}',
-      options: { test_class_filter: '**Test.class' }
-    }]
+    actions: [tools.junit(['test-lib/**.class', 'lib/**.class'].concat(jars),
+                          'reports/tests/**.{json,html}',
+                          { test_class_filter: '**Test.class' })]
   }
 })

@@ -116,7 +116,7 @@ final class JunitHtmlReportGenerator {
           packageName, tests, reportDir.resolve("index"));
       bagPutAll(itemSummary, summary);
       table.add(htmlLink("index/" + packageName + ".html", packageName))
-          .add(summaryToHtml(itemSummary));
+          .add(htmlSpan("summary", summaryToHtml(itemSummary)));
     }
     writeReport(outFile, "JUnit", table.build(), summary, jsonReport, "index");
   }
@@ -146,7 +146,7 @@ final class JunitHtmlReportGenerator {
           packageName, className, classTests, reportDir.resolve(packageName));
       bagPutAll(itemSummary, summary);
       table.add(htmlLink(packageName + "/" + className + ".html", className))
-          .add(summaryToHtml(itemSummary));
+          .add(htmlSpan("summary", summaryToHtml(itemSummary)));
     }
     writeReport(
         outFile, "package " + packageName, table.build(), summary, tests,
@@ -187,7 +187,7 @@ final class JunitHtmlReportGenerator {
         bagPutAll(itemSummary, summary);
         table.add(htmlLink(
             className + "/" + testName + "_" + testIndex + ".html", testName))
-            .add(summaryToHtml(itemSummary));
+            .add(htmlSpan("summary", summaryToHtml(itemSummary)));
       }
     }
     writeReport(
@@ -223,6 +223,8 @@ final class JunitHtmlReportGenerator {
     {
       String failureTrace = getIfOfType(test, "failure_trace", String.class);
       if (failureTrace != null && !"".equals(failureTrace)) {
+        // TODO: highlight comparison sections, and add spans around
+        // filtered stack trace portions.
         table.add(htmlFromString("Trace")).add(htmlFromString(failureTrace));
       }
     }
@@ -301,6 +303,7 @@ final class JunitHtmlReportGenerator {
       for (int i = 0, n = table.size(); i < n; i += 2) {
         Html name = table.get(i), value = table.get(i + 1);
         out.append("<tr class=\"data_row ");
+        out.append((i & 2) == 0 ? "even " : "odd ");
         appendHtml(out, name.asPlainText());
         out.append("\"><td class=\"key\">");
         name.appendTo(out);
@@ -319,7 +322,7 @@ final class JunitHtmlReportGenerator {
     Arrays.sort(summaryKeys);
     int total = 0;
     ImmutableList.Builder<Html> parts = ImmutableList.builder();
-    Html sep = htmlSpanTag("summary_sep", ",");
+    Html sep = htmlSpan("summary_sep", ",");
     for (String summaryKey : summaryKeys) {
       int n = summary.get(summaryKey);
       parts.add(summaryPairToHtml(summaryKey, n)).add(sep);
@@ -438,12 +441,11 @@ final class JunitHtmlReportGenerator {
     };
   }
 
-  static Html htmlSpanTag(String classes, String body) {
-    return htmlSpanTag(
-        classes, htmlFromString("".equals(body) ? "\u00A0" : body));
+  static Html htmlSpan(String classes, String body) {
+    return htmlSpan(classes, htmlFromString("".equals(body) ? "\u00A0" : body));
   }
 
-  static Html htmlSpanTag(final String classes, final Html body) {
+  static Html htmlSpan(final String classes, final Html body) {
     return new Html() {
       public void appendTo(Appendable out) throws IOException {
         out.append("<span class=\"");
