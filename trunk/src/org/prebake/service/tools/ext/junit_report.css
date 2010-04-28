@@ -1,0 +1,52 @@
+/** Supporting styles for JunitHtmlReportGenerator.java */
+
+h1 {
+  text-align: right;
+  font-size: 110%;
+  position: absolute;
+  right: 1em;
+  margin: 0;
+}
+h1 .nav_sep { padding: 0 .5em; color: #888 }
+h1 a { font-weight: normal }
+h1 .nav_anc, h1 .nav_sep, h1 .nav_top { background: #ddf; padding: .125em .25em }
+
+.page_summary {
+  font-weight: bold;
+  font-size: 110%;
+  padding-bottom: .5em;
+  display: block
+}
+.summary_sep    { padding-right: .5em }
+.summary_spacer { padding-right: .25em }
+
+.summary_pair.error   .summary_value,
+.summary_pair.failure .summary_value { color: red }
+.summary_pair.ignored .summary_value { color: #bb0 }
+.summary_pair.success .summary_value { color: #080 }
+
+.data_table { border-collapse: collapse }
+.data_table td { padding: .25em }
+.data_table td.value { width: 100% }
+.data_table tr   { vertical-align: top }
+.data_table .key { font-weight: bold; padding-right: .5em }
+
+.data_table .summary_sep { display: none }
+.data_table td .summary { display: block; position: relative }
+.data_table .summary_pair.success { position: absolute; left: 0em }
+.data_table .summary_pair.failure { position: absolute; left: 6em }
+.data_table .summary_pair.error { position: absolute; left: 12em }
+.data_table .summary_pair.ignored { position: absolute; left: 18em }
+.data_table .summary_pair.total { position: absolute; left: 24em }
+
+.tree_level_1 .data_table tr.even,
+.tree_level_2 .data_table tr.even,
+.tree_level_3 .data_table tr.even { background-color: #ddd }
+
+/** Preformat structured text in the test detail view. */
+.tree_level_4 .Cause  .value, 
+.tree_level_4 .Trace  .value, 
+.tree_level_4 .Output .value {
+  white-space: pre-wrap;
+  font-family: monospace
+}

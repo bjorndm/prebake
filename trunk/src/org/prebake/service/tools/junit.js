@@ -83,7 +83,6 @@
         if (inferReportDir) {
           // The report directory is the one that contains the json output dump
           // or index.html.
-          console.log('comparing ' + output);
           var m = output.match(/^[^*]+?(?=\/[^\/]*$|\*(?:\/|$))/);
           if (m) {
             var prefix = m[0];
