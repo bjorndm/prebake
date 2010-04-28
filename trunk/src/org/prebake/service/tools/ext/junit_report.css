@@ -1,5 +1,6 @@
-/** Supporting styles for JunitHtmlReportGenerator.java */
+/* Supporting styles for JunitHtmlReportGenerator.java */
 
+/* Move the navigation bar right, and color it */
 h1 {
   text-align: right;
   font-size: 110%;
@@ -11,6 +12,7 @@ h1 .nav_sep { padding: 0 .5em; color: #888 }
 h1 a { font-weight: normal }
 h1 .nav_anc, h1 .nav_sep, h1 .nav_top { background: #ddf; padding: .125em .25em }
 
+/* The summary is in-line with the navigation bar. */
 .page_summary {
   font-weight: bold;
   font-size: 110%;
@@ -19,34 +21,50 @@ h1 .nav_anc, h1 .nav_sep, h1 .nav_top { background: #ddf; padding: .125em .25em 
 }
 .summary_sep    { padding-right: .5em }
 .summary_spacer { padding-right: .25em }
+.page_summary .summary_pair.nonzero { display: inline }
+.page_summary .summary_sep.nonzero { display: inline }
+.page_summary .summary_pair { display: none }
+.page_summary .summary_sep { display: none }
 
-.summary_pair.error   .summary_value,
-.summary_pair.failure .summary_value { color: red }
-.summary_pair.ignored .summary_value { color: #bb0 }
-.summary_pair.success .summary_value { color: #080 }
+.summary_pair.nonzero .summary_key,
+.summary_pair.nonzero .summary_value         { color: #000 }
+.summary_pair.error.nonzero   .summary_value,
+.summary_pair.failure.nonzero .summary_value { color: red }
+.summary_pair.ignored.nonzero .summary_value { color: #bb0 }
+.summary_pair.success.nonzero .summary_value { color: #080 }
+.summary_pair { color: #888 }  /* Affects zero value pairs */
 
 .data_table { border-collapse: collapse }
 .data_table td { padding: .25em }
-.data_table td.value { width: 100% }
-.data_table tr   { vertical-align: top }
+.data_table tr { vertical-align: top }
 .data_table .key { font-weight: bold; padding-right: .5em }
 
+/* Position faux-columns below relative to the cell in which they appear. */
 .data_table .summary_sep { display: none }
-.data_table td .summary { display: block; position: relative }
-.data_table .summary_pair.success { position: absolute; left: 0em }
-.data_table .summary_pair.failure { position: absolute; left: 6em }
-.data_table .summary_pair.error { position: absolute; left: 12em }
-.data_table .summary_pair.ignored { position: absolute; left: 18em }
-.data_table .summary_pair.total { position: absolute; left: 24em }
+/* Faux-columns for child item summaries in index/package/class tables. */
+.data_table .summary_key  { display: inline-block; width: 3em }
+.data_table .total .summary_key  { width: 2em }
+.data_table .summary_value { display: inline-block; width: .75em; text-align: right; margin-right: 1em }
 
+/* Color alternating table rows. */
 .tree_level_1 .data_table tr.even,
 .tree_level_2 .data_table tr.even,
 .tree_level_3 .data_table tr.even { background-color: #ddd }
 
-/** Preformat structured text in the test detail view. */
-.tree_level_4 .Cause  .value, 
-.tree_level_4 .Trace  .value, 
+/* Preformat structured text in the test detail view. */
+.tree_level_4 .Cause  .value,
+.tree_level_4 .Trace  .value,
 .tree_level_4 .Output .value {
   white-space: pre-wrap;
   font-family: monospace
 }
+.tree_level_1 td.value,
+.tree_level_2 td.value,
+.tree_level_3 td.value { white-space: nowrap }
+.preview { font-style: italic; white-space: nowrap; overflow: hidden }
+
+/* Make stack traces pretty */
+.tree_level_4 .Trace .value .filtered { color: #888 }
+/* Make it obvious which parts are different in comparison failures. */
+.tree_level_4 .Trace .value .golden { color: #080; font-weight: bold }
+.tree_level_4 .Trace .value .actual { color: #800; font-weight: bold }

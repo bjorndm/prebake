@@ -35,6 +35,8 @@ import java.util.regex.Pattern;
 import com.google.common.base.Charsets;
 import com.google.common.base.Joiner;
 import com.google.common.base.Throwables;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.io.CharStreams;
 
@@ -74,7 +76,7 @@ public class JunitHtmlReportGeneratorTest extends PbTestCase {
         "      \"test_name\": \"I Errored Out\",",
         "      \"out\": \"Something fishy is going on!\",",
         "      \"failure_message\": \"Boom\",",
-        "      \"failure_trace\": \"  at boom\\n  at tick\\n  at tick\",",
+        "      \"failure_trace\": \"\tat boom\\n\tat tick\\n\tat tick\",",
         "      \"result\": \"error\"",
         "    },",
         "    {",
@@ -249,17 +251,7 @@ public class JunitHtmlReportGeneratorTest extends PbTestCase {
             "</h1>",
             // Summary
             "<span class=\"page_summary\">",
-            "<span class=\"summary_pair success\">",
-            "<span class=\"summary_key\">success</span>",
-            "<span class=\"summary_spacer\">:</span>",
-            "<span class=\"summary_value\">1</span>",
-            "</span>",
-            "<span class=\"summary_sep\">,</span>",
-            "<span class=\"summary_pair total\">",
-            "<span class=\"summary_key\">total</span>",
-            "<span class=\"summary_spacer\">:</span>",
-            "<span class=\"summary_value\">1</span>",
-            "</span>",
+            summaryHtml("classic", 0, "error", 0, "failure", 0, "success", 1),
             "</span>",
             // The list of tests with links
             "<table class=\"data_table\">",
@@ -267,18 +259,9 @@ public class JunitHtmlReportGeneratorTest extends PbTestCase {
             "<td class=\"key\"><a href=\"Boo/testing_0.html\">testing</a></td>",
             "<td class=\"value\">",
             "<span class=\"summary\">",
-            "<span class=\"summary_pair success\">",
-            "<span class=\"summary_key\">success</span>",
-            "<span class=\"summary_spacer\">:</span>",
-            "<span class=\"summary_value\">1</span>",
-            "</span>",
-            "<span class=\"summary_sep\">,</span>",
-            "<span class=\"summary_pair total\">",
-            "<span class=\"summary_key\">total</span>",
-            "<span class=\"summary_spacer\">:</span>",
-            "<span class=\"summary_value\">1</span>",
-            "</span>",
-            "</span></tr>",
+            summaryHtml("classic", 0, "error", 0, "failure", 0, "success", 1),
+            "</span></td>",
+            "<td class=\"preview\"></td>",
             "</table>",
             "</body></html>").replace(">", ">\n"),
         CharStreams.toString(
@@ -300,7 +283,7 @@ public class JunitHtmlReportGeneratorTest extends PbTestCase {
             "\"test_name\":\"I Errored Out\",",
             "\"out\":\"Something fishy is going on!\",",
             "\"failure_message\":\"Boom\",",
-            "\"failure_trace\":\"  at boom\\n  at tick\\n  at tick\",",
+            "\"failure_trace\":\"\\tat boom\\n\\tat tick\\n\\tat tick\",",
             "\"result\":\"error\"}]);",
             "</script>",
             "</head>",
@@ -317,32 +300,26 @@ public class JunitHtmlReportGeneratorTest extends PbTestCase {
             "</h1>",
             // Summary
             "<span class=\"page_summary\">",
-            "<span class=\"summary_pair error\">",
-            "<span class=\"summary_key\">error</span>",
-            "<span class=\"summary_spacer\">:</span>",
-            "<span class=\"summary_value\">1</span>",
-            "</span>",
-            "<span class=\"summary_sep\">,</span>",
-            "<span class=\"summary_pair total\">",
-            "<span class=\"summary_key\">total</span>",
-            "<span class=\"summary_spacer\">:</span>",
-            "<span class=\"summary_value\">1</span>",
-            "</span>",
+            summaryHtml("classic", 0, "error", 1, "failure", 0, "success", 0),
             "</span>",
             // The test details.
             "<table class=\"data_table\">",
             "<tr class=\"data_row even Name\">",
             "<td class=\"key\">Name</td>",
-            "<td class=\"value\">I Errored Out</tr>",
+            "<td class=\"value\">I Errored Out</td>",
             "<tr class=\"data_row odd Cause\">",
             "<td class=\"key\">Cause</td>",
-            "<td class=\"value\">Boom</tr>",
+            "<td class=\"value\">Boom</td>",
             "<tr class=\"data_row even Trace\">",
             "<td class=\"key\">Trace</td>",
-            "<td class=\"value\">  at boom\n  at tick\n  at tick</tr>",
+            "<td class=\"value\">",
+            "<span class=\"unfiltered\">",
+            "&#9;at boom\n&#9;at tick\n&#9;at tick",
+            "</span>\n",
+            "</td>",
             "<tr class=\"data_row odd Output\">",
             "<td class=\"key\">Output</td>",
-            "<td class=\"value\">Something fishy is going on!</tr>",
+            "<td class=\"value\">Something fishy is going on!</td>",
             "</table>",
             "</body></html>").replace(">", ">\n"),
         CharStreams.toString(
@@ -375,7 +352,7 @@ public class JunitHtmlReportGeneratorTest extends PbTestCase {
             "\"test_name\":\"I Errored Out\",",
             "\"out\":\"Something fishy is going on!\",",
             "\"failure_message\":\"Boom\",",
-            "\"failure_trace\":\"  at boom\\n  at tick\\n  at tick\",",
+            "\"failure_trace\":\"\\tat boom\\n\\tat tick\\n\\tat tick\",",
             "\"result\":\"error\"},",
             "{\"class_name\":\"foo.Baz\",",
             "\"method_name\":\"boo\",",
@@ -397,29 +374,7 @@ public class JunitHtmlReportGeneratorTest extends PbTestCase {
             "</h1>",
             // Summary
             "<span class=\"page_summary\">",
-            "<span class=\"summary_pair error\">",
-            "<span class=\"summary_key\">error</span>",
-            "<span class=\"summary_spacer\">:</span>",
-            "<span class=\"summary_value\">1</span>",
-            "</span>",
-            "<span class=\"summary_sep\">,</span>",
-            "<span class=\"summary_pair failure\">",
-            "<span class=\"summary_key\">failure</span>",
-            "<span class=\"summary_spacer\">:</span>",
-            "<span class=\"summary_value\">2</span>",
-            "</span>",
-            "<span class=\"summary_sep\">,</span>",
-            "<span class=\"summary_pair success\">",
-            "<span class=\"summary_key\">success</span>",
-            "<span class=\"summary_spacer\">:</span>",
-            "<span class=\"summary_value\">2</span>",
-            "</span>",
-            "<span class=\"summary_sep\">,</span>",
-            "<span class=\"summary_pair total\">",
-            "<span class=\"summary_key\">total</span>",
-            "<span class=\"summary_spacer\">:</span>",
-            "<span class=\"summary_value\">5</span>",
-            "</span>",
+            summaryHtml("classic", 0, "error", 1, "failure", 2, "success", 2),
             "</span>",
             // The list of classes with links
             "<table class=\"data_table\">",
@@ -427,59 +382,177 @@ public class JunitHtmlReportGeneratorTest extends PbTestCase {
             "<td class=\"key\"><a href=\"foo/Bar.html\">Bar</a></td>",
             "<td class=\"value\">",
             "<span class=\"summary\">",
-            "<span class=\"summary_pair error\">",
-            "<span class=\"summary_key\">error</span>",
-            "<span class=\"summary_spacer\">:</span>",
-            "<span class=\"summary_value\">1</span>",
+            summaryHtml("classic", 0, "error", 1, "failure", 1, "success", 1),
             "</span>",
-            "<span class=\"summary_sep\">,</span>",
-            "<span class=\"summary_pair failure\">",
-            "<span class=\"summary_key\">failure</span>",
-            "<span class=\"summary_spacer\">:</span>",
-            "<span class=\"summary_value\">1</span>",
-            "</span>",
-            "<span class=\"summary_sep\">,</span>",
-            "<span class=\"summary_pair success\">",
-            "<span class=\"summary_key\">success</span>",
-            "<span class=\"summary_spacer\">:</span>",
-            "<span class=\"summary_value\">1</span>",
-            "</span>",
-            "<span class=\"summary_sep\">,</span>",
-            "<span class=\"summary_pair total\">",
-            "<span class=\"summary_key\">total</span>",
-            "<span class=\"summary_spacer\">:</span>",
-            "<span class=\"summary_value\">3</span>",
-            "</span>",
-            "</span>",
-            "</tr>",
+            "</td>",
             "<tr class=\"data_row odd Baz\">",
             "<td class=\"key\"><a href=\"foo/Baz.html\">Baz</a></td>",
             "<td class=\"value\">",
             "<span class=\"summary\">",
-            "<span class=\"summary_pair failure\">",
-            "<span class=\"summary_key\">failure</span>",
-            "<span class=\"summary_spacer\">:</span>",
-            "<span class=\"summary_value\">1</span>",
+            summaryHtml("classic", 0, "error", 0, "failure", 1, "success", 1),
             "</span>",
-            "<span class=\"summary_sep\">,</span>",
-            "<span class=\"summary_pair success\">",
-            "<span class=\"summary_key\">success</span>",
-            "<span class=\"summary_spacer\">:</span>",
-            "<span class=\"summary_value\">1</span>",
-            "</span>",
-            "<span class=\"summary_sep\">,</span>",
-            "<span class=\"summary_pair total\">",
-            "<span class=\"summary_key\">total</span>",
-            "<span class=\"summary_spacer\">:</span>",
-            "<span class=\"summary_value\">2</span>",
-            "</span>",
-            "</span>",
-            "</tr>",
+            "</td>",
             "</table>",
             "</body></html>").replace(">", ">\n"),
         CharStreams.toString(
             new InputStreamReader(fs.getPath(
                 "/reports/tests/index/foo.html").newInputStream(),
             Charsets.UTF_8)).replace(">", ">\n"));
+  }
+
+  @Test public final void testTraceFiltering() throws IOException {
+    String trace = Joiner.on('\n').join(
+        ("org.junit.ComparisonFailure: expected:"
+         + "<{\"name\":\"[cp\",\"help\":{\"summary\":"
+         + "\"Copies files to a directory tree.\",\"detail\":"
+         + "\"This version of the cp command copies by glob transform.\\n"
+         + "E.g. to copy all html files under the doc/ directory to \\n"
+         + "the same location under the www directory do"
+         + "\\n  tools.cp(\\\"doc/**.html\\\", \\\"www/**.html\\\");\","
+         + "\"contact\":\"Mike Samuel <mikesamuel@gmail.com>\"}}"
+         + " ; {\"name\":\"]bar\",\"help\":\"an exam...>"
+         + " but was:<{\"name\":\"[]bar\",\"help\":\"an exam...>"),
+        "\tat org.junit.Assert.assertEquals(Assert.java:123)",
+        "\tat org.junit.Assert.assertEquals(Assert.java:145)",
+        ("\tat org.prebake.service.tools.ToolBoxTest$TestRunner.assertSigs"
+         + "(ToolBoxTest.java:221)"),
+        ("\tat org.prebake.service.tools.ToolBoxTest.testBuiltin"
+         + "(ToolBoxTest.java:112)"),
+        "\tat sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method)",
+        "\tat java.lang.reflect.Method.invoke(Method.java:613)",
+        ("\tat org.junit.runners.BlockJUnit4ClassRunner.runChild"
+         + "(BlockJUnit4ClassRunner.java:50)"),
+        "\tat org.junit.runners.ParentRunner$3.run(ParentRunner.java:193)",
+        "\tat org.junit.runners.Suite.runChild(Suite.java:24)",
+        "\tat org.junit.runner.JUnitCore.run(JUnitCore.java:117)",
+        "\tat org.junit.runner.JUnitCore.runMain(JUnitCore.java:98)",
+        ("\tat org.prebake.service.tools.ext.JUnitRunner.run"
+         + "(JUnitRunner.java:176)"),
+        ("\tat org.prebake.service.tools.ext.JUnitRunner.main"
+         + "(JUnitRunner.java:90)")
+        );
+    JunitHtmlReportGenerator.Html traceHtml
+        = JunitHtmlReportGenerator.htmlFromTrace(trace);
+    assertEquals(trace + "\n", traceHtml.asPlainText());
+    StringBuilder html = new StringBuilder();
+    traceHtml.appendTo(html);
+    assertEquals(
+        Joiner.on('\n').join(
+            ("<span class=\"throwable\">"
+             + "org.junit.ComparisonFailure: expected:&#60;"
+             + "<span class=\"golden\">{&#34;name&#34;:&#34;"
+             + "[cp&#34;,&#34;help&#34;:{&#34;summary&#34;:&#34;"
+             + "Copies files to a directory tree.&#34;,&#34;detail&#34;:&#34;"
+             + "This version of the cp command copies by glob transform.\\n"
+             + "E.g. to copy all html files under the doc/ directory to \\n"
+             + "the same location under the www directory do"
+             + "\\n  tools.cp(\\&#34;doc/**.html\\&#34;,"
+             + " \\&#34;www/**.html\\&#34;);&#34;,"
+             + "&#34;contact&#34;:&#34;Mike Samuel"
+             + " &#60;mikesamuel@gmail.com&#62;&#34;}} ; "
+             + "{&#34;name&#34;:&#34;]bar&#34;,&#34;help&#34;:&#34;an exam..."
+             + "</span>&#62; but was:&#60;<span class=\"actual\">"
+             + "{&#34;name&#34;:&#34;[]bar&#34;,"
+             + "&#34;help&#34;:&#34;an exam...</span>&#62;"
+             + "</span>"),
+            ("<span class=\"filtered\">"
+             + "&#9;at org.junit.Assert.assertEquals(Assert.java:123)"),
+            "&#9;at org.junit.Assert.assertEquals(Assert.java:145)</span>",
+            ("<span class=\"unfiltered\">"
+             + "&#9;at org.prebake.service.tools.ToolBoxTest$TestRunner"
+             + ".assertSigs(ToolBoxTest.java:221)"),
+            ("&#9;at org.prebake.service.tools.ToolBoxTest.testBuiltin"
+             + "(ToolBoxTest.java:112)</span>"),
+            ("<span class=\"filtered\">"
+             + "&#9;at sun.reflect.NativeMethodAccessorImpl.invoke0"
+             + "(Native Method)"),
+            "&#9;at java.lang.reflect.Method.invoke(Method.java:613)",
+            ("&#9;at org.junit.runners.BlockJUnit4ClassRunner.runChild"
+             + "(BlockJUnit4ClassRunner.java:50)"),
+            ("&#9;at org.junit.runners.ParentRunner$3.run"
+             + "(ParentRunner.java:193)"),
+            "&#9;at org.junit.runners.Suite.runChild(Suite.java:24)",
+            "&#9;at org.junit.runner.JUnitCore.run(JUnitCore.java:117)",
+            "&#9;at org.junit.runner.JUnitCore.runMain(JUnitCore.java:98)",
+            ("&#9;at org.prebake.service.tools.ext.JUnitRunner.run"
+             + "(JUnitRunner.java:176)"),
+            ("&#9;at org.prebake.service.tools.ext.JUnitRunner.main"
+             + "(JUnitRunner.java:90)</span>"),
+            ""),
+        html.toString());
+  }
+
+  @Test public final void testSummaryHtml() {
+    assertEquals(
+        Joiner.on("").join(
+            "<span class=\"summary_pair total\">",
+            "<span class=\"summary_key\">total</span>",
+            "<span class=\"summary_spacer\">:</span>",
+            "<span class=\"summary_value\">0</span>",
+            "</span>"),
+        summaryHtml());
+    assertEquals(
+        Joiner.on("").join(
+            "<span class=\"summary_pair success\">",
+            "<span class=\"summary_key\">success</span>",
+            "<span class=\"summary_spacer\">:</span>",
+            "<span class=\"summary_value\">0</span>",
+            "</span>",
+            "<span class=\"summary_sep\">,</span>",
+            "<span class=\"summary_pair total\">",
+            "<span class=\"summary_key\">total</span>",
+            "<span class=\"summary_spacer\">:</span>",
+            "<span class=\"summary_value\">0</span>",
+            "</span>"),
+        summaryHtml("success", 0));
+    assertEquals(
+        Joiner.on("").join(
+            "<span class=\"summary_pair nonzero error\">",
+            "<span class=\"summary_key\">error</span>",
+            "<span class=\"summary_spacer\">:</span>",
+            "<span class=\"summary_value\">1</span>",
+            "</span>",
+            "<span class=\"summary_sep nonzero\">,</span>",
+            "<span class=\"summary_pair nonzero failure\">",
+            "<span class=\"summary_key\">failure</span>",
+            "<span class=\"summary_spacer\">:</span>",
+            "<span class=\"summary_value\">2</span>",
+            "</span>",
+            "<span class=\"summary_sep\">,</span>",
+            "<span class=\"summary_pair ignored\">",
+            "<span class=\"summary_key\">ignored</span>",
+            "<span class=\"summary_spacer\">:</span>",
+            "<span class=\"summary_value\">0</span>",
+            "</span>",
+            "<span class=\"summary_sep nonzero\">,</span>",
+            "<span class=\"summary_pair nonzero success\">",
+            "<span class=\"summary_key\">success</span>",
+            "<span class=\"summary_spacer\">:</span>",
+            "<span class=\"summary_value\">2</span>",
+            "</span>",
+            "<span class=\"summary_sep nonzero\">,</span>",
+            "<span class=\"summary_pair nonzero total\">",
+            "<span class=\"summary_key\">total</span>",
+            "<span class=\"summary_spacer\">:</span>",
+            "<span class=\"summary_value\">5</span>",
+            "</span>"),
+            summaryHtml("error", 1, "failure", 2, "ignored", 0, "success", 2));
+  }
+
+  private static String summaryHtml(Object... parts) {
+    ImmutableMap.Builder<String, Integer> summary = ImmutableMap.builder();
+    ImmutableList.Builder<String> types = ImmutableList.builder();
+    for (int i = 0, n = parts.length; i < n; i += 2) {
+      types.add((String) parts[i]);
+      summary.put((String) parts[i], (Integer) parts[i + 1]);
+    }
+    StringBuilder sb = new StringBuilder();
+    try {
+      JunitHtmlReportGenerator.summaryToHtml(summary.build(), types.build())
+          .appendTo(sb);
+    } catch (IOException ex) {
+      Throwables.propagate(ex);
+    }
+    return sb.toString();
   }
 }
