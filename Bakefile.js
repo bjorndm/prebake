@@ -50,5 +50,10 @@ var jars = [
     actions: [tools.junit(['test-lib/**.class', 'lib/**.class'].concat(jars),
                           'reports/tests/**.{json,html}',
                           { test_class_filter: '**Test.class' })]
+  },
+  docs: {
+    help: "Puts javadoc under docs",
+      actions: [tools.javadoc('src/**.java', 'doc/api/**.html',
+                              {'protected':true})]
   }
 })

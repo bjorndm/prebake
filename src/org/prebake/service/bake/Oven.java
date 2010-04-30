@@ -14,7 +14,6 @@
 
 package org.prebake.service.bake;
 
-import org.prebake.core.Documentation;
 import org.prebake.core.Glob;
 import org.prebake.core.Hash;
 import org.prebake.fs.FileAndHash;
@@ -30,20 +29,17 @@ import org.prebake.service.tools.BuiltinToolHooks;
 import org.prebake.service.tools.ToolContent;
 import org.prebake.service.tools.ToolProvider;
 
-import java.io.IOError;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import javax.annotation.Nonnull;
 
 import com.google.common.base.Charsets;
-import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
@@ -83,43 +79,9 @@ final class Oven {
     for (Path input : inputs) { inputStrs.add(input.toString()); }
     Collections.sort(inputStrs);
     Executor exec = Executor.Factory.createJsExecutor();
-    MembranableFunction execFn = new MembranableFunction() {
-      public Object apply(Object[] args) {
-        // TODO: check inside args for clientDir
-        if (args.length == 0 || args[0] == null) {
-          throw new IllegalArgumentException("No command specified");
-        }
-        String cmd = (String) args[0];
-        List<String> argv = Lists.newArrayList();
-        for (int i = 1, n = args.length; i < n; ++i) {
-          if (args[i] != null) { argv.add((String) args[i]); }
-        }
-        try {
-          Process p = os.run(
-              workingDir, cmd, argv.toArray(new String[argv.size()]));
-          p.getOutputStream().close();
-          Integer result = Integer.valueOf(p.waitFor());
-          if (result.intValue() != 0) {
-            logger.log(
-                Level.INFO, "{0} exited with {1}",
-                new Object[] { cmd, result });
-          }
-          return result;
-        } catch (IOException ex) {
-          throw new IOError(ex);
-        } catch (InterruptedException ex) {
-          Throwables.propagate(ex);
-          return 0;
-        }
-      }
-      public int getArity() { return 1; }
-      public String getName() { return "exec"; }
-      public Documentation getHelp() {
-        return new Documentation(
-            "exec(cmd, argv...)", "kicks off a command line process",
-          "prebake@prebake.org");
-      }
-    };
+    WorkingFileChecker checker = new WorkingFileChecker(
+        files.getVersionRoot(), workingDir);
+    MembranableFunction execFn = new Execer(os, workingDir, checker, logger);
     ImmutableMap.Builder<String, Object> actuals = ImmutableMap.builder();
     actuals.putAll(commonJsEnv);
     actuals.put("exec", execFn);
@@ -165,7 +127,6 @@ final class Oven {
             .write(toolNameToLocalName.get(action.toolName))
             .write(".fire(\n    ")
             .writeValue(action.options).write(",\n    ")
-            // TODO: define exec based on os
             .writeValue(actionInputs.build())
             .write(",\n    product,\n    ")
             .writeValue(action)

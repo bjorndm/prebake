@@ -19,10 +19,11 @@ import org.prebake.core.MessageQueue;
 import org.prebake.js.CommonEnvironment;
 import org.prebake.js.JsonSource;
 import org.prebake.os.OperatingSystem;
+import org.prebake.os.OsProcess;
+import org.prebake.os.PipeFlusher;
 import org.prebake.util.CommandLineArgs;
 
 import com.google.common.base.Charsets;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.io.ByteStreams;
 import com.google.common.util.concurrent.Executors;
@@ -39,7 +40,6 @@ import java.nio.file.FileSystem;
 import java.nio.file.FileSystems;
 import java.nio.file.Path;
 import java.security.SecureRandom;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ScheduledExecutorService;
@@ -47,6 +47,7 @@ import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import javax.annotation.Nullable;
 import javax.annotation.ParametersAreNonnullByDefault;
 
 /**
@@ -78,25 +79,18 @@ public final class Main {
       }
       System.exit(-1);
     }
-    ScheduledExecutorService execer = Executors
+    final ScheduledExecutorService execer = Executors
         .getExitingScheduledExecutorService(
-            new ScheduledThreadPoolExecutor(4));
+            new ScheduledThreadPoolExecutor(16));
     OperatingSystem os = new OperatingSystem() {
+      PipeFlusher flusher = new PipeFlusher(execer);
       public Path getTempDir() {
         return fs.getPath(System.getProperty("java.io.tmpdir"));
       }
-      public Process run(Path cwd, String command, String... argv)
-          throws IOException {
-        ProcessBuilder pb = new ProcessBuilder();
-        pb.directory(new File(cwd.toString()));
-        // TODO: figure out how to get the error and output to the logger/tool.
-        pb.redirectError(ProcessBuilder.Redirect.INHERIT);
-        pb.redirectOutput(ProcessBuilder.Redirect.INHERIT);
-        List<String> args = ImmutableList.<String>builder().add(command)
-            .add(argv).build();
-        pb.command(args);
-        return pb.start();
+      public OsProcess run(Path cwd, String command, String... argv) {
+        return new OsProcessImpl(this, cwd, command, argv);
       }
+      public PipeFlusher getPipeFlusher() { return flusher; }
     };
     final Prebakery pb = new Prebakery(config, env, execer, os, logger) {
       @Override
@@ -202,5 +196,58 @@ public final class Main {
       sysProps.put((String) e.getKey(), (String) e.getValue());
     }
     return sysProps.build();
+  }
+}
+
+final class OsProcessImpl extends OsProcess {
+  private ProcessBuilder pb;
+
+  OsProcessImpl(OperatingSystem os, Path cwd, String cmd, String... argv) {
+    super(os, cwd, cmd, argv);
+  }
+
+  @Override protected void setWorkdirAndCommand(
+      Path cwd, String cmd, String... argv) {
+    pb = new ProcessBuilder();
+    pb.directory(new File(cwd.toUri()));
+    int argc = argv.length;
+    String[] combined = new String[argc + 1];
+    combined[0] = cmd;
+    System.arraycopy(argv, 0, combined, 1, argc);
+    pb.command(combined);
+  }
+
+  @Override protected void combineStdoutAndStderr() {
+    pb.redirectErrorStream(true);
+  }
+
+  @Override protected void preemptivelyKill() { pb = null; }
+
+  @Override protected boolean hasStartedRunning() { return pb == null; }
+
+  @Override
+  protected Process startRunning(
+      boolean inheritOutput, boolean closeInput,
+      @Nullable Path outFile, @Nullable Path inFile)
+      throws IOException {
+    ProcessBuilder pb = this.pb;
+    this.pb = null;
+    if (inheritOutput) {
+      pb.redirectOutput(ProcessBuilder.Redirect.INHERIT);
+    }
+    if (outFile != null) {
+      assert outFile.getFileSystem() == FileSystems.getDefault();
+      pb.redirectOutput(new File(outFile.toUri()));
+    }
+    if (!pb.redirectErrorStream()) {
+      pb.redirectError(ProcessBuilder.Redirect.INHERIT);
+    }
+    if (inFile != null) {
+      assert inFile.getFileSystem() == FileSystems.getDefault();
+      pb.redirectInput(new File(inFile.toUri()));
+    }
+    Process p = pb.start();
+    if (closeInput) { p.getInputStream().close(); }
+    return p;
   }
 }

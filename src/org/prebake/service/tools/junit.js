@@ -109,6 +109,6 @@
         reportDir || '',
         reportTypes]
         .concat(testClasses);
-    exec.apply({}, command);
+    return exec.apply({}, command).run().waitFor() === 0;
   }
 });
