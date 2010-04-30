@@ -14,7 +14,6 @@
 
 package org.prebake.os;
 
-import java.io.IOException;
 import java.nio.file.Path;
 
 import javax.annotation.ParametersAreNonnullByDefault;
@@ -28,8 +27,11 @@ import javax.annotation.ParametersAreNonnullByDefault;
 public interface OperatingSystem {
   /**
    * @param cwd the working directory for the process.
+   * @param command e.g. {@code "cp"}.
+   * @param argv the arguments to the command,
+   *   e.g. {@code fromfile.txt}, {@code tofile.txt}.
    */
-  Process run(Path cwd, String command, String... argv) throws IOException;
+  OsProcess run(Path cwd, String command, String... argv);
   /**
    * A path to a directory where temporary files and directories can be put.
    * It should be on a mount that has enough space to mirror large chunks of
@@ -39,4 +41,6 @@ public interface OperatingSystem {
    * {@code java.io.tmpdir}.
    */
   Path getTempDir();
+  /** Manages piping data between processes. */
+  PipeFlusher getPipeFlusher();
 }

@@ -52,6 +52,10 @@ public final class StubOperatingSystem implements OperatingSystem {
     this.logger = logger;
   }
 
+  public PipeFlusher getPipeFlusher() {
+    throw new UnsupportedOperationException();
+  }
+
   public Path getTempDir() {
     Path p = fs.getPath("/tmpdir");
     if (p.notExists()) {
@@ -64,110 +68,156 @@ public final class StubOperatingSystem implements OperatingSystem {
     return p;
   }
 
-  private void mkdirs(Path p) throws IOException {
+  private static void mkdirs(Path p) throws IOException {
     if (p.exists()) { return; }
     Path parent = p.getParent();
     if (parent != null) { mkdirs(parent); }
     p.createDirectory(FilePerms.perms(0700, true));
   }
 
-  public Process run(final Path cwd, String command, final String... argv)
-      throws IOException {
+  public OsProcess run(final Path cwd, String command, final String... argv) {
     logger.log(
         Level.INFO, "Running {0} with {1}",
         new Object[] { command, Arrays.asList(argv) });
-    if (command.equals("cp")) {
-      return new StubProcess(
-          new Function<String, String>() {
-            public String apply(String from) { return ""; }
-          }, new Callable<Integer>() {
-            public Integer call() throws Exception {
-              if (argv.length != 2) { return -1; }
-              Path out = cwd.resolve(argv[1]);
-              mkdirs(out.getParent());
-              Path from = cwd.resolve(argv[0]);
-              from.copyTo(out);
-              return 0;
-            }
-          });
-    } else if (command.equals("cat")) {
-      return new StubProcess(
-          new Function<String, String>() {
-            public String apply(String from) { return ""; }
-          }, new Callable<Integer>() {
-            public Integer call() throws IOException {
-              OutputStream out = cwd.resolve(argv[argv.length - 1])
-                  .newOutputStream(
-                      StandardOpenOption.CREATE,
-                      StandardOpenOption.TRUNCATE_EXISTING);
-              try {
-                for (int inp = 0; inp < argv.length - 1; ++inp) {
-                  InputStream in = cwd.resolve(argv[inp]).newInputStream();
-                  try {
-                    ByteStreams.copy(in, out);
-                  } finally {
-                    in.close();
-                  }
-                }
-              } finally {
-                out.close();
+    return new OsProcessImpl(cwd, command, argv);
+  }
+
+  final class OsProcessImpl extends OsProcess {
+    private StubProcess p;
+    private Path cwd;
+    private String command;
+    private String[] argv;
+
+    OsProcessImpl(Path cwd, String command, String[] argv) {
+      super(StubOperatingSystem.this, cwd, command, argv);
+    }
+
+    @Override
+    protected void combineStdoutAndStderr() {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
+    protected boolean hasStartedRunning() {
+      return p != null;
+    }
+
+    @Override
+    protected void preemptivelyKill() {
+      cwd = null;
+      command = null;
+    }
+
+    @Override
+    protected void setWorkdirAndCommand(Path cwd, String cmd, String... argv) {
+      this.cwd = cwd;
+      this.command = cmd;
+      this.argv = argv;
+    }
+
+    @Override
+    protected Process startRunning(
+        boolean inheritOutput, boolean closeInput, Path outFile, Path inFile)
+        throws IOException {
+      return this.p = makeStubProcess(cwd, command, argv);
+    }
+
+    private StubProcess makeStubProcess(
+        final Path cwd, String command, final String[] argv)
+        throws IOException {
+      if (command.equals("cp")) {
+        return new StubProcess(
+            new Function<String, String>() {
+              public String apply(String from) { return ""; }
+            }, new Callable<Integer>() {
+              public Integer call() throws Exception {
+                if (argv.length != 2) { return -1; }
+                Path out = cwd.resolve(argv[1]);
+                mkdirs(out.getParent());
+                Path from = cwd.resolve(argv[0]);
+                from.copyTo(out);
+                return 0;
               }
-              return 0;
-            }
-          });
-    } else if (command.equals("munge")) {
-      return new StubProcess(
-          new Function<String, String>() {
-            public String apply(String from) { return ""; }
-          }, new Callable<Integer>() {
-            public Integer call() throws IOException {
-              OutputStream out = cwd.resolve(argv[argv.length - 1])
-                  .newOutputStream(
-                      StandardOpenOption.CREATE,
-                      StandardOpenOption.TRUNCATE_EXISTING);
-              try {
-                for (int inp = 0; inp < argv.length - 1; ++inp) {
-                  InputStream in = cwd.resolve(argv[inp]).newInputStream();
-                  try {
-                    byte[] bytes = ByteStreams.toByteArray(in);
-                    for (int n = bytes.length / 2, i = n / 2; --i >= 0;) {
-                      byte b = bytes[i];
-                      bytes[i] = bytes[n - i - 1];
-                      bytes[n - i - 1] = b;
-                    }
-                    out.write(bytes);
-                  } finally {
-                    in.close();
-                  }
-                }
-              } finally {
-                out.close();
-              }
-              return 0;
-            }
-          });
-    } else if (command.equals("bork")) {
-      return new StubProcess(
-          new Function<String, String>() {
-            public String apply(String from) { return ""; }
-          }, new Callable<Integer>() {
-            public Integer call() throws IOException {
-              for (String arg : argv) {
-                OutputStream out = cwd.resolve(arg).newOutputStream(
-                    StandardOpenOption.CREATE,
-                    StandardOpenOption.TRUNCATE_EXISTING);
-                Writer w = new OutputStreamWriter(out, Charsets.UTF_8);
+            });
+      } else if (command.equals("cat")) {
+        return new StubProcess(
+            new Function<String, String>() {
+              public String apply(String from) { return ""; }
+            }, new Callable<Integer>() {
+              public Integer call() throws IOException {
+                OutputStream out = cwd.resolve(argv[argv.length - 1])
+                    .newOutputStream(
+                        StandardOpenOption.CREATE,
+                        StandardOpenOption.TRUNCATE_EXISTING);
                 try {
-                  w.write("Bork!");
+                  for (int inp = 0; inp < argv.length - 1; ++inp) {
+                    InputStream in = cwd.resolve(argv[inp]).newInputStream();
+                    try {
+                      ByteStreams.copy(in, out);
+                    } finally {
+                      in.close();
+                    }
+                  }
                 } finally {
-                  w.close();
+                  out.close();
                 }
+                return 0;
               }
-              return 0;
-            }
-          });
-    } else {
-      throw new FileNotFoundException(command);
+            });
+      } else if (command.equals("munge")) {
+        return new StubProcess(
+            new Function<String, String>() {
+              public String apply(String from) { return ""; }
+            }, new Callable<Integer>() {
+              public Integer call() throws IOException {
+                OutputStream out = cwd.resolve(argv[argv.length - 1])
+                    .newOutputStream(
+                        StandardOpenOption.CREATE,
+                        StandardOpenOption.TRUNCATE_EXISTING);
+                try {
+                  for (int inp = 0; inp < argv.length - 1; ++inp) {
+                    InputStream in = cwd.resolve(argv[inp]).newInputStream();
+                    try {
+                      byte[] bytes = ByteStreams.toByteArray(in);
+                      for (int n = bytes.length / 2, i = n / 2; --i >= 0;) {
+                        byte b = bytes[i];
+                        bytes[i] = bytes[n - i - 1];
+                        bytes[n - i - 1] = b;
+                      }
+                      out.write(bytes);
+                    } finally {
+                      in.close();
+                    }
+                  }
+                } finally {
+                  out.close();
+                }
+                return 0;
+              }
+            });
+      } else if (command.equals("bork")) {
+        return new StubProcess(
+            new Function<String, String>() {
+              public String apply(String from) { return ""; }
+            }, new Callable<Integer>() {
+              public Integer call() throws IOException {
+                for (String arg : argv) {
+                  OutputStream out = cwd.resolve(arg).newOutputStream(
+                      StandardOpenOption.CREATE,
+                      StandardOpenOption.TRUNCATE_EXISTING);
+                  Writer w = new OutputStreamWriter(out, Charsets.UTF_8);
+                  try {
+                    w.write("Bork!");
+                  } finally {
+                    w.close();
+                  }
+                }
+                return 0;
+              }
+            });
+      } else {
+        throw new FileNotFoundException(command);
+      }
     }
   }
 }

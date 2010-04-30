@@ -24,16 +24,21 @@
   },
   fire: function fire(opts, inputs, product, action, exec) {
     // Infer outputs from inputs
-    var outGlob = action.outputs[0];
-    var inGlob = action.inputs[0];
     var xform = glob.xformer(action.inputs, action.outputs);
+    var processes = [];
     for (var i = 0, n = inputs.length; i < n; ++i) {
       var input = inputs[i];
       var output = xform(input);
       // TODO: use a more efficient backdoor for builtins
       // that avoids process overhead.
-      exec('cp', input, output);
+      processes.push(exec('cp', input, output).run());
     }
+    for (var i = 0, n = processes.length; i < processes.length; ++i) {
+      if (processes[i].waitFor()) {
+        throw new Error('Could not copy ' + inputs[i]);
+      }
+    }
+    return true;
   },
   checker: function (action) {
     try {

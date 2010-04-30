@@ -123,7 +123,10 @@ public class BakerTest extends PbTestCase {
          + "      var input = inputs[i]; \\n"
          + "      var output = xform(input); \\n"
          + "      console.log('  input=' + input + ', output=' + output); \\n"
-         + "      exec('cp', input, output); \\n"
+         + "      if (exec('cp', input, output).run().waitFor() !== 0) { \\n"
+         + "        throw new Error( \\n"
+         + "            'Failed to cp ' + input + ' to ' + output); \\n"
+         + "      } \\n"
          + "    } \\n"
          + "  } \\n"
          + "})\""))
@@ -292,7 +295,10 @@ public class BakerTest extends PbTestCase {
       + "    var xform = glob.xformer(action.inputs, action.outputs); \n"
       + "    for (var i = 0, n = inputs.length; i < n; ++i) { \n"
       + "      var input = inputs[i]; \n"
-      + "      exec('cp', input, xform(input)); \n"
+      + "      if (0 !== exec('cp', input, xform(input)).run().waitFor()) { \n"
+      + "        throw new Error( \n"
+      + "            'Failed to cp ' + input + ' to ' + output); \n"
+      + "      } \n"
       + "    } \n"
       + "  } \n"
       + "})");

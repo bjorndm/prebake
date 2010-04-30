@@ -71,7 +71,9 @@ public class EndToEndTest extends PbTestCase {
       + "    for (var i = 0, n = inputs.length; i < n; ++i) { \n"
       + "      var input = inputs[i]; \n"
       + "      var output = xform(input); \n"
-      + "      exec('cp', input, output); \n"
+      + "      if (exec('cp', input, output).run().waitFor()) { \n"
+      + "        throw new Error('Failed to cp ' + input + ' to ' + output); \n"
+      + "      } \n"
       + "    } \n"
       + "  } \n"
       + "})");
