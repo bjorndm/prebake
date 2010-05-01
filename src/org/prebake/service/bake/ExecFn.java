@@ -30,13 +30,20 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.MapMaker;
 
-final class Execer extends SimpleMembranableFunction {
+/**
+ * A function exposed to JavaScript which allows it to spawn an external
+ * process a la {@code execv} and do file and interprocess piping.
+ *
+ * @author Mike Samuel <mikesamuel@gmail.com>
+ */
+final class ExecFn extends SimpleMembranableFunction {
   final OperatingSystem os;
   final Path workingDir;
   final WorkingFileChecker checker;
   final Logger logger;
+  final List<OsProcess> runningProcesses = Lists.newArrayList();
 
-  Execer(
+  ExecFn(
       OperatingSystem os, Path workingDir, WorkingFileChecker checker,
       Logger logger) {
     super(
@@ -89,7 +96,9 @@ final class Execer extends SimpleMembranableFunction {
               p.pipeTo(q);
               // Start it running if it is not already.
               try {
-                q.run();
+                if (q.runIfNotRunning()) {
+                  runningProcesses.add(q);
+                }
               } catch (IOException ex) {
                 Throwables.propagate(ex);
               } catch (InterruptedException ex) {
@@ -119,13 +128,16 @@ final class Execer extends SimpleMembranableFunction {
           .put("writeTo", new SimpleMembranableFunction(
               "Streams the given file to this process's input.",
               "readFrom", "this", "file") {
-            public Object apply(Object[] args) {
+            public ImmutableMap<String, ?> apply(Object[] args) {
               if (args.length != 1) { throw new IndexOutOfBoundsException(); }
               if (!(args[0] instanceof String)) {
                 throw new ClassCastException(args[0].getClass().getName());
               }
               try {
-                p.writeTo(checker.check(workingDir.resolve((String) args[0])));
+                Path outPath = workingDir.resolve((String) args[0]);
+                // We use 0700 since we're only operating in the working dir.
+                Baker.mkdirs(outPath.getParent(), 0700);
+                p.writeTo(checker.check(outPath));
               } catch (IOException ex) {
                 logger.log(
                     Level.WARNING, "Possible attempt to touch client dir", ex);
@@ -139,6 +151,7 @@ final class Execer extends SimpleMembranableFunction {
             public Object apply(Object[] args) {
               try {
                 p.run();
+                runningProcesses.add(p);
               } catch (InterruptedException ex) {
                 Throwables.propagate(ex);
               } catch (IOException ex) {
@@ -168,6 +181,17 @@ final class Execer extends SimpleMembranableFunction {
           })
           .build();
       JS_OBJ_TO_PROCESS.put(jsObj, p);
+    }
+  }
+
+  void killOpenProcesses() {
+    List<OsProcess> processes = Lists.newArrayList(runningProcesses);
+    runningProcesses.clear();
+    for (OsProcess p : processes) {
+      if (p.kill()) {
+       logger.log(
+           Level.WARNING, "Aborted still running process {0}", p.getCommand());
+      }
     }
   }
 }

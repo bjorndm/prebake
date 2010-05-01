@@ -253,7 +253,7 @@ class MemPath extends Path {
   @Override
   public MemPath subpath(int start, int end) {
     StringBuilder sb = new StringBuilder();
-    if (isAbs && start == 0 && end != 0) { sb.append(fs.getSeparator()); }
+    if (isAbs && start == 0) { sb.append(fs.getSeparator()); }
     for (int i = start; i < end; ++i) {
       String part = parts[i];
       if ("".equals(part)) { continue; }
@@ -396,10 +396,9 @@ class MemPath extends Path {
 
   @Override
   public Path getParent() {
-    if (parts.length == 0 || parts.length == 1 && "".equals(parts[0])) {
-      return null;
-    }
-    return normalize().subpath(0, Math.max(0, getNameCount() - 1));
+    Path p = normalize();
+    int count = p.getNameCount();
+    return count != 0 ? p.subpath(0, Math.max(0, count - 1)) : null;
   }
 
   @Override

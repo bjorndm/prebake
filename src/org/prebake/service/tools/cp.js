@@ -22,7 +22,7 @@
         '  tools.cp("doc/**.html", "www/**.html");'].join('\n'),
     contact: 'Mike Samuel <mikesamuel@gmail.com>'
   },
-  fire: function fire(opts, inputs, product, action, exec) {
+  fire: function fire(opts, inputs, product, action, os) {
     // Infer outputs from inputs
     var xform = glob.xformer(action.inputs, action.outputs);
     var processes = [];
@@ -31,7 +31,8 @@
       var output = xform(input);
       // TODO: use a more efficient backdoor for builtins
       // that avoids process overhead.
-      processes.push(exec('cp', input, output).run());
+      os.mkdirs(os.dirname(output));
+      processes.push(os.exec('cp', input, output).run());
     }
     for (var i = 0, n = processes.length; i < processes.length; ++i) {
       if (processes[i].waitFor()) {

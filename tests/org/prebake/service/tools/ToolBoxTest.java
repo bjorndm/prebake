@@ -117,8 +117,8 @@ public class ToolBoxTest extends PbTestCase {
                 + " check: function (product) { console.log('OK'); } })"),
             "/tools/foo.js", (
                 "({ help: 'foo1',"
-                + " fire: function (options, inputs, product, exec) {"
-                  + " return exec('foo')"
+                + " fire: function (options, inputs, product, os) {"
+                  + " return os.exec('foo')"
                 + " } })"))
         .withBuiltinTools("cp.js")
         .assertSigs(
@@ -228,7 +228,5 @@ public class ToolBoxTest extends PbTestCase {
   // recreated.
   // TODO: make sure the fire function can refer to global variables and sigs
   // still work.
-  // TODO: change fire function sig to take an os parameter with an exec method
-  // instead of just an exec function.  Might want to provide other operators.
   // TODO: test tool listeners fired
 }
