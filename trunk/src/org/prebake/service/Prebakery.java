@@ -449,7 +449,6 @@ public abstract class Prebakery implements Closeable {
           if (ccl != null) {
             Closeables.closeQuietly(ccl);
             logger.removeHandler(ccl);
-            closeChannel = false;
           }
           if (closeChannel) {
             try {

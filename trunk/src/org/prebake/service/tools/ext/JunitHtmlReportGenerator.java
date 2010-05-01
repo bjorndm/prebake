@@ -17,6 +17,7 @@ package org.prebake.service.tools.ext;
 import org.prebake.js.JsonSink;
 
 import java.io.IOException;
+import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.io.Writer;
 import java.nio.file.Path;
@@ -39,6 +40,7 @@ import com.google.common.collect.ImmutableMultimap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
+import com.google.common.io.Resources;
 
 /**
  * This class generates a tree of HTML files based on the results of running
@@ -136,6 +138,15 @@ final class JunitHtmlReportGenerator {
         outFile, "JUnit", KEY_VAL, table.build(), summary, jsonReport,
         resultTypes,
         "index");
+    OutputStream out = reportDir.resolve("junit_report.css").newOutputStream(
+        StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
+    try {
+      Resources.copy(Resources.getResource(
+          JunitHtmlReportGenerator.class, "junit_report.css"),
+          out);
+    } finally {
+      out.close();
+    }
   }
 
   private static Map<String, Integer> generateHtmlReportOnePackage(

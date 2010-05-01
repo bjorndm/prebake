@@ -34,7 +34,7 @@ var jars = [
       contact: "Mike Samuel <mikesamuel@gmail.com>"
     },
     actions: [tools.javac(["src/**.java"].concat(jars), "lib/**.class"),
-              tools.cp("src/**.{js,txt}", "lib/**.{js,txt}"),
+              tools.cp("src/**.{css,js,txt}", "lib/**.{css,js,txt}"),
               tools.ls("src/org/prebake/service/tools/*.js",
                        "lib/org/prebake/service/tools/tools.txt")]
   },
@@ -50,7 +50,7 @@ var jars = [
   runtests: {
     help: 'Runs JUnit tests putting test results under reports',
     actions: [tools.junit(['test-lib/**.class', 'lib/**.class'].concat(jars),
-                          'reports/tests/**.{json,html}',
+                          'reports/tests/**.{json,html,css}',
                           { test_class_filter: '**Test.class' })]
   },
   docs: {
