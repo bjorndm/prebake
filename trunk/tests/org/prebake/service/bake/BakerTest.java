@@ -97,7 +97,7 @@ public class BakerTest extends PbTestCase {
         "        b.html \"bar b html\"",
         "      tools/",
         ("        cp.js  \"({ \\n"
-         + "  fire: function fire(opts, inputs, product, action, exec) { \\n"
+         + "  fire: function fire(opts, inputs, product, action, os) { \\n"
          // Sanity check all the inputs.
          + "    if (typeof opts !== 'object' \\n"
          // See options map below.
@@ -114,8 +114,11 @@ public class BakerTest extends PbTestCase {
          + "    if ('foo' !== product.name) { \\n"
          + "      throw new Error('product ' + JSON.stringify(product)); \\n"
          + "    } \\n"
-         + "    if (typeof exec !== 'function') { \\n"
-         + "      throw new Error('exec ' + exec); \\n"
+         + "    if (typeof os !== 'object') { \\n"
+         + "      throw new Error('os ' + os); \\n"
+         + "    } \\n"
+         + "    if (typeof os.exec !== 'function') { \\n"
+         + "      throw new Error('os.exec ' + os.exec); \\n"
          + "    } \\n"
          // Infer outputs from inputs
          + "    var xform = glob.xformer(action.inputs, action.outputs); \\n"
@@ -123,7 +126,7 @@ public class BakerTest extends PbTestCase {
          + "      var input = inputs[i]; \\n"
          + "      var output = xform(input); \\n"
          + "      console.log('  input=' + input + ', output=' + output); \\n"
-         + "      if (exec('cp', input, output).run().waitFor() !== 0) { \\n"
+         + "      if (os.exec('cp', input, output).run().waitFor() !== 0) { \\n"
          + "        throw new Error( \\n"
          + "            'Failed to cp ' + input + ' to ' + output); \\n"
          + "      } \\n"
@@ -193,21 +196,21 @@ public class BakerTest extends PbTestCase {
   private static final String BORK_TOOL_JS = JsonSink.stringify(
       ""
       + "({\n"
-      + "  fire: function (opts, inputs, product, action, exec) {\n"
+      + "  fire: function (opts, inputs, product, action, os) {\n"
       + "    var argv = action.outputs.slice(0);\n"
       + "    argv.splice(0, 0, 'bork');\n"
-      + "    exec.apply({}, argv);\n"
+      + "    return !os.exec.apply({}, argv);\n"
       + "  }\n"
       + "})");
 
   private static final String SORTED_BORK_TOOL_JS = JsonSink.stringify(
       ""
       + "({\n"
-      + "  fire: function (opts, inputs, product, action, exec) {\n"
+      + "  fire: function (opts, inputs, product, action, os) {\n"
       + "    var argv = action.outputs.slice(0);\n"
       + "    argv.splice(0, 0, 'bork');\n"
       + "    argv.sort();\n"
-      + "    exec.apply({}, argv);\n"
+      + "    return !os.exec.apply({}, argv);\n"
       + "  }\n"
       + "})");
 
@@ -288,14 +291,14 @@ public class BakerTest extends PbTestCase {
   public static final String COPY_TOOL_JS = JsonSink.stringify(
       ""
       + "({ \n"
-      + "  fire: function fire(opts, inputs, product, action, exec) { \n"
+      + "  fire: function fire(opts, inputs, product, action, os) { \n"
       // Infer outputs from inputs
       + "    var outGlob = action.outputs[0]; \n"
       + "    var inGlob = action.inputs[0]; \n"
       + "    var xform = glob.xformer(action.inputs, action.outputs); \n"
       + "    for (var i = 0, n = inputs.length; i < n; ++i) { \n"
       + "      var input = inputs[i]; \n"
-      + "      if (0 !== exec('cp', input, xform(input)).run().waitFor()) { \n"
+      + "      if (os.exec('cp', input, xform(input)).run().waitFor()) { \n"
       + "        throw new Error( \n"
       + "            'Failed to cp ' + input + ' to ' + output); \n"
       + "      } \n"

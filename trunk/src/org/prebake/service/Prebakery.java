@@ -151,6 +151,9 @@ public abstract class Prebakery implements Closeable {
         files.close();
         files = null;
       }
+      if (os instanceof Closeable) {
+        Closeables.closeQuietly((Closeable) os);
+      }
       if (!execer.isShutdown()) { execer.shutdown(); }
       // Close the DB environment after DB users.
       if (env != null) {

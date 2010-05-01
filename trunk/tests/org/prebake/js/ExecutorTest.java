@@ -525,8 +525,8 @@ public class ExecutorTest extends PbTestCase {
   }
 
   private Object run(Executor.Input input) {
-    Executor exec = Executor.Factory.createJsExecutor();
-    Executor.Output<?> out = exec.run(
+    Executor execer = Executor.Factory.createJsExecutor();
+    Executor.Output<?> out = execer.run(
         Object.class, getLogger(Level.INFO), null, input);
     if (out.exit != null) { Throwables.propagate(out.exit); }
     return out.result;

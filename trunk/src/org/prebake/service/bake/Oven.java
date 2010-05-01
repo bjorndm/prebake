@@ -21,7 +21,6 @@ import org.prebake.fs.FileVersioner;
 import org.prebake.js.Executor;
 import org.prebake.js.JsonSink;
 import org.prebake.js.Loader;
-import org.prebake.js.MembranableFunction;
 import org.prebake.os.OperatingSystem;
 import org.prebake.service.plan.Action;
 import org.prebake.service.plan.Product;
@@ -57,7 +56,6 @@ final class Oven {
   private final FileVersioner files;
   private final ImmutableMap<String, ?> commonJsEnv;
   private final ToolProvider toolbox;
-  private final int umask;
   private final Logger logger;
 
   Oven(OperatingSystem os, FileVersioner files,
@@ -68,7 +66,6 @@ final class Oven {
     this.files = files;
     this.toolbox = toolbox;
     this.logger = logger;
-    this.umask = umask;
   }
 
   @Nonnull Executor.Output<Boolean> executeActions(
@@ -78,13 +75,13 @@ final class Oven {
     List<String> inputStrs = Lists.newArrayList();
     for (Path input : inputs) { inputStrs.add(input.toString()); }
     Collections.sort(inputStrs);
-    Executor exec = Executor.Factory.createJsExecutor();
-    WorkingFileChecker checker = new WorkingFileChecker(
+    Executor execer = Executor.Factory.createJsExecutor();
+    final WorkingFileChecker checker = new WorkingFileChecker(
         files.getVersionRoot(), workingDir);
-    MembranableFunction execFn = new Execer(os, workingDir, checker, logger);
+    ExecFn execFn = new ExecFn(os, workingDir, checker, logger);
     ImmutableMap.Builder<String, Object> actuals = ImmutableMap.builder();
     actuals.putAll(commonJsEnv);
-    actuals.put("exec", execFn);
+    actuals.put("os", JsOperatingSystemEnv.makeJsInterface(workingDir, execFn));
     StringBuilder productJs = new StringBuilder();
     {
       JsonSink productJsSink = new JsonSink(productJs);
@@ -130,7 +127,7 @@ final class Oven {
             .writeValue(actionInputs.build())
             .write(",\n    product,\n    ")
             .writeValue(action)
-            .write(",\n    exec);\n");
+            .write(",\n    os);\n");
       }
       productJsSink.writeValue(true);
     }
@@ -145,21 +142,30 @@ final class Oven {
       for (Action a : p.actions) {
         for (Glob glob : a.outputs) {
           Path outPath = glob.getPathContainingAllMatches(workingDir);
-          if (outPaths.add(outPath)) { Baker.mkdirs(outPath, umask); }
+          // We use 0700 since we're only operating in the working dir.
+          if (outPaths.add(outPath)) { Baker.mkdirs(outPath, 0700); }
         }
       }
     }
-    // Run the script.
-    return exec.run(Boolean.class, logger, new Loader() {
-      public Executor.Input load(Path p) throws IOException {
-        FileAndHash fh = files.load(p);
-        if (fh.getHash() != null) {
-          paths.add(fh.getPath());
-          hashes.withHash(fh.getHash());
+    try {
+      // Run the script.
+      return execer.run(Boolean.class, logger, new Loader() {
+        public Executor.Input load(Path p) throws IOException {
+          FileAndHash fh = files.load(p);
+          if (fh.getHash() != null) {
+            paths.add(fh.getPath());
+            hashes.withHash(fh.getHash());
+          }
+          return Executor.Input
+              .builder(fh.getContentAsString(Charsets.UTF_8), p).build();
         }
-        return Executor.Input.builder(fh.getContentAsString(Charsets.UTF_8), p)
-            .build();
-      }
-    }, src);
+      }, src);
+    } finally {
+      // We can't allow processes to keep mucking with the working directory
+      // after we kill it and possibly recreate it for a rebuild.
+      // If something wants to spawn long-lasting processes such as a
+      // java compilation service, they can spawn a child process and disown it.
+      execFn.killOpenProcesses();
+    }
   }
 }

@@ -19,8 +19,8 @@
     // Require an exact file in the output glob.
     glob.xformer('foo', action.outputs)('foo');
   },
-  fire: function fire(opts, inputs, product, action, exec) {
+  fire: function fire(opts, inputs, product, action, os) {
     var outFile = glob.xformer('foo', action.outputs)('foo');
-    return exec('ls', inputs).writeTo(outFile).run().waitFor() === 0;
+    return os.exec('ls', inputs).writeTo(outFile).run().waitFor() === 0;
   }
 })

@@ -34,17 +34,19 @@ import javax.annotation.Nullable;
  */
 public abstract class OsProcess {
   private final OperatingSystem os;
-  private Process p = null;
+  private final String command;
+  private Process p;
   private OsProcess outReceiver;
   private Path inFile, outFile;
   private boolean receivingInput;
-  private int result;
+  private int result = Integer.MIN_VALUE;
 
   // TODO: figure out how to get the error and output to the logger.
 
   protected OsProcess(
       OperatingSystem os, Path cwd, String command, String... argv) {
     this.os = os;
+    this.command = command;
     setWorkdirAndCommand(cwd, command, argv);
   }
 
@@ -58,13 +60,16 @@ public abstract class OsProcess {
 
   protected abstract void combineStdoutAndStderr();
 
-  public synchronized final void kill() {
+  public synchronized final boolean kill() {
     if (p != null) {
       p.destroy();
       p = null;
     } else {
       preemptivelyKill();
     }
+    // Normal results are one byte wide, so MIN_VALUE indicates has not run
+    // or result has never been checked.
+    return result == Integer.MIN_VALUE;
   }
 
   protected abstract void preemptivelyKill();
@@ -95,9 +100,14 @@ public abstract class OsProcess {
       @Nullable Path outFile, @Nullable Path inFile)
       throws IOException;
 
-  public synchronized final void runIfNotRunning()
+  public synchronized final boolean runIfNotRunning()
       throws InterruptedException, IOException {
-    if (!hasStartedRunning()) { run(); }
+    if (!hasStartedRunning()) {
+      run();
+      return true;
+    } else {
+      return false;
+    }
   }
 
   public synchronized final OsProcess run()
@@ -173,4 +183,9 @@ public abstract class OsProcess {
       }
     }
   }
+
+  public final String getCommand() { return command; }
+
+  @Override
+  public String toString() { return "[OsProcess " + command + "]"; }
 }

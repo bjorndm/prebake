@@ -63,7 +63,7 @@ public class EndToEndTest extends PbTestCase {
   private static final String CP_TOOL_JS = JsonSink.stringify(
       ""
       + "({ \n"
-      + "  fire: function fire(opts, inputs, product, action, exec) { \n"
+      + "  fire: function fire(opts, inputs, product, action, os) { \n"
       // Infer outputs from inputs
       + "    var outGlob = action.outputs[0]; \n"
       + "    var inGlob = action.inputs[0]; \n"
@@ -71,10 +71,11 @@ public class EndToEndTest extends PbTestCase {
       + "    for (var i = 0, n = inputs.length; i < n; ++i) { \n"
       + "      var input = inputs[i]; \n"
       + "      var output = xform(input); \n"
-      + "      if (exec('cp', input, output).run().waitFor()) { \n"
+      + "      if (os.exec('cp', input, output).run().waitFor()) { \n"
       + "        throw new Error('Failed to cp ' + input + ' to ' + output); \n"
       + "      } \n"
       + "    } \n"
+      + "    return 1; \n"
       + "  } \n"
       + "})");
 

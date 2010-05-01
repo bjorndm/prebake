@@ -17,7 +17,7 @@
   checker: function (action) {
     // TODO check d, cp options.
   },
-  fire: function fire(opts, inputs, product, action, exec) {
+  fire: function fire(opts, inputs, product, action, os) {
     function opt(name, opt_defaultValue) {
       if ({}.hasOwnProperty.call(opts, name)) {
         return opts[name];
@@ -64,6 +64,6 @@
           .join(pathSeparator);
     }
     var command = ['javac', '-d', outDir, '-cp', classpath].concat(sources);
-    exec.apply({}, command);
+    return os.exec.apply({}, command).run().waitFor() === 0;
   }
 });
