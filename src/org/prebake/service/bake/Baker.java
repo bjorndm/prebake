@@ -453,7 +453,9 @@ public final class Baker {
     }
 
     ProductStatusChain without(ProductStatus toRemove) {
-      if (ps == toRemove) { return next.without(toRemove); }
+      if (ps == toRemove) {
+        return next != null ? next.without(toRemove) : null;
+      }
       if (next == null) { return this; }
       ProductStatusChain newNext = next.without(toRemove);
       return newNext == next ? this : new ProductStatusChain(ps, newNext);
