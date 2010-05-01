@@ -179,6 +179,7 @@ public class JunitHtmlReportGeneratorTest extends PbTestCase {
             "          Edgar.html \"...\"",
             "        poe.allen.html \"...\"",
             "      index.html \"...\"",
+            "      junit_report.css \"...\"",
             ""),
         fileSystemToAsciiArt(fs, 40));
     // Make sure that all the links are live.

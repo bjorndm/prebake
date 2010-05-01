@@ -125,6 +125,7 @@
     </javac>
     <copy todir="${lib}">
       <fileset dir="${src}">
+        <include name="org/prebake/service/tools/**/*.css"/>
         <include name="org/prebake/service/tools/*.js"/>
       </fileset>
     </copy>
@@ -153,7 +154,6 @@
     <jar destfile="${jars}/client.jar">
       <fileset dir="${lib}">
 	<include name="**/*.class"/>
-	<include name="**/*.js"/>
         <exclude name="org/prebake/service/**/*"/>
       </fileset>
       <manifest>
@@ -166,6 +166,7 @@
       <fileset dir="${lib}">
 	<include name="**/*.class"/>
 	<include name="**/*.js"/>
+	<include name="**/*.css"/>
 	<include name="**/*.txt"/>
         <exclude name="org/prebake/client/**/*"/>
       </fileset>
