@@ -256,7 +256,6 @@ public class ToolBox implements ToolProvider {
   private Future<ToolSignature> requireToolValid(final Tool t) {
     final ToolImpl impl;
     final int index;
-    final String name = toolName(t.localName.toString());
     synchronized (tools) {
       Integer indexI = t.impls.firstKey();
       if (indexI == null) {
@@ -353,13 +352,14 @@ public class ToolBox implements ToolProvider {
               }
             } else {
               logger.log(
-                  Level.INFO, "Tool " + name + " failed with exception",
+                  Level.INFO, "Tool " + t.toolName + " failed with exception",
                   result.exit);
               return null;
             }
           } catch (RuntimeException ex) {
             logger.log(
-                Level.INFO, "Tool " + name + " failed with exception", ex);
+                Level.INFO, "Tool " + t.toolName + " failed with exception",
+                ex);
             return null;
           }
 

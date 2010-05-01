@@ -115,7 +115,7 @@ public abstract class OsProcess {
     if (hasStartedRunning()) { throw new IllegalStateException(); }
     Path outFile = null, inFile = null;
     boolean inheritOutput = false, closeInput = false;
-    if (this.outReceiver == null) {
+    if (this.outReceiver != null) {
       // handle below
     } else if (this.outFile != null) {
       outFile = this.outFile;
