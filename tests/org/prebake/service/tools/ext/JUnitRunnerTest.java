@@ -78,6 +78,7 @@ public class JUnitRunnerTest extends PbTestCase {
               "        JUnitRunnerTest$FakeTestClass2.html \"...\"",
               "      org.prebake.service.tools.ext.html \"...\"",
               "    index.html \"...\"",
+              "    junit_report.css \"...\"",
               ""),
           fileSystemToAsciiArt(fs, 40));
 

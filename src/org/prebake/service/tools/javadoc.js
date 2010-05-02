@@ -13,9 +13,9 @@
 // limitations under the License.
 
 ({
-  help: 'Java compiler.  // TODO: usage',
+  help: 'Builds HTML Java API documentation from java source files',
   checker: function (action) {
-    // TODO check d, cp options.
+    // TODO
   },
   fire: function fire(opts, inputs, product, action, os) {
     function opt(name, opt_defaultValue) {
@@ -25,11 +25,17 @@
         return opt_defaultValue;
       }
     }
-    var outGlob = action.outputs[0];
     var outDir = opt('d');
+    var outGlob = action.outputs[0];
     if (typeof outDir !== 'string') {
       outDir = outGlob.match(/^.*?(?=\/com\/|\/org\/|\/net\/|\/\*)/)[0];
     }
+    var links = opt('link', []);
+    var header = opt('header');
+    var footer = opt('footer');
+    var top = opt('top');
+    var bottom = opt('bottom');
+    var visibility = opt('visibility');
     var pathSeparator = sys.io.path.separator;
     var classpath = opt('cp') || opt('classpath');
     if (classpath instanceof Array) {
@@ -40,6 +46,7 @@
       classpath = '';
     }
     var extraClasspath = [];
+    var sourcePath = [];
     var sources = [];
     for (var i = 0, n = inputs.length; i < n; ++i) {
       var input = inputs[i];
@@ -51,18 +58,38 @@
       }
     }
     var endsWithClass = /.class$/;
+    var endsWithJava = /.java$/;
     for (var i = 0, n = action.inputs.length; i < n; ++i) {
       var input = action.inputs[i];
       if (endsWithClass.test(input)) {  // E.g. lib/**.class
-        // TODO: Strip off directories if there is a com/org/net as a path element.
+        // TODO: Strip directories if there is a com/org/net as a path element.
         extraClasspath.push(glob.prefix(input));
+      } else if (endsWithJava.test(input)) {
+	// TODO: Strip directories if there is a com/org/net as a path element.
+        sourcePath.push(glob.prefix(input));
       }
     }
     if (extraClasspath.length) {
       classpath = classpath.split(pathSeparator).concat(extraClasspath)
           .join(pathSeparator);
     }
-    var command = ['javac', '-d', outDir, '-cp', classpath].concat(sources);
+    var command = ['javadoc', '-d', outDir, '-classpath', classpath];
+    for (var i = 0; i < links.length; ++i) { command.push('-link', links[i]); }
+    if (sourcePath.length) {
+      command.push('-sourcepath', sourcePath.join(pathSeparator));
+    }
+    if (typeof header === 'string') { command.push('-header', header); }
+    if (typeof footer === 'string') { command.push('-footer', footer); }
+    if (typeof top === 'string') { command.push('-top', top); }
+    if (typeof bottom === 'string') { command.push('-bottom', bottom); }
+    switch (visibility) {
+      case 'private': case 'protected': case 'package':
+	command.push('-' + visibility);
+	break;
+      case undefined: break;
+      default: throw new Error('Bad visibility ' + visibility);
+    }
+    command = command.concat(sources);
     return os.exec.apply({}, command).run().waitFor() === 0;
   }
 });
