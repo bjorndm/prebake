@@ -20,6 +20,9 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.Map;
 
+import javax.annotation.Nullable;
+import javax.annotation.ParametersAreNonnullByDefault;
+
 import com.google.common.base.Charsets;
 import com.google.common.collect.Maps;
 import com.google.common.io.ByteStreams;
@@ -29,6 +32,7 @@ import com.google.common.io.ByteStreams;
  *
  * @author Mike Samuel <mikesamuel@gmail.com>
  */
+@ParametersAreNonnullByDefault
 final class ClassNameFinder {
   private final Map<File, String> packages = Maps.newHashMap();
 
@@ -154,7 +158,7 @@ final class ClassNameFinder {
     }
   }
 
-  private String getPackagePrefix(File f) {
+  private String getPackagePrefix(@Nullable File f) {
     if (f == null) { return null; }
     String packagePrefix = packages.get(f);
     if (packagePrefix != null) { return packagePrefix; }

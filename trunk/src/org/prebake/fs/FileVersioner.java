@@ -136,13 +136,16 @@ public abstract class FileVersioner {
       String prefix, Predicate<String> predicate);
 
   public List<Path> matching(List<Glob> globs) {
-    String commonPrefix = Glob.commonPrefix(globs);
-    final Pattern p = Glob.toRegex(globs);
-    return pathsWithPrefix(commonPrefix, new Predicate<String>() {
-      public boolean apply(String pathStr) {
-        return p.matcher(pathStr).matches();
-      }
-    });
+    return pathsWithPrefix(
+        Glob.commonPrefix(globs), new PathPredicate(Glob.toRegex(globs)));
+  }
+
+  private final static class PathPredicate implements Predicate<String> {
+    private final Pattern p;
+    PathPredicate(Pattern p) { this.p = p; }
+    public boolean apply(String pathStr) {
+      return p.matcher(pathStr).matches();
+    }
   }
 
   public void unwatch(GlobUnion globs, ArtifactListener<GlobUnion> watcher) {

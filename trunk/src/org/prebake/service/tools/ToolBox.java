@@ -112,16 +112,7 @@ public class ToolBox implements ToolProvider {
       throws IOException {
     this.logger = logger;
     toolDirs = this.toolDirs = ImmutableList.copyOf(Collections2.transform(
-        Sets.newLinkedHashSet(toolDirs),
-        new Function<Path, Path>() {
-          public Path apply(Path p) {
-            try {
-              return p.toRealPath(false);
-            } catch (IOException ex) {
-              throw new IllegalArgumentException(p.toString(), ex);
-            }
-          }
-        }));
+        Sets.newLinkedHashSet(toolDirs), new PathToRealPath()));
     this.fs = files.getFileSystem();
     this.files = files;
     this.commonJsEnv = commonJsEnv;
@@ -267,9 +258,7 @@ public class ToolBox implements ToolProvider {
       }
     }
     if (impl == null) {
-      return new FutureTask<ToolSignature>(new Callable<ToolSignature>() {
-        public ToolSignature call() { return null; }
-      });
+      return new FutureTask<ToolSignature>(new NullResult());
     }
     return execer.submit(new Callable<ToolSignature>() {
       boolean clearedValidator;
@@ -536,5 +525,19 @@ public class ToolBox implements ToolProvider {
         if (tool.impls.isEmpty()) { tools.remove(toolName); }
       }
     }
+  }
+
+  private static final class PathToRealPath implements Function<Path, Path> {
+    public Path apply(Path p) {
+      try {
+        return p.toRealPath(false);
+      } catch (IOException ex) {
+        throw new IllegalArgumentException(p.toString(), ex);
+      }
+    }
+  }
+
+  private static final class NullResult implements Callable<ToolSignature> {
+    public ToolSignature call() { return null; }
   }
 }

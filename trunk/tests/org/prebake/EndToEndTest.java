@@ -190,7 +190,8 @@ public class EndToEndTest extends PbTestCase {
             private final OutputStream connOut
                 = new FilterOutputStream(clientBytes) {
                   boolean closed = false;
-                  @Override public synchronized void close() throws IOException {
+                  @Override public synchronized void close()
+                      throws IOException {
                     if (!closed) {
                       clientBytes.close();
                       closed = true;

@@ -150,7 +150,7 @@ public final class Documentation implements JsonSerializable {
         contact = pairs.get(Field.contact);
         if (detail == null) { return null; }  // message logged by MAP_CONV
       }
-      return new Documentation(summary, detail.toString(), contact);
+      return new Documentation(summary, detail, contact);
     }
     public String exampleText() { return MAP_CONV.exampleText(); }
   };

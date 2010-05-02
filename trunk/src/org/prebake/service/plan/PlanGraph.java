@@ -122,12 +122,7 @@ public final class PlanGraph {
     final Set<String> allProducts;
     {
       final ImmutableSet.Builder<String> b = ImmutableSet.builder();
-      Walker w = walker(new Function<String, Void>() {
-        public Void apply(String productName) {
-          b.add(productName);
-          return null;
-        }
-      });
+      Walker w = walker(new ProductNameAppender(b));
       for (String prod : prods) { w.walk(prod); }
       allProducts = b.build();
     }
@@ -195,5 +190,15 @@ public final class PlanGraph {
 
   public static class MissingProductsException extends Exception {
     public MissingProductsException(String msg) { super(msg); }
+  }
+
+  private static final class ProductNameAppender
+      implements Function<String, Void> {
+    private final ImmutableSet.Builder<String> b;
+    ProductNameAppender(ImmutableSet.Builder<String> b) { this.b = b; }
+    public Void apply(String productName) {
+      b.add(productName);
+      return null;
+    }
   }
 }

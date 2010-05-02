@@ -78,7 +78,8 @@ public abstract class Command implements JsonSerializable {
       v = Verb.valueOf(verb);
     } catch (IllegalArgumentException ex) {
       throw new IOException(DidYouMean.toMessage(
-          "Unknown verb " + verb, verb, VERB_NAMES.toArray(new String[0])), ex);
+          "Unknown verb " + verb, verb,
+          VERB_NAMES.toArray(new String[VERB_NAMES.size()])), ex);
     }
     src.expect(",");
     /*Map<String, Object> options =*/ src.nextObject();

@@ -164,7 +164,8 @@ public final class YSON {
    * @return null if js is not YSON.
    */
   public static YSON requireYSON(
-      String js, Set<String> allowedFreeVars, @Nullable MessageQueue mq) {
+      @Nullable String js,
+      Set<String> allowedFreeVars, @Nullable MessageQueue mq) {
     if (js == null) {
       if (mq != null) { mq.getMessages().add("Output is null"); }
       return null;

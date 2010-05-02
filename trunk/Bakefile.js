@@ -57,5 +57,10 @@ var jars = [
     help: "Puts javadoc under docs",
       actions: [tools.javadoc(['src/**.java'].concat(jars), 'doc/api/**.html',
                               {'visibility':'protected'})]
+  },
+  checks: {
+    help: "Runs FindBugs over the source code (and test code)",
+      actions: [tools.findbugs(['src/**.java', 'tests/**.java'].concat(jars),
+                               'doc/api/**.html', {'visibility':'protected'})]
   }
 })
