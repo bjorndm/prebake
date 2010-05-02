@@ -55,7 +55,7 @@ var jars = [
   },
   docs: {
     help: "Puts javadoc under docs",
-      actions: [tools.javadoc('src/**.java', 'doc/api/**.html',
-                              {'protected':true})]
+      actions: [tools.javadoc(['src/**.java'].concat(jars), 'doc/api/**.html',
+                              {'visibility':'protected'})]
   }
 })
