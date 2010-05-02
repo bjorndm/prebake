@@ -197,8 +197,8 @@ public final class Glob implements Comparable<Glob>, JsonSerializable {
   }
 
   /**
-   * True iff there exists a path that is matched by at least one of the globs in
-   * unionA and at least one of the globs in unionB.
+   * True iff there exists a path that is matched by at least one of the globs
+   * in unionA and at least one of the globs in unionB.
    */
   public static boolean overlaps(Iterable<Glob> unionA, Iterable<Glob> unionB) {
     for (Glob a : unionA) {

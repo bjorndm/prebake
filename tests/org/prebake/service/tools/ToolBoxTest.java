@@ -63,7 +63,8 @@ public class ToolBoxTest extends PbTestCase {
     envConfig.setAllowCreate(true);
     tempDir = Files.createTempDir();
     env = new Environment(tempDir, envConfig);
-    files = new DbFileVersioner(env, root, Predicates.<Path>alwaysTrue(), logger);
+    files = new DbFileVersioner(
+        env, root, Predicates.<Path>alwaysTrue(), logger);
     execer = new ScheduledThreadPoolExecutor(4);
   }
 

@@ -72,9 +72,7 @@ public final class Planner implements Closeable {
   private final Multimap<String, Product> productsByName = Multimaps
       .synchronizedMultimap(Multimaps.newMultimap(
           Maps.<String, Collection<Product>>newLinkedHashMap(),
-          new Supplier<List<Product>>() {
-            public List<Product> get() { return Lists.newArrayList(); }
-          }));
+          new ListSupplier<Product>()));
 
   private final ImmutableMap<Path, PlanPart> planParts;
   private final FileVersioner files;
@@ -431,5 +429,9 @@ public final class Planner implements Closeable {
         }
       }
     }
+  }
+
+  private static final class ListSupplier<T> implements Supplier<List<T>> {
+    public List<T> get() { return Lists.newArrayList(); }
   }
 }

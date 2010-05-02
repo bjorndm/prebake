@@ -209,9 +209,7 @@ public abstract class Prebakery implements Closeable {
   public synchronized void start(@Nullable Runnable onClose) {
     if (this.onClose != null) { throw new IllegalStateException(); }
     logger.log(Level.INFO, "Starting");
-    if (onClose == null) {
-      onClose = new Runnable() { public void run() { /* no op */} };
-    }
+    if (onClose == null) { onClose = new Noop(); }
     this.onClose = onClose;
     boolean setupSucceeded = false;
     try {
@@ -572,5 +570,9 @@ public abstract class Prebakery implements Closeable {
 
   private static String indent(String text) {
     return text.replaceAll("^|\r\n?|\n", "$0    ");
+  }
+
+  private static final class Noop implements Runnable {
+    public void run() { /* no op */}
   }
 }

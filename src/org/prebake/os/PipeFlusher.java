@@ -19,6 +19,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.Queue;
+import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
@@ -34,6 +35,7 @@ import com.google.common.io.Closeables;
  * @author Mike Samuel <mikesamuel@gmail.com>
  */
 public final class PipeFlusher implements Closeable {
+  // TODO: unittests
   private boolean closed = false;
   /** Pipes that might need to be serviced. */
   private final ConcurrentLinkedQueue<Pipe> livePipes
@@ -130,8 +132,7 @@ public final class PipeFlusher implements Closeable {
   }
 
   private static final int BUF_SIZE = 4096;
-  /** Pipes that need to be serviced. */
-  private final Queue<byte[]> freeBuffers = new ConcurrentLinkedQueue<byte[]>();
+  private final Queue<byte[]> freeBuffers = new ArrayBlockingQueue<byte[]>(4);
 
   private byte[] getBuffer(int desiredSize) {
     if (desiredSize >= 1024) {
@@ -143,7 +144,9 @@ public final class PipeFlusher implements Closeable {
 
   private void releaseBuffer(byte[] buffer) {
     if (buffer.length == BUF_SIZE) {
-      freeBuffers.offer(buffer);
+      if (!freeBuffers.offer(buffer)) {
+        // OK.  If we don't add it, then there are plenty available.
+      }
     }
   }
 

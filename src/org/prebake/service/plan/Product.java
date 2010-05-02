@@ -206,7 +206,7 @@ public final class Product implements JsonSerializable {
     };
   }
 
-  private static <T> List<T> getList(Object o, Class<T> type) {
+  private static <T> List<T> getList(@Nullable Object o, Class<T> type) {
     if (o == null) { return null; }
     ImmutableList.Builder<T> b = ImmutableList.builder();
     for (Object el : (List<?>) o) {

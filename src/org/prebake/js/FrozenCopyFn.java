@@ -14,6 +14,9 @@
 
 package org.prebake.js;
 
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+
 import javax.annotation.Nullable;
 import javax.annotation.ParametersAreNonnullByDefault;
 
@@ -39,4 +42,14 @@ final class FrozenCopyFn extends BaseFunction {
   }
   @Override
   public String getFunctionName() { return "frozenCopy"; }
+
+  // Instances cannot be serialized since console cannot be serialized.
+  /** @param str unused */
+  private void readObject(ObjectInputStream str) {
+    throw new UnsupportedOperationException();
+  }
+  /** @param str unused */
+  private void writeObject(ObjectOutputStream str) {
+    throw new UnsupportedOperationException();
+  }
 }

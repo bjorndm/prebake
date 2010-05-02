@@ -28,6 +28,7 @@ import java.net.InetAddress;
 import java.net.Socket;
 import java.nio.file.FileSystems;
 import java.nio.file.Path;
+import java.util.Collection;
 import java.util.logging.Logger;
 
 import javax.annotation.ParametersAreNonnullByDefault;
@@ -107,8 +108,9 @@ public final class Main {
     int result;
     try {
       Path prebakeDir = bake.findPrebakeDir(cwd);
+      Collection<String> argVals = args.getValues();
       Commands commands = bake.decodeArgv(
-          cwd, args.getValues().toArray(new String[0]));
+          cwd, argVals.toArray(new String[argVals.size()]));
       result = bake.issueCommands(prebakeDir, commands, System.out);
     } catch (IOException ex) {
       ex.printStackTrace();

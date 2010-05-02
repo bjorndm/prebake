@@ -311,7 +311,7 @@ public interface YSONConverter<T> {
         ImmutableSet.Builder<String> keyAggregator = ImmutableSet.builder();
         for (Entry<K, V> e : entries) { keyAggregator.add(e.key); }
         final ImmutableSet<String> allKeys = keyAggregator.build();
-        final String[] allKeysArr = allKeys.toArray(new String[0]);
+        final String[] allKeysArr = allKeys.toArray(new String[allKeys.size()]);
         return new YSONConverter<Map<K, V>>() {
           public @Nullable Map<K, V> convert(
               @Nullable Object ysonValue, MessageQueue problems) {
