@@ -20,6 +20,7 @@ import org.prebake.js.JsonSink;
 import org.prebake.js.JsonSource;
 
 import com.google.common.base.Charsets;
+import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.io.CharStreams;
@@ -223,15 +224,16 @@ public abstract class PbTestCase extends Assert {
    * are inside parentheses, and optional file content is inside single quotes
    * (<tt>'</tt>).
    */
-  protected FileSystem fileSystemFromAsciiArt(String cwd, String asciiArt)
+  protected FileSystem fileSystemFromAsciiArt(String cwd, String... asciiArt)
       throws IOException {
     FileSystem fs = new StubFileSystemProvider("mfs").getFileSystem(
         URI.create("mfs:///#" + cwd));
     List<Integer> indentStack = Lists.newArrayList(-1);
     List<Path> paths = Lists.newArrayList();
     paths.add(fs.getPath("/"));
-    assert asciiArt.indexOf('\t') < 0;
-    for (String line : asciiArt.split("[\r\n]+")) {
+    String asciiArtStr = Joiner.on('\n').join(asciiArt);
+    assert asciiArtStr.indexOf('\t') < 0;
+    for (String line : asciiArtStr.split("[\r\n]+")) {
       if ("".equals(line.trim())) { continue; }
       int indent;
       String fileName;

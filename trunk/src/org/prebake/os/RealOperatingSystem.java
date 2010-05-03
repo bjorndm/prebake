@@ -32,6 +32,7 @@ public final class RealOperatingSystem implements OperatingSystem, Closeable {
   public RealOperatingSystem(FileSystem fs, ScheduledExecutorService execer) {
     this.fs = fs;
     this.flusher = new PipeFlusher(execer);
+    this.flusher.start();
   }
 
   public Path getTempDir() {

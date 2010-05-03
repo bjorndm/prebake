@@ -44,6 +44,7 @@ public final class PipeFlusher implements Closeable {
   private final ScheduledExecutorService execer;
 
   public PipeFlusher(ScheduledExecutorService execer) {
+    assert execer != null;
     this.execer = execer;
   }
 
@@ -56,6 +57,28 @@ public final class PipeFlusher implements Closeable {
       if (closed) { throw new InterruptedException(); }
     }
     livePipes.add(p);
+  }
+
+  /**
+   * There's no way to check whether an input stream is closed without blocking
+   * on it, so periodically (after 10 empty reads), we do a blocking read.
+   */
+  private void checkClosed(final Pipe p) {
+    execer.submit(new Runnable() {
+      public void run() {
+        try {
+          InputStream in = p.from.getInputStream();
+          int read = in.read();
+          if (read < 0) {
+            dropPipe(p);
+          } else {
+            doHandlePipe(in, read, p.to.getOutputStream(), p);
+          }
+        } catch (IOException ex) {
+          dropPipe(p);
+        }
+      }
+    });
   }
 
   private ScheduledFuture<?> pipeDispatcherFuture;
@@ -80,8 +103,7 @@ public final class PipeFlusher implements Closeable {
         for (Pipe p; (p = livePipes.poll()) != null;) {
           OutputStream out = p.to.getOutputStream();
           if (out == null) {
-            p.to.noMoreInput();
-            // Drop the pipe on the floor.
+            dropPipe(p);
             continue;
           }
           InputStream in = p.from.getInputStream();
@@ -91,13 +113,17 @@ public final class PipeFlusher implements Closeable {
               handlePipe(in, out, p);
             } else {
               try {
-                pushPipe(p);
+                if (p.noneAvailableCount++ >= 10) {
+                  checkClosed(p);
+                } else {
+                  pushPipe(p);
+                }
               } catch (InterruptedException ex) {
-                // Drop the pipe on the floor.
+                dropPipe(p);
               }
             }
           } catch (IOException ex) {
-            // Drop the pipe on the floor.
+            dropPipe(p);
           }
         }
       }
@@ -110,25 +136,37 @@ public final class PipeFlusher implements Closeable {
       final InputStream in, final OutputStream out, final Pipe p) {
     execer.submit(new Runnable() {
       public void run() {
-        try {
-          byte[] buf = getBuffer(in.available());
-          try {
-            while (in.available() > 0) {
-              out.write(buf, 0, in.read(buf));
-            }
-          } finally {
-            releaseBuffer(buf);
-          }
-          try {
-            pushPipe(p);
-          } catch (InterruptedException ex) {
-            // Drop the pipe on the floor.
-          }
-        } catch (IOException ex) {
-       // Drop the pipe on the floor.
-        }
+        doHandlePipe(in, -1, out, p);
       }
     });
+  }
+
+  private void doHandlePipe(
+      final InputStream in, int firstByte, final OutputStream out,
+      final Pipe p) {
+    try {
+      byte[] buf = getBuffer(in.available());
+      try {
+        if (firstByte >= 0) {
+          buf[0] = (byte) firstByte;
+          if (in.available() > 0) {
+            int nRead = in.read(buf, 1, buf.length - 1);
+            out.write(buf, 0, nRead >= 0 ? nRead + 1 : 1);
+          }
+        }
+        while (in.available() > 0) { out.write(buf, 0, in.read(buf)); }
+      } finally {
+        releaseBuffer(buf);
+      }
+      p.noneAvailableCount = 0;
+      try {
+        pushPipe(p);
+      } catch (InterruptedException ex) {
+        dropPipe(p);
+      }
+    } catch (IOException ex) {
+      dropPipe(p);
+    }
   }
 
   private static final int BUF_SIZE = 4096;
@@ -150,6 +188,14 @@ public final class PipeFlusher implements Closeable {
     }
   }
 
+  /** Called when a pipe's input has been drained. */
+  private void dropPipe(Pipe p) {
+    // Don't requeue.  Make sure that the recipient process knows it won't
+    // getting any more input.
+    Closeables.closeQuietly(p.from.getOutputStream());
+    p.to.noMoreInput();
+  }
+
   public void close() {
     synchronized (this) {
       closed = true;
@@ -159,10 +205,15 @@ public final class PipeFlusher implements Closeable {
 
   private static final class Pipe {
     final OsProcess from, to;
+    int noneAvailableCount = 0;
 
     Pipe(OsProcess from, OsProcess to) {
       this.from = from;
       this.to = to;
+    }
+
+    @Override public String toString() {
+      return from.getCommand() + "|" + to.getCommand();
     }
   }
 }
