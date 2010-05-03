@@ -43,6 +43,12 @@ public final class StubPipe implements Closeable {
         return read(one, 0, 1) == 1 ? one[0] : -1;
       }
 
+      @Override public int available() {
+        synchronized (mutex) {
+          return len;
+        }
+      }
+
       @Override public int read(byte[] outBuf, int start, int outLen)
           throws IOException {
         synchronized (mutex) {
@@ -57,9 +63,11 @@ public final class StubPipe implements Closeable {
               throw new IOException();
             }
           }
+          if (inClosed && nRead == 0) { return -1; }
           System.arraycopy(buf, pos, outBuf, start, nRead);
           pos = (pos + nRead) % buf.length;
           len -= nRead;
+          if (nRead != 0) { mutex.notifyAll(); }  // There's room for a writer.
           return nRead;
         }
       }
@@ -85,6 +93,7 @@ public final class StubPipe implements Closeable {
           throws IOException {
         synchronized (mutex) {
           int end = start + inLen;
+          boolean wroteSome = false;
           while (start < end && !outClosed) {
             int writePos = (pos + len) % buf.length;
             int nToWrite = min3(
@@ -93,7 +102,12 @@ public final class StubPipe implements Closeable {
               System.arraycopy(inBuf, start, buf, writePos, nToWrite);
               start += nToWrite;
               len += nToWrite;
+              wroteSome = true;
             } else {
+              if (wroteSome) {
+                mutex.notifyAll();  // There's data for a reader.
+                wroteSome = false;
+              }
               try {
                 mutex.wait();
               } catch (InterruptedException ex) {
@@ -101,6 +115,7 @@ public final class StubPipe implements Closeable {
               }
             }
           }
+          if (wroteSome) { mutex.notifyAll(); }  // There's data for a reader.
           if (start < end) { throw new IOException(); }
         }
       }

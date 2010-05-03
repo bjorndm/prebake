@@ -173,11 +173,18 @@ public abstract class OsProcess {
     return p != null ? p.getOutputStream() : null;
   }
 
+  /**
+   * Since the {@link #pipeTo} method not require that the recipient process is
+   * started, we may be in the position of closing the processes input before it
+   * has any.
+   */
   final synchronized void noMoreInput() {
     receivingInput = false;
     if (p != null) {
       try {
-        p.getInputStream().close();
+        // The end of a pipe's input channel is exposed as an OutputStream in
+        // the Java space.
+        p.getOutputStream().close();
       } catch (IOException ex) {
         // OK
       }
