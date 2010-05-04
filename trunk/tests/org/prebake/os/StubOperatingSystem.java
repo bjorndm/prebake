@@ -31,8 +31,11 @@ import java.util.concurrent.Callable;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import javax.annotation.Nullable;
+
 import com.google.common.base.Charsets;
 import com.google.common.base.Function;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.io.ByteStreams;
 
 /**
@@ -46,6 +49,8 @@ import com.google.common.io.ByteStreams;
 public final class StubOperatingSystem implements OperatingSystem {
   private final FileSystem fs;
   private final Logger logger;
+
+  // TODO: possibly consolidate this code with that in OsProcessTest.
 
   public StubOperatingSystem(FileSystem fs, Logger logger) {
     this.fs = fs;
@@ -117,7 +122,9 @@ public final class StubOperatingSystem implements OperatingSystem {
 
     @Override
     protected Process startRunning(
-        boolean inheritOutput, boolean closeInput, Path outFile, Path inFile)
+        boolean inheritOutput, boolean closeInput,
+        @Nullable Path outFile, boolean truncateOutput, @Nullable Path inFile,
+        ImmutableMap<String, String> env, boolean inheritEnv)
         throws IOException {
       return this.p = makeStubProcess(cwd, command, argv);
     }

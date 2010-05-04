@@ -45,22 +45,48 @@ import javax.annotation.ParametersAreNonnullByDefault;
  * using the system dependent separator.  E.g., on Windows, the normalized form
  * of {@code C:\foo} is {@code C:/foo}.
  *
+ * <h2>Tree Roots</h2>
+ * A glob may specify that a prefix of all paths matched by it is the root
+ * of a directory tree, such as <ul>
+ *   <li>Portion of a C header file include directory,</li>
+ *   <li>A java package tree,</li>
+ *   <li>The root of files in a JAR or ZIP archive,</li>
+ *   <li>The directory to contain the {@code index.html} file in a tree of
+ *       HTML reports,</li>
+ *   <li>etc.</li>
+ * </ul>
+ * The tree root of a glob is the prefix of it that precedes 3 path separators.
+ * E.g. the tree root of {@code src///org/prebake/**.java} is {@code src}, and
+ * the rest of the prefix, {@code /org/prebake} are path elements under the tree
+ * root. That glob matches paths like {@code src/org/prebake/Foo.java} ; the
+ * paths it matches do not have to have tripled file separators.
+ * TODO: update wikidocs with tree roots.
+ *
  * @see <a href="http://code.google.com/p/prebake/wiki/Glob">Wiki Docs</a>
  * @author Mike Samuel <mikesamuel@gmail.com>
  */
 @ParametersAreNonnullByDefault
 public final class Glob implements Comparable<Glob>, JsonSerializable {
   private final String[] parts;
-  private Pattern regex;
+  private final int treeRootIndex;
+  private transient Pattern regex;
+  // TODO: add the notion of a tree root to globs.
+  // For example, the tree root of a set of java files might be the tree root.
+  // Possible syntax
+  // src///**.java
+  // lib///com/google/**.class
 
-  private Glob(String... parts) {
+  private Glob(int treeRootIndex, String... parts) {
     this.parts = parts;
+    this.treeRootIndex = treeRootIndex;
   }
 
   /** See the grammar at http://code.google.com/p/prebake/wiki/Glob. */
   public static Glob fromString(String s) {
     int n = s.length();
     int partCount = 0;
+    int treeRootIndex = 0;
+    boolean sawStar = false;
     for (int i = 0; i < n; ++i) {
       ++partCount;
       switch (s.charAt(i)) {
@@ -70,11 +96,25 @@ public final class Glob implements Comparable<Glob>, JsonSerializable {
             // Three adjacent **'s not allowed.
             if (i + 1 < n && s.charAt(i + 1) == '*') { badGlob(s); }
           }
+          sawStar = true;
           break;
-        case '/':
-          // Two adjacent path separators not allowed
-          if (i != 0 && s.charAt(i - 1) == '/') { badGlob(s); }
+        case '/': {
+          // Two adjacent path separators not allowed unless as part of a tree
+          // root index.
+          int start = i;
+          while (i + 1 < n && s.charAt(i + 1) == '/') { ++i; }
+          switch (i - start) {  // number of extra slashes
+            case 0: break;
+            case 2:
+              if (treeRootIndex == 0 && !sawStar) {
+                treeRootIndex = partCount - 1;
+                break;
+              }
+              // $FALL-THROUGH$
+            default: badGlob(s);
+          }
           break;
+        }
         default:
           while (i + 1 < n) {
             char next = s.charAt(i + 1);
@@ -94,7 +134,11 @@ public final class Glob implements Comparable<Glob>, JsonSerializable {
         case '*':
           if (i + 1 < n && s.charAt(i + 1) == '*') { ++i; }
           break;
-        case '/': break;
+        case '/':
+          if (k != -1 && k + 1 == treeRootIndex) {
+            i = pos += 2;
+          }
+          break;
         default:
           while (i + 1 < n) {
             char next = s.charAt(i + 1);
@@ -114,7 +158,7 @@ public final class Glob implements Comparable<Glob>, JsonSerializable {
       }
       parts[++k] = part;
     }
-    return new Glob(parts);
+    return new Glob(treeRootIndex, parts);
   }
 
   private static void badGlob(String glob) {
@@ -297,6 +341,7 @@ public final class Glob implements Comparable<Glob>, JsonSerializable {
       for (int i = m; --i >= 0;) { delta -= input.parts[i].length(); }
       lenDelta = delta;
     }
+    final boolean skipFirst = "".equals(outputParts[0]);
     return new Function<String, String>() {
       public String apply(String inputPath) {
         Matcher m = inPattern.matcher(inputPath);
@@ -324,7 +369,9 @@ public final class Glob implements Comparable<Glob>, JsonSerializable {
             sb.append(outputPart);
           }
         }
-        return sb.toString();
+
+        return sb.substring(
+            skipFirst && sb.length() > 0 && sb.charAt(0) == '/' ? 1 : 0);
       }
     };
   }
@@ -364,16 +411,31 @@ public final class Glob implements Comparable<Glob>, JsonSerializable {
    * A value that if passed to {@link #fromString} would return an
    * {@link #equals equivalent} glob.
    */
-  @Override
-  public String toString() {
+  @Override public String toString() {
     StringBuilder sb = new StringBuilder();
-    for (String part : parts) { sb.append(part); }
+    if (treeRootIndex != 0) {
+      for (int i = 0; i < treeRootIndex; ++i) { sb.append(parts[i]); }
+      sb.append("//");
+    }
+    for (int i = treeRootIndex, n = parts.length; i < n; ++i) {
+      sb.append(parts[i]);
+    }
+    return sb.toString();
+  }
+
+  public String getTreeRoot() {
+    if (treeRootIndex == 0) { return ""; }
+    StringBuilder sb = new StringBuilder();
+    for (int i = 0; i < treeRootIndex; ++i) { sb.append(parts[i]); }
     return sb.toString();
   }
 
   @Override
   public boolean equals(Object o) {
-    return o instanceof Glob && Arrays.equals(this.parts, ((Glob) o).parts);
+    if (!(o instanceof Glob)) { return false; }
+    Glob that = (Glob) o;
+    if (this.treeRootIndex != that.treeRootIndex) { return false; }
+    return Arrays.equals(this.parts, that.parts);
   }
 
   @Override
@@ -432,12 +494,14 @@ public final class Glob implements Comparable<Glob>, JsonSerializable {
   private static class Intersector {
     final String[] p, q;
     final int m, n;
+    final int treeRootIndex;
 
     Intersector(Glob p, Glob q) {
       this.p = p.parts;
       this.q = q.parts;
       this.m = this.p.length;
       this.n = this.q.length;
+      this.treeRootIndex = Math.min(p.treeRootIndex, q.treeRootIndex);
     }
 
     Glob intersection() {
@@ -468,7 +532,7 @@ public final class Glob implements Comparable<Glob>, JsonSerializable {
       for (int i = np; --i >= 0;) {
         parts[i] = partsReversed.get(np - i - 1);
       }
-      return new Glob(parts);
+      return new Glob(treeRootIndex, parts);
     }
 
     boolean intersects() {
@@ -710,13 +774,31 @@ public final class Glob implements Comparable<Glob>, JsonSerializable {
     }
   }
 
-  private static String normGlob(String glob) {
-    String globStr = glob.replaceAll("/{2,}", "/");
-    int globStrLen = globStr.length();
-    if (globStrLen > 1 && globStr.charAt(globStrLen - 1) == '/') {
-      globStr = globStr.substring(0, globStrLen - 1);
+  static String normGlob(String glob) {
+    {  // Fold adjacent file separators.
+      StringBuilder sb = null;
+      int n = glob.length();
+      int pos = 0;
+      for (int i = 0; i < n; ++i) {
+        if (glob.charAt(i) != '/') { continue; }
+        int end = i;
+        while (++end < n && glob.charAt(end) == '/') { /* ok */ }
+        int nSlashes = end - i;
+        if (nSlashes == 2) {
+          // Two can be the result of lazy concatenation,
+          // but three is a root marker.
+          if (sb == null) { sb = new StringBuilder(n - 1); }
+          sb.append(glob, pos, i + 1);
+          pos = end;
+        }
+        i = end;
+      }
+      if (sb != null) { glob = sb.append(glob, pos, n).toString(); }
     }
-    return globStr;
+    int n = glob.length();
+    // Remove / at the end of a path.
+    if (n > 1 && glob.charAt(n - 1) == '/') { glob = glob.substring(0, n - 1); }
+    return glob;
   }
 
   /** Thrown when trying to convert a malformed string into a glob. */

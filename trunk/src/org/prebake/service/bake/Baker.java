@@ -115,7 +115,7 @@ public final class Baker {
     if (toolbox == null) { throw new IllegalArgumentException(); }
     if (this.toolbox != null) { throw new IllegalStateException(); }
     this.toolbox = toolbox;
-    this.oven = new Oven(os, files, commonJsEnv, toolbox, umask, logger);
+    this.oven = new Oven(os, files, commonJsEnv, toolbox, logger);
     this.finisher = new Finisher(files, umask, logger);
   }
 

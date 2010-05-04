@@ -20,6 +20,7 @@ import org.prebake.os.OsProcess;
 
 import java.io.IOException;
 import java.nio.file.Path;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.logging.Level;
@@ -49,7 +50,8 @@ final class ExecFn extends SimpleMembranableFunction {
     super(
         ""
         + "Returns a command line process that you can pipeTo(), readFrom(),"
-        + " or writeTo(); then run(); then waitFor() or kill().",
+        + ", writeTo(), appendTo() and/or env(); then run();"
+        + " then waitFor() or kill().",
         "exec", "cmd", "argv...");
     this.os = os;
     this.workingDir = workingDir;
@@ -125,9 +127,30 @@ final class ExecFn extends SimpleMembranableFunction {
               return jsObj;
             }
           })
+          .put("appendTo", new SimpleMembranableFunction(
+              "Streams this process's output to the end of the given file.",
+              "appendTo", "this", "file") {
+            public ImmutableMap<String, ?> apply(Object[] args) {
+              if (args.length != 1) { throw new IndexOutOfBoundsException(); }
+              if (!(args[0] instanceof String)) {
+                throw new ClassCastException(args[0].getClass().getName());
+              }
+              try {
+                Path outPath = workingDir.resolve((String) args[0]);
+                // We use 0700 since we're only operating in the working dir.
+                Baker.mkdirs(outPath.getParent(), 0700);
+                p.appendTo(checker.check(outPath));
+              } catch (IOException ex) {
+                logger.log(
+                    Level.WARNING, "Possible attempt to touch client dir", ex);
+                throw new RuntimeException(ex.getMessage());
+              }
+              return jsObj;
+            }
+          })
           .put("writeTo", new SimpleMembranableFunction(
-              "Streams the given file to this process's input.",
-              "readFrom", "this", "file") {
+              "Streams this process's output to the given file.",
+              "writeTo", "this", "file") {
             public ImmutableMap<String, ?> apply(Object[] args) {
               if (args.length != 1) { throw new IndexOutOfBoundsException(); }
               if (!(args[0] instanceof String)) {
@@ -142,6 +165,32 @@ final class ExecFn extends SimpleMembranableFunction {
                 logger.log(
                     Level.WARNING, "Possible attempt to touch client dir", ex);
                 throw new RuntimeException(ex.getMessage());
+              }
+              return jsObj;
+            }
+          })
+          .put("noInheritEnv", new SimpleMembranableFunction(
+              "Don't inherit environment from the JVM",
+              "noInheritEnv", "this") {
+            public Object apply(Object[] args) {
+              p.noInheritEnv();
+              return jsObj;
+            }
+          })
+          .put("env", new SimpleMembranableFunction(
+              "Sets environment key/value pairs.", "env", "this",
+              "key", "value...") {
+            public Object apply(Object[] args) {
+              if (args.length == 1 && args[0] instanceof Map<?, ?>) {
+                for (Map.Entry<?, ?> e : ((Map<?, ?>) args[0]).entrySet()) {
+                  p.env((String) e.getKey(), (String) e.getValue());
+                }
+              } else {
+                Iterator<String> it = JsOperatingSystemEnv.stringsIn(args)
+                    .iterator();
+                while (it.hasNext()) {
+                  p.env(it.next(), it.next());
+                }
               }
               return jsObj;
             }

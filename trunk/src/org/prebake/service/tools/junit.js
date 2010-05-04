@@ -53,13 +53,14 @@
         }
       }
     }
-    var endsWithClass = /.class$/;
     for (var i = 0, n = action.inputs.length; i < n; ++i) {
       var input = action.inputs[i];
-      if (endsWithClass.test(input)) {  // E.g. lib/**.class
-        // TODO: Strip off directories if there is a com/org/net as a path element.
-        // TODO: make this common with javac, and java tasks?
-        extraClasspath.push(glob.prefix(input));
+      var dot = input.lastIndexOf('.');
+      switch (input.substring(dot + 1)) {
+	case 'class':
+	  var classDir = glob.rootOf(input);
+	  if (classDir) { extraClasspath.push(classDir); }
+	  break;
       }
     }
     classpath = Array.filter(
@@ -82,18 +83,11 @@
           case '.xml':  wantsXmlReport = true; break;
           default: continue;
         }
-        if (inferReportDir) {
+        if (inferReportDir && reportDir === null) {
           // The report directory is the one that contains the json output dump
           // or index.html.
-          var m = output.match(/^[^*]+?(?=\/[^\/]*$|\*(?:\/|$))/);
-          if (m) {
-            var prefix = m[0];
-            if (reportDir === null
-                || (prefix.length < reportDir
-                    && prefix === reportDir.substring(0, prefix.length))) {
-              reportDir = prefix;
-            }
-          }
+	  var root = glob.rootOf(output);
+          if (root) { reportDir = root; }
         }
       }
     }
