@@ -57,14 +57,15 @@
       var input = action.inputs[i];
       var dot = input.lastIndexOf('.');
       switch (input.substring(dot + 1)) {
-	case 'class':
-	  var classDir = glob.rootOf(input);
-	  if (classDir) { extraClasspath.push(classDir); }
-	  break;
+        case 'class':
+          var classDir = glob.rootOf(input);
+          if (classDir) { extraClasspath.push(classDir); }
+          break;
       }
     }
     classpath = Array.filter(
-        classpath.split(pathSeparator).concat(java_classpath.split(pathSeparator)),
+        classpath.split(pathSeparator)
+        .concat(java_classpath.split(pathSeparator)),
         function (x) { return !!x; })
         .concat(extraClasspath)
         .join(pathSeparator);
@@ -86,7 +87,7 @@
         if (inferReportDir && reportDir === null) {
           // The report directory is the one that contains the json output dump
           // or index.html.
-	  var root = glob.rootOf(output);
+          var root = glob.rootOf(output);
           if (root) { reportDir = root; }
         }
       }
@@ -103,6 +104,16 @@
         reportDir || '',
         reportTypes]
         .concat(testClasses);
-    return os.exec.apply({}, command).run().waitFor() === 0;
+    var result = os.exec.apply({}, command).run().waitFor();
+    // See JUnitRunner.Result enum.
+    if (result === 0 || result === -1) {
+      if (result) {
+        console.warn('JUnit Tests failed');
+      } else {
+        console.log('JUnit Tests passed');
+      }
+    } else {
+      console.warn('JUnit failed with result ' + result);
+    }
   }
 });

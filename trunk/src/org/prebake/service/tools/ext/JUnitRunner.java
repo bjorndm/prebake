@@ -66,6 +66,22 @@ import org.junit.runner.notification.RunListener;
  */
 public final class JUnitRunner {
 
+  enum ResultCode {
+    ALL_TESTS_PASSED(0),
+    TESTS_FAILED(-1),
+    FAILED_TO_WRITE_REPORTS(2),
+    FAILED_TO_IDENTIFY_TEST_CLASSES(3),
+    // If these codes change, update junit.js
+    ;
+
+    final byte processResultCode;
+
+    ResultCode(int processResultCode) {
+      assert processResultCode == ((byte) processResultCode);
+      this.processResultCode = (byte) processResultCode;
+    }
+  }
+
   /**
    * @param argv
    *    [test_listener_lambda, report_output_dir, report_types, test_classes...]
@@ -78,16 +94,16 @@ public final class JUnitRunner {
         argv[2].toLowerCase(Locale.ENGLISH).split(","));
     String[] testClassNames = new String[argv.length - 3];
     ClassNameFinder classNameFinder = new ClassNameFinder();
-    int okResult = 0;
+    ResultCode okResult = ResultCode.ALL_TESTS_PASSED;
     for (int i = argv.length; --i >= 3;) {
       try {
         testClassNames[i - 3] = classNameFinder.forClassFile(argv[i]);
       } catch (IOException ex) {
         System.err.println("Failed to read class file " + argv[i]);
-        okResult = -3;
+        okResult = ResultCode.FAILED_TO_IDENTIFY_TEST_CLASSES;
       }
     }
-    int result = run(
+    ResultCode result = run(
         new JUnitSystem() {
           public void exit(int result) {
             throw new UnsupportedOperationException();
@@ -95,10 +111,14 @@ public final class JUnitRunner {
           public PrintStream out() { return System.out; }
         },
         testReportFilter, reportOutputDir, reportTypes, testClassNames);
-    System.exit(result == 0 ? okResult : result);
+    if (result == ResultCode.ALL_TESTS_PASSED) { result = okResult; }
+    // 0 all tests passed, -1 reports generated, -2 failed to write reports,
+    // -3 failed to identify all test classes
+    // If these result codes change, change junit.js
+    System.exit(result.processResultCode);
   }
 
-  public static int run(
+  public static ResultCode run(
       JUnitSystem junitSystem,
       @Nullable YSON.Lambda testReportFilter, Path reportOutputDir,
       Set<String> reportTypes, String... testClassNames) {
@@ -221,7 +241,10 @@ public final class JUnitRunner {
 
     boolean allSucceeded = writeSummary(jsonReport, junitSystem.out());
 
-    return generatedReports ? allSucceeded ? 0 : -1 : -2;
+    return generatedReports
+        ? allSucceeded
+            ? ResultCode.ALL_TESTS_PASSED : ResultCode.TESTS_FAILED
+        : ResultCode.FAILED_TO_WRITE_REPORTS;
   }
 
   /**
