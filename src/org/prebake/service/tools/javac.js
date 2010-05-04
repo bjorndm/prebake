@@ -53,10 +53,10 @@
       var input = action.inputs[i];
       var dot = input.lastIndexOf('.');
       switch (input.substring(dot + 1)) {
-	case 'class':
-	  var classDir = glob.rootOf(input);
-	  if (classDir) { extraClasspath.push(classDir); }
-	  break;
+        case 'class':
+          var classDir = glob.rootOf(input);
+          if (classDir) { extraClasspath.push(classDir); }
+          break;
       }
     }
     if (extraClasspath.length) {

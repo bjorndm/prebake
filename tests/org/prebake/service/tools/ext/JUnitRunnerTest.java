@@ -48,7 +48,7 @@ public class JUnitRunnerTest extends PbTestCase {
          + "  test-report/"));
     ByteArrayOutputStream outBytes = new ByteArrayOutputStream();
     final PrintStream out = new PrintStream(outBytes, true /* auto-flushing */);
-    int result = JUnitRunner.run(
+    JUnitRunner.ResultCode result = JUnitRunner.run(
         new JUnitSystem() {
           public void exit(int exitCode) { fail("Should not have exited"); }
           public PrintStream out() { return out; }
@@ -178,7 +178,7 @@ public class JUnitRunnerTest extends PbTestCase {
               Charsets.UTF_8))
               .replaceAll("(?:\\\\n\\\\tat [^\\\\]*)+\\\\n", "<elided>"));
 
-      assertEquals(-1, result);  // Some tests failed.
+      assertEquals(JUnitRunner.ResultCode.TESTS_FAILED, result);
 
       assertTrue(
           output.endsWith(

@@ -160,6 +160,8 @@ public final class Baker {
                     workDir, product, inputs, paths, hashes);
                 if (Boolean.TRUE.equals(result.result)) {
                   ImmutableList<Path> outputs;
+                  // TODO: can't pass if there are problems moving files to the
+                  // repo.
                   outputs = finisher.moveToRepo(
                       product.name, workDir, workingDirInputs, product.outputs);
                   files.update(outputs);
@@ -168,9 +170,11 @@ public final class Baker {
                         && files.update(
                             addresser, status, paths, hashes.build())) {
                       passed = true;
+                      logger.log(
+                          Level.INFO, "Product up to date: {0}", product.name);
                     } else {
                       logger.log(
-                          Level.WARNING, "Version skew for " + product.name);
+                          Level.WARNING, "Version skew for {0}", product.name);
                     }
                   }
                 } else {

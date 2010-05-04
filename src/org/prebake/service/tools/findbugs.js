@@ -72,7 +72,9 @@
     var command = ['findbugs', '-textui', '-progress'];
     if (effort) { command.push('-effort:' + effort); }
     switch (priority) {
-      case 'low': case 'medium': case 'high': command.push('-' + priority); break;
+      case 'low': case 'medium': case 'high':
+        command.push('-' + priority);
+        break;
       case undefined: break;
       default: throw new Error('bad priority ' + priority);
     }
@@ -81,6 +83,15 @@
     if (outputFile) { command.push('-output', outputFile); }
     if (classpath) { command.push('-auxclasspath', classpath); }
     command = command.concat(sources);
-    return os.exec.apply({}, command).run().waitFor() === 0;
+    var result = os.exec.apply({}, command).run().waitFor();
+    if (result === 0 || result === 1) {
+      if (result) {
+        console.log('See findbugs report at ' + outputFile);
+      }
+      return true;
+    } else {
+      console.warn('Findbugs failed with status code ' + result);
+      return false;
+    }
   }
 });
