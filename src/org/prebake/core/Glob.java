@@ -267,16 +267,23 @@ public final class Glob implements Comparable<Glob>, JsonSerializable {
     // TODO: document these conventions on the glob wiki page, and expose to
     // tools.
     int m = input.parts.length, n = output.parts.length;
-    // The literal portions of the output glob.
+    // The literal portions of the output glob without connecting slashes.
     // For the output glob "foo/**/bar/baz/*.html", the literal portions are
-    // ["foo/", "/bar/baz/", ".html"]
+    // ["foo", "bar/baz", ".html"]
     List<String> literals = Lists.newArrayList();
+    // For each hole, true if the hole is preceded by a slash in the output.
+    final boolean[] precededBySlash;
+    final boolean[] followedBySlash;
     // Number of holes in input that don't correspond to any in the output.
     // E.g., for (input="**/foo/*.txt", output="bar/*.txt")
     // which would map { a/foo/x.txt => bar/x.txt, b/c/foo/y.txt => bar/y.txt }
     // nUnusedGroups is 1 since the "**" isn't used in the output.
     final int nUnusedGroups;
     {
+      List<Boolean> precededBySlashList = Lists.newArrayList();
+      List<Boolean> followedBySlashList = Lists.newArrayList();
+      List<String> outputPartsList = Arrays.asList(output.parts);
+      Joiner joiner = Joiner.on("");
       int pos = n;
       int j = m;
       // Iterate in reverse so that unused groups fall at the beginning of the
@@ -307,15 +314,30 @@ public final class Glob implements Comparable<Glob>, JsonSerializable {
               + "  There is no corresponding hole for the " + outPart
               + " at the end of " + Joiner.on("").join(output.parts, 0, i + 1));
         }
-        literals.add(Joiner.on("").join(
-            Arrays.asList(output.parts).subList(i + 1, pos)));
+        int k = i + 1;
+        if (k < pos && "/".equals(outputPartsList.get(k))) { ++k; }
+        literals.add(joiner.join(outputPartsList.subList(k, pos)));
         pos = i;
+        boolean slashBefore = i > 0 && "/".equals(outputPartsList.get(i - 1));
+        if (slashBefore) { --pos; }
+        precededBySlashList.add(slashBefore);
+        boolean slashAfter = i + 1 < n
+            && "/".equals(outputPartsList.get(i + 1));
+        followedBySlashList.add(slashAfter);
       }
-      literals.add(Joiner.on("").join(
-          Arrays.asList(output.parts).subList(0, pos)));
+      literals.add(joiner.join(outputPartsList.subList(0, pos)));
       // Since we iterated above in reverse order.
       Collections.reverse(literals);
-
+      {
+        int np = precededBySlashList.size();
+        // 1-indexed to simplify indexing in function loop below.
+        precededBySlash = new boolean[np + 1];
+        followedBySlash = new boolean[np + 1];
+        for (int a = np, b = 0; --a >= 0;) {
+          precededBySlash[++b] = precededBySlashList.get(a);
+          followedBySlash[b] = followedBySlashList.get(a);
+        }
+      }
       int unusedGroups = 0;
       while (--j >= 0) {
         if (input.parts[j].charAt(0) == '*') { ++unusedGroups; }
@@ -329,10 +351,6 @@ public final class Glob implements Comparable<Glob>, JsonSerializable {
       inPattern = Pattern.compile(inBuf.toString(), Pattern.DOTALL);
     }
     final String[] outputParts = literals.toArray(new String[literals.size()]);
-    final boolean[] slashStarts = new boolean[outputParts.length];
-    for (int i = slashStarts.length; --i >= 0;) {
-      slashStarts[i] = outputParts[i].startsWith("/");
-    }
     final int nSubs = outputParts.length - 1;
     final int lenDelta;  // Used to presize output StringBuilder.
     {
@@ -341,7 +359,6 @@ public final class Glob implements Comparable<Glob>, JsonSerializable {
       for (int i = m; --i >= 0;) { delta -= input.parts[i].length(); }
       lenDelta = delta;
     }
-    final boolean skipFirst = "".equals(outputParts[0]);
     return new Function<String, String>() {
       public String apply(String inputPath) {
         Matcher m = inPattern.matcher(inputPath);
@@ -349,29 +366,28 @@ public final class Glob implements Comparable<Glob>, JsonSerializable {
         StringBuilder sb = new StringBuilder(
             Math.max(0, lenDelta + inputPath.length()));
         sb.append(outputParts[0]);
+        boolean needSlash = false;
         for (int i = 1; i <= nSubs; ++i) {
+          if (precededBySlash[i]) { needSlash = true; }
           String group = m.group(i + nUnusedGroups);
-          if (group != null) { sb.append(group); }
-          // Don't double up '/'s.  This might happen for the input
-          // foo/**/*.txt and output bar/**/*.txt are transformed against
-          // the path foo/a.txt to produce bar/a.txt.  The "**" substitution
-          // would match the empty string, leaving the output part, the "/" to
-          // run up against the previous literal portion's "/".
-          String outputPart = outputParts[i];
-          if (slashStarts[i]) {
-            int sblen = sb.length();
-            if (sblen == 0 || sb.charAt(sblen - 1) == '/') {
-              sb.append(outputPart, 1, outputPart.length());
-            } else {
-              sb.append(outputPart);
+          if (group != null && group.length() != 0) {
+            if (needSlash) {
+              sb.append('/');
+              needSlash = false;
             }
-          } else {
+            sb.append(group);
+            if (followedBySlash[i]) { needSlash = true; }
+          }
+          String outputPart = outputParts[i];
+          if (outputPart.length() != 0) {
+            if (needSlash) {
+              sb.append('/');
+              needSlash = false;
+            }
             sb.append(outputPart);
           }
         }
-
-        return sb.substring(
-            skipFirst && sb.length() > 0 && sb.charAt(0) == '/' ? 1 : 0);
+        return sb.toString();
       }
     };
   }
@@ -656,12 +672,15 @@ public final class Glob implements Comparable<Glob>, JsonSerializable {
             String nextPart = parts[i + 1];
             if ('*' == nextPart.charAt(0)) {
               // foo/* and foo/** should match foo
-              sb.append(capture ? "(" : "(?:");
+              sb.append("(?:");
               if (nextPart.length() == 2) {
-                sb.append('[').append(separatorChars).append("].*");
+                sb.append('[').append(separatorChars)
+                    .append(capture ? "](.*)" : "].*");
               } else {
-                sb.append('[').append(separatorChars).append("][^")
-                    .append(separatorChars).append("]*");
+                sb.append('[').append(separatorChars)
+                    .append(capture ? "]([^" : "][^")
+                    .append(separatorChars)
+                    .append(capture ? "]*)" : "]*");
               }
               sb.append(")?");
               ++i;
