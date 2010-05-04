@@ -21,6 +21,8 @@ import java.nio.file.Path;
 
 import javax.annotation.Nullable;
 
+import com.google.common.collect.ImmutableMap;
+
 /**
  * Abstracts away process management so we can build piping on top of
  * ProcessBuilder or implement it natively if need be.
@@ -30,16 +32,29 @@ import javax.annotation.Nullable;
  * {@link OsProcess#run} happens in the same thread that {@code run} is called
  * in and that thereafter, this object needs to be thread-safe.
  *
- * @author mikesamuel@gmail.com
+ * @author Mike Samuel <mikesamuel@gmail.com>
  */
 public abstract class OsProcess {
   private final OperatingSystem os;
+  /** Resolved via the OS search path. */
   private final String command;
+  /** Null if not yet running or if already finished. */
   private Process p;
-  private OsProcess outReceiver;
-  private Path inFile, outFile;
-  private boolean receivingInput;
+  /** Exit value of p if it has finished running or MIN_VALUE otherwise. */
   private int result = Integer.MIN_VALUE;
+  /** Optional process to which output is piped. */
+  private OsProcess outReceiver;
+  /** Files to hook to stdin/stdout. */
+  private Path inFile, outFile;
+  /** True iff there's a file or process on stdin. */
+  private boolean receivingInput;
+  /** True iff outFile should be truncated. */
+  private boolean truncateOutput;
+  /** True iff p should inherit the JVM's environment. */
+  private boolean inheritEnvironment = true;
+  /** Any process specific environment. */
+  private ImmutableMap.Builder<String, String> environment
+      = ImmutableMap.builder();
 
   // TODO: figure out how to get the error and output to the logger.
 
@@ -97,7 +112,8 @@ public abstract class OsProcess {
 
   protected abstract Process startRunning(
       boolean inheritOutput, boolean closeInput,
-      @Nullable Path outFile, @Nullable Path inFile)
+      @Nullable Path outFile, boolean truncateOutput, @Nullable Path inFile,
+      ImmutableMap<String, String> environment, boolean inheritEnvironment)
       throws IOException;
 
   public synchronized final boolean runIfNotRunning()
@@ -135,7 +151,11 @@ public abstract class OsProcess {
       // above.
       os.getPipeFlusher().createPipe(this, outReceiver);
     }
-    p = startRunning(inheritOutput, closeInput, outFile, inFile);
+    ImmutableMap<String, String> environment = this.environment.build();
+    this.environment = null;
+    p = startRunning(
+        inheritOutput, closeInput, outFile, truncateOutput, inFile,
+        environment, inheritEnvironment);
     return this;
   }
 
@@ -158,6 +178,27 @@ public abstract class OsProcess {
     if (hasStartedRunning()) { throw new IllegalStateException(); }
     if (outReceiver != null) { throw new IllegalStateException(); }
     outFile = p;
+    truncateOutput = true;
+    return this;
+  }
+
+  public synchronized final OsProcess appendTo(Path p) {
+    if (hasStartedRunning()) { throw new IllegalStateException(); }
+    if (outReceiver != null) { throw new IllegalStateException(); }
+    outFile = p;
+    truncateOutput = false;
+    return this;
+  }
+
+  public synchronized final OsProcess env(String key, String value) {
+    if (hasStartedRunning()) { throw new IllegalStateException(); }
+    environment.put(key, value);
+    return this;
+  }
+
+  public synchronized final OsProcess noInheritEnv() {
+    if (hasStartedRunning()) { throw new IllegalStateException(); }
+    inheritEnvironment = false;
     return this;
   }
 

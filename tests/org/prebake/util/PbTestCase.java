@@ -104,12 +104,24 @@ public abstract class PbTestCase extends Assert {
     return logger;
   }
 
+  public ImmutableMap<String, ?> getCommonJsEnv(boolean dosPrefs) {
+    if (dosPrefs) {
+      return CommonEnvironment.makeEnvironment(ImmutableMap.of(
+          "file.separator", "\\",
+          "os.arch", "i386",
+          "os.name", "generic-windows",
+          "os.version", "7"));
+    } else {
+      return CommonEnvironment.makeEnvironment(ImmutableMap.of(
+          "file.separator", "/",
+          "os.arch", "i386",
+          "os.name", "generic-posix",
+          "os.version", "1"));
+    }
+  }
+
   public ImmutableMap<String, ?> getCommonJsEnv() {
-    return CommonEnvironment.makeEnvironment(ImmutableMap.of(
-        "file.separator", "/",
-        "os.arch", "i386",
-        "os.name", "generic-posix",
-        "os.version", "1"));
+    return getCommonJsEnv(false);
   }
 
   protected static void rmDirTree(File f) {

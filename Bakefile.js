@@ -33,7 +33,7 @@ var jars = [
           "test files."].join("\n"),
       contact: "Mike Samuel <mikesamuel@gmail.com>"
     },
-    actions: [tools.javac(["src/**.java"].concat(jars), "lib/**.class"),
+    actions: [tools.javac(["src///**.java"].concat(jars), "lib///**.class"),
               tools.cp("src/**.{css,js,txt}", "lib/**.{css,js,txt}"),
               tools.ls("src/org/prebake/service/tools/*.js",
                        "lib/org/prebake/service/tools/tools.txt")]
@@ -44,23 +44,45 @@ var jars = [
       detail:  "Puts under test-lib/ everything needed for junit tests",
       contact: "Mike Samuel <mikesamuel@gmail.com>"
     },
-    actions: [tools.javac(["tests/**.java", "lib/**.class"].concat(jars),
-                          "test-lib/**.class")]
+    actions: [tools.javac(["tests///**.java", "lib///**.class"].concat(jars),
+                          "test-lib///**.class")]
   },
   runtests: {
-    help: 'Runs JUnit tests putting test results under reports',
-    actions: [tools.junit(['test-lib/**.class', 'lib/**.class'].concat(jars),
-                          'reports/tests/**.{json,html,css}',
-                          { test_class_filter: '**Test.class' })]
+    help: "Runs JUnit tests putting test results under reports",
+    actions: [tools.junit(["test-lib///**.class", "lib///**.class"].concat(jars),
+                          "reports/tests///**.{json,html,css}",
+                          { test_class_filter: "**Test.class" })]
   },
   docs: {
     help: "Puts javadoc under docs",
-      actions: [tools.javadoc(['src/**.java'].concat(jars), 'doc/api/**.html',
-                              {'visibility':'protected'})]
+    actions: [tools.javadoc(["src/**.java"].concat(jars), "doc/api///**.html",
+                            {visibility: "protected"})]
   },
   checks: {
     help: "Runs FindBugs over the source code (and test code)",
-      actions: [tools.findbugs(['src/**.java', 'tests/**.java'].concat(jars),
-                               'doc/api/**.html', {'visibility':'protected'})]
+    actions: [tools.findbugs(["{test-lib,lib}///**.class"].concat(jars),
+                             "reports/bugs///index.html",
+                             { effort: "max", priority: "medium" })]
+  },
+  jars: {
+    help: "Packages service and client into separate jars",
+    actions: [
+        tools.jar(
+            "lib///**.class", "jars/client.jar",
+            {
+              manifest: {
+                "Main-Class": "org.prebake.client.Main",
+                "Class-Path": "../third_party/guava-libraries/guava.jar"
+              }
+            }),
+        tools.jar(
+            "lib///**.{class,js,css,txt}", "jars/service.jar",
+            {
+              manifest: {
+                "Main-Class": "org.prebake.service.Main",
+                "Class-Path": Array.map(
+                    jars, function (jar) { return "../" + jar; }).join(" ")
+              }
+            })]
   }
 })

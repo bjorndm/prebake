@@ -59,7 +59,7 @@ final class Oven {
   private final Logger logger;
 
   Oven(OperatingSystem os, FileVersioner files,
-       ImmutableMap<String, ?> commonJsEnv, ToolProvider toolbox, int umask,
+       ImmutableMap<String, ?> commonJsEnv, ToolProvider toolbox,
        Logger logger) {
     this.os = os;
     this.commonJsEnv = commonJsEnv;

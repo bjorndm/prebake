@@ -17,6 +17,7 @@ package org.prebake.service.bake;
 import org.prebake.js.MembranableFunction;
 import org.prebake.js.SimpleMembranableFunction;
 
+import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.Iterator;
@@ -51,6 +52,23 @@ final class JsOperatingSystemEnv {
           }
         }
         return null;
+      }
+    };
+    MembranableFunction tmpfileFn = new SimpleMembranableFunction(
+        ""
+        + "Creates and returns a path to a temporary file.",
+        "tmpfile", "file", "suffix") {
+      public String apply(Object[] args) {
+        String suffix = (String) args[0];
+        try {
+          File f = File.createTempFile(
+              "tmp", suffix, new File(workingDir.getParent().toUri()));
+          f.deleteOnExit();
+          return f.toString();
+        } catch (IOException ex) {
+          Throwables.propagate(ex);
+          return null;
+        }
       }
     };
     MembranableFunction dirnameFn = new SimpleMembranableFunction(
@@ -94,15 +112,17 @@ final class JsOperatingSystemEnv {
         return p.normalize().toString();
       }
     };
-    return ImmutableMap.of(
-        "exec", execFn,
-        "mkdirs", mkdirsFn,
-        "dirname", dirnameFn,
-        "basename", basenameFn,
-        "joinPaths", joinPathsFn);
+    return ImmutableMap.<String, Object>builder()
+        .put("exec", execFn)
+        .put("mkdirs", mkdirsFn)
+        .put("tmpfile", tmpfileFn)
+        .put("dirname", dirnameFn)
+        .put("basename", basenameFn)
+        .put("joinPaths", joinPathsFn)
+        .build();
   }
 
-  private static Iterable<String> stringsIn(Object[] args) {
+  static Iterable<String> stringsIn(Object[] args) {
     ImmutableList.Builder<String> b = ImmutableList.builder();
     for (Object arg : args) {
       if (arg instanceof String) {

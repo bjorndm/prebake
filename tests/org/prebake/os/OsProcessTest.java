@@ -27,10 +27,12 @@ import java.io.OutputStreamWriter;
 import java.io.Reader;
 import java.io.Writer;
 import java.nio.file.FileSystem;
+import java.nio.file.OpenOption;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
@@ -40,7 +42,9 @@ import java.util.concurrent.ScheduledThreadPoolExecutor;
 import com.google.common.base.Charsets;
 import com.google.common.base.Joiner;
 import com.google.common.base.Throwables;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.google.common.io.ByteStreams;
 import com.google.common.io.Closeables;
 
@@ -111,6 +115,27 @@ public class OsProcessTest extends PbTestCase {
         fileSystemToAsciiArt(fs, 40));
   }
 
+  @Test(timeout=1000)
+  public final void testAppendTo() throws Exception {
+    assertEquals(
+        0,
+        os.run(fs.getPath("/cwd"), "cat", "foo").appendTo(fs.getPath("bar"))
+            .run().waitFor());
+    assertEquals(
+        0,
+        os.run(fs.getPath("/cwd"), "cat", "baz").appendTo(fs.getPath("bar"))
+            .run().waitFor());
+    assertEquals(
+        Joiner.on('\n').join(
+            "/",
+            "  cwd/",
+            "    foo \"foo\\nbar\\nbaz\\nboo\\nfar\\nfaz\"",
+            "    baz \"BAZ\"",
+            "    bar \"foo\\nbar\\nbaz\\nboo\\nfar\\nfazBAZ\"",
+            ""),
+        fileSystemToAsciiArt(fs, 40));
+  }
+
   @Test(timeout=1000) public final void testReadFrom() throws Exception {
     OsProcess p = os.run(fs.getPath("/cwd"), "tr", "ao", "oa")
         .readFrom(fs.getPath("foo")).writeTo(fs.getPath("bar")).run();
@@ -140,8 +165,58 @@ public class OsProcessTest extends PbTestCase {
             "    foo \"foo\\nbar\\nbaz\\nboo\\nfar\\nfaz\"",
             "    baz \"BAZ\"",
             "    bar \"baa\\nbor\\nboz\\nfaa\\nfor\\nfoz\"",
-          ""),
-    fileSystemToAsciiArt(fs, 40));
+            ""),
+        fileSystemToAsciiArt(fs, 40));
+  }
+
+  @Test(timeout=1000)
+  public final void testInheritedEnv() throws Exception {
+    // Used by other tests.
+    fs.getPath("foo").delete();
+    fs.getPath("baz").delete();
+    // This test.
+    assertEquals(
+        0,
+        os.run(fs.getPath("/cwd"), "printenv")
+            .writeTo(fs.getPath("env"))
+            .env("FOO", "BAR")
+            .env("PATH", "/usr/bin")
+            .run()
+        .waitFor());
+    assertEquals(
+        Joiner.on('\n').join(
+            "/",
+            "  cwd/",
+            ("    env \"CLASSPATH=/path/to/classes\\n"
+                   + "HOME=/home/user\\n"
+                   + "PATH=/usr/bin\\n"
+                   + "FOO=BAR\\n\""),
+            ""),
+        fileSystemToAsciiArt(fs, 80));
+  }
+
+  @Test(timeout=1000)
+  public final void testVirginEnv() throws Exception {
+    // Used by other tests.
+    fs.getPath("foo").delete();
+    fs.getPath("baz").delete();
+    // This test.
+    assertEquals(
+        0,
+        os.run(fs.getPath("/cwd"), "printenv")
+            .writeTo(fs.getPath("env"))
+            .env("FOO", "BAR")
+            .noInheritEnv()
+            .env("PATH", "/usr/bin")
+            .run()
+        .waitFor());
+    assertEquals(
+        Joiner.on('\n').join(
+            "/",
+            "  cwd/",
+            "    env \"FOO=BAR\\nPATH=/usr/bin\\n\"",
+            ""),
+        fileSystemToAsciiArt(fs, 80));
   }
 
   private final class InVmProcess extends OsProcess {
@@ -149,6 +224,7 @@ public class OsProcessTest extends PbTestCase {
     private Callable<Integer> action;
     private StubPipe inPipe = new StubPipe(128);
     private StubPipe outPipe = new StubPipe(128);
+    private ImmutableMap<String, String> procEnv;
 
     InVmProcess(OperatingSystem os, Path cwd, String cmd, String... argv) {
       super(os, cwd, cmd, argv);
@@ -251,6 +327,20 @@ public class OsProcessTest extends PbTestCase {
             return 0;
           }
         };
+      } else if ("printenv".equals(command)) {
+        action = new Callable<Integer>() {
+          public Integer call() throws Exception {
+            Writer w = new OutputStreamWriter(outPipe.out, Charsets.UTF_8);
+            try {
+              for (Map.Entry<String, String> var : procEnv.entrySet()) {
+                w.write(var.getKey() + "=" + var.getValue() + "\n");
+              }
+            } finally {
+              w.close();
+            }
+            return 0;
+          }
+        };
       } else {
         action = new Callable<Integer>() {
           public Integer call() throws Exception {
@@ -264,9 +354,21 @@ public class OsProcessTest extends PbTestCase {
     @Override
     protected Process startRunning(
         boolean inheritOutput, boolean closeInput,
-        final Path outFile, final Path inFile) throws IOException {
+        final Path outFile, final boolean truncateOutput, final Path inFile,
+        ImmutableMap<String, String> environment, boolean inheritEnvironment)
+        throws IOException {
       assert !hasStartedRunning;
       hasStartedRunning = true;
+      {
+        Map<String, String> procEnv = Maps.newLinkedHashMap();
+        if (inheritEnvironment) {
+          procEnv.put("CLASSPATH", "/path/to/classes");
+          procEnv.put("HOME", "/home/user");
+          procEnv.put("PATH", "/bin");
+        }
+        procEnv.putAll(environment);
+        this.procEnv = ImmutableMap.copyOf(procEnv);
+      }
       final Future<Integer> result = execer.submit(action);
       if (closeInput) { inPipe.in.close(); }
       if (inFile != null) {
@@ -293,9 +395,16 @@ public class OsProcessTest extends PbTestCase {
         execer.submit(new Runnable() {
           public void run() {
             try {
-              OutputStream fout = outFile.newOutputStream(
-                  StandardOpenOption.CREATE,
-                  StandardOpenOption.TRUNCATE_EXISTING);
+              OpenOption[] options;
+              if (truncateOutput) {
+                options = new OpenOption[] {
+                    StandardOpenOption.CREATE,
+                    StandardOpenOption.TRUNCATE_EXISTING
+                };
+              } else {
+                options = new OpenOption[] { StandardOpenOption.CREATE };
+              }
+              OutputStream fout = outFile.newOutputStream(options);
               try {
                 ByteStreams.copy(outPipe.in, fout);
               } finally {
@@ -327,9 +436,11 @@ public class OsProcessTest extends PbTestCase {
           try {
             return result.get().intValue();
           } catch (ExecutionException ex) {
+            ex.printStackTrace();
             Throwables.propagate(ex);
             return -1;
           } catch (InterruptedException ex) {
+            ex.printStackTrace();
             Throwables.propagate(ex);
             return -1;
           }
@@ -339,7 +450,7 @@ public class OsProcessTest extends PbTestCase {
         public InputStream getErrorStream() {
           return new InputStream() {
             @Override
-            public int read() throws IOException { return -1; }
+            public int read() { return -1; }
           };
         }
 
@@ -358,6 +469,7 @@ public class OsProcessTest extends PbTestCase {
           try {
             return result.get();
           } catch (ExecutionException ex) {
+            ex.printStackTrace();
             return -1;
           }
         }

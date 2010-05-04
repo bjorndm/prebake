@@ -18,8 +18,11 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.FileSystems;
 import java.nio.file.Path;
+import java.util.Map;
 
 import javax.annotation.Nullable;
+
+import com.google.common.collect.ImmutableMap;
 
 /**
  * A process backed by a real {@code ProcessBuilder}
@@ -55,7 +58,9 @@ final class RealOsProcess extends OsProcess {
   @Override
   protected Process startRunning(
       boolean inheritOutput, boolean closeInput,
-      @Nullable Path outFile, @Nullable Path inFile)
+      @Nullable Path outFile, boolean truncateOutput,
+      @Nullable Path inFile,
+      ImmutableMap<String, String> env, boolean inheritEnv)
       throws IOException {
     ProcessBuilder pb = this.pb;
     this.pb = null;
@@ -72,6 +77,11 @@ final class RealOsProcess extends OsProcess {
     if (inFile != null) {
       assert inFile.getFileSystem() == FileSystems.getDefault();
       pb.redirectInput(new File(inFile.toUri()));
+    }
+    if (!(inheritEnv && env.isEmpty())) {
+      Map<String, String> procEnv = pb.environment();
+      if (!inheritEnv) { procEnv.clear(); }
+      procEnv.putAll(env);
     }
     Process p = pb.start();
     if (closeInput) { p.getInputStream().close(); }

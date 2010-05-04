@@ -27,6 +27,7 @@ import javax.annotation.Nullable;
 
 import com.google.common.base.Function;
 import com.google.common.base.Joiner;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 
 import org.junit.Test;
@@ -74,21 +75,54 @@ public class GlobTest extends PbTestCase {
     try {
       Glob.fromString("foo/***/bar.baz");
       fail("parsed");
-    } catch (IllegalArgumentException ex) {
+    } catch (Glob.GlobSyntaxException ex) {
       // ok
     }
     try {
       Glob.fromString("foo**/bar.baz");
       fail("parsed");
-    } catch (IllegalArgumentException ex) {
+    } catch (Glob.GlobSyntaxException ex) {
       // ok
     }
     try {
       Glob.fromString("foo//bar.baz");
       fail("parsed");
-    } catch (IllegalArgumentException ex) {
+    } catch (Glob.GlobSyntaxException ex) {
       // ok
     }
+  }
+
+  @Test public final void testTreeRoot() {
+    assertEquals("", Glob.fromString("foo").getTreeRoot());
+    assertEquals("", Glob.fromString("foo/bar").getTreeRoot());
+    assertEquals("", Glob.fromString("foo/*").getTreeRoot());
+    assertEquals("", Glob.fromString("foo/**/*.bar").getTreeRoot());
+    assertEquals(
+        "foo", Glob.fromString("foo///**/*.bar").getTreeRoot());
+    assertEquals(
+        "foo/bar", Glob.fromString("foo/bar///**/*.bar").getTreeRoot());
+    do {
+      try {
+        Glob.fromString("foo/**///*.bar");
+      } catch (Glob.GlobSyntaxException ex) {
+        break;  // ok
+      }
+      fail("tree root cannot contain wildcard");
+    } while (false);
+    do {
+      try {
+        Glob.fromString("foo/bar///baz///*.bar");
+      } catch (Glob.GlobSyntaxException ex) {
+        break;  // ok
+      }
+      fail("tree root cannot have two tree root markers");
+    } while (false);
+    assertEquals(
+        "foo/bar///**/*.bar", "" + Glob.fromString("foo/bar///**/*.bar"));
+    assertEquals(
+        "\\Qfoo\\E[/\\\\]\\Qbar\\E[/\\\\](?:.+[/\\\\])?[^/\\\\]*\\Q.bar\\E",
+        Glob.toRegex(ImmutableList.of(Glob.fromString("foo/bar///**/*.bar")))
+            .pattern());
   }
 
   @Test public final void testIntersection() {
@@ -267,6 +301,21 @@ public class GlobTest extends PbTestCase {
     assertTransform(
         "baz/bar/y.txt", "**/foo/*.txt", "**/bar/*.txt", "baz/foo/y.txt");
     assertTransform("bar/a.txt", "foo/**/*.txt", "bar/**/*.txt", "foo/a.txt");
+    assertTransform("foo/bar.txt", "lib/**", "**", "lib/foo/bar.txt");
+    assertTransform("/foo/foo/bar.txt", "lib/**", "/foo/**", "lib/foo/bar.txt");
+  }
+
+  @Test public final void testNormGlob() {
+    assertEquals("", Glob.normGlob(""));
+    assertEquals("/", Glob.normGlob("/"));
+    assertEquals("/foo", Glob.normGlob("/foo"));
+    assertEquals("/foo", Glob.normGlob("/foo/"));
+    assertEquals("/foo/bar", Glob.normGlob("/foo//bar/"));
+    assertEquals("/foo/bar/baz", Glob.normGlob("/foo//bar//baz"));
+    assertEquals("lib///org/prebake", Glob.normGlob("lib///org/prebake"));
+    assertEquals("lib///org/prebake", Glob.normGlob("lib///org/prebake/"));
+    assertEquals("lib///org/prebake", Glob.normGlob("lib///org//prebake/"));
+    assertEquals("lib/org/prebake", Glob.normGlob("lib//org//prebake/"));
   }
 
   private void assertRegexMatches(List<String> globStrs, String... golden) {

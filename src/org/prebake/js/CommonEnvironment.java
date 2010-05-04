@@ -19,6 +19,7 @@ import org.prebake.core.Glob;
 import org.prebake.core.MessageQueue;
 
 import java.util.Arrays;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
@@ -94,6 +95,12 @@ public final class CommonEnvironment {
   private static final String PREFIX_HELP = Joiner.on('\n').join(
       "Given globs, finds the common prefix, the maximal path which",
       "all paths matching any of the globs must be descendants of.");
+
+  private static final String ROOT_OF_HELP = Joiner.on('\n').join(
+      "Given globs, finds the common tree root, the portion of the",
+      "globs before ///.  The tree root is commonly used to mark",
+      "the java package root, root of files in a JAR or ZIP archive",
+      "root of an include or lib directory tree, etc.");
 
   /**
    * @param properties the
@@ -228,7 +235,39 @@ public final class CommonEnvironment {
           throw new IllegalArgumentException(
               Joiner.on('\n').join(mq.getMessages()));
         }
-        return Glob.commonPrefix(globs);
+        String prefix = Glob.commonPrefix(globs);
+        if (!"/".equals(sep)) { prefix = prefix.replace("/", sep); }
+        return prefix;
+      }
+    };
+
+    MembranableFunction globRootOf = new MembranableFunction() {
+      public int getArity() { return 1; }  // One or more globs.
+
+      public Documentation getHelp() {
+        return new Documentation(
+            getName() + "(globs) -> path", ROOT_OF_HELP,
+            "Mike Samuel <mikesamuel@gmail.com>");
+      }
+
+      public String getName() { return "rootOf"; }
+
+      public String apply(Object[] args) {
+        MessageQueue mq = new MessageQueue();
+        List<Glob> globs = Glob.CONV.convert(
+            args.length == 1 ? args[0] : Arrays.asList(args), mq);
+        if (mq.hasErrors()) {
+          throw new IllegalArgumentException(
+              Joiner.on('\n').join(mq.getMessages()));
+        }
+        Iterator<Glob> it = globs.iterator();
+        if (!it.hasNext()) { return null; }
+        String root = it.next().getTreeRoot();
+        while (it.hasNext()) {
+          if (!it.next().getTreeRoot().equals(root)) { return null; }
+        }
+        if (!"/".equals(sep)) { root = root.replace("/", sep); }
+        return root;
       }
     };
 
@@ -242,6 +281,7 @@ public final class CommonEnvironment {
                 .put("intersect", globIntersect)
                 .put("matcher", globMatcher)
                 .put("prefix", globPrefix)
+                .put("rootOf", globRootOf)
                 .put("xformer", globXformer)
                 .build())
         .put(

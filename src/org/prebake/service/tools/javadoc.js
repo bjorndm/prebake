@@ -26,9 +26,12 @@
       }
     }
     var outDir = opt('d');
-    var outGlob = action.outputs[0];
     if (typeof outDir !== 'string') {
-      outDir = outGlob.match(/^.*?(?=\/com\/|\/org\/|\/net\/|\/\*)/)[0];
+      outDir = glob.rootOf(action.outputs);
+      if (typeof outDir !== 'string') {
+        throw new Error(
+            'Could not infer documentation root from ' + action.inputs);
+      }
     }
     var links = opt('link', []);
     var header = opt('header');
@@ -65,7 +68,7 @@
         // TODO: Strip directories if there is a com/org/net as a path element.
         extraClasspath.push(glob.prefix(input));
       } else if (endsWithJava.test(input)) {
-	// TODO: Strip directories if there is a com/org/net as a path element.
+        // TODO: Strip directories if there is a com/org/net as a path element.
         sourcePath.push(glob.prefix(input));
       }
     }
@@ -84,8 +87,8 @@
     if (typeof bottom === 'string') { command.push('-bottom', bottom); }
     switch (visibility) {
       case 'private': case 'protected': case 'package':
-	command.push('-' + visibility);
-	break;
+        command.push('-' + visibility);
+        break;
       case undefined: break;
       default: throw new Error('Bad visibility ' + visibility);
     }
