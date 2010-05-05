@@ -1,4 +1,4 @@
-#summary an application of a tool.
+#summary an application of a tool.
 
 = Build Action <font size="1">[http://code.google.com/p/prebake/source/browse/trunk/src/org/prebake/service/plans/Action.java (src)]</font> =
 
@@ -12,7 +12,7 @@ tools.gcc(
 
 Each [ToolFile tool file] appears as a method of the `tools` object with the signature {{{function myTool(inputGlobs, outputGlobs, options)}}}.  Calling a tool method creates an action.
 
-[PlanFile Plan files] bundle actions into [Product products] by defining a [YSON ΛSON] like
+[PlanFile Plan files] bundle actions into [Product products] by defining a [YSON ΛSON] object like
 {{{
 ({
   myProduct1: { actions: [ tools.myTool('inputs/*', 'outputs/*', {option: value}),
