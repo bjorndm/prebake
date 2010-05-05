@@ -42,40 +42,69 @@ Two globs intersect if (and only if) there exists at least one string that is in
 The intersection of two globs can always be expressed as a glob.
 
 
+== TreeRoot ==
+A glob can contain a tree root that [ToolFile tools] use to determine where a file tree starts.  The tree root is the portion of the glob before the {{{///}}}.  Tools treat tree roots differently but here are some examples.
+
+|| *Tools* || *Glob* || *Meaning* ||
+|| `gcc` || input `foo/bar///baz/**.h` || `foo/bar` should be an include (-I) directory ||
+|| `javac`, `javadoc` || input `project/src///com/foo/**.java` || `project/src/` is part of the source-path ||
+|| `javac`, `junit` || input `lib///**.class` || `lib` is on the class-path ||
+|| `javac` || output `lib///**.class` || `lib` is the output directory ||
+|| `tar`, `jar` || input `foo/bar///baz/*.txt` || `foo/bar` should be the root of the archive being created ||
+
+
 == Grammar ==
 {{{
-Pattern
-  : PatternNoStar
-  | StarPattern
-  | '/' PatternNoSlash
+Glob
+  : OptPattern
+  | '/' OptPattern
+  | TreeRoot '///' OptPattern
   ;
 
-StarPattern
-  : '**' PatternNoStar
-  | '*' PatternNoStar
+TreeRoot
+  : empty
+  | PatternNoStar
+  ;
+
+OptPattern
+  : empty
+  | Patterm
+  ;
+
+Pattern
+  : PathElement PatternTail
+  ;
+
+PatternTail
+  : empty
+  | '/' Pattern
   ;
 
 PatternNoStar
-  : empty
-  | PatternChar PatternNoStar
-  | '/' PatternNoSlash
+  : PathElementNoStar PatternTailNoStar
   ;
 
-PatternNoSlash
+PatternTailNoStar
   : empty
-  | StarPattern
-  | PathElement
+  | '/' PatternNoStar
   ;
 
 PathElement
-  : '.' PathElement
+  : '**' PathElementNoStar
+  | '*' PathElementNoStar
+  | PathElementNoStar
+  ;
+
+PathElementNoStar
   | NoDot PatternNoStar
+  | '.' PathElement
   | '.' '.' '.' Dots
   ;
 
 Dots
   : empty
   | '.' Dots
+  | PathElement
   ;
 
 PatternChar
