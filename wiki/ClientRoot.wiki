@@ -1,4 +1,4 @@
-#summary The master directory
+#summary The directory containing all your source files.
 
 = The client root =
 

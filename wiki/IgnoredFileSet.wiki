@@ -30,16 +30,17 @@ If the ignore pattern is not specified, it is the union of the below.
 || *Regexp* || *Reason* ||
 || `\.pyc$` || cached compiled Python ||
 || `\.elc$` || cached compiled ELISP ||
+|| `\.bak$` || other backup files ||
 || `\.rej$` || {{{patch}}} reject file ||
 || `\.prej$` || more reject files ||
 || `\.tmp$` || common temp file suffix ||
-|| `\.bak$` || other backup files ||
 || `~$` || emacs backup ||
 || `/#[^/]+#$` || emacs unsaved ||
 || `/%[^/]*%$` || more backup files  ||
 || `/\.(#+|_+)$` || temporary files ||
 || `/(CVS|SCCS|\.svn)(/|$)` || revision control bookkeeping files ||
 || `/\.cvsignore$` || CVS metadata ||
+|| `/\.gitignore$` || GIT metadata ||
 || `/vssver.scc$` || more revision control metadata ||
 || `/\.DS_Store$` || Macintosh droppings ||
 
