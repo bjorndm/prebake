@@ -1,1 +1,21 @@
-#summary TODO
+#summary JavaScript environment available to plan files.
+
+[PlanFile Plan files] execute in an environment where [ToolFile tools]
+are exposed as methods of the `tools` object.
+
+They run as if the following code ran before them:
+{{{
+var tools = {
+  gcc: function (inputGlobs, outputGlobs, options) {
+
+  },
+  javac: function (inputGlobs, outputGlobs, options) {
+
+  },
+  ...
+};
+}}}
+
+If a plan file wishes to `[CommonJsEnv load]` a JavaScript module and
+wishes to provide the `tools` object to that module it must do so
+explicitly.
