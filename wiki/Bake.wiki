@@ -1,6 +1,6 @@
 #summary client used to issue commands to the prebakery
 
-= The `bake` client <font size="1">[http://code.google.com/p/prebake/source/browse/trunk/src/org/prebake/client/Bake.java (src)]</font>=
+= The `bake` client <font size="1">[http://code.google.com/p/prebake/source/browse/trunk/src/org/prebake/client/Bake.java (src)]</font> =
 
 == Usage ==
 

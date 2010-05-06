@@ -17,7 +17,7 @@ will start up the bakery service.  It will write create a {{{.prebake}}} [Prebak
 
 == The bake command ==
 {{{
-bake <target> ...
+bake <verb> <target> ...
 }}}
 
 will connect to a {{{prebakery}}} by looking for a {{{.prebake}}} [PrebakeDirectory directory] in an ancestorward traversal and run a build.
