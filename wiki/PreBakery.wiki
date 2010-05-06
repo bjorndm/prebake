@@ -6,7 +6,7 @@ It can be started by following the instructions under [Usage usage].
 
 
 = Requirements =
-JDK1.7 is required because the PreBakery makes extensive use of {{{java.nio.file}}} to satisfy its efficiency [Goals goals].
+Ir requires JDK1.7 because the PreBakery makes extensive use of {{{java.nio.file}}} to satisfy its efficiency [Goals goals].
 The {{{prebakery}}} is an ExtTool outside the ClientRoot so the caveats there apply to upgrading the PreBakery.
 
 As of this writing (March 2010), JDK1.7 is available for most platforms, but for Mac you have to build it yourself.  These [http://confluence.concord.org/display/CCTR/Build+OpenJDK+Java+1.7.0+on+Mac+OS+X+10.5 instructions] can help.
@@ -29,15 +29,11 @@ The PreBakery maintains a hidden [PrebakeDirectory directory] in the client root
 = [http://en.wikipedia.org/wiki/Cryptographic_hash_function Hashes] and Caches =
 || *Key* || *Value* ||
 || Path under ClientRoot || hash(file content) ||
-|| [Product] name || hash(inputs, [BuildAction]s, intersect(ToolFile, actions)) || 
-|| PlanFile path || hash(PlanFile content, loadedJsFiles) ||
+|| Path || Non file artifact that depens on it ||
 
 These hashes are stored in a [http://www.oracle.com/database/berkeley-db/je/index.html BDB] instance since some might become large.
-
-There are also a number of caches:
-|| PlanFile path || ([Product]s, loadedJsFiles) | {{{null}}} || The products a plan file produced or null if it failed to run ||
-|| (product name, product name) || || An edge in the PlanGraph ||
-
+The first table disallowes duplicate keys, and the second allows dupes
+as more than one non-file artifact can depend on a given file.
 
 = Plans =
 A plan is a graph of [Product]s, with an edge for each dependency between products.
@@ -51,7 +47,7 @@ Dependencies are inferred based on the intersections of input and output descrip
 || {{{junit}}} || {{{lib/tests/**/*.class}}} || {{{reports/junit/**/*.html}}} || Runs unit tests and generates reports ||
 || {{{jar}}} || {{{lib/src/**/*.class}}} || {{{lib/foo.jar}}} || Packages the non-test outputs ||
 
-Given the above rules, we get a simple dependency graph
+Given the above rules, we get a simple [dependency graph PlanGraph]
 {{{
         junit
       ⇗
