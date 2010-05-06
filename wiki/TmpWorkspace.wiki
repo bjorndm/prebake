@@ -1,1 +1,20 @@
-#summary TODO
+#summary temporary directory in which build tools are run.
+
+= Temporary Workspace =
+
+When building a [Product product], the [PreBakery prebakery]
+  * creates a temporary directory called the temporary workspace
+  * copies all files under ClientRoot that match the Product's input globs to the temporary workspace.
+  * loads the needed [ToolFile tools] into a JavaScript interpreter with an `exec` function that will run external processes to build the outputs. (Aborts if any tool file returns a value other than `true`.)
+  * copies all files under ClientRoot that match the Product's output globs from the temporary workspace back to the ClientRoot.
+  * moves any files that matched the Product's output globs that were not in the temporary workspace to the `archive` [PrebakeDirectory directory].
+  * if all the input file hashes still match those that were present at the time the build started, mark the product valid.
+ 
+Since build tools never† touch the ClientRoot directly, we can get
+repeatable builds, and build products that have no dependencies in
+common in parallel.
+
+(†) - tool files can create paths into the ClientRoot.  It is not
+unmounted, sor unreadable.  Don't do that.  There are
+[http://code.google.com/p/prebake/source/browse/trunk/src/org/prebake/service/bake/WorkingFileChecker.java checks]
+that will try to prevent this from happening accidentally.
