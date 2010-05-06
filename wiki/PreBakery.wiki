@@ -47,7 +47,7 @@ Dependencies are inferred based on the intersections of input and output descrip
 || {{{junit}}} || {{{lib/tests/**/*.class}}} || {{{reports/junit/**/*.html}}} || Runs unit tests and generates reports ||
 || {{{jar}}} || {{{lib/src/**/*.class}}} || {{{lib/foo.jar}}} || Packages the non-test outputs ||
 
-Given the above rules, we get a simple [dependency graph PlanGraph]
+Given the above rules, we get a simple [PlanGraph dependency graph]
 {{{
         junit
       ⇗
