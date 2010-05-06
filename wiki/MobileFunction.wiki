@@ -2,7 +2,10 @@
 
 = Mobile Functions =
 
-A function with no [http://en.wikipedia.org/wiki/Free_variables_and_bound_variables free variables] besides commonly defined globals that are available in all contexts : `Object`, `Function`, `Date`, `Math`, etc.  See [CommonJsEnv the common JavaScript defs] and <a href="http://code.google.com/p/prebake/source/browse/trunk/src/org/prebake/js/YSON.java">the source</a> for the full list.
+A JavaScript functions that can be moved from one JavaScript interpreter
+to another without changing meaning.
+
+A mobile function has no [http://en.wikipedia.org/wiki/Free_variables_and_bound_variables free variables] besides commonly defined globals that are available in all contexts : `Object`, `Function`, `Date`, `Math`, etc.  See [CommonJsEnv the common JavaScript defs] and <a href="http://code.google.com/p/prebake/source/browse/trunk/src/org/prebake/js/YSON.java">the source</a> for the full list.
 
 For example, `function (x, y) { return x + y; }` is mobile because it has no free variables ; `x` and `y` are both parameters.
 
