@@ -14,8 +14,8 @@
 
 = Differences from Existing Systems =
 == Build Time is Independent of Source Repository Size ==
-When a build system has to `stat` every file in the repo, build is necessarily O(n).
-By hooking into the filesystem to get updates on files that change, prebake avoids this O(|repository|) cost ; if you change one file, your build time depends only on the number of files that depend on that file and the time required to rebuild them.
+When a build system has to `stat` every file in the repo, build is necessarily O(|project|).
+By hooking into the filesystem to get updates on files that change, prebake avoids this O(|project|) cost ; if you change one file, your build time depends only on the number of files that depend on that file and the time required to rebuild them.
 
 == Changing a build rule invalidates files it Specifies ==
 Prebake uses [http://en.wikipedia.org/wiki/Hash_function hash]es instead of timestamps, and hashes the definition of the build rule.
