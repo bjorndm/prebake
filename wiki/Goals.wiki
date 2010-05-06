@@ -13,7 +13,7 @@
   # Automatable -- it should be drivable by continuous integration tools
 
 = Differences from Existing Systems =
-== Build Time is Indepedent of Source Repository Size ==
+== Build Time is Independent of Source Repository Size ==
 When a build system has to `stat` every file in the repo, build is necessarily O(n).
 By hooking into the filesystem to get updates on files that change, prebake avoids this O(n) cost ; if you change one file, your build time depends only on the number of files that depend on that file.
 
