@@ -2,7 +2,7 @@
 
 = Usage =
 
-== The prebakery Service ==
+== The prebakery [PreBakery Service] ==
 {{{
 prebakery --root=<client-root-directory> [--ignore=<ignore-pattern>] [--umask=<umash>]  [--tools=<tools-path>] [<plan-file> ...]
 }}}
@@ -15,7 +15,7 @@ will start up the bakery service.  It will write create a {{{.prebake}}} [Prebak
 || {{{--tools}}} || a search path for [ToolFile tools] || ||
 || {{{<plan-file>}}} || paths to [PlanFile plan] files. || If none supplied, defaults to {{{<client-root-directory>/recipe.js}}} ||
 
-== The bake command ==
+== The bake [Bake client] ==
 {{{
 bake <verb> <target> ...
 }}}
