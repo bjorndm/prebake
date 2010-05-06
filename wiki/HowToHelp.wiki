@@ -1,0 +1,7 @@
+#summary want to volunteer?
+
+You can help by
+  * using prebake in your project and giving feedback via the [http://code.google.com/p/prebake/issues/list issue tracker] or at the [http://groups.google.com/group/prebake-discuss mailing list].
+  * write tool wrappers for your favorite tools.  We need wrappers for widely used tools like `gcc` and for obscure ones.   See HowToWriteAToolFile
+  * continuous integration integration.  Change continuous integration systems so they can kick off builds using prebake.
+  * IDE integration.  And yes, emacs is an IDE, not just an Operating System :)
