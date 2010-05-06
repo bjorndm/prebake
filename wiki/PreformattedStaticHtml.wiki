@@ -1,1 +1,13 @@
-#summary TODO
+#summary HTML used in documentation
+
+All in-JavaScript [DocumentationRecord documentation] is written in a
+subset of HTML4 that is not an XSS vector, and is easily converted to
+plain text.
+
+This HTML cannot contain scripts or event handlers, the CSS is
+limited, and it is assumed to be inside a
+{{{<body style="white-space: pre-wrap">}}} element so that newlines and
+spaces are significant.
+
+The HTML subset does include `<xmp>` and `<plaintext>` in case you
+don't feel like escaping angle brackets.
