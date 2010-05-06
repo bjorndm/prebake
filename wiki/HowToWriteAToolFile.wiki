@@ -1,0 +1,47 @@
+#summary pro-tip: wait for exit
+
+= How To Write a [ToolFile Tool File] =
+
+== Source ==
+Builtin tools go in the [http://code.google.com/p/prebake/source/browse/trunk/src/org/prebake/service/tools tools] directory.  They have to have a name that is a java identifier with `.js` added to the end.
+
+See the [ToolFile tool file wiki] for information about the JavaScript APIs available to tool files.
+
+== Choose a short tool name reminiscent of the command line ==
+It's easier to read/write `tools.gcc(...)` than `tools.gnu_c_compiler(...)`.  Be nice.
+
+There might be tool name conflicts, but that's why we've got a tool search path.  So that tool naming conflicts are no worse than the command line executables they abstract.
+
+== Use [Glob Glob]s and tree roots ==
+Prefer globs to options.  `tools.myCppCompiler(['src/**.cc', 'include///**.h'], ...)` is better than `tools.myCppCompiler(['src/**.cc', 'include/**.h'], ..., { 'I': [ 'include' ] })`
+
+Remember, the only files available under the TmpWorkspace are going to be those specified as inputs or built by previous [BuildAction action]s.
+
+You can use `glob.rootOf` to get the portion of a glob before the `///` that starts a directory tree.  See [Glob] for the ways tree roots can come in handy.
+
+== Options should be the same as command line flags if possible ==
+But they should be JS identifiers, so they can be put in an object constructor without quotes, e.g. `{ option_name: ... }` instead of `{ "option-name": ... }`
+
+== Make output directories for your users ==
+Don't require your users to do `mkdir` tasks themselves.  If you see that a directory is required by the tool you're running, make it.
+
+== Write a `checker` ==
+Checkers are a good way of catching problems earlier and educating your tool's users about features they might not know about.  Use the [JsConsole console] to give them helpful info.
+
+== Return `true` from `fire` when your tool succeeds ==
+If you don't, then your tool will be considered to have failed which, most often, means the products outputs won't be copied back and it will stay unbuilt.
+
+== Wait for your processes ==
+If you `os.exec`, you need to `.waitFor` the result.
+And check the exit code.  0 normally indicates success, so one idiom is to do the following at the end of your `fire` method:
+{{{
+  return !os.exec(...);
+}}}
+
+== Do *not* hardcode executable paths ==
+The PreBakery is a persistent process.  Users can point it at the right version of executables by passing in an appropriate PATH once.  If your tool doesn't exist, the system will log that fact and suggest changing the PATH.
+
+If you really have to, you can use the `.env("PATH", value)` method of process to add your own path to the end to provide a useful default.
+
+== Thou shalt *Not* covet thy [ClientRoot client's files] ==
+Stick to the TmpWorkspace.  Files under the client root are off limits to tools.
