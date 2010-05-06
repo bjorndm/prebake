@@ -1,6 +1,6 @@
 #summary a possible goal in a plan file.
 
-= Product <font size="1">[http://code.google.com/p/prebake/source/browse/trunk/src/org/prebake/service/plans/Product.java (src)]</font>=
+= Product <font size="1">[http://code.google.com/p/prebake/source/browse/trunk/src/org/prebake/service/plans/Product.java (src)]</font> =
 
 A plan file declares zero or more products which are [YSON ΛSON] structures of the form:
 {{{
