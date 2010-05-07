@@ -16,6 +16,7 @@ package org.prebake.service.bake;
 
 import java.io.IOException;
 import java.nio.file.Path;
+import java.util.regex.Pattern;
 
 /**
  * Gates access to files specified by running actions to prevent unintentional
@@ -32,17 +33,19 @@ import java.nio.file.Path;
  * @author Mike Samuel <mikesamuel@gmail.com>
  */
 final class WorkingFileChecker {
-  final Path clientDir;
-  final Path workingDir;
-  final String fingerPrint;
+  private final Path clientDir;
+  private final Path workingDir;
+  private final Pattern fingerprint;
 
   WorkingFileChecker(Path clientDir, Path workingDir) {
     assert clientDir.isAbsolute();
     assert workingDir.isAbsolute();
     this.clientDir = clientDir;
     this.workingDir = workingDir;
-    this.fingerPrint = makeFingerprint(
-        workingDir.relativize(clientDir).toString());
+    this.fingerprint = makeFingerprint(
+        workingDir.relativize(clientDir).toString(),
+        // DOS paths are case-insensitive
+        !"/".equals(workingDir.getFileSystem().getSeparator()));
   }
 
   /**
@@ -50,7 +53,7 @@ final class WorkingFileChecker {
    * don't reach into the client directory.
    */
   Path check(Path p) throws IOException {
-    if (workingDir.resolve(p).startsWith(clientDir)) {
+    if (workingDir.resolve(p).normalize().startsWith(clientDir)) {
       throw new IOException(
           "Please do not touch files in the client directory during builds: "
           + p);
@@ -64,28 +67,38 @@ final class WorkingFileChecker {
    * @return s the input if safe.
    */
   String check(String s) throws IllegalArgumentException {
-    int m = s.length(), n = fingerPrint.length();
-    assert n != 0;
-    if (m < n) { return s; }
-    for (int i = 0, j = 0; i < m; ++i) {
-      char ch = s.charAt(i);
-      if (inFingerprint(ch)) {
-        if (j == n || ch != fingerPrint.charAt(j)) { return s; }
-        ++j;
-      }
+    if (fingerprint.matcher(s).find()) {
+      throw new IllegalArgumentException(
+          "Please do not touch files in the client directory during builds: "
+          + s);
     }
-    throw new IllegalArgumentException(
-        "Please do not touch files in the client directory during builds: "
-        + s);
+    return s;
   }
 
-  private static String makeFingerprint(String path) {
+  private static Pattern makeFingerprint(String path, boolean caseInsensitive) {
     StringBuilder sb = new StringBuilder(path.length());
-    for (int i = 0, n = path.length(); i < n; ++i) {
-      char ch = path.charAt(i);
-      if (inFingerprint(ch)) { sb.append(ch); }
+    boolean lastInFingerprint = false, sawFingerprint = false;
+    int pos = 0;
+    sb.append("(?:^|[\\W])");
+    int n = path.length();
+    for (int i = 0; i <= n; ++i) {
+      boolean inFingerprint = i < n ? inFingerprint(path.charAt(i)) : false;
+      if (lastInFingerprint != inFingerprint) {
+        if (!inFingerprint) {
+          if (sawFingerprint) { sb.append("[/.\\\\]+"); }
+          sb.append(Pattern.quote(path.substring(pos, i)));
+          sawFingerprint = true;
+        } else {
+          pos = i;
+        }
+        lastInFingerprint = inFingerprint;
+      }
     }
-    return sb.toString();
+    if (sawFingerprint) {
+      sb.append("(?:$|[;:,#\"'/*?()\\\\])");
+    }
+    return Pattern.compile(
+        sb.toString(), caseInsensitive ? Pattern.CASE_INSENSITIVE : 0);
   }
 
   private static final boolean inFingerprint(char ch) {

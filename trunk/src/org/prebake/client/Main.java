@@ -121,7 +121,7 @@ public final class Main {
 
   public static final String USAGE = (
       ""
-      + "bake [-v | -vv | -q | -qq | --logLevel=<level]\n"
+      + "bake [-v | -vv | -q | -qq | --logLevel=<level>]\n"
       + "\n"
       + "    -qq         extra quiet : errors only\n"
       + "    -q          quiet : warnings and errors only\n"
