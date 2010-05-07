@@ -109,7 +109,7 @@ public abstract class Prebakery implements Closeable {
       + "|/%[^/]*%$"
       + "|/\\.(?:#+|_+)$"
       + "|/(?:CVS|SCCS|\\.svn)(?:/|$)"
-      + "|/\\.cvsignore$|/vssver.scc$"
+      + "|/\\.cvsignore$|\\.gitignore|/vssver.scc$"
       + "|/\\.DS_Store$",
       Pattern.DOTALL);
 
