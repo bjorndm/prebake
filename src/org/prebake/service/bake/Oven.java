@@ -16,6 +16,7 @@ package org.prebake.service.bake;
 
 import org.prebake.core.Glob;
 import org.prebake.core.Hash;
+import org.prebake.core.MessageQueue;
 import org.prebake.fs.FileAndHash;
 import org.prebake.fs.FileVersioner;
 import org.prebake.js.Executor;
@@ -86,10 +87,15 @@ final class Oven {
     actuals.put("os", JsOperatingSystemEnv.makeJsInterface(workingDir, execFn));
     actuals.put(
         "matching",
-        new SimpleMembranableFunction(null, "matching", "paths", "globs") {
+        // A function that finds inputs for actions.
+        // We delay this instead of doing it in the action loop since
+        // one action might produce files that are inputs to another.
+        new SimpleMembranableFunction("", "matching", "paths", "globs") {
+          MessageQueue mq = new MessageQueue();
           public ImmutableList<String> apply(Object[] argv) {
-            ImmutableList<Glob> inputGlobs
-                = Glob.CONV.convert(argv[0], null);
+            ImmutableList<Glob> inputGlobs = Glob.CONV.convert(argv[0], mq);
+            // Already vetted by Product parser.
+            if (mq.hasErrors()) { throw new IllegalStateException(); }
             ImmutableList.Builder<String> actionInputs
                 = ImmutableList.builder();
             try {
