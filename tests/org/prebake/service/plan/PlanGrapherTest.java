@@ -216,7 +216,7 @@ public class PlanGrapherTest extends PbTestCase {
         name, null, inputs, outputs,
         Collections.singletonList(new Action(
             "tool", inputs, outputs, ImmutableMap.<String, Object>of())),
-        false, source);
+        false, null, source);
   }
 
   private void assertCookLog(

@@ -381,7 +381,7 @@ class Yylex {
       }
     }
 
-	// numRead < 0
+    // numRead < 0
     return true;
   }
 

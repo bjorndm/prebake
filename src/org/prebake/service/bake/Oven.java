@@ -21,6 +21,7 @@ import org.prebake.fs.FileVersioner;
 import org.prebake.js.Executor;
 import org.prebake.js.JsonSink;
 import org.prebake.js.Loader;
+import org.prebake.js.SimpleMembranableFunction;
 import org.prebake.os.OperatingSystem;
 import org.prebake.service.plan.Action;
 import org.prebake.service.plan.Product;
@@ -39,6 +40,7 @@ import java.util.logging.Logger;
 import javax.annotation.Nonnull;
 
 import com.google.common.base.Charsets;
+import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
@@ -82,9 +84,27 @@ final class Oven {
     ImmutableMap.Builder<String, Object> actuals = ImmutableMap.builder();
     actuals.putAll(commonJsEnv);
     actuals.put("os", JsOperatingSystemEnv.makeJsInterface(workingDir, execFn));
+    actuals.put(
+        "matching",
+        new SimpleMembranableFunction(null, "matching", "paths", "globs") {
+          public ImmutableList<String> apply(Object[] argv) {
+            ImmutableList<Glob> inputGlobs
+                = Glob.CONV.convert(argv[0], null);
+            ImmutableList.Builder<String> actionInputs
+                = ImmutableList.builder();
+            try {
+              for (Path actionInput : WorkingDir.matching(
+                       workingDir, ImmutableSet.<Path>of(), inputGlobs)) {
+                actionInputs.add(actionInput.toString());
+              }
+            } catch (IOException ex) {
+              Throwables.propagate(ex);
+            }
+            return actionInputs.build();
+          }
+        });
     StringBuilder productJs = new StringBuilder();
     {
-      JsonSink productJsSink = new JsonSink(productJs);
       Map<String, String> toolNameToLocalName = Maps.newHashMap();
       for (Action a : p.actions) {
         // First, load each tool module.
@@ -108,28 +128,37 @@ final class Oven {
                 .withActuals(extraEnv)
                 .build());
       }
+      JsonSink productJsSink = new JsonSink(productJs);
       // Second, store the product.
       productJsSink.write("var product = ").writeValue(p).write(";\n");
       productJsSink.write("product.name = ").writeValue(p.name).write(";\n");
       productJsSink.write("product = Object.frozenCopy(product);\n");
+      // If the product wants to control how actions are executed, then wrap
+      // the tool execution in a call to the mobile function product.bake.
+      boolean thunkify = p.bake != null;
+      // TODO: rework tool output so product.bake can actually pipe the result
+      // of one tool to another.
+      if (thunkify) { productJsSink.write("!!product.bake(["); }
       // Third, for each action, invoke its tool's run method with the proper
       // arguments.
+      boolean firstAction = true;
       for (Action action : p.actions) {
-        ImmutableList.Builder<String> actionInputs = ImmutableList.builder();
-        for (Path actionInput : WorkingDir.matching(
-                 workingDir, ImmutableSet.<Path>of(), action.inputs)) {
-          actionInputs.add(actionInput.toString());
+        if (thunkify) {
+          if (!firstAction) { productJsSink.write(","); }
+          productJsSink.write("function () { return ");
         }
         productJsSink
             .write(toolNameToLocalName.get(action.toolName))
             .write(".fire(\n    ")
-            .writeValue(action.options).write(",\n    ")
-            .writeValue(actionInputs.build())
-            .write(",\n    product,\n    ")
+            .writeValue(action.options)
+            .write(",\n    matching(").writeValue(action.inputs)
+            .write("),\n    product,\n    ")
             .writeValue(action)
             .write(",\n    os);\n");
+        if (thunkify) { productJsSink.write("}"); }
+        firstAction = false;
       }
-      productJsSink.writeValue(true);
+      if (thunkify) { productJsSink.write("]);"); }
     }
     Executor.Input src = Executor.Input.builder(
         productJs.toString(), "product-" + p.name)

@@ -184,17 +184,18 @@ public final class StubOperatingSystem implements OperatingSystem {
                 try {
                   for (int inp = 0; inp < argv.length - 1; ++inp) {
                     InputStream in = cwd.resolve(argv[inp]).newInputStream();
+                    byte[] bytes;
                     try {
-                      byte[] bytes = ByteStreams.toByteArray(in);
-                      for (int n = bytes.length / 2, i = n / 2; --i >= 0;) {
-                        byte b = bytes[i];
-                        bytes[i] = bytes[n - i - 1];
-                        bytes[n - i - 1] = b;
-                      }
-                      out.write(bytes);
+                      bytes = ByteStreams.toByteArray(in);
                     } finally {
                       in.close();
                     }
+                    for (int n = bytes.length, i = n / 2; --i >= 0;) {
+                      byte b = bytes[i];
+                      bytes[i] = bytes[n - i - 1];
+                      bytes[n - i - 1] = b;
+                    }
+                    out.write(bytes);
                   }
                 } finally {
                   out.close();

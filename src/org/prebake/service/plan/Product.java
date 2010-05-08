@@ -19,6 +19,7 @@ import org.prebake.core.Glob;
 import org.prebake.core.MessageQueue;
 import org.prebake.js.JsonSerializable;
 import org.prebake.js.JsonSink;
+import org.prebake.js.MobileFunction;
 import org.prebake.js.YSONConverter;
 
 import com.google.common.collect.ImmutableList;
@@ -42,15 +43,14 @@ import javax.annotation.ParametersAreNonnullByDefault;
  */
 @ParametersAreNonnullByDefault
 public final class Product implements JsonSerializable {
-  // TODO: HIGH: add an optional bake method that gets as arguments functions
-  // to run each action that can inspect the output and result code, and choose
-  // to pipe input, conditionally execute, ignore or initialte failure, etc.
   public final String name;
   public final Documentation help;
   public final ImmutableList<Glob> inputs;
   public final ImmutableList<Glob> outputs;
   public final ImmutableList<Action> actions;
   public final boolean isIntermediate;
+  // TODO: document bake method on wiki
+  public final MobileFunction bake;
   public final Path source;
 
   /**
@@ -65,11 +65,15 @@ public final class Product implements JsonSerializable {
    *    inputs.
    * @param isIntermediate true if this product is required by other products
    *    but should not be explicitly built by the user.
+   * @param bake null or a mobile function that, at bake time, receives a
+   *    function that builds each action, and can choose to run some and not
+   *    others, and reinterpret results.
    */
   public Product(
       String name, @Nullable Documentation help,
       List<? extends Glob> inputs, List<? extends Glob> outputs,
       List<? extends Action> actions, boolean isIntermediate,
+      @Nullable MobileFunction bake,
       Path source) {
     assert name != null;
     assert inputs != null;
@@ -82,16 +86,18 @@ public final class Product implements JsonSerializable {
     this.outputs = ImmutableList.copyOf(outputs);
     this.actions = ImmutableList.copyOf(actions);
     this.isIntermediate = isIntermediate;
+    this.bake = bake;
     this.source = source;
   }
 
   Product withName(String newName) {
     return new Product(
-        newName, help, inputs, outputs, actions, isIntermediate, source);
+        newName, help, inputs, outputs, actions, isIntermediate, bake, source);
   }
 
   public Product withoutNonBuildableInfo() {
-    return new Product(name, null, inputs, outputs, actions, false, source);
+    return new Product(
+        name, null, inputs, outputs, actions, false, bake, source);
   }
 
   @Override
@@ -129,6 +135,7 @@ public final class Product implements JsonSerializable {
     outputs,
     actions,
     intermediate,
+    bake,
     ;
   }
 
@@ -142,6 +149,9 @@ public final class Product implements JsonSerializable {
     }
     if (help != null) {
       sink.write(",").writeValue(Field.help).write(":").writeValue(help);
+    }
+    if (bake != null) {
+      sink.write(",").writeValue(Field.bake).write(":").writeValue(bake);
     }
     sink.write("}");
   }
@@ -160,6 +170,9 @@ public final class Product implements JsonSerializable {
           .require(
               Field.actions.name(),
               YSONConverter.Factory.listConverter(Action.CONVERTER))
+          .optional(
+              Field.bake.name(),
+              YSONConverter.Factory.withType(MobileFunction.class), null)
           .build();
   public static YSONConverter<Product> converter(
       final String name, final Path source) {
@@ -170,8 +183,8 @@ public final class Product implements JsonSerializable {
           List<?> list = (List<?>) ysonValue;
           if (list.isEmpty() || looksLikeAction(list.get(0))) {
             // Coerce a list of actions to a product.
-           ysonValue = Collections.singletonMap(
-               Field.actions.name(), ysonValue);
+            ysonValue = Collections.singletonMap(
+                Field.actions.name(), ysonValue);
           }
         } else if (looksLikeAction(ysonValue)) {
           // Coerce a single action to an action.
@@ -197,9 +210,10 @@ public final class Product implements JsonSerializable {
           if (inSet != null) { inputs = ImmutableList.copyOf(inSet); }
           if (outSet != null) { outputs = ImmutableList.copyOf(outSet); }
         }
+        MobileFunction bake = (MobileFunction) fields.get(Field.bake);
         return new Product(
             name, (Documentation) fields.get(Field.help), inputs, outputs,
-            actions, Boolean.TRUE.equals(fields.get(Field.intermediate)),
+            actions, Boolean.TRUE.equals(fields.get(Field.intermediate)), bake,
             source);
       }
       public String exampleText() { return MAP_CONV.exampleText(); }
@@ -219,6 +233,7 @@ public final class Product implements JsonSerializable {
     if (!(o instanceof Map<?, ?>)) { return false; }
     Map<?, ?> m = (Map<?, ?>) o;
     return !m.containsKey(Field.actions.name())
+        && !m.containsKey(Field.bake.name())
         && m.containsKey(Action.Field.tool.name())
         && m.containsKey(Action.Field.options.name());
   }

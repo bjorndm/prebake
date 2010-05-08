@@ -75,8 +75,10 @@ final class Freezer {
     ScriptableObject so = (ScriptableObject) obj;
     ScriptableObject copy = frozenCopies.get(so);
     if (copy != null) { return copy; }
+    boolean isFunction = false;
     if (so instanceof Function) {
       copy = new DelegatingFunction((Function) so);
+      isFunction = true;
     } else if (so instanceof NativeArray) {
       copy = new NativeArray(((NativeArray) so).getLength());
     } else {
@@ -104,6 +106,11 @@ final class Freezer {
         if (isFrozen
             && ((atts & constBits) != constBits || frozenValue != value)) {
           isFrozen = false;
+        }
+        if (isFunction) {
+          if ("arguments".equals(nameStr) || "prototype".equals(nameStr)) {
+            continue;
+          }
         }
         ScriptableObject.defineProperty(
             copy, nameStr, frozenValue, atts | constBits);

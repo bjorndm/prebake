@@ -18,7 +18,7 @@ import org.prebake.core.Documentation;
 import org.prebake.core.Glob;
 import org.prebake.fs.StubFileVersioner;
 import org.prebake.js.JsonSink;
-import org.prebake.js.YSON;
+import org.prebake.js.MobileFunction;
 import org.prebake.os.OperatingSystem;
 import org.prebake.os.StubOperatingSystem;
 import org.prebake.service.plan.Action;
@@ -131,6 +131,7 @@ public class BakerTest extends PbTestCase {
          + "            'Failed to cp ' + input + ' to ' + output); \\n"
          + "      } \\n"
          + "    } \\n"
+         + "    return true; \\n"
          + "  } \\n"
          + "})\""))
         .withProduct(product(
@@ -199,7 +200,7 @@ public class BakerTest extends PbTestCase {
       + "  fire: function (opts, inputs, product, action, os) {\n"
       + "    var argv = action.outputs.slice(0);\n"
       + "    argv.splice(0, 0, 'bork');\n"
-      + "    return !os.exec.apply({}, argv);\n"
+      + "    return !os.exec.apply({}, argv).run().waitFor();\n"
       + "  }\n"
       + "})");
 
@@ -210,7 +211,7 @@ public class BakerTest extends PbTestCase {
       + "    var argv = action.outputs.slice(0);\n"
       + "    argv.splice(0, 0, 'bork');\n"
       + "    argv.sort();\n"
-      + "    return !os.exec.apply({}, argv);\n"
+      + "    return !os.exec.apply({}, argv).run().waitFor();\n"
       + "  }\n"
       + "})");
 
@@ -303,6 +304,28 @@ public class BakerTest extends PbTestCase {
       + "            'Failed to cp ' + input + ' to ' + output); \n"
       + "      } \n"
       + "    } \n"
+      + "    return true; \n"
+      + "  } \n"
+      + "})");
+
+  public static final String MUNGE_TOOL_JS = JsonSink.stringify(
+      ""
+      + "({ \n"
+      + "  fire: function fire(opts, inputs, product, action, os) { \n"
+      // Infer outputs from inputs
+      + "    var outGlob = action.outputs[0]; \n"
+      + "    var inGlob = action.inputs[0]; \n"
+      + "    var xform = glob.xformer(action.inputs, action.outputs); \n"
+      + "    for (var i = 0, n = inputs.length; i < n; ++i) { \n"
+      + "      var input = inputs[i]; \n"
+      + "      var output = xform(input); \n"
+      + "      os.mkdirs(os.dirname(output)); \n"
+      + "      if (os.exec('munge', input, output).run().waitFor()) { \n"
+      + "        throw new Error( \n"
+      + "            'Failed to munge ' + input + ' to ' + output); \n"
+      + "      } \n"
+      + "    } \n"
+      + "    return true; \n"
       + "  } \n"
       + "})");
 
@@ -462,6 +485,63 @@ public class BakerTest extends PbTestCase {
           + "/cwd/root/.prebake/archive");
   }
 
+
+  @Test public final void testProductWithBakeMethod() throws Exception {
+    tester.withFileSystem(
+        "/",
+        "  cwd/",
+        "    tools/",
+        "      cp.js " + COPY_TOOL_JS,
+        "      munge.js " + MUNGE_TOOL_JS,
+        "    root/",
+        "      i/",
+        "        j/",
+        "          c \"The cat in the hat\"",
+        "          g \"Green eggs and ham\"",
+        "        h \"Horton hears a who\"")
+       .withTool(tool("cp"), "/cwd/tools/cp.js")
+       .withTool(tool("munge"), "/cwd/tools/munge.js")
+       .withProduct(new Product(
+           "p", null, ImmutableList.of(Glob.fromString("i/**")),
+           ImmutableList.of(Glob.fromString("o/**"), Glob.fromString("p/j/g")),
+           ImmutableList.of(
+               action("cp", "o/j/*", "p/j/*"),  // Run later
+               action("munge", "i/**", "o/**")),  // Run
+           false,
+           new MobileFunction(Joiner.on('\n').join(  // Runs them out of order.
+               "function (actions) {",
+               "  return actions[1]() && actions[0]();",
+               "}")),
+           tester.fs.getPath("plans/p.js")))
+       .expectSuccess(true)
+       .build("p")
+       .runPendingTasks()
+       .assertProductStatus("p", true)
+       .assertFileTree(
+           "/",
+           "  cwd/",
+           "    tools/",
+           "      cp.js \"...\"",
+           "      munge.js \"...\"",
+           "    root/",
+           "      i/",
+           "        j/",
+           "          c \"The cat in the hat\"",
+           "          g \"Green eggs and ham\"",
+           "        h \"Horton hears a who\"",
+           "      o/",
+           "        j/",  // Munge ran first and reversed the content.
+           "          c \"tah eht ni tac ehT\"",
+           "          g \"mah dna sgge neerG\"",
+           "        h \"ohw a sraeh notroH\"",
+           "      p/",  // Rest of p excluded from Product output
+           "        j/",
+           "          g \"mah dna sgge neerG\"",
+           "  tmpdir/")
+       .assertProductStatus("p", true);
+  }
+
+  // TODO: test that unclosed processes result in log messages
   // TODO: output globs that overlap inputs
   // TODO: process returns error code.
   // TODO: changed output is updated
@@ -592,7 +672,7 @@ public class BakerTest extends PbTestCase {
   private Product product(String name, Action action) {
     return new Product(
         name, null, action.inputs, action.outputs,
-        Collections.singletonList(action), false,
+        Collections.singletonList(action), false, null,
         tester.fs.getPath("plans/" + name + ".js"));
   }
 
@@ -603,7 +683,12 @@ public class BakerTest extends PbTestCase {
   private static ToolSignature tool(
       String name, @Nullable String checker, @Nullable Documentation docs) {
     return new ToolSignature(
-        name, checker != null ? new YSON.Lambda(checker) : null, docs, true);
+        name, checker != null ? new MobileFunction(checker) : null, docs, true);
+  }
+
+  private static Action action(
+      String tool, String input, String output) {
+    return action(tool, ImmutableMap.<String, Object>of(), input, output);
   }
 
   private static Action action(
@@ -638,7 +723,9 @@ public class BakerTest extends PbTestCase {
       return out;
     }
     public ToolContent getTool(String toolName) throws IOException {
-      return new ToolContent(tester.files.load(toolPaths.get(toolName)), false);
+      Path p = toolPaths.get(toolName);
+      if (p == null) { throw new IOException("No tool with name " + toolName); }
+      return new ToolContent(tester.files.load(p), false);
     }
     public void close() { /* no-op */ }
   }

@@ -24,7 +24,6 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 
-import java.io.IOException;
 import java.text.Normalizer;
 import java.text.ParseException;
 import java.util.Collections;
@@ -105,8 +104,8 @@ public final class YSON {
    * JavaScript arrays are coerced to {@link java.util.List}s, object
    * constructors are converted to {@link java.util.Map}s, JavaScript primitives
    * are converted to the corresponding Java primitive wrapper types, JavaScript
-   * functions are converted to {@link Lambda}s, and other values are converted
-   * to {@code null}.
+   * functions are converted to {@link MobileFunction}s, and other values are
+   * converted to {@code null}.
    */
   public @Nullable Object toJavaObject() {
     return YSON.toJavaObject(root);
@@ -440,7 +439,7 @@ public final class YSON {
     } else if (node instanceof NumberLiteral) {
       return ((NumberLiteral) node).getDouble();
     } else if (node instanceof FunctionNode) {
-      return new Lambda(node.toSource());
+      return new MobileFunction(node.toSource());
     } else if (node instanceof KeywordLiteral) {
       switch (((KeywordLiteral) node).getType()) {
         case Token.TRUE: return Boolean.TRUE;
@@ -492,38 +491,5 @@ public final class YSON {
     } else {
       return null;
     }
-  }
-
-  /**
-   * A JavaScript function expression.
-   */
-  public static final class Lambda implements JsonSerializable {
-    private final String source;
-
-    // TODO: define a withNameHint method that sets the function self name if
-    // anonymous and use it to make lambdas show up better in stack traces.
-    // So tool.fire for tool with name "cp" -> tool_cp_fire
-
-    public Lambda(String source) {
-      assert source != null && source.startsWith("function")
-          && source.endsWith("}") : source;
-      this.source = source;
-    }
-
-    /** The source code of a JavaScript function expression. */
-    public String getSource() { return source; }
-
-    @Override
-    public String toString() { return source; }
-
-    @Override
-    public boolean equals(Object o) {
-      return o instanceof Lambda && source.equals(((Lambda) o).source);
-    }
-
-    @Override
-    public int hashCode() { return source.hashCode(); }
-
-    public void toJson(JsonSink sink) throws IOException { sink.write(source); }
   }
 }
