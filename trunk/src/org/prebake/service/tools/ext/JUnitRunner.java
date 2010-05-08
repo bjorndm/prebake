@@ -16,8 +16,7 @@ package org.prebake.service.tools.ext;
 
 import org.prebake.core.DidYouMean;
 import org.prebake.js.JsonSink;
-import org.prebake.js.YSON;
-
+import org.prebake.js.MobileFunction;
 import java.io.ByteArrayOutputStream;
 import java.io.FileDescriptor;
 import java.io.FileOutputStream;
@@ -87,8 +86,8 @@ public final class JUnitRunner {
    *    [test_listener_lambda, report_output_dir, report_types, test_classes...]
    */
   public static void main(String... argv) {
-    YSON.Lambda testReportFilter = !"".equals(argv[0])
-        ? new YSON.Lambda(argv[0]) : null;
+    MobileFunction testReportFilter = !"".equals(argv[0])
+        ? new MobileFunction(argv[0]) : null;
     Path reportOutputDir = FileSystems.getDefault().getPath(argv[1]);
     Set<String> reportTypes = Sets.newHashSet(
         argv[2].toLowerCase(Locale.ENGLISH).split(","));
@@ -120,7 +119,7 @@ public final class JUnitRunner {
 
   public static ResultCode run(
       JUnitSystem junitSystem,
-      @Nullable YSON.Lambda testReportFilter, Path reportOutputDir,
+      @Nullable MobileFunction testReportFilter, Path reportOutputDir,
       Set<String> reportTypes, String... testClassNames) {
     JUnitCore core = new JUnitCore();
     Map<String, ?> jsonReport;
@@ -350,7 +349,7 @@ public final class JUnitRunner {
   }
 
   private static Map<String, ?> applyReportFilter(
-      @Nullable YSON.Lambda testReportFilter, Map<String, ?> jsonReport) {
+      @Nullable MobileFunction testReportFilter, Map<String, ?> jsonReport) {
     if (testReportFilter != null) {
       // TODO: Run the test report filter over the JSON form.
       // It can do things like look for annotations, and raise or lower the

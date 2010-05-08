@@ -53,6 +53,7 @@ public class MessageQueue {
    * {@link java.util.logging.Logger} unscathed.
    */
   public static String escape(String s) {
-    return s.replace("'", "''").replace("{", "'{'");
+    if (s.length() == 0) { return s; }
+    return "'" + s.replace("'", "''") + "'";
   }
 }

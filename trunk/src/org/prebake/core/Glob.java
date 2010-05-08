@@ -717,9 +717,9 @@ public final class Glob implements Comparable<Glob>, JsonSerializable {
    * E.g. <tt>foo/**.{html,js,css}</tt> would expand to the globs
    * <tt>[foo/**.html, foo/**.js, foo/**.css]</tt>.
    */
-  public static final YSONConverter<List<Glob>> CONV
-      = new YSONConverter<List<Glob>>() {
-    public @Nullable List<Glob> convert(
+  public static final YSONConverter<ImmutableList<Glob>> CONV
+      = new YSONConverter<ImmutableList<Glob>>() {
+    public @Nullable ImmutableList<Glob> convert(
         @Nullable Object ysonValue, MessageQueue problems) {
       ImmutableList.Builder<Glob> globs = ImmutableList.builder();
       if (ysonValue instanceof String) {

@@ -18,7 +18,7 @@ import org.prebake.core.Documentation;
 import org.prebake.core.MessageQueue;
 import org.prebake.js.JsonSerializable;
 import org.prebake.js.JsonSink;
-import org.prebake.js.YSON;
+import org.prebake.js.MobileFunction;
 import org.prebake.js.YSONConverter;
 
 import java.io.IOException;
@@ -35,12 +35,12 @@ import javax.annotation.ParametersAreNonnullByDefault;
 @ParametersAreNonnullByDefault
 public final class ToolSignature implements JsonSerializable {
   public final String name;
-  public final @Nullable YSON.Lambda productChecker;
+  public final @Nullable MobileFunction productChecker;
   public final @Nullable Documentation help;
   public final boolean deterministic;
 
   public ToolSignature(
-      String name, @Nullable YSON.Lambda productChecker,
+      String name, @Nullable MobileFunction productChecker,
       @Nullable Documentation help, boolean deterministic) {
     this.name = name;
     this.productChecker = productChecker;
@@ -65,14 +65,14 @@ public final class ToolSignature implements JsonSerializable {
     return JsonSerializable.StringUtil.toString(this);
   }
 
-  private static final YSONConverter<YSON.Lambda> LAMBDA
-      = YSONConverter.Factory.withType(YSON.Lambda.class);
+  private static final YSONConverter<MobileFunction> FN
+      = YSONConverter.Factory.withType(MobileFunction.class);
   private static final YSONConverter<Map<ToolDefProperty, Object>> MAP_CONV
       = YSONConverter.Factory
           .<ToolDefProperty, Object>mapConverter(ToolDefProperty.class)
           .optional(ToolDefProperty.help.name(), Documentation.CONVERTER, null)
-          .optional(ToolDefProperty.check.name(), LAMBDA, null)
-          .optional(ToolDefProperty.fire.name(), LAMBDA, null)
+          .optional(ToolDefProperty.check.name(), FN, null)
+          .optional(ToolDefProperty.fire.name(), FN, null)
           .build();
   public static final YSONConverter<ToolSignature> converter(
       final String name, final boolean deterministic) {
@@ -82,7 +82,7 @@ public final class ToolSignature implements JsonSerializable {
         Map<ToolDefProperty, ?> map = MAP_CONV.convert(ysonValue, problems);
         if (map != null) {
           return new ToolSignature(
-              name, (YSON.Lambda) map.get(ToolDefProperty.check),
+              name, (MobileFunction) map.get(ToolDefProperty.check),
               (Documentation) map.get(ToolDefProperty.help), deterministic);
         }
         return null;

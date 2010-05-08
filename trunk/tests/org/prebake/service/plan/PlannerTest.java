@@ -19,7 +19,7 @@ import org.prebake.core.Documentation;
 import org.prebake.core.Glob;
 import org.prebake.fs.StubFileVersioner;
 import org.prebake.js.Executor;
-import org.prebake.js.YSON;
+import org.prebake.js.MobileFunction;
 import org.prebake.service.tools.ToolContent;
 import org.prebake.service.tools.ToolProvider;
 import org.prebake.service.tools.ToolSignature;
@@ -58,11 +58,11 @@ import javax.annotation.Nullable;
 
 public class PlannerTest extends PbTestCase {
   // TODO: HIGH.  Let checker infer outputs from inputs, so that
-  //   gcc('**.cc') -> {
+  //   tools.gcc('**.cc') -> {
   //     tool: 'gcc', inputs: ['**.c'], outputs: ['**.o'], options: {'-c': true}
   //   }
   // while
-  //   gcc('**.cc', 'main.so') -> {
+  //   tools.gcc('**.cc', 'main.so') -> {
   //     tool: 'gcc', inputs: ['**.c'], outputs: ['main.so'], options: ...
   //   }
 
@@ -439,7 +439,7 @@ public class PlannerTest extends PbTestCase {
     public Tester expectProduct(
         String name, List<Glob> inputs, List<Glob> outputs, Action... actions) {
       return expectProducts(new Product(
-          name, null, inputs, outputs, Arrays.asList(actions), false,
+          name, null, inputs, outputs, Arrays.asList(actions), false, null,
           fs.getPath("/cwd")));
     }
 
@@ -499,7 +499,7 @@ public class PlannerTest extends PbTestCase {
   private static ToolSignature tool(
       String name, @Nullable String checker, @Nullable Documentation docs) {
     return new ToolSignature(
-        name, checker != null ? new YSON.Lambda(checker) : null, docs, true);
+        name, checker != null ? new MobileFunction(checker) : null, docs, true);
   }
 
   private static Action action(
