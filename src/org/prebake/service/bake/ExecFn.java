@@ -221,7 +221,9 @@ final class ExecFn extends SimpleMembranableFunction {
               "waitFor", "<int>") {
             public Object apply(Object[] args) {
               try {
-                return p.waitFor();
+                int result = p.waitFor();
+                runningProcesses.remove(p);
+                return result;
               } catch (InterruptedException ex) {
                 Throwables.propagate(ex);
                 return -1;  // unreachable
@@ -238,8 +240,8 @@ final class ExecFn extends SimpleMembranableFunction {
     runningProcesses.clear();
     for (OsProcess p : processes) {
       if (p.kill()) {
-       logger.log(
-           Level.WARNING, "Aborted still running process {0}", p.getCommand());
+        logger.log(
+            Level.WARNING, "Aborted still running process {0}", p.getCommand());
       }
     }
   }

@@ -122,16 +122,22 @@ public class BakerTest extends PbTestCase {
          + "    } \\n"
          // Infer outputs from inputs
          + "    var xform = glob.xformer(action.inputs, action.outputs); \\n"
+         + "    var processes = []; \\n"
          + "    for (var i = 0, n = inputs.length; i < n; ++i) { \\n"
          + "      var input = inputs[i]; \\n"
          + "      var output = xform(input); \\n"
          + "      console.log('  input=' + input + ', output=' + output); \\n"
-         + "      if (os.exec('cp', input, output).run().waitFor() !== 0) { \\n"
-         + "        throw new Error( \\n"
-         + "            'Failed to cp ' + input + ' to ' + output); \\n"
-         + "      } \\n"
+         + "      processes.push(os.exec('cp', input, output).run()); \\n"
          + "    } \\n"
-         + "    return true; \\n"
+         + "    return { \\n"
+         + "      waitFor: function () { \\n"
+         + "        for (var i = 0, n = processes.length; i < n; ++i) { \\n"
+         + "          var result = processes[i].waitFor(); \\n"
+         + "          if (result !== 0) { return result; } \\n"
+         + "        } \\n"
+         + "        return 0; \\n"
+         + "      } \\n"
+         + "    }; \\n"
          + "  } \\n"
          + "})\""))
         .withProduct(product(
@@ -200,7 +206,7 @@ public class BakerTest extends PbTestCase {
       + "  fire: function (opts, inputs, product, action, os) {\n"
       + "    var argv = action.outputs.slice(0);\n"
       + "    argv.splice(0, 0, 'bork');\n"
-      + "    return !os.exec.apply({}, argv).run().waitFor();\n"
+      + "    return os.exec.apply({}, argv).run();\n"
       + "  }\n"
       + "})");
 
@@ -211,7 +217,7 @@ public class BakerTest extends PbTestCase {
       + "    var argv = action.outputs.slice(0);\n"
       + "    argv.splice(0, 0, 'bork');\n"
       + "    argv.sort();\n"
-      + "    return !os.exec.apply({}, argv).run().waitFor();\n"
+      + "    return os.exec.apply({}, argv).run();\n"
       + "  }\n"
       + "})");
 
@@ -297,14 +303,20 @@ public class BakerTest extends PbTestCase {
       + "    var outGlob = action.outputs[0]; \n"
       + "    var inGlob = action.inputs[0]; \n"
       + "    var xform = glob.xformer(action.inputs, action.outputs); \n"
+      + "    var processes = []; \n"
       + "    for (var i = 0, n = inputs.length; i < n; ++i) { \n"
       + "      var input = inputs[i]; \n"
-      + "      if (os.exec('cp', input, xform(input)).run().waitFor()) { \n"
-      + "        throw new Error( \n"
-      + "            'Failed to cp ' + input + ' to ' + output); \n"
-      + "      } \n"
+      + "      processes.push(os.exec('cp', input, xform(input)).run()); \n"
       + "    } \n"
-      + "    return true; \n"
+      + "    return { \n"
+      + "      waitFor: function () { \n"
+      + "        for (var i = 0, n = processes.length; i < n; ++i) { \n"
+      + "          var result = processes[i].waitFor(); \n"
+      + "          if (result !== 0) { return result; } \n"
+      + "        } \n"
+      + "        return 0; \n"
+      + "      } \n"
+      + "    }; \n"
       + "  } \n"
       + "})");
 
@@ -316,16 +328,24 @@ public class BakerTest extends PbTestCase {
       + "    var outGlob = action.outputs[0]; \n"
       + "    var inGlob = action.inputs[0]; \n"
       + "    var xform = glob.xformer(action.inputs, action.outputs); \n"
+      + "    var processes = []; \n"
       + "    for (var i = 0, n = inputs.length; i < n; ++i) { \n"
       + "      var input = inputs[i]; \n"
       + "      var output = xform(input); \n"
       + "      os.mkdirs(os.dirname(output)); \n"
-      + "      if (os.exec('munge', input, output).run().waitFor()) { \n"
-      + "        throw new Error( \n"
-      + "            'Failed to munge ' + input + ' to ' + output); \n"
-      + "      } \n"
+      + "      processes.push(os.exec('munge', input, output).run()); \n"
       + "    } \n"
-      + "    return true; \n"
+      + "    return { \n"
+      + "      waitFor: function () { \n"
+      + "        for (var i = 0, n = processes.length; i < n; ++i) { \n"
+      + "          var result = processes[i].waitFor(); \n"
+      + "          if (result !== 0) {\n"
+      + "            throw new Error('Failed to munge ' + inputs[i]); \n"
+      + "          } \n"
+      + "        } \n"
+      + "        return 0; \n"
+      + "      } \n"
+      + "    }; \n"
       + "  } \n"
       + "})");
 
@@ -510,7 +530,8 @@ public class BakerTest extends PbTestCase {
            false,
            new MobileFunction(Joiner.on('\n').join(  // Runs them out of order.
                "function (actions) {",
-               "  return actions[1]() && actions[0]();",
+               "  return actions[1]().waitFor() == 0",
+               "      && actions[0]().waitFor() == 0;",
                "}")),
            tester.fs.getPath("plans/p.js")))
        .expectSuccess(true)

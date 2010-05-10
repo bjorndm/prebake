@@ -34,12 +34,17 @@
       os.mkdirs(os.dirname(output));
       processes.push(os.exec('cp', input, output).run());
     }
-    for (var i = 0, n = processes.length; i < processes.length; ++i) {
-      if (processes[i].waitFor()) {
-        throw new Error('Could not copy ' + inputs[i]);
+    return {
+      waitFor: function () {
+        for (var i = 0, n = processes.length; i < processes.length; ++i) {
+          if (processes[i].waitFor()) {
+            throw new Error('Could not copy ' + inputs[i]);
+          }
+        }
+	console.log('Copied ' + n + (n !== 1 ? ' files' : ' file'));
+	return 0;
       }
-    }
-    return true;
+    };
   },
   checker: function (action) {
     try {

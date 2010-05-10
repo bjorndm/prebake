@@ -64,6 +64,6 @@
           .join(pathSeparator);
     }
     var command = ['javac', '-d', outDir, '-cp', classpath].concat(sources);
-    return os.exec.apply({}, command).run().waitFor() === 0;
+    return os.exec.apply({}, command).run();
   }
 });

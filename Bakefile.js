@@ -49,9 +49,13 @@ var jars = [
   },
   runtests: {
     help: "Runs JUnit tests putting test results under reports",
-    actions: [tools.junit(["test-lib///**.class", "lib///**.class"].concat(jars),
-                          "reports/tests///**.{json,html,css}",
-                          { test_class_filter: "**Test.class" })]
+    actions: [tools.junit(
+        ["test-lib///**.class",
+         "lib///**",
+         "jars/service.jar"].concat(jars),
+        "reports/tests///**.{json,html,css}",
+        { test_class_filter: "**Test.class",
+          runner_classpath: jars })]
   },
   docs: {
     help: "Puts javadoc under docs",

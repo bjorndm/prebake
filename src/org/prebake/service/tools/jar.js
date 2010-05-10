@@ -47,9 +47,12 @@
         jarsourcedir = glob.rootOf(action.inputs);
       }
       jarfile = glob.xformer('foo', action.outputs[0])('foo');
-      // We don't need to remap since source files are relative to the CWD,
-      // not the jarsourcedir.
-      jarcontent = inputs;
+      jarcontent = '';
+      var xform = glob.xformer(
+          jarsourcedir.replace(sys.io.file.separator, '/') + '/**', '**');
+      for (var i = 0, n = inputs.length; i < n; ++i) {
+        jarcontent[i] = xform(inputs[i]);
+      }
     } else {
       throw new Error('Cannot determine whether to jar orunjar');
     }
@@ -75,10 +78,8 @@
       command.push(manifestFile);
     }
     command.push(jarfile);
-    if (jarsourcedir) {
-      command.push('-C', jarsourcedir);
-    }
+    if (jarsourcedir) { command.push('-C', jarsourcedir); }
     command = command.concat(jarcontent);
-    return os.exec.apply({}, command).run().waitFor() === 0;
+    return os.exec.apply({}, command).run();
   }
 });

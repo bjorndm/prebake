@@ -20,7 +20,6 @@
   },
   fire: function fire(opts, inputs, product, action, os) {
     // TODO: JVM system properties
-    // TODO: copy over junit_report.css and junit_report.js and tie to options.
     function opt(name, opt_defaultValue) {
       if ({}.hasOwnProperty.call(opts, name)) {
         return opts[name];
@@ -28,16 +27,24 @@
         return opt_defaultValue;
       }
     }
+    function cpOpt(name, defaultValue) {
+      var cp = opt(name);
+      if (cp) {
+        if (typeof cp === 'object' && cp.length === (cp.length >>> 0)) {
+          return cp;
+        } else {
+          return String(cp).split(pathSeparator);
+        }
+      }
+      return defaultValue.split(pathSeparator);
+    }
     var testListener = opt('listener');
     var pathSeparator = sys.io.path.separator;
-    var classpath = opt('cp') || opt('classpath');
-    if (classpath instanceof Array) {
-      classpath = classpath.join(pathSeparator);
-    } else if (classpath) {
-      classpath = String(classpath);
-    } else {
-      classpath = '';
-    }
+    // Classpath for tests if not apparent from inputs.
+    var classpath = cpOpt('classpath', '');
+    // The classpath including org.prebake.service.tools.ext.JUnitRunner
+    // and its dependencies.
+    var junitRunnerClasspath = cpOpt('runner_classpath', java_classpath);
     var extraClasspath = [];
     var testClasses = [];
     var testClassFilter = glob.matcher(action.options.test_class_filter);
@@ -64,10 +71,10 @@
       }
     }
     classpath = Array.filter(
-        classpath.split(pathSeparator)
-        .concat(java_classpath.split(pathSeparator)),
+        classpath
+            .concat(junitRunnerClasspath)
+            .concat(extraClasspath),
         function (x) { return !!x; })
-        .concat(extraClasspath)
         .join(pathSeparator);
     var wantsHtmlReport = false,
         wantsJsonReport = false,
@@ -104,16 +111,25 @@
         reportDir || '',
         reportTypes]
         .concat(testClasses);
-    var result = os.exec.apply({}, command).run().waitFor();
-    // See JUnitRunner.Result enum.
-    if (result === 0 || result === -1) {
-      if (result) {
-        console.warn('JUnit Tests failed');
-      } else {
-        console.log('JUnit Tests passed');
-      }
-    } else {
-      console.warn('JUnit failed with result ' + result);
+    var proc = os.exec.apply({}, command).run();
+    var result;
+    function OutProc() {
+      this.waitFor = function () {
+        result = proc.waitFor();
+        // See JUnitRunner.Result enum.
+        if (result === 0 || result === -1) {
+          if (result) {
+            console.warn('JUnit Tests failed');
+          } else {
+            console.log('JUnit Tests passed');
+          }
+        } else {
+          console.warn('JUnit failed with result ' + result);
+        }
+        return result;
+      };
     }
+    OutProc.prototype = proc;
+    return new OutProc;
   }
 });

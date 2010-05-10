@@ -97,7 +97,7 @@ public class EndToEndTest extends PbTestCase {
             "    root/",
             "      src/",
             "        a.foo \"foo\"",
-            ("      plan.js \"({ foo: tools.cp('src/*.foo', 'out/*.bar') })\""),
+            "      plan.js \"({ foo: tools.cp('src/*.foo', 'out/*.bar') })\"",
             "  tools/",
             "    cp.js " + JsonSink.stringify(CP_TOOL_JS),
             "  tmpdir/")))

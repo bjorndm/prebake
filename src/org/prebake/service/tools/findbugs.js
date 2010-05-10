@@ -83,15 +83,24 @@
     if (outputFile) { command.push('-output', outputFile); }
     if (classpath) { command.push('-auxclasspath', classpath); }
     command = command.concat(sources);
-    var result = os.exec.apply({}, command).run().waitFor();
-    if (result === 0 || result === 1) {
-      if (result) {
-        console.log('See findbugs report at ' + outputFile);
-      }
-      return true;
-    } else {
-      console.warn('Findbugs failed with status code ' + result);
-      return false;
+    
+    var proc = os.exec.apply({}, command).run();
+    var result;
+    function OutProc() {
+      this.waitFor = function () {
+        result = proc.waitFor();
+        if (result === 0 || result === 1) {
+          if (result) {
+            console.log('See findbugs report at ' + outputFile);
+          }
+          return 0;
+        } else {
+          console.warn('Findbugs failed with status code ' + result);
+          return result;
+        }
+      };
     }
+    OutProc.prototype = proc;
+    return new OutProc;
   }
 });
