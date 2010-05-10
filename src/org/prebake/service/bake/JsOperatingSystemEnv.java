@@ -32,9 +32,9 @@ import com.google.common.collect.ImmutableMap;
  *
  * @author Mike Samuel <mikesamuel@gmail.com>
  */
-final class JsOperatingSystemEnv {
+public final class JsOperatingSystemEnv {
 
-  static ImmutableMap<String, ?> makeJsInterface(
+  public static ImmutableMap<String, ?> makeJsInterface(
       final Path workingDir, MembranableFunction execFn) {
     MembranableFunction mkdirsFn = new SimpleMembranableFunction(
         ""
