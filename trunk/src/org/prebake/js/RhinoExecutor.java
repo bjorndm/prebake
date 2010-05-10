@@ -91,7 +91,8 @@ public final class RhinoExecutor implements Executor {
       // Provided extensions.
       Console.class.getName(),
       NonDeterminismRecorder.class.getName(),
-      LoadFn.class.getName()
+      LoadFn.class.getName(),
+      Membrane.OpaqueWrapper.class.getName()
       );
 
   private static final ContextFactory SANDBOXINGFACTORY = new ContextFactory() {

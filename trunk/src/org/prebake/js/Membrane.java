@@ -474,6 +474,8 @@ final class Membrane {
     }
 
     public Scriptable getPrototype() {
+      // TODO: make sure these behave as arrays w.r.t. built-ins like
+      // Array.concat.
       return ScriptableObject.getArrayPrototype(scope);
     }
 
