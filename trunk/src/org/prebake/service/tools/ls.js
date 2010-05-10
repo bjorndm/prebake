@@ -21,7 +21,6 @@
   },
   fire: function fire(opts, inputs, product, action, os) {
     var outFile = glob.xformer('foo', action.outputs)('foo');
-    return os.exec.apply({}, ['ls'].concat(inputs))
-        .writeTo(outFile).run().waitFor() === 0;
+    return os.exec.apply({}, ['ls'].concat(inputs)).writeTo(outFile).run();
   }
 })

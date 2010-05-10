@@ -76,7 +76,7 @@
       classpath = classpath.split(pathSeparator).concat(extraClasspath)
           .join(pathSeparator);
     }
-    var command = ['javadoc', '-d', outDir, '-classpath', classpath];
+    var command = ['javadoc', '-d', outDir, '-classpath', classpath, '-quiet'];
     for (var i = 0; i < links.length; ++i) { command.push('-link', links[i]); }
     if (sourcePath.length) {
       command.push('-sourcepath', sourcePath.join(pathSeparator));
@@ -93,6 +93,6 @@
       default: throw new Error('Bad visibility ' + visibility);
     }
     command = command.concat(sources);
-    return os.exec.apply({}, command).run().waitFor() === 0;
+    return os.exec.apply({}, command).run();
   }
 });

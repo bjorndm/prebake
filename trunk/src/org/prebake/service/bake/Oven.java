@@ -144,13 +144,14 @@ final class Oven {
       boolean thunkify = p.bake != null;
       // TODO: rework tool output so product.bake can actually pipe the result
       // of one tool to another.
-      if (thunkify) { productJsSink.write("!!product.bake(["); }
+      productJsSink.write("(");
+      if (thunkify) { productJsSink.write("product.bake(["); }
       // Third, for each action, invoke its tool's run method with the proper
       // arguments.
       boolean firstAction = true;
       for (Action action : p.actions) {
+        if (!firstAction) { productJsSink.write(thunkify ? "," : ") && ("); }
         if (thunkify) {
-          if (!firstAction) { productJsSink.write(","); }
           productJsSink.write("function () { return ");
         }
         productJsSink
@@ -158,13 +159,14 @@ final class Oven {
             .write(".fire(\n    ")
             .writeValue(action.options)
             .write(",\n    matching(").writeValue(action.inputs)
-            .write("),\n    product,\n    ")
+            .write(").slice(0),\n    product,\n    ")
             .writeValue(action)
-            .write(",\n    os);\n");
-        if (thunkify) { productJsSink.write("}"); }
+            .write(",\n    os)\n");
+        productJsSink.write(thunkify ? "}" : ".waitFor() === 0");
         firstAction = false;
       }
-      if (thunkify) { productJsSink.write("]);"); }
+      if (thunkify) { productJsSink.write("])"); }
+      productJsSink.write(");");
     }
     Executor.Input src = Executor.Input.builder(
         productJs.toString(), "product-" + p.name)

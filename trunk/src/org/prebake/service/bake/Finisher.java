@@ -90,7 +90,8 @@ final class Finisher {
         logger.log(Level.FINE, "Archived {0}", obsoleteDest);
         Baker.mkdirs(obsoleteDest.getParent(), umask);
         try {
-          clientRoot.resolve(p).moveTo(obsoleteDest);
+          clientRoot.resolve(p).moveTo(
+              obsoleteDest, StandardCopyOption.REPLACE_EXISTING);
         } catch (IOException ex) {
           // Junk can accumulate under the archive dir.
           // Specifically, a directory could be archived, and then all attempts

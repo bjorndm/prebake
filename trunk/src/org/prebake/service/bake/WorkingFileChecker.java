@@ -16,6 +16,7 @@ package org.prebake.service.bake;
 
 import java.io.IOException;
 import java.nio.file.Path;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
@@ -28,7 +29,7 @@ import java.util.regex.Pattern;
  * how reaching into the client directory breaks the repeatability of builds.
  * Maybe this won't cause any appreciable number of failures which would be
  * great, but if it does, then we can take off the training wheels once
- * not reaching into the client dir is accepted as best practice.
+ * not reaching into the client directory is accepted as best practice.
  *
  * @author Mike Samuel <mikesamuel@gmail.com>
  */
@@ -67,10 +68,11 @@ final class WorkingFileChecker {
    * @return s the input if safe.
    */
   String check(String s) throws IllegalArgumentException {
-    if (fingerprint.matcher(s).find()) {
+    Matcher m = fingerprint.matcher(s);
+    if (m.find()) {
       throw new IllegalArgumentException(
           "Please do not touch files in the client directory during builds: "
-          + s);
+          + m.group() + " in " + s);
     }
     return s;
   }
