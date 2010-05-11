@@ -113,7 +113,7 @@ public abstract class ToolTestCase extends PbTestCase {
       return this;
     }
 
-    ToolTester withInputPath(String path) {
+    ToolTester withInputPath(String... path) {
       this.inputPaths.add(path);
       return this;
     }
@@ -235,7 +235,9 @@ public abstract class ToolTestCase extends PbTestCase {
                   .withActuals(getCommonJsEnv())
                   .build())
               .build());
-      log.addAll(ToolTestCase.this.getLog());
+      for (String logMsg : ToolTestCase.this.getLog()) {
+        log.add(logMsg.replaceFirst("^(\\w+\\.js:)\\d+(:[A-Z])", "$1##$2"));
+      }
       if (result.exit != null) {
         log.add("Threw " + result.exit.getCause());
       } else {
