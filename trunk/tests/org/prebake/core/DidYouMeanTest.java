@@ -40,4 +40,10 @@ public class DidYouMeanTest {
             "Bad flag -Baz", "--Baz",
             "--foo", "--bar", "--baz"));
   }
+
+  @Test public final void testBestOption() {
+    assertEquals(
+        "min",
+        DidYouMean.bestOption("minimum", "min", "max", "default"));
+  }
 }

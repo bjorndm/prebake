@@ -60,8 +60,8 @@ function prelim(action, opt_config) {
             throw new Error('Could not copy ' + inputs[i]);
           }
         }
-	console.log('Copied ' + n + (n !== 1 ? ' files' : ' file'));
-	return 0;
+        console.log('Copied ' + n + (n !== 1 ? ' files' : ' file'));
+        return 0;
       }
     };
   },
