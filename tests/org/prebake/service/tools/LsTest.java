@@ -71,4 +71,19 @@ public final class LsTest extends ToolTestCase {
         .expectLog("Exited with true")
         .run();
   }
+
+  @Test public final void testUnexpectedOption() throws IOException {
+    tester
+        .withInput(Glob.fromString("foo/bar/*.baz"))
+        .withOutput(Glob.fromString("listing.txt"))
+        .withOption("no_such_option", "bogus")
+        .withInputPath("foo/bar/x.baz")
+        .expectExec(1, "ls", "foo/bar/x.baz")
+        .expectLog("Process 1 writing to listing.txt")
+        .expectLog("Running process 1")
+        .expectLog("Waiting for process 1")
+        .expectLog("ls.js:##:WARNING: Unrecognized option no_such_option")
+        .expectLog("Exited with true")
+        .run();
+  }
 }

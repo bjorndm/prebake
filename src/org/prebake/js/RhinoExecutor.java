@@ -312,6 +312,8 @@ public final class RhinoExecutor implements Executor {
             .call(context, globalScope, globalScope, actualsObjArr);
         moduleResults.put(src, result);
         return result;
+      } catch (EvaluatorException ex) {
+        throw new AbnormalExitException(ex);
       } catch (EcmaError ex) {
         throw new AbnormalExitException(ex);
       }

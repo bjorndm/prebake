@@ -236,6 +236,8 @@ public abstract class ToolTestCase extends PbTestCase {
                   .build())
               .build());
       for (String logMsg : ToolTestCase.this.getLog()) {
+        // Matching JS line numbers makes the tests brittle, so normalize
+        // log entries like "foo.js:44:INFO ..." to "foo.js:##:INFO ...".
         log.add(logMsg.replaceFirst("^(\\w+\\.js:)\\d+(:[A-Z])", "$1##$2"));
       }
       if (result.exit != null) {

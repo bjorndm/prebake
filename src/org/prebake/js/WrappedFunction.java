@@ -25,11 +25,11 @@ import javax.annotation.ParametersAreNonnullByDefault;
 
 import org.mozilla.javascript.BaseFunction;
 import org.mozilla.javascript.Context;
+import org.mozilla.javascript.EvaluatorException;
 import org.mozilla.javascript.NativeObject;
 import org.mozilla.javascript.ScriptRuntime;
 import org.mozilla.javascript.Scriptable;
 import org.mozilla.javascript.ScriptableObject;
-import org.mozilla.javascript.WrappedException;
 
 /**
  * A JavaScript function that finds documentation attached to an object or
@@ -84,7 +84,10 @@ final class WrappedFunction extends BaseFunction {
       ((CpuQuotaContext) cx).startTimeNanos += System.nanoTime() - t0;
       return result;
     } catch (RuntimeException ex) {
-      throw new WrappedException(ex);
+      EvaluatorException eex = new EvaluatorException(
+          ex.getMessage(), getFunctionName(), 0);
+      eex.initCause(ex);
+      throw eex;
     }
   }
   @Override

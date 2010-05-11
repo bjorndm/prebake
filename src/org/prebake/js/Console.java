@@ -14,6 +14,7 @@
 
 package org.prebake.js;
 
+import org.prebake.core.DidYouMean;
 import org.prebake.core.MessageQueue;
 
 import com.google.common.collect.Lists;
@@ -122,6 +123,13 @@ public final class Console {
     Formatter f = new Formatter(sb /*, default Locale */);
     f.format(format, args);
     logNoSub(level, sb.toString());
+  }
+
+  public void didYouMean(String given, String... options) {
+    String best = DidYouMean.bestOption(given, options);
+    if (best != null) {
+      logNoSub(Level.INFO, "Did you mean \"" + best + "\"?");
+    }
   }
 
   public void log(String format, Object... args) {
