@@ -44,7 +44,7 @@ public final class LsTest extends ToolTestCase {
         .withInputPath("foo/bar/a")
         .withInputPath("foo/bar/b")
         .expectLog(
-            "ls.js:42:SEVERE: Bad output foo/barcontent/*.  Need full path")
+            "ls.js:##:SEVERE: Bad output foo/barcontent/*.  Need full path")
         .expectLog("Exited with false")
         .run();
   }
@@ -55,7 +55,7 @@ public final class LsTest extends ToolTestCase {
         .withOutput(Glob.fromString("foo/out1"), Glob.fromString("foo/out2"))
         .withInputPath("foo/bar/a")
         .withInputPath("foo/bar/b")
-        .expectLog("ls.js:44:SEVERE: Too many outputs")
+        .expectLog("ls.js:##:SEVERE: Too many outputs")
         .expectLog("Exited with false")
         .run();
   }
