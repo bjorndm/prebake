@@ -46,5 +46,32 @@ public class CpTest extends ToolTestCase {
         .run();
   }
 
-  // TODO: test bad xformer
+  @Test public final void testCpBadXformer() throws IOException {
+    tester
+        .withInput(Glob.fromString("foo/bar/*.baz"))
+        .withOutput(Glob.fromString("boo/*/*.far"))
+        .withInputPath("foo/bar/x.baz", "foo/bar/y.baz")
+        .expectLog(
+            ""
+            + "cp.js:##:SEVERE: Cannot map inputs to outputs :"
+            + " Can't transform foo/bar/*.baz to boo/*/*.far."
+            + "  There is no corresponding hole for boo/*")
+        .expectLog("Exited with false")
+        .run();
+  }
+
+  @Test public final void testUnexpectedOption() throws IOException {
+    tester
+        .withInput(Glob.fromString("foo/bar/*.baz"))
+        .withOutput(Glob.fromString("boo/*.far"))
+        .withOption("no_such_option", "bogus")
+        .withInputPath("foo/bar/x.baz")
+        .expectExec(1, "cp", "foo/bar/x.baz", "boo/x.far")
+        .expectLog("Running process 1")
+        .expectLog("Waiting for process 1")
+        .expectLog("cp.js:##:WARNING: Unrecognized option no_such_option")
+        .expectLog("cp.js:##:INFO: Copied 1 file")
+        .expectLog("Exited with true")
+        .run();
+  }
 }

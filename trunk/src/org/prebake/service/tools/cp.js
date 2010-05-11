@@ -12,6 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+function prelim(action, opt_config) {
+  for (var k in action.options) {
+    console.warn('Unrecognized option ' + k);
+  }
+  // Infer outputs from inputs
+  var xform;
+  try {
+    xform = glob.xformer(action.inputs, action.outputs);
+  } catch (ex) {
+    console.error('Cannot map inputs to outputs : ' + ex.message);
+    return false;
+  }
+  if (opt_config) { opt_config.xform = xform; }
+  return true;
+}
+
 ({
   help: {
     summary: 'Copies files to a directory tree.',
@@ -23,8 +39,11 @@
     contact: 'Mike Samuel <mikesamuel@gmail.com>'
   },
   fire: function fire(opts, inputs, product, action, os) {
-    // Infer outputs from inputs
-    var xform = glob.xformer(action.inputs, action.outputs);
+    var config = {};
+    if (!prelim(action, config)) {
+      return { waitFor: function () { return -1; } };
+    }
+    var xform = config.xform;
     var processes = [];
     for (var i = 0, n = inputs.length; i < n; ++i) {
       var input = inputs[i];
@@ -46,13 +65,5 @@
       }
     };
   },
-  checker: function (action) {
-    try {
-      glob.xformer(action.inputs, action.outputs);
-    } catch (ex) {
-      console.warn(
-          'cannot cp %s to %s: %s',
-          action.inputs, action.outputs, ex.message);
-    }
-  }
+  checker: prelim
 })

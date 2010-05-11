@@ -12,40 +12,40 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+function prelim(action, opt_config) {
+  for (var k in action.options) {
+    console.warn('Unrecognized option ' + k);
+  }
+  var outFile;
+  // If no output is specified, can still be piped out.
+  if (action.outputs.length) {
+    try {
+      // Require an exact file in the output glob.
+      outFile = glob.xformer('foo', action.outputs)('foo');
+    } catch (ex) {
+      switch (action.outputs.length) {
+        case 1:
+          console.error('Bad output %s.  Need full path', action.outputs[0]);
+          break;
+        default: console.error('Too many outputs'); break;
+      }
+      return false;
+    }
+  }
+  if (opt_config) { opt_config.outFile = outFile; }
+  return true;
+}
+
 ({
   help:
     'Dumps a listing of its input files to the exact file matched by the input',
-  checker: function (action) {
-    // Require an exact file in the output glob.
-    if (action.outputs.length) {
-      try {
-        glob.xformer('foo', action.outputs)('foo');
-      } catch (ex) {
-        switch (action.outputs.length) {
-          case 1:
-            console.error('Bad output %s.  Need full path', action.outputs[0]);
-            break;
-          default: console.error('Too many outputs'); break;
-        }
-      }
-    }
-  },
+  checker: prelim,
   fire: function fire(opts, inputs, product, action, os) {
-    var outFile;
-    // If no output is specified, can still be piped out.
-    if (action.outputs.length) {
-      try {
-        outFile = glob.xformer('foo', action.outputs)('foo');
-      } catch (ex) {
-        switch (action.outputs.length) {
-          case 1:
-            console.error('Bad output %s.  Need full path', action.outputs[0]);
-            break;
-          default: console.error('Too many outputs'); break;
-        }
-        return { waitFor: function () { return -1; } };
-      }
+    var config = {};
+    if (!prelim(action, config)) {
+      return { waitFor: function () { return -1; } };
     }
+    var outFile = config.outFile;
     var p = os.exec.apply({}, ['ls'].concat(inputs));
     if (outFile !== undefined) { p = p.writeTo(outFile); }
     return p.run();

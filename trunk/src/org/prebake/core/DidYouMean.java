@@ -15,6 +15,7 @@
 package org.prebake.core;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import javax.annotation.ParametersAreNonnullByDefault;
 
 /**
@@ -35,6 +36,15 @@ public final class DidYouMean {
   @Nonnull
   public static String toMessage(
       String problem, String given, String... options) {
+    String best = bestOption(given, options);
+    return best == null
+        ? problem : problem + ". Did you mean \"" + best + "\"?";
+  }
+
+  @Nullable
+  public static String bestOption(
+      String given, String... options) {
+    if (options.length == 0) { return null; }
     int bestOptionDist = editDistance(given, options[0]);
     String bestOption = options[0];
     for (int i = 0, n = options.length; i < n; ++i) {
@@ -45,7 +55,7 @@ public final class DidYouMean {
         bestOptionDist = ed;
       }
     }
-    return problem + ". Did you mean \"" + bestOption + "\"?";
+    return bestOption;
   }
 
   /**
