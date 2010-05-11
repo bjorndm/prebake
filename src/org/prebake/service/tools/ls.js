@@ -17,10 +17,37 @@
     'Dumps a listing of its input files to the exact file matched by the input',
   checker: function (action) {
     // Require an exact file in the output glob.
-    glob.xformer('foo', action.outputs)('foo');
+    if (action.outputs.length) {
+      try {
+        glob.xformer('foo', action.outputs)('foo');
+      } catch (ex) {
+        switch (action.outputs.length) {
+          case 1:
+            console.error('Bad output %s.  Need full path', action.outputs[0]);
+            break;
+          default: console.error('Too many outputs'); break;
+        }
+      }
+    }
   },
   fire: function fire(opts, inputs, product, action, os) {
-    var outFile = glob.xformer('foo', action.outputs)('foo');
-    return os.exec.apply({}, ['ls'].concat(inputs)).writeTo(outFile).run();
+    var outFile;
+    // If no output is specified, can still be piped out.
+    if (action.outputs.length) {
+      try {
+        outFile = glob.xformer('foo', action.outputs)('foo');
+      } catch (ex) {
+        switch (action.outputs.length) {
+          case 1:
+            console.error('Bad output %s.  Need full path', action.outputs[0]);
+            break;
+          default: console.error('Too many outputs'); break;
+        }
+        return { waitFor: function () { return -1; } };
+      }
+    }
+    var p = os.exec.apply({}, ['ls'].concat(inputs));
+    if (outFile !== undefined) { p = p.writeTo(outFile); }
+    return p.run();
   }
 })

@@ -21,14 +21,51 @@ import java.io.IOException;
 import org.junit.Test;
 
 public final class LsTest extends ToolTestCase {
+  public LsTest() { super("ls"); }
+
   @Test public final void testLs() throws IOException {
-    new ToolTester("ls")
+    tester
         .withInput(Glob.fromString("foo/bar/*"))
         .withOutput(Glob.fromString("foo/barcontent"))
         .withInputPath("foo/bar/a")
         .withInputPath("foo/bar/b")
         .expectExec(1, "ls", "foo/bar/a", "foo/bar/b")
         .expectLog("Process 1 writing to foo/barcontent")
+        .expectLog("Running process 1")
+        .expectLog("Waiting for process 1")
+        .expectLog("Exited with true")
+        .run();
+  }
+
+  @Test public final void testIndeterminableOutputPath() throws IOException {
+    tester
+        .withInput(Glob.fromString("foo/bar/*"))
+        .withOutput(Glob.fromString("foo/barcontent/*"))
+        .withInputPath("foo/bar/a")
+        .withInputPath("foo/bar/b")
+        .expectLog(
+            "ls.js:42:SEVERE: Bad output foo/barcontent/*.  Need full path")
+        .expectLog("Exited with false")
+        .run();
+  }
+
+  @Test public final void testTooManyOutputs() throws IOException {
+    tester
+        .withInput(Glob.fromString("foo/bar/*"))
+        .withOutput(Glob.fromString("foo/out1"), Glob.fromString("foo/out2"))
+        .withInputPath("foo/bar/a")
+        .withInputPath("foo/bar/b")
+        .expectLog("ls.js:44:SEVERE: Too many outputs")
+        .expectLog("Exited with false")
+        .run();
+  }
+
+  @Test public final void testTooFewOutputs() throws IOException {
+    tester
+        .withInput(Glob.fromString("foo/bar/*"))
+        .withInputPath("foo/bar/a")
+        .withInputPath("foo/bar/b")
+        .expectExec(1, "ls", "foo/bar/a", "foo/bar/b")
         .expectLog("Running process 1")
         .expectLog("Waiting for process 1")
         .expectLog("Exited with true")

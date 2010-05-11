@@ -29,6 +29,7 @@ import org.mozilla.javascript.NativeObject;
 import org.mozilla.javascript.ScriptRuntime;
 import org.mozilla.javascript.Scriptable;
 import org.mozilla.javascript.ScriptableObject;
+import org.mozilla.javascript.WrappedException;
 
 /**
  * A JavaScript function that finds documentation attached to an object or
@@ -78,9 +79,13 @@ final class WrappedFunction extends BaseFunction {
     }
     // TODO: properly translate arrays, and objects
     // to lists and maps respectively.
-    Object result = membrane.toJs(body.apply(membranedInputs));
-    ((CpuQuotaContext) cx).startTimeNanos += System.nanoTime() - t0;
-    return result;
+    try {
+      Object result = membrane.toJs(body.apply(membranedInputs));
+      ((CpuQuotaContext) cx).startTimeNanos += System.nanoTime() - t0;
+      return result;
+    } catch (RuntimeException ex) {
+      throw new WrappedException(ex);
+    }
   }
   @Override
   public String getFunctionName() {

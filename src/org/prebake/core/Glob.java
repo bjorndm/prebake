@@ -307,12 +307,14 @@ public final class Glob implements Comparable<Glob>, JsonSerializable {
           throw new IllegalArgumentException(
               "Can't transform " + input + " to " + output + "."
               + "  There is no corresponding hole for "
-              + Joiner.on("").join(output.parts, 0, i + 1));
+              + Joiner.on("").join(
+                  Arrays.asList(output.parts).subList(0, i + 1)));
         } else if ("**".equals(inPart) && "*".equals(outPart)) {
           throw new IllegalArgumentException(
               "Can't transform " + input + " to " + output + "."
               + "  There is no corresponding hole for the " + outPart
-              + " at the end of " + Joiner.on("").join(output.parts, 0, i + 1));
+              + " at the end of " + Joiner.on("").join(
+                  Arrays.asList(output.parts).subList(0, i + 1)));
         }
         int k = i + 1;
         if (k < pos && "/".equals(outputPartsList.get(k))) { ++k; }
