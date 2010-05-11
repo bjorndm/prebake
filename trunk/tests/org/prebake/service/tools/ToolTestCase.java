@@ -45,7 +45,13 @@ import org.junit.Before;
  * @author Mike Samuel <mikesamuel@gmail.com>
  */
 public abstract class ToolTestCase extends PbTestCase {
+  private final String toolName;
   protected FileSystem fs;
+  protected ToolTester tester;
+
+  ToolTestCase(String toolName) {
+    this.toolName = toolName;
+  }
 
   @Before public void setupFS() throws IOException {
     fs = fileSystemFromAsciiArt(
@@ -56,10 +62,21 @@ public abstract class ToolTestCase extends PbTestCase {
         "  work/");
   }
 
+  @Before public void setupTester() {
+    tester = new ToolTester(toolName);
+  }
+
   @After public void teardownFS() throws IOException {
     if (fs != null) {
       fs.close();
       fs = null;
+    }
+  }
+
+  @After public void checkTesterRun() {
+    if (tester != null) {
+      assertTrue(tester.wasRun());
+      tester = null;
     }
   }
 
@@ -70,8 +87,9 @@ public abstract class ToolTestCase extends PbTestCase {
     private final ImmutableMap.Builder<String, Object> options;
     private final ImmutableList.Builder<String> inputPaths;
     private final ImmutableList.Builder<String> goldenLog;
+    private boolean wasRun;
 
-    ToolTester(String toolName) {
+    private ToolTester(String toolName) {
       this.toolName = toolName;
       this.inputGlobs = ImmutableList.builder();
       this.outputGlobs = ImmutableList.builder();
@@ -113,6 +131,7 @@ public abstract class ToolTestCase extends PbTestCase {
     }
 
     Executor.Output<Boolean> run() throws IOException {
+      wasRun = true;
       final ImmutableList.Builder<String> log = ImmutableList.builder();
       ImmutableMap<String, ?> options = this.options.build();
       ImmutableList<Glob> inputGlobs = this.inputGlobs.build();
@@ -216,6 +235,7 @@ public abstract class ToolTestCase extends PbTestCase {
                   .withActuals(getCommonJsEnv())
                   .build())
               .build());
+      log.addAll(ToolTestCase.this.getLog());
       if (result.exit != null) {
         log.add("Threw " + result.exit.getCause());
       } else {
@@ -226,5 +246,7 @@ public abstract class ToolTestCase extends PbTestCase {
           Joiner.on('\n').join(log.build()));
       return result;
     }
+
+    boolean wasRun() { return wasRun; }
   }
 }
