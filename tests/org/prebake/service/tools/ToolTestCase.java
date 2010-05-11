@@ -41,6 +41,9 @@ import org.junit.Before;
 /**
  * Abstract base class for test cases that test built-in tools' ability to
  * decode options, deliver useful error messages, and compose a command line.
+ * <p>
+ * This test never executes anything on the command line so does not test a
+ * tool's assumptions about the contracts of available executables.
  *
  * @author Mike Samuel <mikesamuel@gmail.com>
  */

@@ -12,33 +12,77 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+function decodeOptions(action, opt_config) {
+  if (!opt_config) { opt_config = {}; }
+  var hop = {}.hasOwnProperty;
+  var options = action.options;
+
+  var effort, priority, relaxed = false, classpath;
+
+  for (var k in options) {
+    if (!hop.call(options, k)) { continue; }
+    switch (k) {
+      case 'effort':
+        effort = String(options[k]);
+        switch (effort) {
+          case 'min': case 'default': case 'max': break;
+          default:
+            console.warn('Bad effort ' + effort);
+            console.didYouMean(effort, 'min', 'default', 'max');
+            effort = undefined;
+            break;
+        }
+        break;
+      case 'priority':
+        priority = String(options[k]);
+        switch (priority) {
+          case 'low': case 'medium': case 'high': break;
+          default:
+            console.warn('Bad priority ' + priority);
+            console.didYouMean(priority, 'low', 'medium', 'high');
+            priority = undefined;
+            break;
+        }
+        break;
+      case 'relaxed':
+        relaxed = options[k];
+        if (typeof relaxed !== 'boolean') {
+          console.warn(
+              'Option relaxed was not boolean, was ' + JSON.stringify(relaxed));
+          relaxed = false;
+        }
+        break;
+      case 'cp': case 'classpath':
+        classpath = options[k];
+        break;
+      default:
+        console.warn('Unrecognized option ' + k);
+        break;
+    }
+  }
+  if (classpath instanceof Array) {
+    classpath = classpath.slice(0);
+  } else if (classpath) {
+    classpath = String(classpath).split(sys.io.path.separator);
+  } else {
+    classpath = [];
+  }
+  opt_config.effort = effort;
+  opt_config.priority = priority;
+  opt_config.relaxed = relaxed;
+  opt_config.classpath = classpath;
+  return true;
+}
+
 ({
   help: 'Runs FindBugs to find common problems in Java source code',
-  checker: function (action) {
-    // TODO
-  },
+  checker: decodeOptions,
   fire: function fire(opts, inputs, product, action, os) {
-    function opt(name, opt_defaultValue) {
-      if ({}.hasOwnProperty.call(opts, name)) {
-        return opts[name];
-      } else {
-        return opt_defaultValue;
-      }
+    var config = {};
+    if (!decodeOptions(action, config)) {
+      return { waitFor: function () { return -1; } };
     }
-    // TODO: heap size, java home, findbugs home, include/exclude, pluginList,
-    // experimental
-    var effort = opt('effort');
-    var priority = opt('priority');
-    var relaxed = opt('relaxed');
     var pathSeparator = sys.io.path.separator;
-    var classpath = opt('cp') || opt('classpath');
-    if (classpath instanceof Array) {
-      classpath = classpath.join(pathSeparator);
-    } else if (classpath) {
-      classpath = String(classpath);
-    } else {
-      classpath = '';
-    }
     var extraClasspath = [];
     var sources = [];
     for (var i = 0, n = inputs.length; i < n; ++i) {
@@ -61,29 +105,35 @@
         case 'xdoc': outputTypeFlag = 'xdocs'; break;
       }
       if (outputTypeFlag) {
-        outputFile = glob.xformer('foo', output)('foo');
+        try {
+          outputFile = glob.xformer('foo', output)('foo');
+        } catch (ex) {
+          console.error('Cannot determine output file : ' + ex.message);
+          return { waitFor: function () { return -1; } };
+        }
         break;
       }
     }
+    if (!outputFile) {
+      console.error(
+          'No output file.  Please specify an output with an'
+          + ' .html, .xml, or .xdoc extension.');
+      return { waitFor: function () { return -1; } };
+    }
+    var classpath = config.classpath;
     if (extraClasspath.length) {
-      classpath = classpath.split(pathSeparator).concat(extraClasspath)
-          .join(pathSeparator);
+      classpath = classpath.concat(extraClasspath);
     }
     var command = ['findbugs', '-textui', '-progress'];
-    if (effort) { command.push('-effort:' + effort); }
-    switch (priority) {
-      case 'low': case 'medium': case 'high':
-        command.push('-' + priority);
-        break;
-      case undefined: break;
-      default: throw new Error('bad priority ' + priority);
+    if (config.effort) { command.push('-effort:' + config.effort); }
+    if (config.priority) { command.push('-' + config.priority); }
+    if (config.relaxed) { command.push('-relaxed'); }
+    command.push('-' + outputTypeFlag, '-output', outputFile);
+    if (classpath.length) {
+      command.push('-auxclasspath', classpath.join(pathSeparator));
     }
-    if (relaxed) { command.push('-relaxed'); }
-    if (outputTypeFlag) { command.push('-' + outputTypeFlag); }
-    if (outputFile) { command.push('-output', outputFile); }
-    if (classpath) { command.push('-auxclasspath', classpath); }
     command = command.concat(sources);
-    
+
     var proc = os.exec.apply({}, command).run();
     var result;
     function OutProc() {
