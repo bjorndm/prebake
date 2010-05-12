@@ -28,14 +28,33 @@ Don't require your users to do `mkdir` tasks themselves.  If you see that a dire
 == Write a `checker` ==
 Checkers are a good way of catching problems earlier and educating your tool's users about features they might not know about.  Use the [JsConsole console] to give them helpful info.
 
-== Return `true` from `fire` when your tool succeeds ==
-If you don't, then your tool will be considered to have failed which, most often, means the products outputs won't be copied back and it will stay unbuilt.
+== Return a ProcessObject from `fire` ==
+If you don't and it doesn't return 0 as the exit code, then your tool will be considered to have failed which means the product's outputs won't be copied back and it will stay unbuilt.
 
 == Wait for your processes ==
-If you `os.exec`, you need to `.waitFor` the result.
+If you spawn multiple processes using `os.exec`, you need to `.waitFor` the result.
 And check the exit code.  0 normally indicates success, so one idiom is to do the following at the end of your `fire` method:
 {{{
-  return !os.exec(...);
+  if (os.exec(...).run().waitFor() !== 0) { throw new Error(...); }  // Make sure all ancillary processes complete. 
+  return os.exec(...).run();  // Run the main process
+}}}
+
+Or alternately, you can spawn a bunch of processes and return a single meta-process that waits for them:
+{{{
+    var processes = [];
+    for (...) {
+      processes.push(os.exec(...).run());
+    }
+    return {
+      waitFor: function () {
+        for (var i = 0, n = processes.length; i < processes.length; ++i) {
+          if (processes[i].waitFor() !== 0) {
+            throw new Error(...);
+          }
+        }
+        return 0;  // All happy
+      }
+    };
 }}}
 
 == Do *not* hardcode executable paths ==
