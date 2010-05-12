@@ -137,7 +137,7 @@ public class YSONTest {
     assertYson(" +1e2 ");
     assertYson(" [true, false, null] ");
     assertNotYson("NaN", "Not YSON: NaN");
-    assertNotYson("this", "Disallowed free variables: this");
+    assertNotYson("this", "Not YSON: this");
     assertNotYson("undefined", "Not YSON: undefined");
     assertYson("{ 'ok': function (x, y) { return x * y } }");
     assertNotYson(

@@ -13,11 +13,11 @@
 // limitations under the License.
 
 function prelim(action, opt_config) {
+  // xform is used to infer outputs from inputs
+  var xform = undefined;
   for (var k in action.options) {
     console.warn('Unrecognized option ' + k);
   }
-  // Infer outputs from inputs
-  var xform;
   try {
     xform = glob.xformer(action.inputs, action.outputs);
   } catch (ex) {
@@ -38,13 +38,17 @@ function prelim(action, opt_config) {
         '  tools.cp("doc/**.html", "www/**.html");'].join('\n'),
     contact: 'Mike Samuel <mikesamuel@gmail.com>'
   },
-  fire: function fire(opts, inputs, product, action, os) {
+  fire: function fire(inputs, product, action, os) {
     var config = {};
     if (!prelim(action, config)) {
-      return { waitFor: function () { return -1; } };
+      return {
+        run: function () { return this; },
+        waitFor: function () { return -1; }
+      };
     }
     var xform = config.xform;
     var processes = [];
+    // Infer outputs from inputs.
     for (var i = 0, n = inputs.length; i < n; ++i) {
       var input = inputs[i];
       var output = xform(input);
@@ -54,8 +58,14 @@ function prelim(action, opt_config) {
       processes.push(os.exec('cp', input, output).run());
     }
     return {
+      run: function () {
+        for (var i = 0, n = processes.length; i < n; ++i) {
+          processes[i].run();
+        }
+        return this;
+      },
       waitFor: function () {
-        for (var i = 0, n = processes.length; i < processes.length; ++i) {
+        for (var i = 0, n = processes.length; i < n; ++i) {
           if (processes[i].waitFor()) {
             throw new Error('Could not copy ' + inputs[i]);
           }
@@ -65,5 +75,5 @@ function prelim(action, opt_config) {
       }
     };
   },
-  checker: prelim
+  check: prelim
 })

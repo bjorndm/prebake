@@ -97,7 +97,8 @@ public class BakerTest extends PbTestCase {
         "        b.html \"bar b html\"",
         "      tools/",
         ("        cp.js  \"({ \\n"
-         + "  fire: function fire(opts, inputs, product, action, os) { \\n"
+         + "  fire: function fire(inputs, product, action, os) { \\n"
+         + "  var opts = action.options; \\n"
          // Sanity check all the inputs.
          + "    if (typeof opts !== 'object' \\n"
          // See options map below.
@@ -127,9 +128,15 @@ public class BakerTest extends PbTestCase {
          + "      var input = inputs[i]; \\n"
          + "      var output = xform(input); \\n"
          + "      console.log('  input=' + input + ', output=' + output); \\n"
-         + "      processes.push(os.exec('cp', input, output).run()); \\n"
+         + "      processes.push(os.exec('cp', input, output)); \\n"
          + "    } \\n"
          + "    return { \\n"
+         + "      run: function () { \\n"
+         + "        for (var i = 0, n = processes.length; i < n; ++i) { \\n"
+         + "          processes[i].run(); \\n"
+         + "        } \\n"
+         + "        return this; \\n"
+         + "      }, \\n"
          + "      waitFor: function () { \\n"
          + "        for (var i = 0, n = processes.length; i < n; ++i) { \\n"
          + "          var result = processes[i].waitFor(); \\n"
@@ -203,7 +210,8 @@ public class BakerTest extends PbTestCase {
   private static final String BORK_TOOL_JS = JsonSink.stringify(
       ""
       + "({\n"
-      + "  fire: function (opts, inputs, product, action, os) {\n"
+      + "  fire: function (inputs, product, action, os) {\n"
+      + "    var opts = action.options; \n"
       + "    var argv = action.outputs.slice(0);\n"
       + "    argv.splice(0, 0, 'bork');\n"
       + "    return os.exec.apply({}, argv).run();\n"
@@ -213,7 +221,8 @@ public class BakerTest extends PbTestCase {
   private static final String SORTED_BORK_TOOL_JS = JsonSink.stringify(
       ""
       + "({\n"
-      + "  fire: function (opts, inputs, product, action, os) {\n"
+      + "  fire: function (inputs, product, action, os) {\n"
+      + "    var opts = action.options; \n"
       + "    var argv = action.outputs.slice(0);\n"
       + "    argv.splice(0, 0, 'bork');\n"
       + "    argv.sort();\n"
@@ -298,7 +307,8 @@ public class BakerTest extends PbTestCase {
   public static final String COPY_TOOL_JS = JsonSink.stringify(
       ""
       + "({ \n"
-      + "  fire: function fire(opts, inputs, product, action, os) { \n"
+      + "  fire: function fire(inputs, product, action, os) { \n"
+      + "    var opts = action.options; \n"
       // Infer outputs from inputs
       + "    var outGlob = action.outputs[0]; \n"
       + "    var inGlob = action.inputs[0]; \n"
@@ -309,6 +319,12 @@ public class BakerTest extends PbTestCase {
       + "      processes.push(os.exec('cp', input, xform(input)).run()); \n"
       + "    } \n"
       + "    return { \n"
+      + "      run: function () { \n"
+      + "        for (var i = 0, n = processes.length; i < n; ++i) { \n"
+      + "          processes[i].run(); \n"
+      + "        } \n"
+      + "        return this; \n"
+      + "      }, \n"
       + "      waitFor: function () { \n"
       + "        for (var i = 0, n = processes.length; i < n; ++i) { \n"
       + "          var result = processes[i].waitFor(); \n"
@@ -323,7 +339,8 @@ public class BakerTest extends PbTestCase {
   public static final String MUNGE_TOOL_JS = JsonSink.stringify(
       ""
       + "({ \n"
-      + "  fire: function fire(opts, inputs, product, action, os) { \n"
+      + "  fire: function fire(inputs, product, action, os) { \n"
+      + "    var opts = action.options; \n"
       // Infer outputs from inputs
       + "    var outGlob = action.outputs[0]; \n"
       + "    var inGlob = action.inputs[0]; \n"
@@ -336,6 +353,12 @@ public class BakerTest extends PbTestCase {
       + "      processes.push(os.exec('munge', input, output).run()); \n"
       + "    } \n"
       + "    return { \n"
+      + "      run: function () { \n"
+      + "        for (var i = 0, n = processes.length; i < n; ++i) { \n"
+      + "          processes[i].run(); \n"
+      + "        } \n"
+      + "        return this; \n"
+      + "      }, \n"
       + "      waitFor: function () { \n"
       + "        for (var i = 0, n = processes.length; i < n; ++i) { \n"
       + "          var result = processes[i].waitFor(); \n"
@@ -530,8 +553,8 @@ public class BakerTest extends PbTestCase {
            false,
            new MobileFunction(Joiner.on('\n').join(  // Runs them out of order.
                "function (actions) {",
-               "  return actions[1]().waitFor() == 0",
-               "      && actions[0]().waitFor() == 0;",
+               "  return actions[1]().run().waitFor() == 0",
+               "      && actions[0]().run().waitFor() == 0;",
                "}")),
            tester.fs.getPath("plans/p.js")))
        .expectSuccess(true)

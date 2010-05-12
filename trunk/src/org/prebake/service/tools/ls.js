@@ -39,15 +39,18 @@ function prelim(action, opt_config) {
 ({
   help:
     'Dumps a listing of its input files to the exact file matched by the input',
-  checker: prelim,
-  fire: function fire(opts, inputs, product, action, os) {
+  check: prelim,
+  fire: function fire(inputs, product, action, os) {
     var config = {};
     if (!prelim(action, config)) {
-      return { waitFor: function () { return -1; } };
+      return {
+        run: function () { return this; },
+        waitFor: function () { return -1; }
+      };
     }
     var outFile = config.outFile;
     var p = os.exec.apply({}, ['ls'].concat(inputs));
     if (outFile !== undefined) { p = p.writeTo(outFile); }
-    return p.run();
+    return p;
   }
 })

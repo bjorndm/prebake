@@ -158,9 +158,13 @@ public abstract class ToolTestCase extends PbTestCase {
                     = ImmutableMap.<String, Object>builder()
                     .put("run", new SimpleMembranableFunction(
                          "stub run", "run", "this") {
+                      boolean run;
                       public Object apply(Object[] args) {
-                        assertEquals(0, args.length);
-                        log.add("Running process " + procId);
+                        if (!run) {
+                          run = true;
+                          assertEquals(0, args.length);
+                          log.add("Running process " + procId);
+                        }
                         return jsObj;
                       }
                     })
@@ -224,10 +228,9 @@ public abstract class ToolTestCase extends PbTestCase {
               Joiner.on('\n').join(
                   "var product = " + JsonSink.stringify(p) + ";",
                   "var action = " + JsonSink.stringify(a) + ";",
-                  "tool.fire(options, inputs.slice(0), product, action, os)",
-                  "    .waitFor() === 0"),
+                  "tool.fire(inputs.slice(0), product, action, os)",
+                  "    .run().waitFor() === 0"),
               "tool_bootstrap")
-              .withActual("options", options)
               .withActual("inputs", this.inputPaths.build())
               .withActual("os", os)
               .withActual("tool", Executor.Input.builder(

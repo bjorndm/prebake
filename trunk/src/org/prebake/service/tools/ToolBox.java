@@ -25,6 +25,7 @@ import org.prebake.js.YSON;
 
 import com.google.common.base.Charsets;
 import com.google.common.base.Function;
+import com.google.common.base.Predicate;
 import com.google.common.collect.Collections2;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -327,6 +328,11 @@ public class ToolBox implements ToolProvider {
                   ImmutableSet.<String>builder()
                       .addAll(FREE_VARS_OK).addAll(commonJsEnv.keySet())
                       .build(),
+                  new Predicate<String>() {
+                    public boolean apply(String key) {
+                      return !"fire".equals(key);
+                    }
+                  },
                   mq);
 
               toolSig = ToolSignature.converter(
