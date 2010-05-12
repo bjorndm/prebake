@@ -51,11 +51,12 @@ public final class ToolSignature implements JsonSerializable {
   public void toJson(JsonSink sink) throws IOException {
     sink.write("{").writeValue("name").write(":").writeValue(name);
     if (help != null) {
-      sink.write(",").writeValue("help").write(":")
+      sink.write(",").writeValue(ToolDefProperty.help.name()).write(":")
           .writeValue(help.isDetailOnly() ? help.detailHtml : help);
     }
     if (productChecker != null) {
-      sink.write(",").writeValue("check").write(":").writeValue(productChecker);
+      sink.write(",").writeValue(ToolDefProperty.check.name())
+          .write(":").writeValue(productChecker);
     }
     sink.write("}");
   }

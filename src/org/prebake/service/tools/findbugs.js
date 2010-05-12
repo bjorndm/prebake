@@ -76,11 +76,14 @@ function decodeOptions(action, opt_config) {
 
 ({
   help: 'Runs FindBugs to find common problems in Java source code',
-  checker: decodeOptions,
-  fire: function fire(opts, inputs, product, action, os) {
+  check: decodeOptions,
+  fire: function fire(inputs, product, action, os) {
     var config = {};
     if (!decodeOptions(action, config)) {
-      return { waitFor: function () { return -1; } };
+      return {
+        run: function () { return this; },
+        waitFor: function () { return -1; }
+      };
     }
     var pathSeparator = sys.io.path.separator;
     var extraClasspath = [];
@@ -109,7 +112,10 @@ function decodeOptions(action, opt_config) {
           outputFile = glob.xformer('foo', output)('foo');
         } catch (ex) {
           console.error('Cannot determine output file : ' + ex.message);
-          return { waitFor: function () { return -1; } };
+          return {
+            run: function () { return this; },
+            waitFor: function () { return -1; }
+          };
         }
         break;
       }
@@ -118,7 +124,10 @@ function decodeOptions(action, opt_config) {
       console.error(
           'No output file.  Please specify an output with an'
           + ' .html, .xml, or .xdoc extension.');
-      return { waitFor: function () { return -1; } };
+      return {
+        run: function () { return this; },
+        waitFor: function () { return -1; }
+      };
     }
     var classpath = config.classpath;
     if (extraClasspath.length) {
@@ -134,11 +143,10 @@ function decodeOptions(action, opt_config) {
     }
     command = command.concat(sources);
 
-    var proc = os.exec.apply({}, command).run();
-    var result;
+    var proc = os.exec.apply({}, command);
     function OutProc() {
       this.waitFor = function () {
-        result = proc.waitFor();
+        var result = proc.waitFor();
         if (result === 0 || result === 1) {
           if (result) {
             console.log('See findbugs report at ' + outputFile);

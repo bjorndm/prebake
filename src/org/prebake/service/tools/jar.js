@@ -14,10 +14,11 @@
 
 ({
   help: 'Pack or unpack a java Archive',
-  checker: function (action) {
+  check: function (action) {
     // TODO check d, cp options.
   },
-  fire: function fire(opts, inputs, product, action, os) {
+  fire: function fire(inputs, product, action, os) {
+    var opts = action.options;
     function opt(name, opt_defaultValue) {
       if ({}.hasOwnProperty.call(opts, name)) {
         return opts[name];
@@ -80,6 +81,6 @@
     command.push(jarfile);
     if (jarsourcedir) { command.push('-C', jarsourcedir); }
     command = command.concat(jarcontent);
-    return os.exec.apply({}, command).run();
+    return os.exec.apply({}, command);
   }
 });

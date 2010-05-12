@@ -18,7 +18,6 @@ import org.prebake.channel.Commands;
 import org.prebake.client.Bake;
 import org.prebake.client.Connection;
 import org.prebake.fs.StubPipe;
-import org.prebake.js.JsonSink;
 import org.prebake.js.JsonSource;
 import org.prebake.os.OperatingSystem;
 import org.prebake.os.StubOperatingSystem;
@@ -60,25 +59,6 @@ import org.junit.Test;
 public class EndToEndTest extends PbTestCase {
   private Tester tester;
 
-  private static final String CP_TOOL_JS = JsonSink.stringify(
-      ""
-      + "({ \n"
-      + "  fire: function fire(opts, inputs, product, action, os) { \n"
-      // Infer outputs from inputs
-      + "    var outGlob = action.outputs[0]; \n"
-      + "    var inGlob = action.inputs[0]; \n"
-      + "    var xform = glob.xformer(action.inputs, action.outputs); \n"
-      + "    for (var i = 0, n = inputs.length; i < n; ++i) { \n"
-      + "      var input = inputs[i]; \n"
-      + "      var output = xform(input); \n"
-      + "      if (os.exec('cp', input, output).run().waitFor()) { \n"
-      + "        throw new Error('Failed to cp ' + input + ' to ' + output); \n"
-      + "      } \n"
-      + "    } \n"
-      + "    return 1; \n"
-      + "  } \n"
-      + "})");
-
   @Before public final void setUp() {
     tester = new Tester();
   }
@@ -99,7 +79,6 @@ public class EndToEndTest extends PbTestCase {
             "        a.foo \"foo\"",
             "      plan.js \"({ foo: tools.cp('src/*.foo', 'out/*.bar') })\"",
             "  tools/",
-            "    cp.js " + JsonSink.stringify(CP_TOOL_JS),
             "  tmpdir/")))
         .start()
         .withClientWorkingDir("root")
@@ -127,7 +106,6 @@ public class EndToEndTest extends PbTestCase {
             "      out/",
             "        a.bar \"foo\"",
             "  tools/",
-            "    cp.js \"...\"",
             "  tmpdir/");
   }
 

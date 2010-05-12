@@ -14,10 +14,11 @@
 
 ({
   help: 'Java compiler.  // TODO: usage',
-  checker: function (action) {
+  check: function (action) {
     // TODO check d, cp options.
   },
-  fire: function fire(opts, inputs, product, action, os) {
+  fire: function fire(inputs, product, action, os) {
+    var opts = action.options;
     function opt(name, opt_defaultValue) {
       if ({}.hasOwnProperty.call(opts, name)) {
         return opts[name];
@@ -64,6 +65,6 @@
           .join(pathSeparator);
     }
     var command = ['javac', '-d', outDir, '-cp', classpath].concat(sources);
-    return os.exec.apply({}, command).run();
+    return os.exec.apply({}, command);
   }
 });

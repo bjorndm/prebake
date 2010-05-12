@@ -14,11 +14,12 @@
 
 ({
   help: 'JUnit Test Runner',
-  checker: function (action) {
+  check: function (action) {
     // TODO require the test_class_filter
     glob.matcher(action.options.test_class_filter);
   },
-  fire: function fire(opts, inputs, product, action, os) {
+  fire: function fire(inputs, product, action, os) {
+    var opts = action.options;
     // TODO: JVM system properties
     function opt(name, opt_defaultValue) {
       if ({}.hasOwnProperty.call(opts, name)) {
@@ -111,7 +112,7 @@
         reportDir || '',
         reportTypes]
         .concat(testClasses);
-    var proc = os.exec.apply({}, command).run();
+    var proc = os.exec.apply({}, command);
     var result;
     function OutProc() {
       this.waitFor = function () {

@@ -142,8 +142,6 @@ final class Oven {
       // If the product wants to control how actions are executed, then wrap
       // the tool execution in a call to the mobile function product.bake.
       boolean thunkify = p.bake != null;
-      // TODO: rework tool output so product.bake can actually pipe the result
-      // of one tool to another.
       productJsSink.write("(");
       if (thunkify) { productJsSink.write("product.bake(["); }
       // Third, for each action, invoke its tool's run method with the proper
@@ -156,13 +154,13 @@ final class Oven {
         }
         productJsSink
             .write(toolNameToLocalName.get(action.toolName))
-            .write(".fire(\n    ")
-            .writeValue(action.options)
-            .write(",\n    matching(").writeValue(action.inputs)
+            .write(".fire(matching(").writeValue(action.inputs)
+            // .slice(0) works around problem where membraned arrays don't
+            // behave as arrays w.r.t. concat and other builtins.
             .write(").slice(0),\n    product,\n    ")
             .writeValue(action)
             .write(",\n    os)\n");
-        productJsSink.write(thunkify ? "}" : ".waitFor() === 0");
+        productJsSink.write(thunkify ? "}" : ".run().waitFor() === 0");
         firstAction = false;
       }
       if (thunkify) { productJsSink.write("])"); }

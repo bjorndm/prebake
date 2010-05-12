@@ -18,6 +18,7 @@ import org.prebake.core.ArtifactListener;
 import org.prebake.fs.DbFileVersioner;
 import org.prebake.fs.FileVersioner;
 import org.prebake.js.Executor;
+import org.prebake.js.JsonSink;
 import org.prebake.util.PbTestCase;
 import org.prebake.util.StubFileSystemProvider;
 
@@ -82,7 +83,8 @@ public class ToolBoxTest extends PbTestCase {
         .withToolDirs("/tools", "/root/cwd/tools")
         .withToolFiles(
             "/tools/bar.js", (
-                "({ help: 'an example tool', check: function (product) { }})"),
+                "({ help: 'an example tool', check: function (product) { }})"
+                ),
             "/tools/foo.js", "({ help: 'foo1' })",
             "/root/cwd/tools/baz.js", "({})",
             "/root/cwd/tools/foo.js", "({ help: 'foo2' })")
@@ -118,20 +120,24 @@ public class ToolBoxTest extends PbTestCase {
                 + " check: function (product) { console.log('OK'); } })"),
             "/tools/foo.js", (
                 "({ help: 'foo1',"
-                + " fire: function (options, inputs, product, os) {"
+                + " fire: function (inputs, product, os) {"
                   + " return os.exec('foo')"
                 + " } })"))
         .withBuiltinTools("cp.js")
         .assertSigs(
             ("{"
                + "\"name\":\"cp\","
-               + "\"help\":{\"summary\":\"Copies files to a directory tree.\","
-               + "\"detail\":\"This version of the cp command copies by glob"
-               + " transform.\\nE.g. to copy all html files under the doc/"
-               + " directory to \\nthe same location under the www directory do"
-               + "\\n  tools.cp(\\\"doc/**.html\\\", \\\"www/**.html\\\");\","
-               + "\"contact\":\"Mike Samuel <mikesamuel@gmail.com>\""
-             + "}}"),
+               + "\"help\":{"
+                 + "\"summary\":\"Copies files to a directory tree.\","
+                 + "\"detail\":\"This version of the cp command copies by glob"
+                   + " transform.\\nE.g. to copy all html files under the doc/"
+                   + " directory to \\nthe same location under the www"
+                   + " directory do\\n"
+                   + "  tools.cp(\\\"doc/**.html\\\", \\\"www/**.html\\\");\","
+                 + "\"contact\":\"Mike Samuel <mikesamuel@gmail.com>\""
+               + "},"
+               + "\"check\":function prelim(action, opt_config) {<elided>}"
+             + "}"),
             ("{"
              + "\"name\":\"bar\","
                + "\"help\":\"an example tool\","
@@ -205,7 +211,7 @@ public class ToolBoxTest extends PbTestCase {
         @Override
         protected Iterable<String> getBuiltinToolNames() { return builtins; }
       };
-      List<ToolSignature> actualSigs = Lists.newArrayList();
+      List<String> actualSigs = Lists.newArrayList();
       try {
         tb.start();
 
@@ -213,7 +219,15 @@ public class ToolBoxTest extends PbTestCase {
         sigs = tb.getAvailableToolSignatures();
         for (Future<ToolSignature> sig : sigs) {
           ToolSignature actualSig = sig.get();
-          if (actualSig != null) { actualSigs.add(actualSig); }
+          if (actualSig != null) {
+            actualSigs.add(
+                JsonSink.stringify(actualSig)
+                .replaceAll(
+                    ""
+                    + "(\\bfunction( \\w+)?\\(action[^\\)]*\\))"
+                    + "\\s*\\{([^{}]+|(\\{[^}]*\\}))*\\}",
+                    "$1 {<elided>}"));
+          }
         }
       } finally {
         tb.close();

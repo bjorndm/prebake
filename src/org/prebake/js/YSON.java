@@ -17,6 +17,8 @@ package org.prebake.js;
 import org.prebake.core.MessageQueue;
 
 import com.google.common.base.Joiner;
+import com.google.common.base.Predicate;
+import com.google.common.base.Predicates;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
@@ -153,7 +155,8 @@ public final class YSON {
    */
   public static boolean isYSON(
       String js, Set<String> allowedFreeVars, @Nullable MessageQueue mq) {
-    return requireYSON(js, allowedFreeVars, mq) != null;
+    return requireYSON(
+        js, allowedFreeVars, Predicates.<String>alwaysTrue(), mq) != null;
   }
 
   /**
@@ -164,7 +167,8 @@ public final class YSON {
    */
   public static YSON requireYSON(
       @Nullable String js,
-      Set<String> allowedFreeVars, @Nullable MessageQueue mq) {
+      Set<String> allowedFreeVars, Predicate<String> preserveKeys,
+      @Nullable MessageQueue mq) {
     if (js == null) {
       if (mq != null) { mq.getMessages().add("Output is null"); }
       return null;
@@ -177,7 +181,8 @@ public final class YSON {
       return null;
     }
 
-    return requireYSON(yson, allowedFreeVars, mq);
+    return requireYSON(
+        yson, allowedFreeVars, Predicates.<String>alwaysTrue(), mq);
   }
 
   /**
@@ -187,7 +192,9 @@ public final class YSON {
    * @return null if yson does not meet the restrictions above.
    */
   public static YSON requireYSON(
-      YSON yson, Set<String> allowedFreeVars, @Nullable MessageQueue mq) {
+      YSON yson, Set<String> allowedFreeVars, Predicate<String> preserveKeys,
+      @Nullable MessageQueue mq) {
+    if (!isStructuralYSON(yson.root, preserveKeys, mq)) { return null; }
     Set<String> freeNames = yson.getFreeNames();
     freeNames.removeAll(allowedFreeVars);
     if (!freeNames.isEmpty()) {
@@ -197,29 +204,67 @@ public final class YSON {
       }
       return null;
     }
-    return isStructuralYSON(yson.root, mq) ? yson : null;
+    return yson;
   }
 
   private static boolean isStructuralYSON(
-      final AstNode node, final @Nullable MessageQueue mq) {
+      final AstNode node, final Predicate<String> preserveKeys,
+      final @Nullable MessageQueue mq) {
     switch (node.getType()) {
       case Token.FALSE: case Token.FUNCTION: case Token.NULL:
       case Token.NUMBER: case Token.STRING: case Token.TRUE:
       case Token.NEG: case Token.POS:
         return true;
       case Token.ARRAYLIT: case Token.EXPR_RESULT: case Token.LP:
-      case Token.OBJECTLIT: case Token.SCRIPT:
+      case Token.SCRIPT: {
         final boolean[] result = new boolean[] { true };
         node.visit(new NodeVisitor() {
           public boolean visit(AstNode n) {
             if (n == node) { return true; }
-            if (!isStructuralYSON(n, mq)) { result[0] = false; }
+            if (!isStructuralYSON(n, preserveKeys, mq)) {
+              result[0] = false;
+            }
             return false;
           }
         });
         return result[0];
+      }
+      case Token.OBJECTLIT: {
+        final boolean[] result = new boolean[] { true };
+        final List<Node> toRemove = Lists.newArrayList();
+        node.visit(new NodeVisitor() {
+          public boolean visit(AstNode n) {
+            if (n == node) { return true; }
+            if (n instanceof ObjectProperty) {
+              Node nameNode = ((ObjectProperty) n).getLeft();
+              String name = null;
+              if (nameNode instanceof Name) {
+                name = ((Name) nameNode).getIdentifier();
+              } else if (nameNode instanceof StringLiteral) {
+                name = ((StringLiteral) nameNode).getValue();
+              } else if (nameNode instanceof NumberLiteral) {
+                name = ((NumberLiteral) nameNode).getValue();  // TODO: norm
+              }
+              if (!preserveKeys.apply(name)) {
+                toRemove.add(n);
+                return false;
+              }
+            }
+            if (!isStructuralYSON(n, Predicates.<String>alwaysTrue(), mq)) {
+              result[0] = false;
+            }
+            return false;
+          }
+        });
+        if (!toRemove.isEmpty()) {
+          ((ObjectLiteral) node).getElements().removeAll(toRemove);
+        }
+        return result[0];
+      }
       case Token.COLON:
-        return isStructuralYSON(((ObjectProperty) node).getRight(), mq);
+        return isStructuralYSON(
+            ((ObjectProperty) node).getRight(), Predicates.<String>alwaysTrue(),
+            mq);
       case Token.EMPTY:
         if (mq != null) {
           mq.getMessages().add("Not YSON: trailing commas or empty expression");
@@ -234,7 +279,7 @@ public final class YSON {
   }
 
   /**
-   * Parses js to YSON without verifying any of the YSON restrictions.
+   * Parses JS to YSON without verifying any of the YSON restrictions.
    * @param js a JavaScript program production.
    */
   public static @Nonnull YSON parse(String js) throws ParseException {

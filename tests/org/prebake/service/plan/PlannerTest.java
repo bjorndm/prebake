@@ -176,8 +176,9 @@ public class PlannerTest extends PbTestCase {
         .withPlanFiles("plan1.js", "plan2.js")
         .expectProduct("myProduct", action("myTool", "**.foo", "**.bar"))
         .expectLog(
-            "WARNING: Error executing plan plan2.js\n"
-            + "org.mozilla.javascript.EvaluatorException:"
+            "WARNING: Failed to execute plan plan2.js\n"
+            + "org.prebake.js.Executor$AbnormalExitException:"
+            + " org.mozilla.javascript.EvaluatorException:"
             + " Unexpected end of file (/cwd/plan2.js#1)",
             "SEVERE: Failed to update plan plan2.js")
         .run();
@@ -276,8 +277,9 @@ public class PlannerTest extends PbTestCase {
         .withTools(tool("gcc"))
         .withPlanFiles("plan.js")
         .expectLog(
-            "WARNING: Error executing plan plan.js",
-            ("org.mozilla.javascript.WrappedException"
+            "WARNING: Failed to execute plan plan.js",
+            ("org.prebake.js.Executor$AbnormalExitException"
+             + ": org.mozilla.javascript.WrappedException"
              + ": Wrapped java.io.FileNotFoundException"
              + ": /bar/foo.js (/cwd/plan.js#1)"),
             "SEVERE: Failed to update plan plan.js")

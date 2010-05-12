@@ -86,6 +86,7 @@ final class ExecFn extends SimpleMembranableFunction {
 
   final class JsObjMaker {
     final ImmutableMap<String, ?> jsObj;
+    boolean run;  // The run() method should be a noop if called multiple times.
     JsObjMaker(final OsProcess p) {
       this.jsObj = ImmutableMap.<String, Object>builder()
           .put("pipeTo", new SimpleMembranableFunction(
@@ -198,13 +199,16 @@ final class ExecFn extends SimpleMembranableFunction {
           .put("run", new SimpleMembranableFunction(
               "Starts an external process.", "run", "this") {
             public Object apply(Object[] args) {
-              try {
-                p.run();
-                runningProcesses.add(p);
-              } catch (InterruptedException ex) {
-                Throwables.propagate(ex);
-              } catch (IOException ex) {
-                Throwables.propagate(ex);
+              if (!run) {
+                run = true;
+                try {
+                  p.run();
+                  runningProcesses.add(p);
+                } catch (InterruptedException ex) {
+                  Throwables.propagate(ex);
+                } catch (IOException ex) {
+                  Throwables.propagate(ex);
+                }
               }
               return jsObj;
             }

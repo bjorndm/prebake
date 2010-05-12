@@ -14,10 +14,11 @@
 
 ({
   help: 'Builds HTML Java API documentation from java source files',
-  checker: function (action) {
+  check: function (action) {
     // TODO
   },
-  fire: function fire(opts, inputs, product, action, os) {
+  fire: function fire(inputs, product, action, os) {
+    var opts = action.options;
     function opt(name, opt_defaultValue) {
       if ({}.hasOwnProperty.call(opts, name)) {
         return opts[name];
@@ -93,6 +94,6 @@
       default: throw new Error('Bad visibility ' + visibility);
     }
     command = command.concat(sources);
-    return os.exec.apply({}, command).run();
+    return os.exec.apply({}, command);
   }
 });
