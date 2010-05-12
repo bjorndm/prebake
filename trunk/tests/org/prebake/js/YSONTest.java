@@ -15,8 +15,10 @@
 package org.prebake.js;
 
 import org.prebake.core.MessageQueue;
+import org.prebake.util.PbTestCase;
 
 import com.google.common.base.Joiner;
+import com.google.common.base.Predicate;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -26,15 +28,13 @@ import org.junit.Test;
 
 import java.text.ParseException;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Map;
 import java.util.Set;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import javax.annotation.Nullable;
 
-public class YSONTest {
+public class YSONTest extends PbTestCase {
   @Test public final void testFreeVars() throws Exception {
     assertFreeVars("function () {}");
     assertFreeVars("(function x() {})");
@@ -137,7 +137,7 @@ public class YSONTest {
     assertYson(" +1e2 ");
     assertYson(" [true, false, null] ");
     assertNotYson("NaN", "Not YSON: NaN");
-    assertNotYson("this", "Not YSON: this");
+    assertNotYson("this", "Disallowed free variables: this");
     assertNotYson("undefined", "Not YSON: undefined");
     assertYson("{ 'ok': function (x, y) { return x * y } }");
     assertNotYson(
@@ -180,6 +180,66 @@ public class YSONTest {
     assertFalse(YSON.isValidIdentifier("\u0041\u030a"));
     assertFalse(YSON.isValidIdentifier("\"x\""));
     assertFalse(YSON.isValidIdentifier("a-b"));
+  }
+
+  @Test public final void testRequireJsonKeyFilteringNoFreeVars()
+      throws Exception {
+    String js = "{ y: 1, x: 2, z: { x: 3 } }";
+
+    assertFilteredYson(
+        js, false, false, "{\"y\":1.0,\"x\":2.0,\"z\":{\"x\":3.0}}");
+    assertFilteredYson(js, false, true, "{\"y\":1.0,\"z\":{\"x\":3.0}}");
+    assertFilteredYson(
+        js, true, false, "{\"y\":1.0,\"x\":2.0,\"z\":{\"x\":3.0}}");
+    assertFilteredYson(js, true, true, "{\"y\":1.0,\"z\":{\"x\":3.0}}");
+  }
+
+  @Test public final void testRequireJsonKeyFilteringOuterFreeVar()
+      throws Exception {
+    String js = "{ y: 1, x: function () { return x }, z: { x: 3 } }";
+
+    assertFilteredYson(js, false, false, null, "Disallowed free variables: x");
+    assertFilteredYson(js, false, true, "{\"y\":1.0,\"z\":{\"x\":3.0}}");
+    assertFilteredYson(
+        js, true, false,
+        "{\"y\":1.0,\"x\":function() {\n  return x;\n},\"z\":{\"x\":3.0}}");
+    assertFilteredYson(js, true, true, "{\"y\":1.0,\"z\":{\"x\":3.0}}");
+  }
+
+  @Test public final void testRequireJsonKeyFilteringInnerFreeVar()
+      throws Exception {
+    String js = "{ y: 1, x: 2, z: { x: function () { return x } } }";
+
+    assertFilteredYson(js, false, false, null, "Disallowed free variables: x");
+    assertFilteredYson(js, false, true, null, "Disallowed free variables: x");
+    assertFilteredYson(
+        js, true, false,
+        "{\"y\":1.0,\"x\":2.0,\"z\":{\"x\":function() {\n  return x;\n}}}");
+    assertFilteredYson(
+        js, true, true,
+        "{\"y\":1.0,\"z\":{\"x\":function() {\n  return x;\n}}}");
+  }
+
+  private void assertFilteredYson(
+      String js, boolean allowX, boolean filterX, @Nullable String golden,
+      String... messages) throws Exception {
+    MessageQueue mq = new MessageQueue();
+    YSON yson = YSON.parseExpr(js);
+    if (filterX) {
+      yson = yson.filter(new Predicate<String>() {
+        public boolean apply(String s) { return !"x".equals(s); }
+      });
+    }
+    YSON out = YSON.requireYSON(
+        yson,
+        allowX ? Collections.singleton("x") : Collections.<String>emptySet(),
+        mq);
+    String actual = out != null ? JsonSink.stringify(out.toJavaObject()) : null;
+    assertEquals(golden, actual);
+    assertEquals(mq.hasErrors(), actual == null);
+    assertEquals(
+        Joiner.on('\n').join(messages),
+        Joiner.on('\n').join(mq.getMessages()));
   }
 
   private void assertFreeVars(String src, String... freeVars) throws Exception {

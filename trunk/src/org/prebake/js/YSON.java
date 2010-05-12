@@ -18,7 +18,6 @@ import org.prebake.core.MessageQueue;
 
 import com.google.common.base.Joiner;
 import com.google.common.base.Predicate;
-import com.google.common.base.Predicates;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
@@ -113,6 +112,16 @@ public final class YSON {
     return YSON.toJavaObject(root);
   }
 
+  public YSON filter(Predicate<String> filterKeys) {
+    AstNode ast = copyAst(root);
+    filterKeys(ast, filterKeys);
+    return new YSON(ast);
+  }
+
+  private static AstNode copyAst(AstNode root) {
+    return new Parser().parse(root.toSource(), "YSON", 1);
+  }
+
   /**
    * The set of identifiers allowed freely in YSON by default.
    * Includes all the intrinsics defined by the JavaScript language specs.
@@ -150,13 +159,13 @@ public final class YSON {
   /**
    * True if js is valid YSON with free variables that are a subset of the given
    * set.
+   * @param js a string of JavaScript.
    * @param mq receives an explanation of why js is not valid YSON if it is not.
    * @return true iff js is valid YSON with the given restrictions.
    */
   public static boolean isYSON(
       String js, Set<String> allowedFreeVars, @Nullable MessageQueue mq) {
-    return requireYSON(
-        js, allowedFreeVars, Predicates.<String>alwaysTrue(), mq) != null;
+    return requireYSON(js, allowedFreeVars, mq) != null;
   }
 
   /**
@@ -166,8 +175,7 @@ public final class YSON {
    * @return null if js is not YSON.
    */
   public static YSON requireYSON(
-      @Nullable String js,
-      Set<String> allowedFreeVars, Predicate<String> preserveKeys,
+      @Nullable String js, Set<String> allowedFreeVars,
       @Nullable MessageQueue mq) {
     if (js == null) {
       if (mq != null) { mq.getMessages().add("Output is null"); }
@@ -181,7 +189,7 @@ public final class YSON {
       return null;
     }
 
-    return requireYSON(yson, allowedFreeVars, preserveKeys, mq);
+    return requireYSON(yson, allowedFreeVars, mq);
   }
 
   /**
@@ -191,89 +199,47 @@ public final class YSON {
    * @return null if yson does not meet the restrictions above.
    */
   public static YSON requireYSON(
-      YSON yson, Set<String> allowedFreeVars, Predicate<String> preserveKeys,
-      @Nullable MessageQueue mq) {
-    if (!isStructuralYSON(yson.root, preserveKeys, mq)) { return null; }
+      YSON yson, Set<String> allowedFreeVars, @Nullable MessageQueue mq) {
     Set<String> freeNames = yson.getFreeNames();
     freeNames.removeAll(allowedFreeVars);
     if (!freeNames.isEmpty()) {
       if (mq != null) {
-        mq.getMessages().add(
+        mq.error(
             "Disallowed free variables: " + Joiner.on(", ").join(freeNames));
       }
       return null;
     }
+    if (!isStructuralYSON(yson.root, mq)) { return null; }
     return yson;
   }
 
   private static boolean isStructuralYSON(
-      final AstNode node, final Predicate<String> preserveKeys,
-      final @Nullable MessageQueue mq) {
+      final AstNode node, final @Nullable MessageQueue mq) {
     switch (node.getType()) {
       case Token.FALSE: case Token.FUNCTION: case Token.NULL:
       case Token.NUMBER: case Token.STRING: case Token.TRUE:
       case Token.NEG: case Token.POS:
         return true;
       case Token.ARRAYLIT: case Token.EXPR_RESULT: case Token.LP:
-      case Token.SCRIPT: {
+      case Token.SCRIPT: case Token.OBJECTLIT:
         final boolean[] result = new boolean[] { true };
         node.visit(new NodeVisitor() {
           public boolean visit(AstNode n) {
             if (n == node) { return true; }
-            if (!isStructuralYSON(n, preserveKeys, mq)) {
-              result[0] = false;
-            }
+            if (!isStructuralYSON(n, mq)) { result[0] = false; }
             return false;
           }
         });
         return result[0];
-      }
-      case Token.OBJECTLIT: {
-        final boolean[] result = new boolean[] { true };
-        final List<Node> toRemove = Lists.newArrayList();
-        node.visit(new NodeVisitor() {
-          public boolean visit(AstNode n) {
-            if (n == node) { return true; }
-            if (n instanceof ObjectProperty) {
-              Node nameNode = ((ObjectProperty) n).getLeft();
-              String name = null;
-              if (nameNode instanceof Name) {
-                name = ((Name) nameNode).getIdentifier();
-              } else if (nameNode instanceof StringLiteral) {
-                name = ((StringLiteral) nameNode).getValue();
-              } else if (nameNode instanceof NumberLiteral) {
-                name = ((NumberLiteral) nameNode).getValue();  // TODO: norm
-              }
-              if (!preserveKeys.apply(name)) {
-                toRemove.add(n);
-                return false;
-              }
-            }
-            if (!isStructuralYSON(n, Predicates.<String>alwaysTrue(), mq)) {
-              result[0] = false;
-            }
-            return false;
-          }
-        });
-        // TODO: don't modify in place or clone earlier.
-        if (!toRemove.isEmpty()) {
-          ((ObjectLiteral) node).getElements().removeAll(toRemove);
-        }
-        return result[0];
-      }
       case Token.COLON:
-        return isStructuralYSON(
-            ((ObjectProperty) node).getRight(), Predicates.<String>alwaysTrue(),
-            mq);
+        return isStructuralYSON(((ObjectProperty) node).getRight(), mq);
       case Token.EMPTY:
         if (mq != null) {
-          mq.getMessages().add("Not YSON: trailing commas or empty expression");
+          mq.error("Not YSON: trailing commas or empty expression");
         }
         return false;
       default:
-        if (mq != null) {
-          mq.getMessages().add("Not YSON: " + node.toSource());
-        }
+        if (mq != null) { mq.error("Not YSON: " + node.toSource()); }
         return false;
     }
   }
@@ -535,6 +501,29 @@ public final class YSON {
       return toJavaObject(((ParenthesizedExpression) node).getExpression());
     } else {
       return null;
+    }
+  }
+
+  private static void filterKeys(AstNode node, Predicate<String> keyFilter) {
+    if (node instanceof ObjectLiteral) {
+      ObjectLiteral lit = (ObjectLiteral) node;
+      List<ObjectProperty> toRemove = Lists.newArrayList();
+      for (ObjectProperty prop: lit.getElements()) {
+        String key = propertyKeyToString(prop.getLeft());
+        if (!keyFilter.apply(key)) { toRemove.add(prop); }
+      }
+      if (!toRemove.isEmpty()) {
+        lit.getElements().removeAll(toRemove);
+      }
+    } else if (node instanceof ScriptNode) {
+      Iterator<Node> children = ((ScriptNode) node).iterator();
+      if (children.hasNext()) {
+        filterKeys((AstNode) children.next(), keyFilter);
+      }
+    } else if (node instanceof ExpressionStatement) {
+      filterKeys(((ExpressionStatement) node).getExpression(), keyFilter);
+    } else if (node instanceof ParenthesizedExpression) {
+      filterKeys(((ParenthesizedExpression) node).getExpression(), keyFilter);
     }
   }
 }
