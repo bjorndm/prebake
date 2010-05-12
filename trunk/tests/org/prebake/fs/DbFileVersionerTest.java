@@ -42,11 +42,13 @@ import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import javax.annotation.Nullable;
+
 public class DbFileVersionerTest extends PbTestCase {
-  private FileSystem fs;
-  private Environment env;
-  private File tempDir;
-  private FileVersioner fh;
+  private @Nullable FileSystem fs;
+  private @Nullable Environment env;
+  private @Nullable File tempDir;
+  private @Nullable FileVersioner fh;
 
   @Before
   public void setUp() throws IOException {
@@ -278,8 +280,8 @@ public class DbFileVersionerTest extends PbTestCase {
     GlobUnion html = new GlobUnion(
         ".html", Arrays.asList(Glob.fromString("**.html")));
 
-    final Logger logger = getLogger(Level.INFO);
     ArtifactListener<GlobUnion> listener = new ArtifactListener<GlobUnion>() {
+      Logger logger = getLogger(Level.INFO);
       public void artifactChanged(GlobUnion artifact) {
         logger.log(Level.INFO, "changed " + artifact.name);
       }

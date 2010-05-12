@@ -20,13 +20,15 @@ import java.io.IOException;
 import java.nio.file.FileSystem;
 import java.nio.file.Path;
 
+import javax.annotation.Nullable;
+
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
 public class WorkingFileCheckerTest extends PbTestCase {
-  private WorkingFileChecker checker;
-  private FileSystem fs;
+  private @Nullable WorkingFileChecker checker;
+  private @Nullable FileSystem fs;
 
   @Before public void setUp() throws IOException {
     fs = fileSystemFromAsciiArt(

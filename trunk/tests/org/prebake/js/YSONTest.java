@@ -220,15 +220,17 @@ public class YSONTest extends PbTestCase {
         "{\"y\":1.0,\"z\":{\"x\":function() {\n  return x;\n}}}");
   }
 
+  private static final class IsNotX implements Predicate<String> {
+    public boolean apply(String s) { return !"x".equals(s); }
+  }
+
   private void assertFilteredYson(
       String js, boolean allowX, boolean filterX, @Nullable String golden,
       String... messages) throws Exception {
     MessageQueue mq = new MessageQueue();
     YSON yson = YSON.parseExpr(js);
     if (filterX) {
-      yson = yson.filter(new Predicate<String>() {
-        public boolean apply(String s) { return !"x".equals(s); }
-      });
+      yson = yson.filter(new IsNotX());
     }
     YSON out = YSON.requireYSON(
         yson,

@@ -116,18 +116,32 @@ public class ExecutorTest extends PbTestCase {
     assertTrue(out.usedSourceOfKnownNondeterminism);
   }
 
+  private static final class NullLoader implements Loader {
+    public Executor.Input load(Path p) throws IOException {
+      throw new IOException("Not testing load");
+    }
+  }
+
+  private static final class SingleFileLoader implements Loader {
+    private final String path;
+    private final String content;
+    SingleFileLoader(String path, String content) {
+      this.path = path;
+      this.content = content;
+    }
+    public Executor.Input load(Path p) throws IOException {
+      if (!p.toString().equals(path)) { throw new IOException(p.toString()); }
+      return Executor.Input.builder(content, p).build();
+    }
+  }
+
   @Test public final void testActuals() {
     FileSystem fs = new StubFileSystemProvider("mfs").getFileSystem(
         URI.create("mfs:///#/foo"));
     Executor executor = Executor.Factory.createJsExecutor();
     Executor.Output<?> output = executor.run(
-        Object.class,
-        getLogger(Level.INFO),
-        new Loader() {
-          public Executor.Input load(Path p) throws IOException {
-            throw new IOException("Not testing load");
-          }
-        }, Executor.Input.builder(
+        Object.class, getLogger(Level.INFO), new NullLoader(),
+        Executor.Input.builder(
             "x + 1", fs.getPath("/foo/" + getName() + ".js"))
             .withActual("x", 1).build());
     assertEquals(2.0, output.result);
@@ -137,12 +151,8 @@ public class ExecutorTest extends PbTestCase {
     output = executor.run(
         Object.class,
         getLogger(Level.INFO),
-        new Loader() {
-          public Executor.Input load(Path p) {
-            return Executor.Input.builder("typeof x !== 'undefined' ? x : 2", p)
-                .build();
-          }
-        }, Executor.Input.builder(
+        new SingleFileLoader("/foo/x", "typeof x !== 'undefined' ? x : 2"),
+        Executor.Input.builder(
             "load('x')() + 1", fs.getPath("/foo/" + getName() + ".js"))
             .withActual("x", 1).build());
     assertEquals(3.0, output.result);
@@ -152,12 +162,8 @@ public class ExecutorTest extends PbTestCase {
     output = executor.run(
         Object.class,
         getLogger(Level.INFO),
-        new Loader() {
-          public Executor.Input load(Path p) {
-            return Executor.Input.builder("typeof x !== 'undefined' ? x : 2", p)
-                .build();
-          }
-        }, Executor.Input.builder(
+        new SingleFileLoader("/foo/x", "typeof x !== 'undefined' ? x : 2"),
+        Executor.Input.builder(
             "load('x')(this) + 1", fs.getPath("/foo/" + getName() + ".js"))
             .withActual("x", 1).build());
     assertEquals(2.0, output.result);
@@ -167,12 +173,8 @@ public class ExecutorTest extends PbTestCase {
     output = executor.run(
         Object.class,
         getLogger(Level.INFO),
-        new Loader() {
-          public Executor.Input load(Path p) {
-            return Executor.Input.builder("typeof x !== 'undefined' ? x : 2", p)
-                .build();
-          }
-        }, Executor.Input.builder(
+        new SingleFileLoader("/foo/x", "typeof x !== 'undefined' ? x : 2"),
+        Executor.Input.builder(
             "load('x')({ x: 3 }) + 1", fs.getPath("/foo/" + getName() + ".js"))
             .withActual("x", 1).build());
     assertEquals(4.0, output.result);
@@ -183,11 +185,8 @@ public class ExecutorTest extends PbTestCase {
     output = executor.run(
         Object.class,
         getLogger(Level.INFO),
-        new Loader() {
-          public Executor.Input load(Path p) {
-            return Executor.Input.builder("++x", p).build();
-          }
-        }, Executor.Input.builder(
+        new SingleFileLoader("/foo/x", "++x"),
+        Executor.Input.builder(
             "load('x')(this) + x", fs.getPath("/foo/" + getName() + ".js"))
             .withActual("x", 1).build());
     assertEquals(3.0, output.result);
@@ -330,13 +329,8 @@ public class ExecutorTest extends PbTestCase {
         URI.create("mfs:///#/foo"));
     Executor executor = Executor.Factory.createJsExecutor();
     Executor.Output<YSON> out = executor.run(
-        YSON.class,
-        getLogger(Level.INFO),
-        new Loader() {
-          public Executor.Input load(Path p) throws IOException {
-            throw new IOException("Should not laod");
-          }
-        }, Executor.Input.builder(
+        YSON.class, getLogger(Level.INFO), new NullLoader(),
+        Executor.Input.builder(
             "({ x: 1, y: function () { return 4; }, z: [2] })",
             fs.getPath("/foo/" + getName() + ".js"))
             .build());
@@ -350,13 +344,8 @@ public class ExecutorTest extends PbTestCase {
         URI.create("mfs:///#/foo"));
     Executor executor = Executor.Factory.createJsExecutor();
     Executor.Output<YSON> out = executor.run(
-        YSON.class,
-        getLogger(Level.INFO),
-        new Loader() {
-          public Executor.Input load(Path p) throws IOException {
-            throw new IOException("Should not laod");
-          }
-        }, Executor.Input.builder(
+        YSON.class, getLogger(Level.INFO), new NullLoader(),
+        Executor.Input.builder(
             ""
             + "({"
             + "  x: 1,"
@@ -380,13 +369,8 @@ public class ExecutorTest extends PbTestCase {
         URI.create("mfs:///#/foo"));
     Executor executor = Executor.Factory.createJsExecutor();
     Executor.Output<YSON> out = executor.run(
-        YSON.class,
-        getLogger(Level.INFO),
-        new Loader() {
-          public Executor.Input load(Path p) throws IOException {
-            throw new IOException("Should not laod");
-          }
-        }, Executor.Input.builder(
+        YSON.class, getLogger(Level.INFO), new NullLoader(),
+        Executor.Input.builder(
             ""
             + "({"
             + "  x: 1,"
@@ -805,13 +789,8 @@ public class ExecutorTest extends PbTestCase {
         URI.create("mfs:///#/foo"));
     Executor executor = Executor.Factory.createJsExecutor();
     Executor.Output<?> output = executor.run(
-        Object.class,
-        getLogger(Level.INFO),
-        new Loader() {
-          public Executor.Input load(Path p) throws IOException {
-            throw new IOException("Not testing load");
-          }
-        }, Executor.Input.builder(
+        Object.class, getLogger(Level.INFO), new NullLoader(),
+        Executor.Input.builder(
             src, fs.getPath("/foo/" + getName() + ".js"))
             .build());
     assertEquals(src, result, output.result);
@@ -827,13 +806,8 @@ public class ExecutorTest extends PbTestCase {
         URI.create("mfs:///#/foo"));
     Executor executor = Executor.Factory.createJsExecutor();
     Executor.Output<?> output = executor.run(
-        Object.class,
-        getLogger(Level.INFO),
-        new Loader() {
-          public Executor.Input load(Path p) throws IOException {
-            throw new IOException("Not testing load");
-          }
-        }, Executor.Input.builder(
+        Object.class, getLogger(Level.INFO), new NullLoader(),
+        Executor.Input.builder(
             src, fs.getPath("/foo/" + getName() + ".js")).build());
     // If no optional error message specified, the JS should not fail
     if (errorMessage == null) { assertNull(output.exit); }
@@ -889,14 +863,8 @@ public class ExecutorTest extends PbTestCase {
         URI.create("mfs:///#/foo"));
     Executor executor = Executor.Factory.createJsExecutor();
     executor.run(
-        Object.class,
-        logger,
-        new Loader() {
-          public Executor.Input load(Path p) throws IOException {
-            throw new IOException("Not testing load");
-          }
-        }, Executor.Input.builder(
-            src, fs.getPath("/" + getName() + ".js"))
+        Object.class, logger, new NullLoader(),
+        Executor.Input.builder(src, fs.getPath("/" + getName() + ".js"))
             .build());
     assertEquals(
         src, Joiner.on('\n').join(logStmts),

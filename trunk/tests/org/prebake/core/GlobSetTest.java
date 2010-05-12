@@ -64,7 +64,8 @@ public class GlobSetTest extends PbTestCase {
         Glob[] globs = new Glob[100];
         for (int i = globs.length; --i >= 0;) { globs[i] = randomGlob(rnd); }
         for (int op = 1000; --op >= 0;) {
-          switch (rnd.nextInt(5)) {
+          int k = rnd.nextInt(5);
+          switch (k) {
             case 0: case 1: {
               Glob g = globs[rnd.nextInt(globs.length)];
               long t0 = System.nanoTime();
@@ -102,6 +103,7 @@ public class GlobSetTest extends PbTestCase {
               fastTime += t2 - t1;
               break;
             }
+            default: throw new RuntimeException("k=" + k);
           }
         }
       } catch (Throwable th) {
@@ -153,7 +155,8 @@ public class GlobSetTest extends PbTestCase {
     StringBuilder sb = new StringBuilder();
     int n = rnd.nextInt(8) + 1;
     for (int i = 0; i < n; ++i) {
-      switch (rnd.nextInt(5)) {
+      int k = rnd.nextInt(5);
+      switch (k) {
         case 0: sb.append(WORDS[rnd.nextInt(WORDS.length)]); break;
         case 1:
           if (i != 0) { sb.append('/'); }
@@ -167,6 +170,7 @@ public class GlobSetTest extends PbTestCase {
           if (i != 0) { sb.append('/'); }
           sb.append(WORDS[rnd.nextInt(WORDS.length)]); break;
         case 4: sb.append('.').append(WORDS[rnd.nextInt(WORDS.length)]); break;
+        default: throw new RuntimeException("k=" + k);
       }
     }
     return Glob.fromString(sb.toString());
@@ -176,12 +180,14 @@ public class GlobSetTest extends PbTestCase {
     StringBuilder sb = new StringBuilder();
     int n = rnd.nextInt(8);
     for (int i = 0; i < n; ++i) {
-      switch (rnd.nextInt(3)) {
+      int k = rnd.nextInt(3);
+      switch (k) {
         case 0: sb.append(WORDS[rnd.nextInt(WORDS.length)]); break;
         case 1:
           if (i != 0) { sb.append('/'); }
           sb.append(WORDS[rnd.nextInt(WORDS.length)]); break;
         case 2: sb.append('.').append(WORDS[rnd.nextInt(WORDS.length)]); break;
+        default: throw new RuntimeException("k=" + k);
       }
     }
     return new StubPath(sb.toString());

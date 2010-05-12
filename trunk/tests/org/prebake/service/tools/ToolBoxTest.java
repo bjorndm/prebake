@@ -42,17 +42,19 @@ import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import javax.annotation.Nullable;
+
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
 public class ToolBoxTest extends PbTestCase {
-  private FileSystem fs;
-  private Path root;
-  private Environment env;
-  private FileVersioner files;
-  private ScheduledExecutorService execer;
-  private File tempDir;
+  private @Nullable FileSystem fs;
+  private @Nullable Path root;
+  private @Nullable Environment env;
+  private @Nullable FileVersioner files;
+  private @Nullable ScheduledExecutorService execer;
+  private @Nullable File tempDir;
 
   @Before
   public void setUp() throws IOException {

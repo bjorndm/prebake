@@ -145,6 +145,9 @@ public final class RhinoExecutor implements Executor {
     // infinite loops.
     @Override
     protected void observeInstructionCount(Context cx, int instructionCount) {
+      if (!(cx instanceof CpuQuotaContext)) {
+        throw new IllegalArgumentException();
+      }
       CpuQuotaContext qcx = (CpuQuotaContext) cx;
       long currentTime = System.nanoTime();
       if (currentTime - qcx.startTimeNanos > 5000000000L) {
@@ -160,6 +163,9 @@ public final class RhinoExecutor implements Executor {
     protected Object doTopCall(
         Callable callable, Context cx, Scriptable scope,
         Scriptable thisObj, Object[] args) {
+      if (!(cx instanceof CpuQuotaContext)) {
+        throw new IllegalArgumentException();
+      }
       CpuQuotaContext qcx = (CpuQuotaContext) cx;
       qcx.startTimeNanos = System.nanoTime();
       return super.doTopCall(callable, cx, scope, thisObj, args);

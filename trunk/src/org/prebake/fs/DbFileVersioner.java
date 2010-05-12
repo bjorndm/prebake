@@ -31,6 +31,8 @@ import java.nio.file.FileSystem;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.logging.Logger;
+
+import javax.annotation.Nullable;
 import javax.annotation.ParametersAreNonnullByDefault;
 
 /**
@@ -156,9 +158,9 @@ public final class DbFileVersioner extends FileVersioner {
   }
 
   final class ArtifactUpdateLoopImpl implements ArtifactUpdateLoop {
-    private Cursor cursor;
-    private DatabaseEntry key;
-    private DatabaseEntry value;
+    private @Nullable Cursor cursor;
+    private @Nullable DatabaseEntry key;
+    private @Nullable DatabaseEntry value;
 
     public void start(String artifactAddress) {
       cursor = fileDerivatives.openCursor(null, null);
