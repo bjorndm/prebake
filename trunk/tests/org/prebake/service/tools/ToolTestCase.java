@@ -48,12 +48,12 @@ import org.junit.Before;
  * @author Mike Samuel <mikesamuel@gmail.com>
  */
 public abstract class ToolTestCase extends PbTestCase {
-  private final String toolName;
+  private final String testToolName;
   protected FileSystem fs;
   protected ToolTester tester;
 
   ToolTestCase(String toolName) {
-    this.toolName = toolName;
+    this.testToolName = toolName;
   }
 
   @Before public void setupFS() throws IOException {
@@ -66,7 +66,7 @@ public abstract class ToolTestCase extends PbTestCase {
   }
 
   @Before public void setupTester() {
-    tester = new ToolTester(toolName);
+    tester = new ToolTester(testToolName);
   }
 
   @After public void teardownFS() throws IOException {

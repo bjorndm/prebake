@@ -256,7 +256,8 @@ public final class Planner implements Closeable {
       logger.log(Level.WARNING, "Planner could not retrieve all tools");
     }
 
-    Executor.Input toolDef = Executor.Input.builder(toolJs, "tools").build();
+    Executor.Input toolDef = Executor.Input.builder(toolJs, "tools")
+        .withActuals(commonJsEnv).build();
 
     List<Future<ImmutableList<Product>>> out = Lists.newArrayList();
     for (PlanPart pp : planParts.values()) {

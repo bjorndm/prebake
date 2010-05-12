@@ -3,9 +3,6 @@
 if [ -z "$PREBAKE_HOME" ] ; then
   export PREBAKE_HOME="$(dirname "$(dirname $0)")"
 fi
-if [ -z "$JAVA" ] ; then
-  export JAVA=java
-fi
 
 source "$PREBAKE_HOME"/bin/common.sh
 check_java_version

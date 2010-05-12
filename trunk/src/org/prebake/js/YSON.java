@@ -181,8 +181,7 @@ public final class YSON {
       return null;
     }
 
-    return requireYSON(
-        yson, allowedFreeVars, Predicates.<String>alwaysTrue(), mq);
+    return requireYSON(yson, allowedFreeVars, preserveKeys, mq);
   }
 
   /**
@@ -256,6 +255,7 @@ public final class YSON {
             return false;
           }
         });
+        // TODO: don't modify in place or clone earlier.
         if (!toRemove.isEmpty()) {
           ((ObjectLiteral) node).getElements().removeAll(toRemove);
         }

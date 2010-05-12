@@ -1,5 +1,13 @@
 #!/bin/bash
 
+if [ -z "$JAVA" ] ; then
+  if [ -z "$JAVA_HOME" ]; then
+    export JAVA=java
+  else
+    export JAVA="$JAVA_HOME/bin/java"
+  fi
+fi
+
 # Check java verson
 function check_java_version() {
   # Produces a string like 1007 for java version 1.7 or 2021 for java version 2.21
