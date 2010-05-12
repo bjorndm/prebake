@@ -39,7 +39,7 @@ And check the exit code.  0 normally indicates success, so one idiom is to do th
   return os.exec(...);  // Return the main process so the product's bake method can redirect it.
 }}}
 
-Or alternately, you can spawn a bunch of processes and return a single meta-process that waits for them:
+Or alternately, you can spawn a bunch of processes and return a single wrapper ProcessObject that waits for them:
 {{{
     var processes = [];
     for (...) {
