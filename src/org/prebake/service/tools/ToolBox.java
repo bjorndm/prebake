@@ -324,15 +324,14 @@ public class ToolBox implements ToolProvider {
               // We need content that we can safely serialize and load into a
               // plan file.
               YSON ysonSig = YSON.requireYSON(
-                  result.result,
-                  ImmutableSet.<String>builder()
-                      .addAll(FREE_VARS_OK).addAll(commonJsEnv.keySet())
-                      .build(),
-                  new Predicate<String>() {
+                  result.result.filter(new Predicate<String>() {
                     public boolean apply(String key) {
                       return !"fire".equals(key);
                     }
-                  },
+                  }),
+                  ImmutableSet.<String>builder()
+                      .addAll(FREE_VARS_OK).addAll(commonJsEnv.keySet())
+                      .build(),
                   mq);
 
               toolSig = ToolSignature.converter(
