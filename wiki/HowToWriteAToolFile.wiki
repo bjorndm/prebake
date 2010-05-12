@@ -36,7 +36,7 @@ If you spawn multiple processes using `os.exec`, you need to `.waitFor` the resu
 And check the exit code.  0 normally indicates success, so one idiom is to do the following at the end of your `fire` method:
 {{{
   if (os.exec(...).run().waitFor() !== 0) { throw new Error(...); }  // Make sure all ancillary processes complete. 
-  return os.exec(...).run();  // Run the main process
+  return os.exec(...);  // Return the main process so the product's bake method can redirect it.
 }}}
 
 Or alternately, you can spawn a bunch of processes and return a single meta-process that waits for them:
@@ -46,8 +46,12 @@ Or alternately, you can spawn a bunch of processes and return a single meta-proc
       processes.push(os.exec(...).run());
     }
     return {
+      run: function () {
+        for (var i = 0, n = processes.length; i < n; ++i) { process[i].run(); }
+        return this;
+      },
       waitFor: function () {
-        for (var i = 0, n = processes.length; i < processes.length; ++i) {
+        for (var i = 0, n = processes.length; i < n; ++i) {
           if (processes[i].waitFor() !== 0) {
             throw new Error(...);
           }
