@@ -157,6 +157,7 @@ final class Oven {
       //    && (/* invoke.action 1 */).run().waitFor() === 0
       //    && ...);
       if (thunkify) { productJsSink.write("product.bake(["); }
+      if (!thunkify && p.actions.isEmpty()) { productJsSink.write("true"); }
       // Third, for each action, invoke its tool's run method with the proper
       // arguments.
       for (int i = 0, n = p.actions.size(); i < n; ++i) {
