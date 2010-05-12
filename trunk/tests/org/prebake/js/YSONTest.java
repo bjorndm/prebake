@@ -186,12 +186,10 @@ public class YSONTest extends PbTestCase {
       throws Exception {
     String js = "{ y: 1, x: 2, z: { x: 3 } }";
 
-    assertFilteredYson(
-        js, false, false, "{\"y\":1.0,\"x\":2.0,\"z\":{\"x\":3.0}}");
-    assertFilteredYson(js, false, true, "{\"y\":1.0,\"z\":{\"x\":3.0}}");
-    assertFilteredYson(
-        js, true, false, "{\"y\":1.0,\"x\":2.0,\"z\":{\"x\":3.0}}");
-    assertFilteredYson(js, true, true, "{\"y\":1.0,\"z\":{\"x\":3.0}}");
+    assertFilteredYson(js, false, false, "{\"y\":1,\"x\":2,\"z\":{\"x\":3}}");
+    assertFilteredYson(js, false, true, "{\"y\":1,\"z\":{\"x\":3}}");
+    assertFilteredYson(js, true, false, "{\"y\":1,\"x\":2,\"z\":{\"x\":3}}");
+    assertFilteredYson(js, true, true, "{\"y\":1,\"z\":{\"x\":3}}");
   }
 
   @Test public final void testRequireJsonKeyFilteringOuterFreeVar()
@@ -199,11 +197,11 @@ public class YSONTest extends PbTestCase {
     String js = "{ y: 1, x: function () { return x }, z: { x: 3 } }";
 
     assertFilteredYson(js, false, false, null, "Disallowed free variables: x");
-    assertFilteredYson(js, false, true, "{\"y\":1.0,\"z\":{\"x\":3.0}}");
+    assertFilteredYson(js, false, true, "{\"y\":1,\"z\":{\"x\":3}}");
     assertFilteredYson(
         js, true, false,
-        "{\"y\":1.0,\"x\":function() {\n  return x;\n},\"z\":{\"x\":3.0}}");
-    assertFilteredYson(js, true, true, "{\"y\":1.0,\"z\":{\"x\":3.0}}");
+        "{\"y\":1,\"x\":function() {\n  return x;\n},\"z\":{\"x\":3}}");
+    assertFilteredYson(js, true, true, "{\"y\":1,\"z\":{\"x\":3}}");
   }
 
   @Test public final void testRequireJsonKeyFilteringInnerFreeVar()
@@ -214,10 +212,9 @@ public class YSONTest extends PbTestCase {
     assertFilteredYson(js, false, true, null, "Disallowed free variables: x");
     assertFilteredYson(
         js, true, false,
-        "{\"y\":1.0,\"x\":2.0,\"z\":{\"x\":function() {\n  return x;\n}}}");
+        "{\"y\":1,\"x\":2,\"z\":{\"x\":function() {\n  return x;\n}}}");
     assertFilteredYson(
-        js, true, true,
-        "{\"y\":1.0,\"z\":{\"x\":function() {\n  return x;\n}}}");
+        js, true, true, "{\"y\":1,\"z\":{\"x\":function() {\n  return x;\n}}}");
   }
 
   private static final class IsNotX implements Predicate<String> {
