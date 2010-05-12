@@ -176,7 +176,6 @@ public final class JsonSink implements Closeable {
       return writeValue(((Boolean) o).booleanValue());
     } else if (o instanceof JsonSerializable) {
       ((JsonSerializable) o).toJson(this);
-      return this;
     } else if (o.getClass().isArray()) {
       int n = Array.getLength(o);
       out.append('[');
@@ -188,16 +187,26 @@ public final class JsonSink implements Closeable {
         }
       }
       out.append(']');
-      return this;
-    } else if (o instanceof Number || o instanceof Boolean) {
+    } else if (o instanceof Number) {
+      Number num = (Number) o;
+      if (num instanceof Double || num instanceof Float) {
+        double dv = num.doubleValue();
+        long lv = (long) dv;
+        if (dv == lv && (dv != 0 || (1.0d / dv) == Double.POSITIVE_INFINITY)) {
+          out.append(String.valueOf(lv));
+          return this;
+        }
+      }
+      out.append(num.toString());
+    } else if (o instanceof Boolean) {
       out.append(o.toString());
-      return this;
     } else if (o instanceof Enum<?>) {
       return writeValue(((Enum<?>) o).name());
     } else {
       throw new IllegalArgumentException(
           "" + o + " : " + o.getClass().getName());
     }
+    return this;
   }
 
   public JsonSink writeValue(boolean b) throws IOException {

@@ -30,9 +30,12 @@ public class JsonSinkTest {
     assertValueJson("true", true);
     assertValueJson("null", null);
     assertValueJson("-0.0", -0d);
+    assertValueJson("0", 0);
+    assertValueJson("9007199254740992", (1L << 53));  // ulp > 1
+    assertValueJson("9007199254740993", (1L << 53) + 1L);
     assertValueJson("NaN", Double.NaN);
     assertValueJson("Infinity", Double.POSITIVE_INFINITY);
-    assertValueJson("[null,1.0,-2.0,3.5]", Arrays.asList(null,1.,-2.,3.5));
+    assertValueJson("[null,1,-2,3.5]", Arrays.asList(null,1.,-2.,3.5));
     assertValueJson("\"\\n\"", "\n");
     assertValueJson("\"\\r\"", "\r");
     assertValueJson("\"\\f\"", "\f");

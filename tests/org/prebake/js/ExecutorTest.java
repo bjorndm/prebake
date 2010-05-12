@@ -335,7 +335,7 @@ public class ExecutorTest extends PbTestCase {
             fs.getPath("/foo/" + getName() + ".js"))
             .build());
     assertEquals(
-        "({\"x\": 1.0, \"y\": (function() {\n  return 4;\n}), \"z\": [2.0]})",
+        "({\"x\": 1, \"y\": (function() {\n  return 4;\n}), \"z\": [2]})",
         out.result.toSource());
   }
 
@@ -357,9 +357,9 @@ public class ExecutorTest extends PbTestCase {
     assertEquals(
         ""
         + "({"
-          + "\"x\": 1.0, "
+          + "\"x\": 1, "
           + "\"y\": [(function() {\n  return Math.abs(-1);\n}), null], "
-          + "\"z\": [2.0]"
+          + "\"z\": [2]"
         + "})",
         out.result.toSource());
   }
@@ -378,7 +378,7 @@ public class ExecutorTest extends PbTestCase {
             + "  z: [2]"
             + "})",
             fs.getPath("/foo/" + getName() + ".js")).build());
-    assertEquals("({\"x\": 1.0, \"z\": [2.0]})", out.result.toSource());
+    assertEquals("({\"x\": 1, \"z\": [2]})", out.result.toSource());
   }
 
   @Test public final void testNoBase() {

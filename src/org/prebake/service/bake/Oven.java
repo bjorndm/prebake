@@ -143,25 +143,42 @@ final class Oven {
       // the tool execution in a call to the mobile function product.bake.
       boolean thunkify = p.bake != null;
       productJsSink.write("(");
+      // If there is a product.bake method, then we do something like
+      //   product.bake([
+      //       function () { return /* invoke action 0 */ },
+      //       function () { return /* invoke action 1 */ },
+      //       ...]);
+      // so the result of the process is the result of product.bake which gets
+      // a list of thunks : one per action.
+      //
+      // Otherwise, we provide a default bake which runs and waits for each in
+      // order like:
+      //   ((/* invoke action 0 */).run().waitFor() === 0
+      //    && (/* invoke.action 1 */).run().waitFor() === 0
+      //    && ...);
       if (thunkify) { productJsSink.write("product.bake(["); }
       // Third, for each action, invoke its tool's run method with the proper
       // arguments.
-      boolean firstAction = true;
-      for (Action action : p.actions) {
-        if (!firstAction) { productJsSink.write(thunkify ? "," : ") && ("); }
+      for (int i = 0, n = p.actions.size(); i < n; ++i) {
+        if (i != 0) { productJsSink.write(thunkify ? "," : ") && ("); }
         if (thunkify) {
           productJsSink.write("function () { return ");
         }
+        // Fill in the /* invoke action x */ bits above with a call to the
+        // tool like:
+        //   tool_x.fire(matching(['foo/*.c']), product, product.actions[0], os)
+        // where product is a frozen YSON object.
+        // Matching is defined above, and os is defined in JsOperatingSystemEnv.
+        Action action = p.actions.get(i);
         productJsSink
             .write(toolNameToLocalName.get(action.toolName))
             .write(".fire(matching(").writeValue(action.inputs)
             // .slice(0) works around problem where membraned arrays don't
             // behave as arrays w.r.t. concat and other builtins.
-            .write(").slice(0),\n    product,\n    ")
-            .writeValue(action)
-            .write(",\n    os)\n");
+            .write(").slice(0),\n    product,\n    product.actions[")
+            .write(String.valueOf(i))
+            .write("],\n    os)\n");
         productJsSink.write(thunkify ? "}" : ".run().waitFor() === 0");
-        firstAction = false;
       }
       if (thunkify) { productJsSink.write("])"); }
       productJsSink.write(");");
