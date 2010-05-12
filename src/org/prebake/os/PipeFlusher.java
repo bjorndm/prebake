@@ -182,10 +182,16 @@ public final class PipeFlusher implements Closeable {
 
   private void releaseBuffer(byte[] buffer) {
     if (buffer.length == BUF_SIZE) {
-      if (!freeBuffers.offer(buffer)) {
-        // OK.  If we don't add it, then there are plenty available.
-      }
+      // OK.  If we don't add it, then there are plenty available.
+      intentionallyIgnoreResult(freeBuffers.offer(buffer));
     }
+  }
+
+  /** @param result intentionally ignored. */
+  private static void intentionallyIgnoreResult(boolean result) {
+    // FindBugs requires us to check results in some places.
+    // We don't want to turn these checks off in general, but in some cases
+    // we are just making a best effort.
   }
 
   /** Called when a pipe's input has been drained. */

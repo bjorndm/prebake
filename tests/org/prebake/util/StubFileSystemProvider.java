@@ -161,6 +161,7 @@ class MemPath extends Path {
 
   @Override
   public int compareTo(Path other) {
+    if (!(other instanceof MemPath)) { return -other.compareTo(this); }
     MemPath that = (MemPath) other;
     int delta = (isAbs ? 1 : 0) - (that.isAbs ? 1 : 0);
     if (delta != 0) { return delta; }
@@ -202,7 +203,7 @@ class MemPath extends Path {
 
   @Override
   public boolean equals(Object other) {
-    if (!(other instanceof Path)) { return false; }
+    if (!(other instanceof MemPath)) { return false; }
     MemPath that = (MemPath) other;
     return isAbs == that.isAbs && Arrays.equals(parts, that.parts);
   }
@@ -230,7 +231,10 @@ class MemPath extends Path {
 
   @Override
   public Path relativize(Path p) {
-    Path base = this.toRealPath(false);
+    if (!(p instanceof MemPath)) {
+      throw new IllegalArgumentException(p.toString());
+    }
+    MemPath base = this.toRealPath(false);
     p = ((MemPath) p).toRealPath(false);
     int n = Math.min(p.getNameCount(), base.getNameCount());
     int nCommon = 0;
@@ -275,6 +279,9 @@ class MemPath extends Path {
 
   @Override
   public MemPath resolve(Path other) {
+    if (!(other instanceof MemPath)) {
+      throw new IllegalArgumentException(other.toString());
+    }
     MemPath that = (MemPath) other;
     if (that.isAbs) { return that; }
     return new MemPath(fs, this + fs.getSeparator() + that);
@@ -287,6 +294,9 @@ class MemPath extends Path {
 
   @Override
   public boolean startsWith(Path path) {
+    if (!(path instanceof MemPath)) {
+      throw new IllegalArgumentException(path.toString());
+    }
     MemPath p = (MemPath) path;
     if (this.isAbs != p.isAbs) { return false; }
     int n = p.parts.length;
@@ -347,6 +357,9 @@ class MemPath extends Path {
 
   @Override
   public Path copyTo(Path target, CopyOption... options) throws IOException {
+    if (!(target instanceof MemPath)) {
+      throw new IllegalArgumentException(target.toString());
+    }
     Node a = fs.lookup(this);
     if (a == null) { throw new FileNotFoundException(toString()); }
     Node b = fs.lookup((MemPath) target);
@@ -381,6 +394,9 @@ class MemPath extends Path {
 
   @Override
   public boolean endsWith(Path other) {
+    if (!(other instanceof MemPath)) {
+      throw new IllegalArgumentException(other.toString());
+    }
     MemPath p = (MemPath) other;
     int n = p.parts.length;
     int m = parts.length;
@@ -411,6 +427,7 @@ class MemPath extends Path {
 
   @Override
   public boolean isSameFile(Path other) {
+    if (!(other instanceof MemPath)) { return false; }
     return this.fs == other.getFileSystem()
         && this.toAbsolutePath().equals(((MemPath) other).toAbsolutePath());
   }
@@ -428,6 +445,9 @@ class MemPath extends Path {
 
   @Override
   public Path moveTo(Path target, CopyOption... options) throws IOException {
+    if (!(target instanceof MemPath)) {
+      throw new IOException(target.toString());
+    }
     Set<CopyOption> opts = ImmutableSet.of(options);
     Node a = fs.lookup(this);
     Node b = fs.lookup((MemPath) target);

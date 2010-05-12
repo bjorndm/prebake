@@ -43,6 +43,8 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
 
+import javax.annotation.Nullable;
+
 import com.google.common.base.Charsets;
 import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableList;
@@ -57,7 +59,7 @@ import org.junit.Before;
 import org.junit.Test;
 
 public class EndToEndTest extends PbTestCase {
-  private Tester tester;
+  private @Nullable Tester tester;
 
   @Before public final void setUp() {
     tester = new Tester();

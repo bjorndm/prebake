@@ -29,10 +29,12 @@ import java.io.StringReader;
 import java.net.URI;
 import java.nio.file.FileSystem;
 
+import javax.annotation.Nullable;
+
 import static org.junit.Assert.assertEquals;
 
 public class CommandTest {
-  private FileSystem fs;
+  private @Nullable FileSystem fs;
 
   @Before
   public void setUp() {

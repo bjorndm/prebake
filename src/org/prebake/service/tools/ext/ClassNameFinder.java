@@ -123,10 +123,6 @@ final class ClassNameFinder {
             int len = shortAt(pos + 1);
             pos += len + 3;
             break;
-          case 3:   // CONSTANT_Integer
-          case 4:   // CONSTANT_Float
-            pos += 5;
-            break;
           case 5:   // CONSTANT_Long
           case 6:   // CONSTANT_Double
             pos += 9;
@@ -136,6 +132,8 @@ final class ClassNameFinder {
           case 8:   // CONSTANT_String
             pos += 3;
             break;
+          case 3:   // CONSTANT_Integer
+          case 4:   // CONSTANT_Float
           case 9:   // CONSTANT_Fieldref
           case 10:  // CONSTANT_Methodref
           case 11:  // CONSTANT_InterfaceMethodref

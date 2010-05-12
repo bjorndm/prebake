@@ -33,7 +33,7 @@ import org.junit.After;
 import org.junit.Test;
 
 public final class JsOperatingSystemEnvTest extends PbTestCase {
-  private FileSystem fs;
+  private @Nullable FileSystem fs;
 
   @After public void tearDown() throws IOException {
     if (fs != null) {
