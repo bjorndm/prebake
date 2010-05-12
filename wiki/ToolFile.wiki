@@ -51,7 +51,7 @@ process that runs the executable named by {{{path}}} with the given
 arguments and returns a ProcessResult.
 
 A call to {{{os.exec}}} will not immediately spawn a process.  It
-returns a builder object that you can use to configure the process
+returns a [ProcessObject process builder object] that you can use to configure the process
 like
 {{{
 ({
@@ -75,8 +75,7 @@ The working directory will be the root of the TmpWorkspace.
 
 The caller *must not* pass any arguments that are paths into the ClientRoot.
 
-The {{{fire}}} function *must* return {{{true}}} to indicate success
-or any other value to indicate build failure..
+The {{{fire}}} function *must* return a [ProcessObject] that yields 0 when its `waitFor()` method is called to indicate success or any other value to indicate failure.
 
 The {{{fire}}} function *may* log helpful messages to the [JsConsole].
 
