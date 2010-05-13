@@ -17,13 +17,12 @@ package org.prebake.service.bake;
 import org.prebake.core.Glob;
 import org.prebake.core.Hash;
 import org.prebake.core.MessageQueue;
-import org.prebake.fs.FileAndHash;
 import org.prebake.fs.FileVersioner;
 import org.prebake.js.Executor;
 import org.prebake.js.JsonSink;
-import org.prebake.js.Loader;
 import org.prebake.js.SimpleMembranableFunction;
 import org.prebake.os.OperatingSystem;
+import org.prebake.service.PrebakeScriptLoader;
 import org.prebake.service.plan.Action;
 import org.prebake.service.plan.Product;
 import org.prebake.service.tools.BuiltinToolHooks;
@@ -73,7 +72,7 @@ final class Oven {
 
   @Nonnull Executor.Output<Boolean> executeActions(
       final Path workingDir, Product p, List<Path> inputs,
-      final List<Path> paths, final Hash.Builder hashes)
+      final ImmutableList.Builder<Path> paths, final Hash.Builder hashes)
       throws IOException {
     List<String> inputStrs = Lists.newArrayList();
     for (Path input : inputs) { inputStrs.add(input.toString()); }
@@ -202,17 +201,9 @@ final class Oven {
     }
     try {
       // Run the script.
-      return execer.run(Boolean.class, logger, new Loader() {
-        public Executor.Input load(Path p) throws IOException {
-          FileAndHash fh = files.load(p);
-          if (fh.getHash() != null) {
-            paths.add(fh.getPath());
-            hashes.withHash(fh.getHash());
-          }
-          return Executor.Input
-              .builder(fh.getContentAsString(Charsets.UTF_8), p).build();
-        }
-      }, src);
+      return execer.run(
+          Boolean.class, logger, new PrebakeScriptLoader(files, paths, hashes),
+          src);
     } finally {
       // We can't allow processes to keep mucking with the working directory
       // after we kill it and possibly recreate it for a rebuild.

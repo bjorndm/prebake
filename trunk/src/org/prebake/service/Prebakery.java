@@ -317,7 +317,7 @@ public abstract class Prebakery implements Closeable {
         List<Path> updates = Lists.newArrayList();
         updates.add(x);
         q.drainTo(updates, 64);
-        files.update(updates);
+        files.updateFiles(updates);
       }
     };
     pathConsumer.start();
@@ -364,7 +364,7 @@ public abstract class Prebakery implements Closeable {
                 }
                 break;
               case files_changed:
-                files.update(((Command.FilesChangedCommand) cmd).paths);
+                files.updateFiles(((Command.FilesChangedCommand) cmd).paths);
                 break;
               case graph:
                 DotRenderer.render(

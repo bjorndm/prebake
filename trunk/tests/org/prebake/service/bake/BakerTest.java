@@ -623,7 +623,7 @@ public class BakerTest extends PbTestCase {
           return FileVisitResult.CONTINUE;
         }
       });
-      files.update(b.build());
+      files.updateFiles(b.build());
       execer = new StubScheduledExecutorService();
       toolbox = new StubToolProvider();
       baker = new Baker(os, files, getCommonJsEnv(), 0700, logger, execer);
@@ -694,14 +694,14 @@ public class BakerTest extends PbTestCase {
       } finally {
         w.close();
       }
-      files.update(Collections.singleton(p));
+      files.updateFiles(Collections.singleton(p));
       return this;
     }
 
     Tester deleteFile(String path) throws IOException {
       Path p = fs.getPath(path);
       p.delete();
-      files.update(Collections.singleton(p));
+      files.updateFiles(Collections.singleton(p));
       return this;
     }
 
