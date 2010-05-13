@@ -197,7 +197,7 @@ public class ToolBoxTest extends PbTestCase {
         writeFile(p, namesAndContent[i + 1]);
         toUpdate.add(p);
       }
-      files.update(toUpdate);
+      files.updateFiles(toUpdate);
       return this;
     }
 

@@ -23,10 +23,9 @@ import org.prebake.fs.FileVersioner;
 import org.prebake.fs.NonFileArtifact;
 import org.prebake.js.Executor;
 import org.prebake.js.JsonSink;
-import org.prebake.js.Loader;
 import org.prebake.js.YSON;
 import org.prebake.js.YSONConverter;
-import org.prebake.js.Executor.Input;
+import org.prebake.service.PrebakeScriptLoader;
 import org.prebake.service.tools.ToolProvider;
 import org.prebake.service.tools.ToolSignature;
 
@@ -285,8 +284,8 @@ public final class Planner implements Closeable {
             if (pp.valid) { return pp.products; }
           }
           for (int nAttempts = 4; --nAttempts >= 0;) {
-            List<Hash> hashes = Lists.newArrayList();
-            List<Path> paths = Lists.newArrayList();
+            Hash.Builder hashes = Hash.builder();
+            ImmutableList.Builder<Path> paths = ImmutableList.builder();
             try {
               Executor.Output<YSON> planFileOut = execPlan(
                   toolDef, pp, hashes, paths);
@@ -294,11 +293,10 @@ public final class Planner implements Closeable {
                 Object javaObj = planFileOut.result.toJavaObject();
                 ImmutableList<Product> products = unpack(pp, javaObj);
                 if (products != null) {
-                  Hash.Builder allHashes = Hash.builder();
-                  for (Hash hash : hashes) { allHashes.withHash(hash); }
                   synchronized (pp) {
-                    if (files.update(
-                            productAddresser, pp, paths, allHashes.build())) {
+                    if (files.updateArtifact(
+                            productAddresser, pp, paths.build(),
+                            hashes.build())) {
                       for (Product p : products) {
                         listener.artifactChanged(p);
                       }
@@ -338,36 +336,19 @@ public final class Planner implements Closeable {
 
   private @Nonnull Executor.Output<YSON> execPlan(
       Executor.Input toolDef, PlanPart pp,
-      final List<Hash> hashes, final List<Path> paths)
+      Hash.Builder hashes, ImmutableList.Builder<Path> paths)
       throws IOException {
     FileAndHash pf = files.load(pp.planFile);
     Hash h = pf.getHash();
     if (h != null) {
-      hashes.add(h);
+      hashes.withHash(h);
       paths.add(pp.planFile);
     }
     Executor planRunner = Executor.Factory.createJsExecutor();
-    return planRunner.run(YSON.class, logger, new Loader() {
-      public Input load(Path p) throws IOException {
-        FileAndHash rf;
-        try {
-          rf = files.load(p);
-        } catch (IOException ex) {
-          // We need to depend on non-existent files in case they
-          // are later created.
-          paths.add(p);
-          throw ex;
-        }
-        Hash h = rf.getHash();
-        if (h != null) {
-          paths.add(p);
-          hashes.add(h);
-        }
-        return Executor.Input.builder(
-            rf.getContentAsString(Charsets.UTF_8), p).build();
-      }
-    }, Executor.Input.builder(
-        pf.getContentAsString(Charsets.UTF_8), pf.getPath())
+    return planRunner.run(
+        YSON.class, logger, new PrebakeScriptLoader(files, paths, hashes),
+        Executor.Input.builder(
+            pf.getContentAsString(Charsets.UTF_8), pf.getPath())
         .withActuals(commonJsEnv)
         .withActual("tools", toolDef).build());
   }

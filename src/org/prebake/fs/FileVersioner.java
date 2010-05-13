@@ -82,6 +82,10 @@ public abstract class FileVersioner {
 
   public FileSystem getFileSystem() { return root.getFileSystem(); }
 
+  public boolean isUnderVersionRoot(Path p) {
+    return toKeyPath(p) != null;
+  }
+
   protected final @Nullable Path toKeyPath(Path p) {
     try {
       Path relPath = root.relativize(p.toRealPath(false));
@@ -188,7 +192,7 @@ public abstract class FileVersioner {
   protected abstract DerivativesLoop makeDerivativesLoop();
 
   /** Called when the system is notified that the given files have changed. */
-  public void update(Collection<Path> toUpdate) {
+  public void updateFiles(Collection<Path> toUpdate) {
     int n = toUpdate.size();
     UpdateRecord[] records = new UpdateRecord[n];
     Iterator<Path> paths = toUpdate.iterator();
@@ -373,7 +377,7 @@ public abstract class FileVersioner {
 
   // TODO: move updates onto execer
 
-  private static final Hash NO_FILE_HASH = Hash.builder().build();
+  public static final Hash NO_FILE_HASH = Hash.builder().build();
   /**
    * @param artifact a newly valid non file artifact.
    * @param as the address space for item.
@@ -381,7 +385,7 @@ public abstract class FileVersioner {
    * @param prereqHash the hash of prerequisites at the time item became valid.
    * @return true if item is really valid -- if its hash is up-to-date.
    */
-  public <T extends NonFileArtifact> boolean update(
+  public <T extends NonFileArtifact> boolean updateArtifact(
       ArtifactAddresser<T> as, T artifact,
       Collection<Path> prerequisites, Hash prereqHash) {
     Set<Path> keyPaths;

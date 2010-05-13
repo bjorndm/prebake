@@ -25,7 +25,7 @@ public interface NonFileArtifact {
   /**
    * @param valid false if the artifact is now invalid, and true if it is now
    *    valid.
-   * @see FileVersioner#update(
+   * @see FileVersioner#updateArtifact(
    *     ArtifactAddresser, NonFileArtifact, java.util.Collection,
    *     org.prebake.core.Hash)
    */

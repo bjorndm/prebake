@@ -82,18 +82,18 @@ public class DbFileVersionerTest extends PbTestCase {
     writeFile(
         fs.getPath("/cwd/root/c.cpp"),
         "cout << \"Hello, \" << \"World!\" << eol;");
-    fh.update(paths("root/a.cc", "root/b.h"));
+    fh.updateFiles(paths("root/a.cc", "root/b.h"));
     assertHash(  // c.cpp not found
         "810dc8ffe666362187cd8f99da072d6e", paths("root/b.h", "root/c.cpp"));
-    fh.update(paths("root/b.h"));  // no effect
+    fh.updateFiles(paths("root/b.h"));  // no effect
     assertHash(
         "810dc8ffe666362187cd8f99da072d6e", paths("root/b.h", "root/c.cpp"));
     writeFile(fs.getPath("root/b.h"), "#define ZOICKS");
-    fh.update(paths("/cwd/root/b.h"));
+    fh.updateFiles(paths("/cwd/root/b.h"));
     assertHash(
         "2e0413078a434e704f78b3d6b872bdc2", paths("root/b.h", "root/c.cpp"));
     writeFile(fs.getPath("root/b.h"), "#include <zoicks>");
-    fh.update(paths("root/b.h"));
+    fh.updateFiles(paths("root/b.h"));
     assertHash(
         "810dc8ffe666362187cd8f99da072d6e", paths("root/b.h", "root/c.cpp"));
   }
@@ -106,11 +106,11 @@ public class DbFileVersionerTest extends PbTestCase {
     Path b3 = fs.getPath("/cwd/b3.cpp");
     writeFile(ra, "printf(\"Hello, World!\\n\");");
     writeFile(b, "cout << \"Hello, \" << \"World!\" << eol;");
-    fh.update(Arrays.asList(ra, b));
+    fh.updateFiles(Arrays.asList(ra, b));
     String hash = getHashStr(ra, b);
     writeFile(b, "cout << \"Howdy, \" << \"Texstar!\" << eol;");
     // Updates to files outside the root are ignored
-    fh.update(paths(ra, b));
+    fh.updateFiles(paths(ra, b));
     assertEquals(hash, getHashStr(ra, b));
     // As is the initial content
     writeFile(b2, "cout << \"Howdy, \" << \"Texstar!\" << eol;");
@@ -119,7 +119,7 @@ public class DbFileVersionerTest extends PbTestCase {
     assertEquals(hash, getHashStr(ra, b3));
     // But if the second file does exits, the hash does change
     writeFile(rb, "cout << \"Hello, \" << \"World!\" << eol;");
-    fh.update(paths(ra, rb));
+    fh.updateFiles(paths(ra, rb));
     assertFalse(hash.equals(getHashStr(ra, rb)));
   }
 
@@ -169,7 +169,7 @@ public class DbFileVersionerTest extends PbTestCase {
     writeFile(b, "file b version 0");
     writeFile(c, "file c version 0");
     writeFile(d, "file d version 0");
-    fh.update(paths(a, b, c, d));
+    fh.updateFiles(paths(a, b, c, d));
     assertEquals(getHash(a), getHash(a));
     assertFalse(getHashStr(a).equals(getHashStr(b)));
     assertFalse(getHashStr(a).equals(getHashStr(c)));
@@ -186,7 +186,7 @@ public class DbFileVersionerTest extends PbTestCase {
     //       |   /       \  |  /
     //       java         docs               Products
 
-    assertTrue(fh.update(toolAddresser, javat, paths(a), getHash(a)));
+    assertTrue(fh.updateArtifact(toolAddresser, javat, paths(a), getHash(a)));
     assertTrue(javat.valid);
     assertFalse(gcct.valid);
     assertFalse(javadoct.valid);
@@ -194,7 +194,8 @@ public class DbFileVersionerTest extends PbTestCase {
     assertFalse(docsp.valid);
 
     // Mismatch between hash and deps
-    assertFalse(fh.update(toolAddresser, gcct, paths(a, b), getHash(b)));
+    assertFalse(
+        fh.updateArtifact(toolAddresser, gcct, paths(a, b), getHash(b)));
     assertTrue(javat.valid);
     assertFalse(gcct.valid);
     assertFalse(javadoct.valid);
@@ -202,28 +203,30 @@ public class DbFileVersionerTest extends PbTestCase {
     assertFalse(docsp.valid);
 
     // Second attempt succeeds.
-    assertTrue(fh.update(toolAddresser, gcct, paths(b), getHash(b)));
+    assertTrue(fh.updateArtifact(toolAddresser, gcct, paths(b), getHash(b)));
     assertTrue(javat.valid);
     assertTrue(gcct.valid);
     assertFalse(javadoct.valid);
     assertFalse(javap.valid);
     assertFalse(docsp.valid);
 
-    assertTrue(fh.update(toolAddresser, javadoct, paths(c, d), getHash(c, d)));
+    assertTrue(
+        fh.updateArtifact(toolAddresser, javadoct, paths(c, d), getHash(c, d)));
     assertTrue(javat.valid);
     assertTrue(gcct.valid);
     assertTrue(javadoct.valid);
     assertFalse(javap.valid);
     assertFalse(docsp.valid);
 
-    assertTrue(fh.update(productAddresser, javap, paths(a, b), getHash(a, b)));
+    assertTrue(
+        fh.updateArtifact(productAddresser, javap, paths(a, b), getHash(a, b)));
     assertTrue(javat.valid);
     assertTrue(gcct.valid);
     assertTrue(javadoct.valid);
     assertTrue(javap.valid);
     assertFalse(docsp.valid);
 
-    assertTrue(fh.update(
+    assertTrue(fh.updateArtifact(
         productAddresser, docsp, paths(b, c, d), getHash(b, c, d)));
     assertTrue(javat.valid);
     assertTrue(gcct.valid);
@@ -233,7 +236,7 @@ public class DbFileVersionerTest extends PbTestCase {
 
     Hash b0 = getHash(b);
     writeFile(b, "file b version 1");
-    fh.update(paths(b, c));
+    fh.updateFiles(paths(b, c));
 
     Hash b1 = getHash(b);
     assertFalse(b0.equals(b1));
@@ -246,7 +249,8 @@ public class DbFileVersionerTest extends PbTestCase {
 
     Hash hash = getHash(b, c, d);
     writeFile(d, "file d version 1");
-    fh.update(paths(d));  // Update file in between start of validation and end
+    // Update file in between start of validation and end
+    fh.updateFiles(paths(d));
     assertTrue(javat.valid);
     assertFalse(gcct.valid);
     assertFalse(javadoct.valid);
@@ -254,7 +258,8 @@ public class DbFileVersionerTest extends PbTestCase {
     assertFalse(docsp.valid);
 
     // hash is not stale.
-    assertFalse(fh.update(productAddresser, docsp, paths(b, c, d), hash));
+    assertFalse(
+        fh.updateArtifact(productAddresser, docsp, paths(b, c, d), hash));
     assertTrue(javat.valid);
     assertFalse(gcct.valid);
     assertFalse(javadoct.valid);
@@ -323,7 +328,7 @@ public class DbFileVersionerTest extends PbTestCase {
     writeFile(barBHtml, "1");
 
     assertTrue(getLog().isEmpty());
-    fh.update(allPaths);
+    fh.updateFiles(allPaths);
     assertEquals(
         Joiner.on('\n').join(
             // foo{a,b}.txt changed
@@ -340,11 +345,11 @@ public class DbFileVersionerTest extends PbTestCase {
             "INFO: changed bar.html"),
             Joiner.on('\n').join(getLog()));
     getLog().clear();
-    fh.update(allPaths);
+    fh.updateFiles(allPaths);
     assertEquals("", Joiner.on('\n').join(getLog()));
 
     writeFile(fooBHtml, "2");
-    fh.update(allPaths);
+    fh.updateFiles(allPaths);
     assertEquals(
         Joiner.on('\n').join(
             "INFO: changed foo.html",
@@ -362,7 +367,7 @@ public class DbFileVersionerTest extends PbTestCase {
     fh.unwatch(html, listener);
     assertEquals("", Joiner.on('\n').join(getLog()));
     writeFile(barAHtml, "2");
-    fh.update(allPaths);
+    fh.updateFiles(allPaths);
     assertEquals(
         Joiner.on('\n').join(
             "INFO: changed bar.html",
@@ -377,7 +382,7 @@ public class DbFileVersionerTest extends PbTestCase {
     fh.watch(html, listener);
     assertEquals("", Joiner.on('\n').join(getLog()));
     writeFile(barAHtml, "3");
-    fh.update(allPaths);
+    fh.updateFiles(allPaths);
     assertEquals(
         Joiner.on('\n').join(
             "INFO: changed bar.html",
@@ -390,7 +395,7 @@ public class DbFileVersionerTest extends PbTestCase {
     fh.unwatch(html, listener);
     assertEquals("", Joiner.on('\n').join(getLog()));
     writeFile(barAHtml, "4");
-    fh.update(allPaths);
+    fh.updateFiles(allPaths);
     assertEquals(
         Joiner.on('\n').join(
             "INFO: changed bar.html",
@@ -402,7 +407,7 @@ public class DbFileVersionerTest extends PbTestCase {
     fh.unwatch(html, listener);
     assertEquals("", Joiner.on('\n').join(getLog()));
     writeFile(barAHtml, "4");  // No change
-    fh.update(allPaths);
+    fh.updateFiles(allPaths);
     assertEquals("", Joiner.on('\n').join(getLog()));
   }
 

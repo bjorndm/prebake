@@ -417,7 +417,7 @@ public class PlannerTest extends PbTestCase {
       ScheduledExecutorService execer = new StubScheduledExecutorService();
       Logger logger = getLogger(Level.INFO);
       List<Path> planFileList = b.build();
-      files.update(planFileList);
+      files.updateFiles(planFileList);
       planner = new Planner(
           files, getCommonJsEnv(), toolbox, planFileList, logger,
           ArtifactListener.Factory.<Product>noop(), execer);
@@ -467,7 +467,7 @@ public class PlannerTest extends PbTestCase {
       int n = filePaths.length;
       Path[] paths = new Path[n];
       for (int i = n; --i >= 0;) { paths[i] = fs.getPath(filePaths[i]); }
-      files.update(Arrays.asList(paths));
+      files.updateFiles(Arrays.asList(paths));
       return this;
     }
 

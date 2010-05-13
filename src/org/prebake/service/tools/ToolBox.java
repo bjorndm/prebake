@@ -22,6 +22,7 @@ import org.prebake.fs.FileAndHash;
 import org.prebake.fs.FileVersioner;
 import org.prebake.js.Executor;
 import org.prebake.js.YSON;
+import org.prebake.service.BuiltinResourceLoader;
 
 import com.google.common.base.Charsets;
 import com.google.common.base.Function;
@@ -112,8 +113,13 @@ public class ToolBox implements ToolProvider {
                  ScheduledExecutorService execer)
       throws IOException {
     this.logger = logger;
-    toolDirs = this.toolDirs = ImmutableList.copyOf(Collections2.transform(
-        Sets.newLinkedHashSet(toolDirs), new PathToRealPath()));
+    toolDirs = this.toolDirs = ImmutableList.<Path>builder().addAll(
+        Collections2.transform(
+            Sets.newLinkedHashSet(toolDirs), new PathToRealPath()))
+        // Add the /--baked-in--/tools/ directory to the end of the path.
+        .add(BuiltinResourceLoader.getBuiltinResourceRoot(
+                files.getVersionRoot()).resolve("tools"))
+        .build();
     this.fs = files.getFileSystem();
     this.files = files;
     this.commonJsEnv = commonJsEnv;
@@ -151,7 +157,8 @@ public class ToolBox implements ToolProvider {
   public void start() throws IOException {
     if (watcher != null) {
       final Map<WatchKey, Path> keyToDir = Maps.newHashMap();
-      for (Path toolDir : this.toolDirs) {
+      List<Path> realToolDirs = toolDirs.subList(0, this.toolDirs.size() - 1);
+      for (Path toolDir : realToolDirs) {
         WatchKey key = toolDir.register(
             watcher,
             StandardWatchEventKind.ENTRY_CREATE,
@@ -159,7 +166,7 @@ public class ToolBox implements ToolProvider {
             StandardWatchEventKind.ENTRY_MODIFY);
         keyToDir.put(key, toolDir);
       }
-      for (Path toolDir : this.toolDirs) {
+      for (Path toolDir : realToolDirs) {
         logger.log(Level.FINE, "Looking in {0}", toolDir);
         for (Path child : toolDir.newDirectoryStream("*.js")) {
           checkUserProvided(toolDir, child.getName());
@@ -296,13 +303,12 @@ public class ToolBox implements ToolProvider {
                 ex);
             return null;
           }
-          final List<Path> paths = Lists.newArrayList();
-          final List<Hash> hashes = Lists.newArrayList();
+          final ImmutableList.Builder<Path> paths = ImmutableList.builder();
+          final Hash.Builder hashes = Hash.builder();
           Path toolPath = toolJs.fh.getPath();
-          boolean isBuiltin = toolJs.isBuiltin;
           if (toolJs.fh.getHash() != null) {
             paths.add(toolPath);
-            hashes.add(toolJs.fh.getHash());
+            hashes.withHash(toolJs.fh.getHash());
           }
           Executor executor = Executor.Factory.createJsExecutor();
           ToolSignature toolSig;
@@ -311,10 +317,8 @@ public class ToolBox implements ToolProvider {
                 toolJs.fh.getContentAsString(Charsets.UTF_8),
                 toolPath.toString())
                 .withActuals(commonJsEnv)
-                .withBase(
-                    isBuiltin
-                    ? files.getVersionRoot().resolve(t.localName) : toolPath);
-            Path base = isBuiltin ? null : toolDirs.get(index);
+                .withBase(toolPath);
+            Path base = toolDirs.get(index);
             Executor.Output<YSON> result = executor.run(
                 YSON.class, logger,
                 new ToolLoader(base, ToolBox.this, impl, paths, hashes),
@@ -357,14 +361,10 @@ public class ToolBox implements ToolProvider {
             return null;
           }
 
-          Hash.Builder hb = Hash.builder();
-          for (Hash h : hashes) {
-            if (h != null) { hb.withHash(h); }
-          }
-
           boolean success;
           synchronized (impl.tool) {
-            success = files.update(addresser, impl, paths, hb.build());
+            success = files.updateArtifact(
+                addresser, impl, paths.build(), hashes.build());
             if (success) { impl.sig = toolSig; }
           }
           if (success) {
@@ -410,20 +410,17 @@ public class ToolBox implements ToolProvider {
   }
 
   private ToolContent getTool(Tool t, int index) throws IOException {
-    Path toolPath;
+    Path base = toolDirs.get(index);
+    Path toolPath = base.resolve(t.localName);
+    boolean isBuiltin = index == toolDirs.size() - 1;
     InputStream jsIn;
     boolean underVersionRoot = false;
-    boolean isBuiltin = isBuiltin(index);
     if (isBuiltin) {
-      toolPath = t.localName;
-      String resourceName = t.localName.toString();
-      jsIn = ToolBox.class.getResourceAsStream(resourceName);
+      jsIn = ToolBox.class.getResourceAsStream(t.localName.toString());
       if (jsIn == null) {
-        throw new FileNotFoundException("<builtin>/" + resourceName);
+        throw new FileNotFoundException(toolPath.toString());
       }
     } else {
-      Path base = toolDirs.get(index);
-      toolPath = base.resolve(t.localName);
       jsIn = toolPath.newInputStream();
       underVersionRoot = toolPath.startsWith(files.getVersionRoot());
     }
@@ -431,11 +428,7 @@ public class ToolBox implements ToolProvider {
         FileAndHash.fromStream(toolPath, jsIn, underVersionRoot), isBuiltin);
   }
 
-  private boolean isBuiltin(int index) {
-    return index == toolDirs.size();
-  }
-
-  FileAndHash nextTool(ToolImpl ti, Path path) throws IOException {
+  Path nextToolPath(ToolImpl ti, Path path) throws IOException {
     Tool tool = ti.tool;
     Integer nextIndex = null;
     for (Iterator<Integer> it = tool.impls.keySet().iterator(); it.hasNext();) {
@@ -445,18 +438,10 @@ public class ToolBox implements ToolProvider {
         break;
       }
     }
-    if (nextIndex != null) {
-      if (!isBuiltin(nextIndex)) {
-        return files.load(toolDirs.get(nextIndex).resolve(tool.localName));
-      } else {
-        InputStream in = ToolBox.class.getResourceAsStream(
-            tool.localName.toString());
-        if (in != null) {
-          return FileAndHash.fromStream(tool.localName, in, false);
-        }
-      }
+    if (nextIndex == null) {
+      throw new FileNotFoundException(path.toString());
     }
-    throw new FileNotFoundException(path.toString());
+    return toolDirs.get(nextIndex).resolve(tool.localName);
   }
 
   /**
@@ -492,7 +477,7 @@ public class ToolBox implements ToolProvider {
       logger.log(Level.WARNING, "Missing builtin {0}", fileName);
       exists = false;
     }
-    check(dirIndices.size(), exists, fs.getPath(fileName));
+    check(dirIndices.size() - 1, exists, fs.getPath(fileName));
   }
 
   private void checkUserProvided(Path dir, Path file) {

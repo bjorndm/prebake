@@ -151,8 +151,8 @@ public final class Baker {
               inputs = sortedFilesMatching(files, product.inputs);
               workDir = createWorkingDirectory(product.name);
               try {
-                final List<Path> paths = Lists.newArrayList();
-                final Hash.Builder hashes = Hash.builder();
+                ImmutableList.Builder<Path> paths = ImmutableList.builder();
+                Hash.Builder hashes = Hash.builder();
 
                 Set<Path> workingDirInputs = Sets.newLinkedHashSet();
                 copyToWorkingDirectory(inputs, workDir, workingDirInputs);
@@ -164,11 +164,11 @@ public final class Baker {
                   // repo.
                   outputs = finisher.moveToRepo(
                       product.name, workDir, workingDirInputs, product.outputs);
-                  files.update(outputs);
+                  files.updateFiles(outputs);
                   synchronized (status) {
                     if (status.product.equals(product)
-                        && files.update(
-                            addresser, status, paths, hashes.build())) {
+                        && files.updateArtifact(
+                            addresser, status, paths.build(), hashes.build())) {
                       passed = true;
                       logger.log(
                           Level.INFO, "Product up to date: {0}", product.name);
