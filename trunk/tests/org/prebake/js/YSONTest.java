@@ -97,8 +97,8 @@ public class YSONTest extends PbTestCase {
              + "  return [this, that, arguments, argumentative, null,"
              + "           undefined];"
              + "})")
-        .rn("argumentative", "that", "undefined")
-        .fn("argumentative", "that", "undefined").run();
+        .rn("argumentative", "that", "undefined", "this")
+        .fn("argumentative", "that", "undefined", "this").run();
     withCode("[this, that, arguments, argumentative, null, undefined]")
         .rn("argumentative", "arguments", "that", "this", "undefined")
         .fn("argumentative", "arguments", "that", "this", "undefined").run();
@@ -147,6 +147,24 @@ public class YSONTest extends PbTestCase {
         "{ foo: 0 }), ({ bar: 4 }", "Not YSON: ({foo: 0}) , ({bar: 4})");
   }
 
+  @Test public final void testBoundMobileFunctions() {
+    assertYson(
+        ""
+        + "(function () {"
+        // Here, this is determined, so is not considered free.
+        + "  return (function (n) { return this.x * this.x + 3 * n; })"
+        + "      .bind({ x: 1, y: 2 });"
+        + "})()");
+    assertNotYson(
+        ""
+        + "(function () {"
+        + "  return (function (n) { return this.x * this.x + 3 * n; })"
+        // Here, this is not specified.
+        + "      .bind(this);"
+        + "})()",
+        "Disallowed free variables: this");
+  }
+
   @Test public final void testToJava() throws Exception {
     assertEquals(
         Arrays.asList("foo", "bar"),
@@ -167,6 +185,15 @@ public class YSONTest extends PbTestCase {
     assertEquals(  // iteration order preserved
         Lists.newArrayList(golden.keySet()),
         Lists.newArrayList(actual.keySet()));
+    String mobileFnSrc = Joiner.on('\n').join(
+        "(function() {",
+        "  return (function(x) {",
+        "  return x * x;",
+        "}).bind({}, 3);",
+        "})()");
+    assertEquals(
+        new MobileFunction(mobileFnSrc),
+        YSON.parseExpr(mobileFnSrc).toJavaObject());
   }
 
   @Test public final void testIsValidIdentifier() {
@@ -279,7 +306,10 @@ public class YSONTest extends PbTestCase {
 
   private void assertNotYson(String src, String... msgs) {
     MessageQueue mq = new MessageQueue();
-    assertFalse(src, YSON.isYSON(src, YSON.DEFAULT_YSON_ALLOWED, mq));
+    if (YSON.isYSON(src, YSON.DEFAULT_YSON_ALLOWED, mq)) {
+      System.err.println(Joiner.on('\n').join(mq.getMessages()));
+      fail(src);
+    }
     assertEquals(
         Joiner.on("\n").join(msgs), Joiner.on("\n").join(mq.getMessages()));
   }

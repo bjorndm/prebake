@@ -36,10 +36,12 @@ import javax.annotation.Nullable;
 import javax.annotation.ParametersAreNonnullByDefault;
 
 import org.mozilla.javascript.BaseFunction;
+import org.mozilla.javascript.BoundFunction;
 import org.mozilla.javascript.Callable;
 import org.mozilla.javascript.ClassShutter;
 import org.mozilla.javascript.Context;
 import org.mozilla.javascript.ContextFactory;
+import org.mozilla.javascript.Debinder;
 import org.mozilla.javascript.EcmaError;
 import org.mozilla.javascript.EvaluatorException;
 import org.mozilla.javascript.Function;
@@ -238,7 +240,14 @@ public final class RhinoExecutor implements Executor {
         expectedResultType.cast(result), runner.nonDeterminism.used, exit);
   }
 
-  private class Runner {
+  private static final String INIT_CODE = (
+      ""
+      + "Object.freeze(Object);"
+      + "Object.freeze(Array);"
+      + "Object.freeze(Function);"
+      + "Object.freeze(JSON);");
+
+  private final class Runner {
     private final Context context;
     private final Logger logger;
     private final @Nullable Loader loader;
@@ -290,6 +299,8 @@ public final class RhinoExecutor implements Executor {
       globalScope.defineProperty(
           "help", new HelpFn(globalScope, console), constBits);
       this.membrane = new Membrane(context, globalScope);
+      Script initial = context.compileString(INIT_CODE, "init", 1, null);
+      initial.exec(context, globalScope);
     }
 
     private Object run(Executor.Input src) throws AbnormalExitException {
@@ -602,6 +613,40 @@ public final class RhinoExecutor implements Executor {
   }
 
   private static String functionSource(Context context, Function f) {
+    if (f instanceof BoundFunction) {
+      class DebinderImpl implements Debinder {
+        Callable fn;
+        Object thiz;
+        Object[] args;
+        public void debind(Callable fn, Object thiz, Object... args) {
+          this.fn = fn;
+          this.thiz = thiz;
+          this.args = args;
+        }
+      }
+      DebinderImpl db = new DebinderImpl();
+      ((BoundFunction) f).debind(db);
+      if (!(db.fn instanceof Function)) { return null; }
+      String src = functionSource(context, (Function) db.fn);
+      if (src == null) { return null; }
+      StringBuilder bindCall = new StringBuilder();
+      JsonSink subOut = new JsonSink(bindCall);
+      try {
+        subOut.write("(function () { return (");
+        subOut.write(src);
+        subOut.write(").bind(");
+        writeYSON(context, db.thiz, subOut);
+        for (int i = 0, n = db.args.length; i < n; ++i) {
+          subOut.write(",");
+          writeYSON(context, db.args[i], subOut);
+        }
+        subOut.write("); })()");
+        subOut.close();
+      } catch (IOException ex) {
+        Throwables.propagate(ex);
+      }
+      return bindCall.toString();
+    }
     Scriptable fnProto = f.getPrototype();
     Object toSource = ScriptableObject.getProperty(fnProto, "toSource");
     if (!(toSource instanceof Function)) { return null; }

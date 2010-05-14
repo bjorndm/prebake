@@ -44,8 +44,10 @@ import org.mozilla.javascript.Parser;
 import org.mozilla.javascript.Token;
 import org.mozilla.javascript.ast.ArrayLiteral;
 import org.mozilla.javascript.ast.AstNode;
+import org.mozilla.javascript.ast.Block;
 import org.mozilla.javascript.ast.CatchClause;
 import org.mozilla.javascript.ast.ExpressionStatement;
+import org.mozilla.javascript.ast.FunctionCall;
 import org.mozilla.javascript.ast.FunctionNode;
 import org.mozilla.javascript.ast.KeywordLiteral;
 import org.mozilla.javascript.ast.Name;
@@ -55,6 +57,7 @@ import org.mozilla.javascript.ast.ObjectLiteral;
 import org.mozilla.javascript.ast.ObjectProperty;
 import org.mozilla.javascript.ast.ParenthesizedExpression;
 import org.mozilla.javascript.ast.PropertyGet;
+import org.mozilla.javascript.ast.ReturnStatement;
 import org.mozilla.javascript.ast.ScriptNode;
 import org.mozilla.javascript.ast.StringLiteral;
 import org.mozilla.javascript.ast.UnaryExpression;
@@ -80,14 +83,14 @@ public final class YSON {
   public Set<String> getFreeNames() {
     // The free names of a production P are union(RN(P), LSD(P), VSD(P))
     Set<String> fn = Sets.newLinkedHashSet();
-    rn(root, fn);
+    rn(root, fn, false);
     vsd(root, fn);
     return fn;
   }
 
   Set<String> getRequiredNames() {
     Set<String> rn = Sets.newLinkedHashSet();
-    rn(root, rn);
+    rn(root, rn, false);
     return rn;
   }
 
@@ -238,6 +241,10 @@ public final class YSON {
           mq.error("Not YSON: trailing commas or empty expression");
         }
         return false;
+      case Token.CALL:
+        FunctionCall call = (FunctionCall) node;
+        if (!call.getArguments().isEmpty()) { return false; }
+        return isStructuralYSON(call.getTarget(), mq);
       default:
         if (mq != null) { mq.error("Not YSON: " + node.toSource()); }
         return false;
@@ -351,13 +358,13 @@ public final class YSON {
     }
   }
 
-  private static void rn(AstNode node, Set<String> names) {
+  private static void rn(AstNode node, Set<String> names, boolean isThisBound) {
     switch (node.getType()) {
       case Token.BREAK: case Token.CONTINUE: break;
       case Token.CATCH: {
         CatchClause cc = (CatchClause) node;
         Set<String> rnBody = Sets.newHashSet();
-        rn(cc.getBody(), rnBody);
+        rn(cc.getBody(), rnBody, isThisBound);
         rnBody.remove(cc.getVarName().getIdentifier());
         names.addAll(rnBody);
         return;
@@ -366,15 +373,20 @@ public final class YSON {
         for (VariableInitializer v
              : ((VariableDeclaration) node).getVariables()) {
           AstNode init = v.getInitializer();
-          if (init != null) { rn(init, names); }
+          if (init != null) { rn(init, names, isThisBound); }
         }
         return;
-      case Token.GETPROP: rn(((PropertyGet) node).getTarget(), names); return;
+      case Token.GETPROP:
+        rn(((PropertyGet) node).getTarget(), names, isThisBound);
+        return;
       case Token.FUNCTION: {
-        Set<String> declared = Sets.newHashSet();
-        declared.add("this");
-        declared.add("arguments");
         FunctionNode fn = (FunctionNode) node;
+        Set<String> declared = Sets.newHashSet();
+        declared.add("arguments");
+        // If fn is strict, then this will not be implicitly
+        // converted to window.
+        boolean isThisBoundInBody = isThisBound || isStrictMode(fn.getBody());
+        if (isThisBoundInBody) { declared.add("this"); }
         Name name = fn.getFunctionName();
         if (name != null) {
           declared.add(name.getIdentifier());
@@ -384,27 +396,59 @@ public final class YSON {
         }
         vsdAll(fn.getBody(), declared);
         Set<String> rnBody = Sets.newLinkedHashSet();
-        rnAll(fn.getBody(), rnBody);
+        rnAll(fn.getBody(), rnBody, isThisBoundInBody);
         rnBody.removeAll(declared);
         names.addAll(rnBody);
         return;
       }
       case Token.COLON:
         if (node instanceof ObjectProperty) {
-          rn(((ObjectProperty) node).getRight(), names);
+          rn(((ObjectProperty) node).getRight(), names, isThisBound);
         }
         break;
       case Token.NAME: names.add(((Name) node).getIdentifier()); break;
       case Token.THIS: names.add("this"); break;
-      default: rnAll(node, names); break;
+      case Token.CALL:
+        FunctionCall call = (FunctionCall) node;
+        if (!isThisBound) {
+          AstNode target = deparen(call.getTarget());
+          if (target instanceof PropertyGet) {
+            PropertyGet pget = (PropertyGet) target;
+            AstNode left = deparen(pget.getLeft());
+            if (left instanceof FunctionNode) {
+              String name = pget.getProperty().getIdentifier();
+              if ("apply".equals(name) || "bind".equals(name)
+                  || "call".equals(name)) {
+                // Assumes bind, call, and apply not overridden on
+                // Function.prototype.
+                rn(left, names, true);
+                for (AstNode actual : call.getArguments()) {
+                  rn(actual, names, false);
+                }
+                break;
+              }
+            }
+          }
+        }
+        rnAll(node, names, isThisBound);
+        break;
+      default: rnAll(node, names, isThisBound); break;
     }
   }
 
-  private static void rnAll(final AstNode node, final Set<String> names) {
+  private static AstNode deparen(AstNode node) {
+    while (node instanceof ParenthesizedExpression) {
+      node = ((ParenthesizedExpression) node).getExpression();
+    }
+    return node;
+  }
+
+  private static void rnAll(
+      final AstNode node, final Set<String> names, final boolean isThisBound) {
     node.visit(new NodeVisitor() {
       public boolean visit(AstNode n) {
         if (n == node) { return true; }
-        rn(n, names);
+        rn(n, names, isThisBound);
         return false;
       }
     });
@@ -442,6 +486,10 @@ public final class YSON {
         return false;
       }
     });
+  }
+
+  private static boolean isStrictMode(AstNode body) {
+    return false;  // TODO: upgrade Rhino to one that supports use directives
   }
 
   private static Object toJavaObject(AstNode node) {
@@ -499,6 +547,44 @@ public final class YSON {
       return toJavaObject(((ExpressionStatement) node).getExpression());
     } else if (node instanceof ParenthesizedExpression) {
       return toJavaObject(((ParenthesizedExpression) node).getExpression());
+    } else if (node instanceof FunctionCall) {
+      // Recognize the specific pattern
+      //     (function () { return <function>.bind(args); })()
+      // generated by the debinding code in RhinoExecutor.
+      FunctionCall call = (FunctionCall) node;
+      AstNode outerTarget = deparen(call.getTarget());
+      if (outerTarget instanceof FunctionNode) {
+        FunctionNode fn = (FunctionNode) outerTarget;
+        if (fn.getFunctionName() == null && fn.getParams().isEmpty()) {
+          AstNode body = fn.getBody();
+          if (body instanceof Block) {
+            Iterator<Node> statements = ((Block) body).iterator();
+            if (statements.hasNext()) {
+              Node first = statements.next();
+              if (first instanceof ReturnStatement) {
+                ReturnStatement rs = (ReturnStatement) first;
+                AstNode returnValue = deparen(rs.getReturnValue());
+                if (returnValue instanceof FunctionCall) {
+                  FunctionCall innerCall = (FunctionCall) returnValue;
+                  AstNode target = deparen(innerCall.getTarget());
+                  if (target instanceof PropertyGet) {
+                    PropertyGet pget = (PropertyGet) target;
+                    AstNode left = deparen(pget.getLeft());
+                    if (left instanceof FunctionNode) {
+                      String name = pget.getProperty().getIdentifier();
+                      if ("apply".equals(name) || "bind".equals(name)
+                          || "call".equals(name)) {
+                        return new MobileFunction(call.toSource());
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+      return null;
     } else {
       return null;
     }

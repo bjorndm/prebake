@@ -30,8 +30,10 @@ public final class MobileFunction implements JsonSerializable {
   // So tool.fire for tool with name "cp" -> tool_cp_fire
 
   public MobileFunction(String source) {
-    assert source != null && source.startsWith("function")
-        && source.endsWith("}") : source;
+    assert source != null;
+    assert ((source.startsWith("function") && source.endsWith("}"))
+            || source.startsWith("(function") && source.endsWith("})()"))
+        : source;
     this.source = source;
   }
 
