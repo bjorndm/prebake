@@ -294,8 +294,7 @@ public class JavacTest extends ToolTestCase {
         .withInputPath("src/com/foo/Bar.java", "src/com/foo/Baz.java")
         .withOption("Xlint", "all")
         .expectExec(
-            1, "javac", "-Xprefer:source", "-d", "lib",
-            "-Xlint:all",
+            1, "javac", "-Xprefer:source", "-d", "lib", "-Xlint:all",
             "src/com/foo/Bar.java", "src/com/foo/Baz.java")
         .expectLog("Running process 1")
         .expectLog("Waiting for process 1")

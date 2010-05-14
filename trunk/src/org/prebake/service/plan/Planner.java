@@ -25,6 +25,7 @@ import org.prebake.js.Executor;
 import org.prebake.js.JsonSink;
 import org.prebake.js.YSON;
 import org.prebake.js.YSONConverter;
+import org.prebake.service.BuiltinResourceLoader;
 import org.prebake.service.PrebakeScriptLoader;
 import org.prebake.service.tools.ToolProvider;
 import org.prebake.service.tools.ToolSignature;
@@ -255,7 +256,10 @@ public final class Planner implements Closeable {
       logger.log(Level.WARNING, "Planner could not retrieve all tools");
     }
 
-    Executor.Input toolDef = Executor.Input.builder(toolJs, "tools")
+    Executor.Input toolDef = Executor.Input.builder(
+        toolJs,
+        BuiltinResourceLoader.getBuiltinResourceRoot(files.getVersionRoot())
+            .resolve("tools"))
         .withActuals(commonJsEnv).build();
 
     List<Future<ImmutableList<Product>>> out = Lists.newArrayList();
