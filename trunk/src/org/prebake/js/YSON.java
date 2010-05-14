@@ -488,8 +488,11 @@ public final class YSON {
     });
   }
 
+  /**
+   * @param body unused. TODO: upgrade Rhino to one that supports use directives
+   */
   private static boolean isStrictMode(AstNode body) {
-    return false;  // TODO: upgrade Rhino to one that supports use directives
+    return false;
   }
 
   private static Object toJavaObject(AstNode node) {
