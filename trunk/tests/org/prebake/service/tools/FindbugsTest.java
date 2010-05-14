@@ -85,7 +85,7 @@ public class FindbugsTest extends ToolTestCase {
         .expectLog("Running process 1")
         .expectLog("Waiting for process 1")
         .expectLog("findbugs.js:##:WARNING: Bad priority higher")
-        .expectLog("findbugs.js:##:INFO: Did you mean \"high\"?")
+        .expectLog("findbugs.js:##:INFO: Did you mean high?")
         .expectLog("Exited with true")
         .run();
   }
@@ -103,7 +103,7 @@ public class FindbugsTest extends ToolTestCase {
         .expectLog("Running process 1")
         .expectLog("Waiting for process 1")
         .expectLog("findbugs.js:##:WARNING: Bad effort minimum")
-        .expectLog("findbugs.js:##:INFO: Did you mean \"min\"?")
+        .expectLog("findbugs.js:##:INFO: Did you mean min?")
         .expectLog("Exited with true")
         .run();
   }

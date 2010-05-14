@@ -128,7 +128,7 @@ function schema(typeDescriptor) {
                              typeDescriptor.defaultValue);
     }
   }
-  throw new Error('Bad type descriptor ' );
+  throw new Error('Bad type descriptor ' + JSON.stringify(typeDescriptor));
 }
 
 function unionSchema(options) {
@@ -215,7 +215,9 @@ function objectSchema(props, dnu) {
     check: function (key, value, out, console, stack) {
       var outObj = {};
       if (!(value && outObj.toString.call(value) === '[object Object]')) {
-        console.error('Expected an object, not ' + JSON.stringify(value));
+        console.error(
+            'Expected an object, not ' + JSON.stringify(value)
+            + ' for ' + stack);
         return false;
       }
       var slen = stack.length;
@@ -398,8 +400,15 @@ function predicateSchema(typeDescriptor, predicate) {
 
 var hop = {}.hasOwnProperty;
 
+function mixin(from, to) {
+  for (var k in from) {
+    if (hop.call(from, k)) { to[k] = from[k]; }
+  }
+}
+
 // Export schema from this module.
 ({
   schema: schema,
-  example: renderExample
+  example: renderExample,
+  mixin: mixin
 });

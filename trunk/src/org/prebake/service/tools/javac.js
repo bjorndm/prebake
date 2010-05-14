@@ -12,87 +12,78 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-function decodeOptions(action, opt_config) {
-  var ok = true;
-  var opts = action.options;
-  var outDir, classpath, debug, nowarn = false;
-  var hop = {}.hasOwnProperty;
-  for (var k in opts) {
-    if (!hop.call(opts, k)) { continue; }
-    switch (k) {
-      case 'cp': case 'classpath':
-        classpath = opts[k];
-        if (classpath instanceof Array) {
-          classpath = classpath.slice();
-        } else if (typeof classpath === 'string') {
-          classpath = String(classpath).split(sys.io.path.separator);
-        } else if (classpath !== undefined && classpath !== null) {
-          console.error('Bad classpath ' + JSON.stringify(classpath));
-          ok = false;
-          classpath = undefined;
+var options = {
+  type: 'Object',
+  properties: {
+    classpath: {
+      type: 'optional',
+      delegate: {
+        type: 'union',
+        options: [
+          { type: 'string', xform: function (s) { return s.split(/[:;]/g); } },
+          { type: 'Array', delegate: 'string' }
+        ]
+      }
+    },
+    d: { type: 'optional', delegate: 'string' },
+    nowarn: { type: 'optional', delegate: 'boolean' },
+    g: {
+      type: 'optional',
+      delegate: {
+        type: [true, false, 'none', 'vars', 'source', 'lines'],
+        xform: function (v) {
+          return typeof v === 'string' ? ':' + v : v ? '' : ':none';
         }
-        break;
-      case 'd':
-        outDir = opts[k];
-        break;
-      case 'g':
-        debug = opts[k];
-        switch (debug) {
-          case true: debug = ''; break;
-          case false: case 'none': debug = ':none'; break;
-          case 'lines': case 'vars': case 'source':
-            debug = ':' + debug;
-            break;
-          default:
-            console.warn(
-                'Unrecognized value for flag "g": ' + JSON.stringify(debug));
-            if (typeof debug === 'string') {
-              console.didYouMean(debug, 'none', 'lines', 'vars', 'source');
-            }
-            debug = undefined;
-            break;
-        }
-        break;
-      case 'nowarn':
-        nowarn = opts[k];
-        if (typeof nowarn !== 'boolean') {
-          console.warn(
-              'Expected boolean for option nowarn, not '
-              + JSON.stringify(nowarn));
-          nowarn = nowarn;
-        }
-        break;
-      default:
-        console.warn('Unrecognized option ' + k);
-        console.didYouMean(k, 'cp', 'classpath', 'd', 'g', 'nowarn');
-        break;
+      }
     }
   }
-  if (typeof outDir !== 'string') {
-    outDir = glob.rootOf(action.outputs);
+};
+
+var schemaModule = load('/--baked-in--/tools/json-schema.js')({ load: load });
+
+function decodeOptions(optionsSchema, action, opt_config) {
+  // Fot this to be a mobile function we can't use schemaModule defined above.
+  var schemaModule = load('/--baked-in--/tools/json-schema.js')({ load: load });
+  var schemaOut = {};
+  var options = action.options || {};
+  if (schemaModule.schema(optionsSchema).check(
+          '_', options, schemaOut, console,
+          // Shows up in the error stack.
+          [action.tool + '.action.options'])) {
+    if (schemaOut._.d === undefined) {
+      var outDir = glob.rootOf(action.outputs);
+      if (!outDir) {
+        if (outDir === null) {
+          console.error(
+              'Cannot determine output directory for class files.'
+              + '  Please include the same tree root in all your output globs.'
+              + '  E.g., "lib///**.class"');
+          return false;
+        } else {
+          console.warn(
+              'Putting class files in same directory as source files.'
+              + '  Maybe include a tree root in your output globs.'
+              + '  E.g., "lib///**.class"');
+          outDir = undefined;
+        }
+      }
+      schemaOut._.d = outDir;
+    }
+    if (opt_config) {
+      schemaModule.mixin(schemaOut._, opt_config);
+    }
+    return true;
+  } else {
+    return false;
   }
-  if (!outDir) {
-    console.error(
-        'Cannot determine output directory for class files.'
-        + '  Please include a tree root in your output globs.'
-        + '  E.g., "lib///**.class"');
-    ok = false;
-  }
-  if (opt_config) {
-    opt_config.outDir = outDir;
-    opt_config.classpath = classpath;
-    opt_config.debug = debug;
-    opt_config.nowarn = nowarn;
-  }
-  return ok;
 }
 
 ({
-  help: 'Java compiler.  // TODO: usage',
-  check: decodeOptions,
+  help: 'Java compiler.\n' + schemaModule.example(schemaModule.schema(options)),
+  check: decodeOptions.bind({}, options),
   fire: function fire(inputs, product, action, os) {
     var config = {};
-    if (!decodeOptions(action, config)) {
+    if (!decodeOptions(options, action, config)) {
       return {
         waitFor: function () { return -1; },
         run: function () { return this; }
@@ -123,10 +114,11 @@ function decodeOptions(action, opt_config) {
     var classpathStr = (config.classpath || extraClasspath)
         .filter(function (x) { return x && typeof x === 'string'; })
         .join(sys.io.path.separator);
-    var command = ['javac', '-d', config.outDir, '-Xprefer:source'];
-    if (classpathStr) { command.push('-cp', classpathStr); }
-    if (typeof config.debug === 'string') {
-      command.push('-g' + config.debug);
+    var command = ['javac', '-Xprefer:source'];
+    if (typeof config.d === 'string') { command.push('-d', config.d); }
+    if (classpathStr) { command.push('-classpath', classpathStr); }
+    if (typeof config.g === 'string') {
+      command.push('-g' + config.g);
     }
     if (config.nowarn) { command.push('-nowarn'); }
     command = command.concat(sources);

@@ -128,7 +128,7 @@ public final class Console {
   public void didYouMean(String given, String... options) {
     String best = DidYouMean.bestOption(given, options);
     if (best != null) {
-      logNoSub(Level.INFO, "Did you mean \"" + best + "\"?");
+      logNoSub(Level.INFO, "Did you mean " + best + "?");
     }
   }
 

@@ -192,7 +192,7 @@ public final class JsonSink implements Closeable {
       if (num instanceof Double || num instanceof Float) {
         double dv = num.doubleValue();
         long lv = (long) dv;
-        if (dv == lv && (dv != 0 || (1.0d / dv) == Double.POSITIVE_INFINITY)) {
+        if (representableAsLong(dv, lv)) {
           out.append(String.valueOf(lv));
           return this;
         }
@@ -207,6 +207,15 @@ public final class JsonSink implements Closeable {
           "" + o + " : " + o.getClass().getName());
     }
     return this;
+  }
+
+  private static boolean representableAsLong(double d, long n) {
+    // Work around findbugs check that, almost always correctly, warns about
+    // comparing floating point values.
+    // I'm not comparing two floating points arrived at by a different set of
+    // computations.  Instead, I'm checking here whether d is integral
+    // and representable as a long, so the usual caveats don't apply.
+    return d - n == 0 && (n != 0 || (1.0d / d) >= 0);
   }
 
   public JsonSink writeValue(boolean b) throws IOException {
