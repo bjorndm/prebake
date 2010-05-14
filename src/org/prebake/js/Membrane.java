@@ -15,7 +15,6 @@
 package org.prebake.js;
 
 import org.prebake.core.Documentation;
-import org.prebake.util.WeakIdentityHashMap;
 
 import java.lang.reflect.Array;
 import java.util.AbstractList;
@@ -34,6 +33,8 @@ import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
+import com.google.common.collect.MapMaker;
+
 import org.mozilla.javascript.BaseFunction;
 import org.mozilla.javascript.Context;
 import org.mozilla.javascript.NativeArray;
@@ -42,8 +43,18 @@ import org.mozilla.javascript.ScriptableObject;
 import org.mozilla.javascript.Undefined;
 
 final class Membrane {
+  /**
+   * A weak identity hash map used to make sure that multiple wrappings of the
+   * same object return the same membrane object.
+   * <p>
+   * From {@code MapMaker} documentation:
+   * <blockquote>
+   * However, if weakKeys() or softKeys() was specified, the map uses identity
+   * (==) comparisons instead for keys.
+   * </blockquote>
+   */
   private final Map<Object, Object> membrane
-      = new WeakIdentityHashMap<Object, Object>(Object.class);
+      = new MapMaker().weakKeys().makeMap();
   private final Context cx;
   final Scriptable scope;
 
