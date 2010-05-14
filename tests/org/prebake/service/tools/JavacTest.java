@@ -33,7 +33,8 @@ public class JavacTest extends ToolTestCase {
             "src/com/foo/Bar.java", "src/com/foo/Baz.java",
             "tests/com/foo/Boo.java")
         .expectExec(
-            1, "javac", "-d", "lib", "-Xprefer:source", "-cp", "other-lib",
+            1, "javac", "-Xprefer:source", "-d", "lib",
+            "-classpath", "other-lib",
             "src/com/foo/Bar.java", "src/com/foo/Baz.java",
             "tests/com/foo/Boo.java")
         .expectLog("Running process 1")
@@ -53,8 +54,8 @@ public class JavacTest extends ToolTestCase {
             "src/com/foo/Bar.java", "src/com/foo/Baz.java",
             "tests/com/foo/Boo.java", "jars/foo.jar", "jars/bar.jar")
         .expectExec(
-            1, "javac", "-d", "lib", "-Xprefer:source",
-            "-cp", "jars/foo.jar:jars/bar.jar:other-lib",
+            1, "javac", "-Xprefer:source", "-d", "lib",
+            "-classpath", "jars/foo.jar:jars/bar.jar:other-lib",
             "src/com/foo/Bar.java", "src/com/foo/Baz.java",
             "tests/com/foo/Boo.java")
         .expectLog("Running process 1")
@@ -70,10 +71,10 @@ public class JavacTest extends ToolTestCase {
                    Glob.fromString("other-lib///com/other/**.class"))
         .withOutput(Glob.fromString("lib///**.class"))
         .withInputPath("src/com/foo/Bar.java", "src/com/foo/Baz.java")
-        .withOption("cp", "jars/foo.jar:jars/bar.jar")
+        .withOption("classpath", "jars/foo.jar:jars/bar.jar")
         .expectExec(
-            1, "javac", "-d", "lib", "-Xprefer:source",
-            "-cp", "jars/foo.jar:jars/bar.jar",
+            1, "javac", "-Xprefer:source", "-d", "lib",
+            "-classpath", "jars/foo.jar:jars/bar.jar",
             "src/com/foo/Bar.java", "src/com/foo/Baz.java")
         .expectLog("Running process 1")
         .expectLog("Waiting for process 1")
@@ -87,7 +88,7 @@ public class JavacTest extends ToolTestCase {
         .withOutput(Glob.fromString("lib///**.class"))
         .withInputPath("src/com/foo/Bar.java", "src/com/foo/Baz.java")
         .expectExec(
-            1, "javac", "-d", "lib", "-Xprefer:source",
+            1, "javac", "-Xprefer:source", "-d", "lib",
             "src/com/foo/Bar.java", "src/com/foo/Baz.java")
         .expectLog("Running process 1")
         .expectLog("Waiting for process 1")
@@ -102,7 +103,7 @@ public class JavacTest extends ToolTestCase {
         .withInputPath("src/com/foo/Bar.java", "src/com/foo/Baz.java")
         .withOption("d", "outDir")
         .expectExec(
-            1, "javac", "-d", "outDir", "-Xprefer:source",
+            1, "javac", "-Xprefer:source", "-d", "outDir",
             "src/com/foo/Bar.java", "src/com/foo/Baz.java")
         .expectLog("Running process 1")
         .expectLog("Waiting for process 1")
@@ -115,10 +116,32 @@ public class JavacTest extends ToolTestCase {
         .withInput(Glob.fromString("src/**.java"))
         .withOutput(Glob.fromString("lib/**.class"))
         .withInputPath("src/com/foo/Bar.java", "src/com/foo/Baz.java")
+        .expectExec(
+             1, "javac", "-Xprefer:source", "src/com/foo/Bar.java",
+             "src/com/foo/Baz.java")
+        .expectLog("Running process 1", "Waiting for process 1")
+        .expectLog(
+            ""
+            + "javac.js:##:WARNING: Putting class files in same directory as"
+            + " source files."
+            + "  Maybe include a tree root in your output globs."
+            + "  E.g., \"lib///**.class\"")
+        .expectLog("Exited with true")
+        .run();
+  }
+
+  @Test public final void testBadOutDir() throws IOException {
+    tester
+        .withInput(Glob.fromString("src/**.java"))
+        .withOutput(
+            Glob.fromString("lib/**.class"),
+            Glob.fromString("lib2///*.class"))
+        .withInputPath("src/com/foo/Bar.java", "src/com/foo/Baz.java")
         .expectLog(
             ""
             + "javac.js:##:SEVERE: Cannot determine output directory for class"
-            + " files.  Please include a tree root in your output globs."
+            + " files."
+            + "  Please include the same tree root in all your output globs."
             + "  E.g., \"lib///**.class\"")
         .expectLog("Exited with false")
         .run();
@@ -131,7 +154,7 @@ public class JavacTest extends ToolTestCase {
         .withInputPath("src/com/foo/Bar.java", "src/com/foo/Baz.java")
         .withOption("g", true)
         .expectExec(
-            1, "javac", "-d", "jartmp", "-Xprefer:source", "-g",
+            1, "javac", "-Xprefer:source", "-d", "jartmp", "-g",
             "src/com/foo/Bar.java", "src/com/foo/Baz.java")
         .expectLog("Running process 1")
         .expectLog("Waiting for process 1")
@@ -146,7 +169,7 @@ public class JavacTest extends ToolTestCase {
         .withInputPath("src/com/foo/Bar.java", "src/com/foo/Baz.java")
         .withOption("g", "vars")
         .expectExec(
-            1, "javac", "-d", "jartmp", "-Xprefer:source", "-g:vars",
+            1, "javac", "-Xprefer:source", "-d", "jartmp", "-g:vars",
             "src/com/foo/Bar.java", "src/com/foo/Baz.java")
         .expectLog("Running process 1")
         .expectLog("Waiting for process 1")
@@ -160,17 +183,13 @@ public class JavacTest extends ToolTestCase {
         .withOutput(Glob.fromString("jartmp///com/goo/**.class"))
         .withInputPath("src/com/foo/Bar.java", "src/com/foo/Boo.java")
         .withOption("g", "columns")
-        .expectExec(
-            1, "javac", "-d", "jartmp", "-Xprefer:source",
-            "src/com/foo/Bar.java", "src/com/foo/Boo.java")
-        .expectLog("Running process 1")
-        .expectLog("Waiting for process 1")
         .expectLog(
             ""
-            + "javac.js:##:WARNING: Unrecognized value for flag \"g\":"
-            + " \"columns\"")
-        .expectLog("javac.js:##:INFO: Did you mean \"none\"?")
-        .expectLog("Exited with true")
+            // TODO Maybe filter out stack frames with json-schema.js.
+            + "json-schema.js:##:WARNING:"
+            + " Illegal value \"columns\" for javac.action.options,g")
+        .expectLog("json-schema.js:##:INFO: Did you mean \"none\"?")
+        .expectLog("Exited with false")
         .run();
   }
 
@@ -181,7 +200,7 @@ public class JavacTest extends ToolTestCase {
         .withInputPath("src/com/foo/Bar.java", "src/com/foo/Baz.java")
         .withOption("nowarn", true)
         .expectExec(
-            1, "javac", "-d", "jartmp", "-Xprefer:source", "-nowarn",
+            1, "javac", "-Xprefer:source", "-d", "jartmp", "-nowarn",
             "src/com/foo/Bar.java", "src/com/foo/Baz.java")
         .expectLog("Running process 1")
         .expectLog("Waiting for process 1")
@@ -206,6 +225,17 @@ public class JavacTest extends ToolTestCase {
   }
 
   @Test public final void testUnknownOption() throws IOException {
-
+    tester
+        .withInput(Glob.fromString("src/com/foo/**.java"))
+        .withOutput(Glob.fromString("jartmp///com/goo/**.class"))
+        .withInputPath("src/com/foo/Bar.java", "src/com/foo/Baz.java")
+        .withOption("no_such_option", "value")
+        .expectLog(
+            ""
+            + "json-schema.js:##:SEVERE: Unknown property no_such_option"
+            + " for javac.action.options")
+        .expectLog("json-schema.js:##:INFO: Did you mean nowarn?")
+        .expectLog("Exited with false")
+        .run();
   }
 }

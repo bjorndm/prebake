@@ -41,6 +41,8 @@ public class JsonSinkTest {
     assertValueJson("\"\\f\"", "\f");
     assertValueJson("\"\\b\"", "\b");
     assertValueJson("\"\\t\"", "\t");
+    assertValueJson("\"\\\\\"", "\\");
+    assertValueJson("\"\\\"\"", "\"");
     assertValueJson("\"foo\"", "foo");
     assertValueJson(
         "[\"bar\",[false,true],null,{}]",

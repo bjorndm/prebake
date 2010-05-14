@@ -15,17 +15,22 @@
 package org.prebake.service.tools;
 
 import org.prebake.core.Glob;
+import org.prebake.fs.FileAndHash;
 import org.prebake.js.Executor;
 import org.prebake.js.JsonSink;
+import org.prebake.js.Loader;
 import org.prebake.js.SimpleMembranableFunction;
+import org.prebake.service.BuiltinResourceLoader;
 import org.prebake.service.bake.JsOperatingSystemEnv;
 import org.prebake.service.plan.Action;
 import org.prebake.service.plan.Product;
 import org.prebake.util.PbTestCase;
 
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.file.FileSystem;
+import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.logging.Level;
@@ -223,7 +228,16 @@ public abstract class ToolTestCase extends PbTestCase {
             }
           });
       Executor.Output<Boolean> result = Executor.Factory.createJsExecutor().run(
-          Boolean.class, getLogger(Level.INFO), null,
+          Boolean.class, getLogger(Level.INFO),
+          new Loader() {
+            public Executor.Input load(Path p) throws IOException {
+              FileAndHash fh = BuiltinResourceLoader.tryLoad(p);
+              if (fh == null) { throw new FileNotFoundException(p.toString()); }
+              return Executor.Input.builder(
+                  fh.getContentAsString(Charsets.UTF_8), p)
+                  .build();
+            }
+          },
           Executor.Input.builder(
               Joiner.on('\n').join(
                   "var product = " + JsonSink.stringify(p) + ";",
@@ -237,14 +251,15 @@ public abstract class ToolTestCase extends PbTestCase {
                   new InputStreamReader(
                       getClass().getResourceAsStream(toolName + ".js"),
                       Charsets.UTF_8),
-                  toolName + ".js")
+                  fs.getPath("/--baked-in--/tools/" + toolName + ".js"))
                   .withActuals(getCommonJsEnv())
                   .build())
               .build());
       for (String logMsg : ToolTestCase.this.getLog()) {
         // Matching JS line numbers makes the tests brittle, so normalize
         // log entries like "foo.js:44:INFO ..." to "foo.js:##:INFO ...".
-        log.add(logMsg.replaceFirst("^(\\w+\\.js:)\\d+(:[A-Z])", "$1##$2"));
+        log.add(logMsg.replaceFirst(
+            "^/--baked-in--/tools/([\\w-]+\\.js:)\\d+(:[A-Z])", "$1##$2"));
       }
       if (result.exit != null) {
         log.add("Threw " + result.exit.getCause());
