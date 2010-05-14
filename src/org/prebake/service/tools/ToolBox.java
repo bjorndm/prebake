@@ -344,7 +344,8 @@ public class ToolBox implements ToolProvider {
               if (mq.hasErrors()) {
                 for (String message : mq.getMessages()) {
                   // Escape message using MessageFormat rules.
-                  logger.warning(MessageQueue.escape(message));
+                  logger.warning(
+                      toolPath + ": " + MessageQueue.escape(message));
                 }
                 return null;
               }
@@ -501,6 +502,7 @@ public class ToolBox implements ToolProvider {
 
   private void check(int dirIndex, boolean exists, Path localName) {
     String toolName = toolName(localName.toString());
+    if (toolName == null) { return; }
     synchronized (tools) {
       Tool tool = tools.get(toolName);
       if (exists) {

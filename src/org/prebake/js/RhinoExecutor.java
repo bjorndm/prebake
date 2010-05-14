@@ -319,7 +319,8 @@ public final class RhinoExecutor implements Executor {
         ScriptableObject.putConstProperty(actualsObj, e.getKey(), value);
       }
       LoadFn loadFn = new LoadFn(globalScope, loader, logger, src.base);
-      if (loader != null && !ScriptableObject.hasProperty(actualsObj, "load")) {
+      if (loader != null && src.base != null
+          && !ScriptableObject.hasProperty(actualsObj, "load")) {
         ScriptableObject.putConstProperty(actualsObj, "load", loadFn);
       }
       Object[] actualsObjArr = new Object[] { actualsObj };
