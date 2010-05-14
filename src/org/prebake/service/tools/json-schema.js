@@ -37,15 +37,15 @@
  *   <li>An array of possible value like {@code ['foo', 'bar', 'baz']}.
  *   <li>A typeDescriptor union like
  *     <code>{ type: 'union', options: [typeDescriptor, ...] }</code>
- *   <li>A list matcher lke
+ *   <li>A list matcher like
  *     <code>{ type: 'Array', delegate: typeDescriptor }</code>
  *     which produces an array when all the value's elements match the
  *     delegate.
- *   <li>An optional matcher lke
+ *   <li>An optional matcher like
  *     <code>{ type: 'optional', delegate: typeDescriptor }</code>
  *     which does nothing but succeeds if the value is undefined, or
  *     otherwise applies the delegate.
- *   <li>A default matcher lke
+ *   <li>A default matcher like
  *     <code>{ type: 'default', delegate: typeDescriptor,
  *             defaultValue: function () -> value }</code>
  *     which succeeds using the function to produce a default value if the value
@@ -95,6 +95,12 @@ function schema(typeDescriptor) {
       optionMap[JSON.stringify(val)] = Object.frozenCopy(val);
     }
     return setSchema(Object.freeze(optionMap));
+  } else if (typeDescriptor instanceof RegExp) {
+    return predicateSchema(
+        '' + typeDescriptor,
+        function (x) {
+          return typeof x === 'string' && typeDescriptor.test(x);
+        });
   } else if (typeof typeDescriptor === 'object') {
     if (typeof typeDescriptor.check === 'function'
         && typeof typeDescriptor.example === 'function') {

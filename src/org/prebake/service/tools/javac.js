@@ -35,6 +35,26 @@ var options = {
           return typeof v === 'string' ? ':' + v : v ? '' : ':none';
         }
       }
+    },
+    source: { type: 'optional', delegate: /^\d+(?:\.\d+)?$/ },
+    target: { type: 'optional', delegate: /^\d+(?:\.\d+)?$/ },
+    Xlint: {
+      type: 'optional',
+      delegate: {
+        type: 'union',
+        options: [
+          {
+            type: 'Array',
+            delegate: [
+              'cast', 'deprecation', 'divzero', 'empty', 'unchecked',
+              'fallthrough', 'path', 'serial', 'finally', 'overrides',
+              '-cast', '-deprecation', '-divzero', '-empty', '-unchecked',
+              '-fallthrough', '-path', '-serial', '-finally', '-overrides'
+            ]
+          },
+          ['all', 'none', '' /* recommended */]
+        ]
+      } 
     }
   }
 };
@@ -117,10 +137,17 @@ function decodeOptions(optionsSchema, action, opt_config) {
     var command = ['javac', '-Xprefer:source'];
     if (typeof config.d === 'string') { command.push('-d', config.d); }
     if (classpathStr) { command.push('-classpath', classpathStr); }
-    if (typeof config.g === 'string') {
-      command.push('-g' + config.g);
-    }
+    if (typeof config.g === 'string') { command.push('-g' + config.g); }
+    if (config.source) { command.push('-source', config.source); }
+    if (config.target) { command.push('-target', config.target); }
     if (config.nowarn) { command.push('-nowarn'); }
+    if (config.Xlint) {
+      if (config.Xlint.length) {
+        command.push('-Xlint:' + config.Xlint);
+      } else {
+        command.push('-Xlint' + config.Xlint);
+      }
+    }
     command = command.concat(sources);
     return os.exec.apply({}, command);
   }

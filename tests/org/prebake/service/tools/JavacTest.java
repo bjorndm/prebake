@@ -16,6 +16,8 @@ package org.prebake.service.tools;
 
 import org.prebake.core.Glob;
 
+import com.google.common.collect.ImmutableList;
+
 import java.io.IOException;
 
 import org.junit.Test;
@@ -209,19 +211,96 @@ public class JavacTest extends ToolTestCase {
   }
 
   @Test public final void testSourceVersion() throws IOException {
-
+    tester
+        .withInput(Glob.fromString("src/com/foo/**.java"))
+        .withOutput(Glob.fromString("jartmp///com/goo/**.class"))
+        .withInputPath("src/com/foo/Bar.java", "src/com/foo/Baz.java")
+        .withOption("source", "1.5")
+        .expectExec(
+            1, "javac", "-Xprefer:source", "-d", "jartmp", "-source", "1.5",
+            "src/com/foo/Bar.java", "src/com/foo/Baz.java")
+        .expectLog("Running process 1")
+        .expectLog("Waiting for process 1")
+        .expectLog("Exited with true")
+        .run();
   }
 
-  @Test public final void testReleaseVersion() throws IOException {
-
+  @Test public final void testBadSource() throws IOException {
+    tester
+        .withInput(Glob.fromString("src/com/foo/**.java"))
+        .withOutput(Glob.fromString("jartmp///com/goo/**.class"))
+        .withInputPath("src/com/foo/Bar.java", "src/com/foo/Baz.java")
+        .withOption("source", "1.5b")
+        .expectLog(
+            ""
+            + "json-schema.js:##:SEVERE: Expected /^\\d+(?:\\.\\d+)?$/,"
+            + " not \"1.5b\" for javac.action.options,source")
+        .expectLog("Exited with false")
+        .run();
   }
 
-  @Test public final void testAnnotationProcessors() throws IOException {
-
+  @Test public final void testTargetVersion() throws IOException {
+    tester
+        .withInput(Glob.fromString("src/com/foo/**.java"))
+        .withOutput(Glob.fromString("jartmp///com/goo/**.class"))
+        .withInputPath("src/com/foo/Bar.java", "src/com/foo/Baz.java")
+        .withOption("target", "1.5")
+        .expectExec(
+            1, "javac", "-Xprefer:source", "-d", "jartmp", "-target", "1.5",
+            "src/com/foo/Bar.java", "src/com/foo/Baz.java")
+        .expectLog("Running process 1")
+        .expectLog("Waiting for process 1")
+        .expectLog("Exited with true")
+        .run();
   }
 
-  @Test public final void testXlint() throws IOException {
+  // TODO: test annotation processor configuration
 
+  @Test public final void testXlintRecommended() throws IOException {
+    tester
+        .withInput(Glob.fromString("src/com/foo/**.java"))
+        .withOutput(Glob.fromString("lib///com/foo/**.class"))
+        .withInputPath("src/com/foo/Bar.java", "src/com/foo/Baz.java")
+        .withOption("Xlint", ImmutableList.of())
+        .expectExec(
+            1, "javac", "-Xprefer:source", "-d", "lib", "-Xlint",
+            "src/com/foo/Bar.java", "src/com/foo/Baz.java")
+        .expectLog("Running process 1")
+        .expectLog("Waiting for process 1")
+        .expectLog("Exited with true")
+        .run();
+  }
+
+  @Test public final void testXlintListedOptions() throws IOException {
+    tester
+        .withInput(Glob.fromString("src/com/foo/**.java"))
+        .withOutput(Glob.fromString("lib///com/foo/**.class"))
+        .withInputPath("src/com/foo/Bar.java", "src/com/foo/Baz.java")
+        .withOption("Xlint", ImmutableList.of("empty", "unchecked"))
+        .expectExec(
+            1, "javac", "-Xprefer:source", "-d", "lib",
+            "-Xlint:empty,unchecked",
+            "src/com/foo/Bar.java", "src/com/foo/Baz.java")
+        .expectLog("Running process 1")
+        .expectLog("Waiting for process 1")
+        .expectLog("Exited with true")
+        .run();
+  }
+
+  @Test public final void testXlintAll() throws IOException {
+    tester
+        .withInput(Glob.fromString("src/com/foo/**.java"))
+        .withOutput(Glob.fromString("lib///com/foo/**.class"))
+        .withInputPath("src/com/foo/Bar.java", "src/com/foo/Baz.java")
+        .withOption("Xlint", "all")
+        .expectExec(
+            1, "javac", "-Xprefer:source", "-d", "lib",
+            "-Xlint:all",
+            "src/com/foo/Bar.java", "src/com/foo/Baz.java")
+        .expectLog("Running process 1")
+        .expectLog("Waiting for process 1")
+        .expectLog("Exited with true")
+        .run();
   }
 
   @Test public final void testUnknownOption() throws IOException {
