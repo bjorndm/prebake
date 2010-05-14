@@ -12,3 +12,18 @@ For example, `function (x, y) { return x + y; }` is mobile because it has no fre
 And `function (x) { return String(s); }` is mobile as well.  Even though it has a free variable {{{String}}}, that variable's behavior is specified by the language, so that function can be moved from one context to another without changing its meaning.
 
 But `function (x, y) { foo(x + 1); }` is not mobile, because its meaning depends on the free variable `foo`.
+
+== Mobile Curry Constructor ==
+To make it easier to construct mobile functions, there is a new method off `JSON`, `mobileCurry` which if given a mobile function and some number of [YSON ΛSON] arguments returns a mobile function curried.
+
+{{{
+var myMobileFunction = function (foo, k) { return foo[k] + 1; };
+
+var curriedMobileFn = JSON.mobileCurry(
+    myMobileFunction, { x: 1, y: 2 });
+
+curriedMobileFunction('x');  // -> 1
+curriedMobileFunction('y');  // -> 2
+}}}
+
+If given a non-mobile function, the result will be a non-mobile function with undefined behavior.
