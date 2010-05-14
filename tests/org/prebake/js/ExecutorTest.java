@@ -381,6 +381,24 @@ public class ExecutorTest extends PbTestCase {
     assertEquals("({\"x\": 1, \"z\": [2]})", out.result.toSource());
   }
 
+  @Test public final void testBoundMobileFunctions() {
+    FileSystem fs = new StubFileSystemProvider("mfs").getFileSystem(
+        URI.create("mfs:///#/foo"));
+    Executor executor = Executor.Factory.createJsExecutor();
+    Executor.Output<YSON> out = executor.run(
+        YSON.class, getLogger(Level.INFO), new NullLoader(),
+        Executor.Input.builder(
+            "(function () { return this.x + this.y }).bind({ x: 1, y: 2 })",
+            fs.getPath("/foo/" + getName() + ".js")).build());
+    assertEquals(
+        ""
+        + "(function() {"
+          + " return ((function() { return this.x + this.y; }))"
+              + ".bind({\"x\": 1, \"y\": 2});"
+        + " })()",
+        out.result.toSource().replaceAll("\\s+", " "));
+  }
+
   @Test public final void testNoBase() {
     Executor executor = Executor.Factory.createJsExecutor();
     Executor.Output<?> output = executor.run(
