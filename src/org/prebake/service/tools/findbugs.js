@@ -36,7 +36,7 @@ var options = {
 var schemaModule = load('/--baked-in--/tools/json-schema.js')({ load: load });
 
 function decodeOptions(optionsSchema, action, opt_config) {
-  // Fot this to be a mobile function we can't use schemaModule defined above.
+  // For this to be a mobile function we can't use schemaModule defined above.
   var schemaModule = load('/--baked-in--/tools/json-schema.js')({ load: load });
   var schemaOut = {};
   var options = action.options || {};

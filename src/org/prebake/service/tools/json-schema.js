@@ -190,7 +190,9 @@ function arraySchema(delegate) {
   return {
     check: function (key, value, out, console, stack) {
       if (!(value instanceof Array)) {
-        console.error('Expected an array, not ' + JSON.stringify(value));
+        console.error(
+            'Expected an array, not ' + JSON.stringify(value)
+            + ' for ' + stack);
         return false;
       }
       var outArr = [];

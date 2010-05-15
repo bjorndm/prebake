@@ -12,21 +12,66 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-({
-  help: 'Builds HTML Java API documentation from java source files',
-  check: function (action) {
-    // TODO
-  },
-  fire: function fire(inputs, product, action, os) {
-    var opts = action.options;
-    function opt(name, opt_defaultValue) {
-      if ({}.hasOwnProperty.call(opts, name)) {
-        return opts[name];
-      } else {
-        return opt_defaultValue;
-      }
+var options = {
+  type: 'Object',
+  properties: {
+    d: { type: 'optional', delegate: 'string' },
+    link: { type: 'optional', delegate: { type: 'Array', delegate: 'string' } },
+    header: { type: 'optional', delegate: 'string' },
+    footer: { type: 'optional', delegate: 'string' },
+    top: { type: 'optional', delegate: 'string' },
+    bottom: { type: 'optional', delegate: 'string' },
+    visibility: {
+      type: 'optional', delegate: ['private', 'package', 'protected']
+    },
+    classpath: {
+      type: 'default',
+      delegate: {
+        type: 'union',
+        options: [
+          { type: 'string', xform: function (s) { return s.split(/[:;]/g); } },
+          { type: 'Array', delegate: 'string' }
+        ]
+      },
+      defaultValue: function () { return []; }
     }
-    var outDir = opt('d');
+  }
+};
+
+
+var schemaModule = load('/--baked-in--/tools/json-schema.js')({ load: load });
+
+function decodeOptions(optionsSchema, action, opt_config) {
+  // For this to be a mobile function we can't use schemaModule defined above.
+  var schemaModule = load('/--baked-in--/tools/json-schema.js')({ load: load });
+  var schemaOut = {};
+  var options = action.options || {};
+  if (schemaModule.schema(optionsSchema).check(
+          '_', options, schemaOut, console,
+          // Shows up in the error stack.
+          [action.tool + '.action.options'])) {
+    if (opt_config) {
+      schemaModule.mixin(schemaOut._, opt_config);
+    }
+    return true;
+  } else {
+    return false;
+  }
+}
+
+({
+  help: ('Builds HTML Java API documentation from java source files\n'
+         + schemaModule.example(schemaModule.schema(options))),
+  check: decodeOptions.bind({}, options),
+  fire: function fire(inputs, product, action, os) {
+    var opt = {};
+    if (!decodeOptions(options, action, opt)) {
+      return {
+        waitFor: function () { return -1; },
+        run: function () { return this; }
+      };
+    }
+    var outDir = opt.d;
     if (typeof outDir !== 'string') {
       outDir = glob.rootOf(action.outputs);
       if (typeof outDir !== 'string') {
@@ -34,21 +79,7 @@
             'Could not infer documentation root from ' + action.inputs);
       }
     }
-    var links = opt('link', []);
-    var header = opt('header');
-    var footer = opt('footer');
-    var top = opt('top');
-    var bottom = opt('bottom');
-    var visibility = opt('visibility');
     var pathSeparator = sys.io.path.separator;
-    var classpath = opt('cp') || opt('classpath');
-    if (classpath instanceof Array) {
-      classpath = classpath.join(pathSeparator);
-    } else if (classpath) {
-      classpath = String(classpath);
-    } else {
-      classpath = '';
-    }
     var extraClasspath = [];
     var sourcePath = [];
     var sources = [];
@@ -66,33 +97,33 @@
     for (var i = 0, n = action.inputs.length; i < n; ++i) {
       var input = action.inputs[i];
       if (endsWithClass.test(input)) {  // E.g. lib/**.class
-        // TODO: Strip directories if there is a com/org/net as a path element.
-        extraClasspath.push(glob.prefix(input));
+        extraClasspath.push(glob.rootOf(input));
       } else if (endsWithJava.test(input)) {
-        // TODO: Strip directories if there is a com/org/net as a path element.
-        sourcePath.push(glob.prefix(input));
+        sourcePath.push(glob.rootOf(input));
       }
     }
+    var classpath = opt.classpath;
     if (extraClasspath.length) {
-      classpath = classpath.split(pathSeparator).concat(extraClasspath)
-          .join(pathSeparator);
+      classpath = classpath.concat(extraClasspath);
     }
-    var command = ['javadoc', '-d', outDir, '-classpath', classpath, '-quiet'];
-    for (var i = 0; i < links.length; ++i) { command.push('-link', links[i]); }
+    var classpathStr = Array.filter(
+        classpath, function (x) { return x && typeof x === 'string'; })
+        .join(sys.io.path.separator);
+    var command = ['javadoc', '-d', outDir, '-quiet'];
+    if (classpathStr) { command.push('-classpath', classpathStr); }
+    if (opt.link) {
+      for (var links = opt.link, i = 0, n = links.length; i < n; ++i) {
+        command.push('-link', links[i]);
+      }
+    }
     if (sourcePath.length) {
       command.push('-sourcepath', sourcePath.join(pathSeparator));
     }
-    if (typeof header === 'string') { command.push('-header', header); }
-    if (typeof footer === 'string') { command.push('-footer', footer); }
-    if (typeof top === 'string') { command.push('-top', top); }
-    if (typeof bottom === 'string') { command.push('-bottom', bottom); }
-    switch (visibility) {
-      case 'private': case 'protected': case 'package':
-        command.push('-' + visibility);
-        break;
-      case undefined: break;
-      default: throw new Error('Bad visibility ' + visibility);
-    }
+    if (typeof opt.header === 'string') { command.push('-header', opt.header); }
+    if (typeof opt.footer === 'string') { command.push('-footer', opt.footer); }
+    if (typeof opt.top === 'string') { command.push('-top', opt.top); }
+    if (typeof opt.bottom === 'string') { command.push('-bottom', opt.bottom); }
+    if (opt.visibility) { command.push('-' + opt.visibility); }
     command = command.concat(sources);
     return os.exec.apply({}, command);
   }
