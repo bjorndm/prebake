@@ -15,11 +15,8 @@
 package org.prebake.service.tools;
 
 import java.io.File;
-import java.util.List;
-
-import com.google.common.base.Joiner;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Lists;
 
 /**
  * Extra environment available to builtin tools to let them perform certain
@@ -32,15 +29,14 @@ public final class BuiltinToolHooks {
   static {
     // Make classpath parts absolute so we can use it to spawn external
     // java processes that have access to the same classes as this JVM.
-    List<String> classpath = Lists.newArrayList();
+    ImmutableList.Builder<String> classpath = ImmutableList.builder();
     for (String classpathPart
          : System.getProperty("java.class.path").split(File.pathSeparator)) {
-      classpath.add(new File(classpathPart).getAbsolutePath());
+      classpath.add(new File(classpathPart).getAbsolutePath().toString());
     }
     BY_TOOL = ImmutableMap.<String, ImmutableMap<String, ?>>of(
         "junit", ImmutableMap.of(
-            "java_classpath",
-            Joiner.on(File.pathSeparatorChar).join(classpath)));
+            "java_classpath", classpath.build()));
   }
 
   public static ImmutableMap<String, ?> extraEnvironmentFor(
