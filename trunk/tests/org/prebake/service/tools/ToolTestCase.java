@@ -42,6 +42,7 @@ import com.google.common.collect.ImmutableMap;
 
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Test;
 
 /**
  * Abstract base class for test cases that test built-in tools' ability to
@@ -86,6 +87,20 @@ public abstract class ToolTestCase extends PbTestCase {
       assertTrue(tester.wasRun());
       tester = null;
     }
+  }
+
+  @Test public final void testBuiltinHooks() {
+    tester = null;
+    // If this test fails, then you probably need to override stubToolHooks to
+    // stub out whatever is in BuiltinToolHooks for your particular tool.
+    assertEquals(
+        BuiltinToolHooks.extraEnvironmentFor(testToolName).keySet(),
+        stubToolHooks().keySet());
+  }
+
+  // Override to stub out system dependencies.
+  protected ImmutableMap<String, ?> stubToolHooks() {
+    return ImmutableMap.of();
   }
 
   protected class ToolTester {
@@ -253,6 +268,7 @@ public abstract class ToolTestCase extends PbTestCase {
                       Charsets.UTF_8),
                   fs.getPath("/--baked-in--/tools/" + toolName + ".js"))
                   .withActuals(getCommonJsEnv())
+                  .withActuals(stubToolHooks())
                   .build())
               .build());
       for (String logMsg : ToolTestCase.this.getLog()) {

@@ -29,10 +29,10 @@ public class JavadocTest extends ToolTestCase {
     tester
         .withInput(Glob.fromString("src///com/foo/*.java"))
         .withOutput(Glob.fromString("docs///**.html"))
-        .withInputPath("src/com/foo/Bar.java", "src/com/foo/Baz/java")
+        .withInputPath("src/com/foo/Bar.java", "src/com/foo/Baz.java")
         .expectExec(
             1, "javadoc", "-d", "docs", "-quiet", "-sourcepath", "src",
-            "src/com/foo/Bar.java", "src/com/foo/Baz/java")
+            "src/com/foo/Bar.java", "src/com/foo/Baz.java")
         .expectLog("Running process 1")
         .expectLog("Waiting for process 1")
         .expectLog("Exited with true")
@@ -43,11 +43,11 @@ public class JavadocTest extends ToolTestCase {
     tester
         .withInput(Glob.fromString("src///com/foo/*.java"))
         .withOutput(Glob.fromString("docs///**.html"))
-        .withInputPath("src/com/foo/Bar.java", "src/com/foo/Baz/java")
+        .withInputPath("src/com/foo/Bar.java", "src/com/foo/Baz.java")
         .withOption("d", "docs/java")
         .expectExec(
             1, "javadoc", "-d", "docs/java", "-quiet", "-sourcepath", "src",
-            "src/com/foo/Bar.java", "src/com/foo/Baz/java")
+            "src/com/foo/Bar.java", "src/com/foo/Baz.java")
         .expectLog("Running process 1")
         .expectLog("Waiting for process 1")
         .expectLog("Exited with true")
@@ -58,13 +58,13 @@ public class JavadocTest extends ToolTestCase {
     tester
         .withInput(Glob.fromString("src///com/foo/*.java"))
         .withOutput(Glob.fromString("docs///**.html"))
-        .withInputPath("src/com/foo/Bar.java", "src/com/foo/Baz/java")
+        .withInputPath("src/com/foo/Bar.java", "src/com/foo/Baz.java")
         .withOption("link", ImmutableList.of("docs/fooproj", "docs/barproj"))
         .expectExec(
             1, "javadoc", "-d", "docs", "-quiet",
             "-link", "docs/fooproj", "-link", "docs/barproj",
             "-sourcepath", "src",
-            "src/com/foo/Bar.java", "src/com/foo/Baz/java")
+            "src/com/foo/Bar.java", "src/com/foo/Baz.java")
         .expectLog("Running process 1")
         .expectLog("Waiting for process 1")
         .expectLog("Exited with true")
@@ -75,12 +75,12 @@ public class JavadocTest extends ToolTestCase {
     tester
         .withInput(Glob.fromString("src///com/foo/*.java"))
         .withOutput(Glob.fromString("docs///**.html"))
-        .withInputPath("src/com/foo/Bar.java", "src/com/foo/Baz/java")
+        .withInputPath("src/com/foo/Bar.java", "src/com/foo/Baz.java")
         .withOption("header", "<blink>Hello, World!</blink>")
         .expectExec(
             1, "javadoc", "-d", "docs", "-quiet", "-sourcepath", "src",
             "-header", "<blink>Hello, World!</blink>",
-            "src/com/foo/Bar.java", "src/com/foo/Baz/java")
+            "src/com/foo/Bar.java", "src/com/foo/Baz.java")
         .expectLog("Running process 1")
         .expectLog("Waiting for process 1")
         .expectLog("Exited with true")

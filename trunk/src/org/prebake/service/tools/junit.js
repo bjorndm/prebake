@@ -12,43 +12,82 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-({
-  help: 'JUnit Test Runner',
-  check: function (action) {
-    // TODO require the test_class_filter
-    glob.matcher(action.options.test_class_filter);
-  },
-  fire: function fire(inputs, product, action, os) {
-    var opts = action.options;
-    // TODO: JVM system properties
-    function opt(name, opt_defaultValue) {
-      if ({}.hasOwnProperty.call(opts, name)) {
-        return opts[name];
-      } else {
-        return opt_defaultValue;
-      }
-    }
-    function cpOpt(name, defaultValue) {
-      var cp = opt(name);
-      if (cp) {
-        if (typeof cp === 'object' && cp.length === (cp.length >>> 0)) {
-          return cp;
-        } else {
-          return String(cp).split(pathSeparator);
-        }
-      }
-      return defaultValue.split(pathSeparator);
-    }
-    var testListener = opt('listener');
-    var pathSeparator = sys.io.path.separator;
+var options = {
+  type: 'Object',
+  properties: {
+    listener: { type: 'optional', delegate: 'function' },
+    test_class_filter: {
+      type: 'default', delegate: 'string',
+      defaultValue: function () { return '**'; }
+    },
+    report_dir: { type: 'optional', delegate: 'string' },
     // Classpath for tests if not apparent from inputs.
-    var classpath = cpOpt('classpath', '');
+    classpath: {
+      type: 'default',
+      delegate: {
+        type: 'union',
+        options: [
+          { type: 'string', xform: function (s) { return s.split(/[:;]/g); } },
+          { type: 'Array', delegate: 'string' }
+        ]
+      },
+      defaultValue: function () { return []; }
+    },
     // The classpath including org.prebake.service.tools.ext.JUnitRunner
     // and its dependencies.
-    var junitRunnerClasspath = cpOpt('runner_classpath', java_classpath);
+    runner_classpath: {
+      type: 'optional',
+      delegate: {
+        type: 'union',
+        options: [
+          { type: 'string', xform: function (s) { return s.split(/[:;]/g); } },
+          { type: 'Array', delegate: 'string' }
+        ]
+      }
+    }
+  }
+};
+
+
+var schemaModule = load('/--baked-in--/tools/json-schema.js')({ load: load });
+
+function decodeOptions(optionsSchema, action, opt_config) {
+  // For this to be a mobile function we can't use schemaModule defined above.
+  var schemaModule = load('/--baked-in--/tools/json-schema.js')({ load: load });
+  var schemaOut = {};
+  var options = action.options || {};
+  if (schemaModule.schema(optionsSchema).check(
+          '_', options, schemaOut, console,
+          // Shows up in the error stack.
+          [action.tool + '.action.options'])) {
+    if (opt_config) {
+      schemaModule.mixin(schemaOut._, opt_config);
+    }
+    return true;
+  } else {
+    return false;
+  }
+}
+
+({
+  help: ('JUnit Test Runner\n'
+         + schemaModule.example(schemaModule.schema(options))),
+  check: decodeOptions.bind({}, options),
+  fire: function fire(inputs, product, action, os) {
+    var opt = {};
+    if (!decodeOptions(options, action, opt)) {
+      return {
+        waitFor: function () { return -1; },
+        run: function () { return this; }
+      };
+    }
+    var testListener = opt.listener;
+    var classpath = opt.classpath;
+    var junitRunnerClasspath = opt.runner_classpath
+        || java_classpath.slice();
     var extraClasspath = [];
     var testClasses = [];
-    var testClassFilter = glob.matcher(action.options.test_class_filter);
+    var testClassFilter = glob.matcher(opt.test_class_filter);
     for (var i = 0, n = inputs.length; i < n; ++i) {
       var input = inputs[i];
       var dot = input.lastIndexOf('.');
@@ -71,6 +110,7 @@
           break;
       }
     }
+    var pathSeparator = sys.io.path.separator;
     classpath = Array.filter(
         classpath
             .concat(junitRunnerClasspath)
@@ -80,8 +120,8 @@
     var wantsHtmlReport = false,
         wantsJsonReport = false,
         wantsXmlReport = false;
-    var reportDir = opt('report_dir', null);
-    var inferReportDir = reportDir === null;
+    var reportDir = opt.report_dir;
+    var inferReportDir = reportDir === undefined;
     for (var i = 0, n = action.outputs.length; i < n; ++i) {
       var output = action.outputs[i];
       var dot = output.lastIndexOf('.');
@@ -92,7 +132,7 @@
           case '.xml':  wantsXmlReport = true; break;
           default: continue;
         }
-        if (inferReportDir && reportDir === null) {
+        if (inferReportDir && reportDir === undefined) {
           // The report directory is the one that contains the json output dump
           // or index.html.
           var root = glob.rootOf(output);
@@ -107,10 +147,12 @@
         function (reportType) { return !!reportType; })
         .join(',');
     var command = [
-        'java', '-cp', classpath, 'org.prebake.service.tools.ext.JUnitRunner',
+        'java', '-classpath', classpath,
+        'org.prebake.service.tools.ext.JUnitRunner',
+        // testListener must be a mobile function if it came from externally.
+        // TODO: make sure a bound mobile function can be serialized this way.
         typeof testListener === 'function' ? '' + testListener : '',
-        reportDir || '',
-        reportTypes]
+        reportDir || '', reportTypes]
         .concat(testClasses);
     var proc = os.exec.apply({}, command);
     var result;

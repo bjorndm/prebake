@@ -77,7 +77,7 @@ function schema(typeDescriptor) {
   if (typeof typeDescriptor === 'string') {
     switch (typeDescriptor) {
       case 'boolean': case 'number': case 'string': case 'undefined':
-      case 'object':
+      case 'function': case 'object':
         return predicateSchema(
             typeDescriptor,
             function (x) { return typeof x === typeDescriptor; });
