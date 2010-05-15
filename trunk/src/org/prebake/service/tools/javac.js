@@ -54,7 +54,7 @@ var options = {
           },
           ['all', 'none', '' /* recommended */]
         ]
-      } 
+      }
     }
   }
 };
@@ -131,8 +131,9 @@ function decodeOptions(optionsSchema, action, opt_config) {
           break;
       }
     }
-    var classpathStr = (config.classpath || extraClasspath)
-        .filter(function (x) { return x && typeof x === 'string'; })
+    var classpathStr = Array.filter(
+        config.classpath || extraClasspath,
+        function (x) { return x && typeof x === 'string'; })
         .join(sys.io.path.separator);
     var command = ['javac', '-Xprefer:source'];
     if (typeof config.d === 'string') { command.push('-d', config.d); }
