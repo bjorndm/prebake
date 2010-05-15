@@ -78,15 +78,12 @@ public class FindbugsTest extends ToolTestCase {
         .withOutput(Glob.fromString("bugs.html"))
         .withInputPath("lib/Foo.class", "lib/Baz.class")
         .withOption("priority", "higher")
-        .expectExec(
-            1, "findbugs", "-textui", "-progress", "-html",
-            "-output", "bugs.html",
-            "lib/Foo.class", "lib/Baz.class")
-        .expectLog("Running process 1")
-        .expectLog("Waiting for process 1")
-        .expectLog("findbugs.js:##:WARNING: Bad priority higher")
-        .expectLog("findbugs.js:##:INFO: Did you mean high?")
-        .expectLog("Exited with true")
+        .expectLog(
+            ""
+            + "json-schema.js:##:WARNING: Illegal value \"higher\""
+            + " for findbugs.action.options,priority")
+        .expectLog("json-schema.js:##:INFO: Did you mean \"high\"?")
+        .expectLog("Exited with false")
         .run();
   }
 
@@ -96,15 +93,12 @@ public class FindbugsTest extends ToolTestCase {
         .withOutput(Glob.fromString("bugs.html"))
         .withInputPath("lib/Foo.class", "lib/Baz.class")
         .withOption("effort", "minimum")
-        .expectExec(
-            1, "findbugs", "-textui", "-progress", "-html",
-            "-output", "bugs.html",
-            "lib/Foo.class", "lib/Baz.class")
-        .expectLog("Running process 1")
-        .expectLog("Waiting for process 1")
-        .expectLog("findbugs.js:##:WARNING: Bad effort minimum")
-        .expectLog("findbugs.js:##:INFO: Did you mean min?")
-        .expectLog("Exited with true")
+        .expectLog(
+            ""
+            + "json-schema.js:##:WARNING: Illegal value \"minimum\""
+            + " for findbugs.action.options,effort")
+        .expectLog("json-schema.js:##:INFO: Did you mean \"min\"?")
+        .expectLog("Exited with false")
         .run();
   }
 
@@ -114,16 +108,11 @@ public class FindbugsTest extends ToolTestCase {
         .withOutput(Glob.fromString("bugs.html"))
         .withInputPath("lib/Foo.class", "lib/Baz.class")
         .withOption("relaxed", "yes")
-        .expectExec(
-            1, "findbugs", "-textui", "-progress", "-html",
-            "-output", "bugs.html",
-            "lib/Foo.class", "lib/Baz.class")
-        .expectLog("Running process 1")
-        .expectLog("Waiting for process 1")
         .expectLog(
-            "findbugs.js:##:WARNING:"
-            + " Option relaxed was not boolean, was \"yes\"")
-        .expectLog("Exited with true")
+            ""
+            + "json-schema.js:##:SEVERE: Expected boolean, not \"yes\""
+            + " for findbugs.action.options,relaxed")
+        .expectLog("Exited with false")
         .run();
   }
 

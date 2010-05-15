@@ -12,74 +12,54 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-function decodeOptions(action, opt_config) {
-  if (!opt_config) { opt_config = {}; }
-  var hop = {}.hasOwnProperty;
-  var options = action.options;
-
-  var effort, priority, relaxed = false, classpath;
-
-  for (var k in options) {
-    if (!hop.call(options, k)) { continue; }
-    switch (k) {
-      case 'effort':
-        effort = String(options[k]);
-        switch (effort) {
-          case 'min': case 'default': case 'max': break;
-          default:
-            console.warn('Bad effort ' + effort);
-            console.didYouMean(effort, 'min', 'default', 'max');
-            effort = undefined;
-            break;
-        }
-        break;
-      case 'priority':
-        priority = String(options[k]);
-        switch (priority) {
-          case 'low': case 'medium': case 'high': break;
-          default:
-            console.warn('Bad priority ' + priority);
-            console.didYouMean(priority, 'low', 'medium', 'high');
-            priority = undefined;
-            break;
-        }
-        break;
-      case 'relaxed':
-        relaxed = options[k];
-        if (typeof relaxed !== 'boolean') {
-          console.warn(
-              'Option relaxed was not boolean, was ' + JSON.stringify(relaxed));
-          relaxed = false;
-        }
-        break;
-      case 'cp': case 'classpath':
-        classpath = options[k];
-        break;
-      default:
-        console.warn('Unrecognized option ' + k);
-        break;
+var options = {
+  type: 'Object',
+  properties: {
+    'effort': { type: 'optional', delegate: ['min', 'default', 'max'] },
+    'priority': { type: 'optional', delegate: ['low', 'medium', 'high'] },
+    'relaxed': { type: 'default', delegate: 'boolean',
+                 defaultValue: function () { return false; } },
+    classpath: {
+      type: 'default',
+      delegate: {
+        type: 'union',
+        options: [
+          { type: 'string', xform: function (s) { return s.split(/[:;]/g); } },
+          { type: 'Array', delegate: 'string' }
+        ]
+      },
+      defaultValue: function () { return []; }
     }
   }
-  if (classpath instanceof Array) {
-    classpath = classpath.slice(0);
-  } else if (classpath) {
-    classpath = String(classpath).split(sys.io.path.separator);
+};
+
+var schemaModule = load('/--baked-in--/tools/json-schema.js')({ load: load });
+
+function decodeOptions(optionsSchema, action, opt_config) {
+  // Fot this to be a mobile function we can't use schemaModule defined above.
+  var schemaModule = load('/--baked-in--/tools/json-schema.js')({ load: load });
+  var schemaOut = {};
+  var options = action.options || {};
+  if (schemaModule.schema(optionsSchema).check(
+          '_', options, schemaOut, console,
+          // Shows up in the error stack.
+          [action.tool + '.action.options'])) {
+    if (opt_config) {
+      schemaModule.mixin(schemaOut._, opt_config);
+    }
+    return true;
   } else {
-    classpath = [];
+    return false;
   }
-  opt_config.effort = effort;
-  opt_config.priority = priority;
-  opt_config.relaxed = relaxed;
-  opt_config.classpath = classpath;
-  return true;
 }
 
 ({
-  help: 'Runs FindBugs to find common problems in Java source code',
-  check: decodeOptions,
+  help: ('Runs FindBugs to find common problems in Java source code\n'
+         + schemaModule.example(schemaModule.schema(options))),
+  check: decodeOptions.bind({}, options),
   fire: function fire(inputs, product, action, os) {
     var config = {};
-    if (!decodeOptions(action, config)) {
+    if (!decodeOptions(options, action, config)) {
       return {
         run: function () { return this; },
         waitFor: function () { return -1; }
