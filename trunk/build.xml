@@ -23,6 +23,7 @@
     <pathelement path="${third_party}/junit/junit.jar"/>
     <pathelement path="${third_party}/caja/caja.jar"/>
     <pathelement path="${third_party}/caja/htmlparser.jar"/>
+    <pathelement path="${third_party}/caja/json_simple/json_simple.jar"/>
   </path>
   <path id="classpath.tests.compile">
     <path refid="classpath.compile"/>
