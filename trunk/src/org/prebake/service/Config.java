@@ -45,6 +45,11 @@ public interface Config {
    */
   int getUmask();
   /**
+   * The port on which the service listens for HTTP requests for status info.
+   * -1 indicates the service should not listen.
+   */
+  int getWwwPort();
+  /**
    * Search path for
    * <a href="http://code.google.com/p/prebake/wiki/ToolFile">tools</a>.
    */
