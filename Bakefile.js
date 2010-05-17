@@ -23,7 +23,8 @@ var jars = [
     "third_party/findbugs/lib/jsr305.jar",
     "third_party/junit/junit.jar",
     "third_party/caja/caja.jar",
-    "third_party/caja/htmlparser.jar"];
+    "third_party/caja/htmlparser.jar",
+    "third_party/caja/json_simple/json_simple.jar"];
 
 ({
   classes: {
