@@ -17,11 +17,12 @@ package org.prebake.core;
 import org.prebake.util.PbTestCase;
 
 import com.google.common.base.Joiner;
+import com.google.common.collect.ImmutableList;
 
 import org.junit.Test;
 
 public class PreformattedStaticHtmlTest extends PbTestCase {
-  @Test public void testHtml() {
+  @Test public final void testHtml() {
     assertEquals(
         "Hello, World!", PreformattedStaticHtml.of("Hello, World!").html());
     assertEquals(
@@ -58,7 +59,7 @@ public class PreformattedStaticHtmlTest extends PbTestCase {
             + "<tr><td>100</td><td>one hundred</td></tr></table>").html());
   }
 
-  @Test public void testPlainText() {
+  @Test public final void testPlainText() {
     assertEquals(
         "Hello, World!",
         PreformattedStaticHtml.of("Hello, World!").plainText());
@@ -82,7 +83,7 @@ public class PreformattedStaticHtmlTest extends PbTestCase {
             "<b style=\"color: red\">Hello, World!").plainText());
   }
 
-  @Test public void testPlainTextLists() {
+  @Test public final void testPlainTextLists() {
     assertEquals(
         "  # One\n  # Two\n  # Three",
         PreformattedStaticHtml.of(
@@ -105,9 +106,24 @@ public class PreformattedStaticHtmlTest extends PbTestCase {
         "  a One\n  b Two\n  c Three",
         PreformattedStaticHtml.of(
             "<ol type=a><li>One<li>Two<li>Three</ol>").plainText());
+    assertEquals(
+        Joiner.on('\n').join(
+            "    i One",
+            "   ii     I Two",
+            "         II Dos",
+            "  iii Three",
+            "   iv Four"),
+        PreformattedStaticHtml.of(
+            ""
+            + "<ol type=i>"
+            + "<li>One"
+            + "<li><ol type=I><li>Two<li>Dos</ol>"
+            + "<li>Three"
+            + "<li>Four</ol>"
+            ).plainText());
   }
 
-  @Test public void testPlainTextTables() {
+  @Test public final void testPlainTextTables() {
     assertEquals(
         ""
         + "Numerals   Letters\n"
@@ -132,7 +148,7 @@ public class PreformattedStaticHtmlTest extends PbTestCase {
             + "<tr><td>100</td><td>one hundred</td></tr></table>").plainText());
   }
 
-  @Test public void testPlainTextBlockElements() {
+  @Test public final void testPlainTextBlockElements() {
     assertEquals(
         ""
         + "                Header\n"
@@ -148,12 +164,43 @@ public class PreformattedStaticHtmlTest extends PbTestCase {
 
   }
 
-  @Test public void testPlainTextImage() {
+  @Test public final void testPlainTextImage() {
     assertEquals(
         "",
         PreformattedStaticHtml.of("<img>").plainText());
     assertEquals(
         "[Hello, World!]",
         PreformattedStaticHtml.of("<img alt='Hello, World!'>").plainText());
+  }
+
+  @Test public final void testXmpElement() {
+    assertEquals(
+        "<p>HTML in Documentation</p>",
+        PreformattedStaticHtml.of("<xmp><p>HTML in Documentation</p></xmp>")
+            .plainText());
+  }
+
+  @Test public final void testPlaintextElement() {
+    assertEquals(
+        ""
+        + "Header\n"
+        + "<script>alert('Code in documentation');</script>",
+        PreformattedStaticHtml.of(
+            "<h1>Header</h1>"
+            + "<plaintext><script>alert('Code in documentation');</script>")
+            .plainText());
+  }
+
+  @Test public final void testRomanNumerals() {
+    ImmutableList.Builder<String> romanNumerals = ImmutableList.builder();
+    for (int i = 0; i < 20; ++i) {
+      romanNumerals.add(PreformattedStaticHtml.toRomanNumeral(i));
+    }
+    assertEquals(
+        ImmutableList.of(
+            "", "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX",
+            "X", "XI", "XII", "XIII", "XIV", "XV", "XVI", "XVII", "XVIII", "XIX"
+            ),
+        romanNumerals.build());
   }
 }
