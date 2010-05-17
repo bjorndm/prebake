@@ -52,9 +52,11 @@ final class WrappedFunction extends BaseFunction {
       if (doc != null) {
         NativeObject helpObj = new NativeObject();
         ScriptableObject.putConstProperty(
-            helpObj, Documentation.Field.summary.name(), doc.summaryHtml);
+            helpObj,
+            Documentation.Field.summary.name(), doc.summaryHtml.plainText());
         ScriptableObject.putConstProperty(
-            helpObj, Documentation.Field.detail.name(), doc.detailHtml);
+            helpObj,
+            Documentation.Field.detail.name(), doc.detailHtml.plainText());
         ScriptableObject.putConstProperty(
             helpObj, Documentation.Field.contact.name(), doc.contactEmail);
         new Freezer().freeze(helpObj);
