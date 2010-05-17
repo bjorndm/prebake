@@ -533,6 +533,7 @@ public abstract class Prebakery implements Closeable {
     final Set<Path> planFiles = ImmutableSet.copyOf(config.getPlanFiles());
     final List<Path> toolDirs = ImmutableList.copyOf(config.getToolDirs());
     final int umask = config.getUmask();
+    final int wwwPort = config.getWwwPort();
     return new Config() {
       public Path getClientRoot() { return clientRoot; }
       public Pattern getIgnorePattern() { return ignorePattern; }
@@ -540,6 +541,7 @@ public abstract class Prebakery implements Closeable {
       public Set<Path> getPlanFiles() { return planFiles; }
       public List<Path> getToolDirs() { return toolDirs; }
       public int getUmask() { return umask; }
+      public int getWwwPort() { return wwwPort; }
     };
   }
 

@@ -139,6 +139,40 @@ public class CommandLineConfigTest extends PbTestCase {
         false, "Invalid umask 37777777777");
   }
 
+  @Test public final void testWwwPort() throws IOException {
+    Config c;
+    c = assertConfig(new String[] { "--root=project" }, true);
+    assertEquals(-1, c.getWwwPort());
+    assertEquals(
+        ""
+        + "[\"--root\",\"/foo/bar/project\","
+        + "\"/foo/bar/project/recipe.js\"]",
+        CommandLineConfig.toArgv(c));
+    c = assertConfig(
+        new String[] { "--root=project", "--www-port=8080" }, true);
+    assertEquals(8080, c.getWwwPort());
+    assertEquals(
+        ""
+        + "[\"--root\",\"/foo/bar/project\","
+        + "\"--www-port\",\"8080\","
+        + "\"/foo/bar/project/recipe.js\"]",
+        CommandLineConfig.toArgv(c));
+    c = assertConfig(
+        new String[] { "--root=project", "--www-port=8080", "--www-port=8000" },
+        false, "Dupe arg --www-port");
+    assertEquals(8080, c.getWwwPort());
+    assertConfig(
+        new String[] { "--root=project", "--www-port=abc" },
+        false, "--www-port=abc is not a valid port");
+    assertConfig(
+        new String[] { "--root=project", "--www-port=0" },
+        false, "--www-port=0 is not a valid port");
+    assertConfig(new String[] { "--root=project", "--www-port=65535" }, true);
+    assertConfig(
+        new String[] { "--root=project", "--www-port=65536" },
+        false, "--www-port=65536 is not a valid port");
+  }
+
   @Test public final void testPathSeparator() throws IOException {
     Config c = assertConfig(new String[] { "--root=project" }, true);
     assertEquals(":", c.getPathSeparator());

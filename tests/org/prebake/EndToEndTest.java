@@ -155,6 +155,7 @@ public class EndToEndTest extends PbTestCase {
           return ImmutableList.of(fs.getPath("/tools"));
         }
         public int getUmask() { return 700; }
+        public int getWwwPort() { return -1; }
       };
       OperatingSystem os = new StubOperatingSystem(fs, logger);
 

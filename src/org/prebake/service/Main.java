@@ -176,8 +176,8 @@ public final class Main {
   public static final String USAGE = (
       ""
       + "Usage: prebakery --root <dir> [--ignore <pattern>] [--tools <dirs>]\n"
-      + "       [--umask <octal>] [<plan-file> ...]\n"
-      + "       [-v | -vv | -q | -qq | --logLevel=<level]");
+      + "       [-v | -vv | -q | -qq | --logLevel=<level]\n"
+      + "       [--www-port <port>] [--umask <octal>] [<plan-file> ...]");
 
   private static Map<String, String> getSystemPropertyMap() {
     ImmutableMap.Builder<String, String> sysProps = ImmutableMap.builder();

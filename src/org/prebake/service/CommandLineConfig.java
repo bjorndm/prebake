@@ -53,6 +53,7 @@ final class CommandLineConfig implements Config {
   private final Set<Path> planFiles;
   private final List<Path> toolDirs;
   private final int umask;
+  private final int wwwPort;
 
   private static final short DEFAULT_UMASK = 0x1a0 /* octal 0640 */;
   private static final String DANGLING_MODIFIER_MSG;
@@ -78,6 +79,7 @@ final class CommandLineConfig implements Config {
     IGNORE("--ignore"),
     TOOLS("--tools"),
     UMASK("--umask"),
+    WWW_PORT("--www-port"),
     ;
 
     final String flag;
@@ -93,6 +95,7 @@ final class CommandLineConfig implements Config {
       Integer umask = null;
       Set<Path> planFiles = Sets.newLinkedHashSet();
       List<Path> toolDirs = Lists.newArrayList();
+      Integer wwwPort = null;
       for (CommandLineArgs.Flag flag : args.getFlags()) {
         FlagName name = null;
         for (FlagName fn : FlagName.values()) {
@@ -157,6 +160,22 @@ final class CommandLineConfig implements Config {
                 }
               }
               break;
+            case WWW_PORT:
+              if (wwwPort == null) {
+                try {
+                  wwwPort = Integer.valueOf(flag.value, 10);
+                  if (wwwPort == 0 || (wwwPort & ~0xffff) != 0) {
+                    mq.error(
+                        "--www-port=" + flag.value + " is not a valid port");
+                  }
+                } catch (NumberFormatException ex) {
+                  mq.error(
+                      "--www-port=" + flag.value + " is not a valid port");
+                }
+              } else {
+                mq.error("Dupe arg " + flag.name);
+              }
+              break;
             default: throw new RuntimeException(flag.name);
           }
         } else {
@@ -190,6 +209,7 @@ final class CommandLineConfig implements Config {
       this.clientRoot = clientRoot;
       this.ignorePattern = ignorePattern;
       this.umask = umask != null ? umask.intValue() : DEFAULT_UMASK;
+      this.wwwPort = wwwPort != null ? wwwPort.intValue() : -1;
     }
 
     if (clientRoot == null) {
@@ -269,6 +289,11 @@ final class CommandLineConfig implements Config {
       argv.add(FlagName.UMASK.flag);
       argv.add(Integer.toOctalString(umask));
     }
+    int wwwPort = config.getWwwPort();
+    if (wwwPort != -1) {
+      argv.add(FlagName.WWW_PORT.flag);
+      argv.add(Integer.toString(wwwPort));
+    }
     int planStart = argv.size();
     boolean needsSep = false;
     for (Path pf : config.getPlanFiles()) {
@@ -297,6 +322,8 @@ final class CommandLineConfig implements Config {
   public List<Path> getToolDirs() { return toolDirs; }
 
   public int getUmask() { return umask; }
+
+  public int getWwwPort() { return wwwPort; }
 
   private static String commonPrefix(String a, String b) {
     int n = Math.min(a.length(), b.length());
