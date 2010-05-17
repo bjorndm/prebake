@@ -21,6 +21,8 @@
     <pathelement path="${third_party}/findbugs/lib/jsr305.jar"/>
     <pathelement path="${third_party}/rhino/js.jar"/>
     <pathelement path="${third_party}/junit/junit.jar"/>
+    <pathelement path="${third_party}/caja/caja.jar"/>
+    <pathelement path="${third_party}/caja/htmlparser.jar"/>
   </path>
   <path id="classpath.tests.compile">
     <path refid="classpath.compile"/>
