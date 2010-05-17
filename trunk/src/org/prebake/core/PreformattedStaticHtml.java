@@ -23,6 +23,7 @@ import java.util.Arrays;
 import java.util.BitSet;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
 import java.util.PriorityQueue;
 
 import com.google.caja.lang.html.HTML;
@@ -56,11 +57,14 @@ import org.w3c.dom.Node;
  *     wiki</a>
  */
 public class PreformattedStaticHtml implements JsonSerializable {
-  // TODO: refactor this to separate out all the inner classes with long bodies.
+  /** Input HTML that is lazily converted to HTML or plain text as need. */
   private final String src;
   private transient String html;
   private transient String plainText;
 
+  // TODO: refactor this to separate out all the inner classes with long bodies.
+
+  /** Factory. */
   public static PreformattedStaticHtml of(String s) {
     return new PreformattedStaticHtml(s);
   }
@@ -75,40 +79,57 @@ public class PreformattedStaticHtml implements JsonSerializable {
     this.html = this.plainText = html;
   }
 
+  /** A best effort at text formatted from the input HTML. */
   public String plainText() {
     if (plainText == null) { filter(); }
     return plainText;
   }
 
+  /** Well-formed HTML with scripts and sharp edges removed. */
   public String html() {
     if (html == null) { filter(); }
     return html;
   }
 
+  /**
+   * Parses the source HTML, removes any unsafe constructs, and produces a
+   * plain text form.
+   */
   private void filter() {
     try {
       TokenQueue<HtmlTokenType> tq = DomParser.makeTokenQueue(
           InputSource.UNKNOWN, new StringReader(src), false);
-      DomParser p = new DomParser(tq, false, DevNullMessageQueue.singleton());
+      DomParser p = new DomParser(
+          tq, /* as HTML */ false, DevNullMessageQueue.singleton());
       Node html = p.parseFragment();
       HtmlSchema schema = HtmlSchema.getDefault(
           DevNullMessageQueue.singleton());
       DomFilter f = new DomFilter(schema);
       TextChunk tc = f.filter(html);
       this.html = Nodes.render(html);
+      // Produce the plain text form.
       StringBuilder plainText = new StringBuilder(this.html.length());
       tc.write(0, plainText);
       this.plainText = plainText.toString();
+
+    // We don't fail fast here since the correctness of our HTML transformation
+    // is not key, and any problems in documentation should be visible in a way
+    // that build correctness issues are often not.
     } catch (IOException ex) {
       ex.printStackTrace();
       fallbackFilter();
     } catch (ParseException ex) {
       ex.printStackTrace();
       fallbackFilter();
+    } catch (RuntimeException ex) {
+      ex.printStackTrace();
+      fallbackFilter();
     }
   }
 
   private void fallbackFilter() {
+    // If the HTML parser fails for some reason, then just escape something.
+    // This is ugly, but will keep the system ticking over.
     this.plainText = src;
     this.html = Nodes.encode(src);
   }
@@ -119,6 +140,7 @@ public class PreformattedStaticHtml implements JsonSerializable {
 
   private static final char[] SIXTEEN_SPACES = new char[16];
   static { Arrays.fill(SIXTEEN_SPACES, ' '); }
+  /** Adds nSpaces spaces to sb. */
   static void pad(StringBuilder sb, int nSpaces) {
     while (nSpaces >= 16) {
       sb.append(SIXTEEN_SPACES, 0, 16);
@@ -127,12 +149,65 @@ public class PreformattedStaticHtml implements JsonSerializable {
     sb.append(SIXTEEN_SPACES, 0, nSpaces);
   }
 
+  /**
+   * Splits around UNIX, Windows, and old mac style newlines returning the empty
+   * array for the empty string.
+   */
   static String[] splitLines(CharSequence s) {
     if (s.length() == 0) { return new String[0]; }
     return s.toString().split("\r\n?|\n");
   }
+
+  /** Renders an integer as an uppercase roman numeral. */
+  static String toRomanNumeral(int n) {
+    // Uses the algorithm described at
+    // http://turner.faculty.swau.edu/mathematics/materialslibrary/roman/
+    StringBuilder sb = new StringBuilder();
+    while (n >= 1000) { sb.append('M'); n -= 1000; }
+    while (n >= 500) { sb.append('D'); n -= 500; }
+    while (n >= 100) { sb.append('C'); n -= 100; }
+    while (n >= 50) { sb.append('L'); n -= 50; }
+    while (n >= 10) { sb.append('X'); n -= 10; }
+    while (n >= 5) { sb.append('V'); n -= 5; }
+    while (n >= 1) { sb.append('I'); n -= 1; }
+    for (int i = 0; i + 3 < sb.length(); ++i) {
+      char ch = sb.charAt(i);
+      if (ch == sb.charAt(i + 1)
+          && ch == sb.charAt(i + 2)
+          && ch == sb.charAt(i + 3)) {
+        char left = i > 0 ? sb.charAt(i - 1) : '\0';
+        switch (ch) {
+          case 'I':
+            if (left == 'V') {
+              sb.replace(i - 1, i + 4, "IX");
+            } else {
+              sb.replace(i, i + 4, "IV");
+            }
+            break;
+          case 'X':
+            if (left == 'L') {
+              sb.replace(i - 1, i + 4, "XC");
+            } else {
+              sb.replace(i, i + 4, "XL");
+            }
+            break;
+          case 'C':
+            if (left == 'D') {
+              sb.replace(i - 1, i + 4, "CM");
+            } else {
+              sb.replace(i, i + 4, "CD");
+            }
+            break;
+        }
+      }
+    }
+    return sb.toString();
+  }
 }
 
+/**
+ * Recursively walks a DOM tree, removing unsafe bits.
+ */
 final class DomFilter {
   final HtmlSchema htmlSchema;
   DomFilter(HtmlSchema htmlSchema) {
@@ -145,7 +220,8 @@ final class DomFilter {
       case Node.ELEMENT_NODE:
         Element el = (Element) n;
         ElKey elkey = ElKey.forElement(el);
-        if (!htmlSchema.isElementAllowed(elkey)) {
+        if (!(htmlSchema.isElementAllowed(elkey)
+              || (elkey.isHtml() && WHITELIST.contains(elkey.localName)))) {
           n.getParentNode().removeChild(n);
           return null;
         }
@@ -165,7 +241,7 @@ final class DomFilter {
           }
         }
         HTML.Element info = htmlSchema.lookupElement(elkey);
-        if (info.isEmpty()) {
+        if (info != null && info.isEmpty()) {
           for (Node child; (child = n.getFirstChild()) != null;) {
             n.removeChild(child);
           }
@@ -211,6 +287,8 @@ final class DomFilter {
                 // ignore
               }
             }
+            // Make sure table cells are not aggregated into InlineText by
+            // creating a separate wrapper node.
             return new TableCell(body, colspan, rowspan);
           } else if ("ul".equals(elkey.localName)
                      || "ol".equals(elkey.localName)) {
@@ -240,7 +318,21 @@ final class DomFilter {
                   }
                 };
                 break;
-              // TODO: i I
+              case 'I':
+                bulletMaker = new Function<Integer, String>() {
+                  public String apply(Integer i) {
+                    return PreformattedStaticHtml.toRomanNumeral(i + 1);
+                  }
+                };
+                break;
+              case 'i':
+                bulletMaker = new Function<Integer, String>() {
+                  public String apply(Integer i) {
+                    return PreformattedStaticHtml.toRomanNumeral(i + 1)
+                        .toLowerCase(Locale.ENGLISH);
+                  }
+                };
+                break;
               default:
                 final String bullet = bulletType;
                 bulletMaker = new Function<Integer, String>() {
@@ -286,22 +378,40 @@ final class DomFilter {
     return chunks.build();
   }
 
+  /** Set of extra allowed elements that are not defined in HTML4. */
+  private static final ImmutableSet<String> WHITELIST = ImmutableSet.of(
+      "xmp", "plaintext");
+
+  /** Names of HTML elements that start and end blocks. */
   private static final ImmutableSet<String> BLOCK_NAMES = ImmutableSet.of(
       "pre", "p", "h1", "h2", "h3", "h4", "h5", "h6", "div", "li", "tr",
-      "option", "caption", "tbody", "thead", "tfoot");
+      "option", "caption", "tbody", "thead", "tfoot", "xmp");
 
   private static boolean isBlock(ElKey k) {
     return k.isHtml() && BLOCK_NAMES.contains(k.localName);
   }
 }
 
+/** Represents a chunk of HTML along with sizing and positioning info. */
 interface TextChunk {
+  /** The width of the plain text form. */
   int width();
+  /** The number of lines in the plain text form. */
   int height();
+  /**
+   * Appends the plain text form to the output buffer.
+   * @param containerWidth a hint at the width of the container in case the
+   *    chunk wishes to center or right justify itself.
+   *    This hint might be wrong on the low side but will not be wrong on the
+   *    high side, so the chunk can always assume it has at least as much
+   *    space as containerWidth.
+   */
   void write(int containerWidth, StringBuilder out);
+  /** True if the next chunk following this chunk should fall on a new line. */
   boolean breaks();
 }
 
+/** Represents a line break. */
 class Break implements TextChunk {
   public boolean breaks() { return true; }
   public int height() { return 0; }
@@ -309,6 +419,7 @@ class Break implements TextChunk {
   public int width() { return 0; }
 }
 
+/** A chunk of text, that might span multiple lines. */
 class SimpleTextChunk implements TextChunk {
   final String s;
   final int height;
@@ -340,6 +451,9 @@ class SimpleTextChunk implements TextChunk {
   public int width() { return width; }
 }
 
+/**
+ * A series of chunks laid out horizontally.
+ */
 final class InlineText implements TextChunk {
   final ImmutableList<TextChunk> parts;
   final int height;
@@ -347,7 +461,7 @@ final class InlineText implements TextChunk {
 
   static TextChunk make(List<TextChunk> chunks) {
     if (chunks.isEmpty()) { return new SimpleTextChunk(""); }
-    if (chunks.size() == 1) { return chunks.get(0); }
+    if (chunks.size() == 1 && !chunks.get(0).breaks()) { return chunks.get(0); }
     ImmutableList.Builder<TextChunk> parts = ImmutableList.builder();
     for (TextChunk c : chunks) {
       if (c instanceof InlineText) {
@@ -402,6 +516,9 @@ final class InlineText implements TextChunk {
   public int width() { return width; }
 }
 
+/**
+ * A series of chunks laid out vertically.
+ */
 final class TextBlock implements TextChunk {
   final ImmutableList<TextChunk> parts;
   final int height;
@@ -409,7 +526,7 @@ final class TextBlock implements TextChunk {
 
   static TextChunk make(List<TextChunk> chunks) {
     if (chunks.isEmpty()) { return new SimpleTextChunk(""); }
-    if (chunks.size() == 1) { return chunks.get(0); }
+    if (chunks.size() == 1 && chunks.get(0).breaks()) { return chunks.get(0); }
     ImmutableList.Builder<TextChunk> parts = ImmutableList.builder();
     List<TextChunk> inlineParts = Lists.newArrayList();
     for (TextChunk c : chunks) {
@@ -467,8 +584,16 @@ final class TextBlock implements TextChunk {
   public int width() { return width; }
 }
 
+/**
+ * An indented series of chunks laid out vertically with list headers.
+ */
 final class ListBlock implements TextChunk {
   final List<TextChunk> items;
+  /**
+   * Given a zero-indexed item index, produces bullet text.
+   * Must be repeatable, i.e. for the same integer >= 0 always returns the same
+   * text.
+   */
   final Function<Integer, String> bulletMaker;
   final int height, width, bulletWidth;
   ListBlock(List<TextChunk> items, Function<Integer, String> bulletMaker) {
@@ -514,6 +639,9 @@ final class ListBlock implements TextChunk {
   }
 }
 
+/**
+ * Represents an HTML table.
+ */
 final class Table implements TextChunk {
   final ImmutableList<Cell> cells;
   final int height;
@@ -678,7 +806,9 @@ final class Table implements TextChunk {
 
   static final class CellContent implements Comparable<CellContent> {
     final Cell c;
+    /** the textual form of c.body. */
     final String[] lines;
+    /** an index into lines. */
     int line;
 
     CellContent(Cell c, String[] lines) {
@@ -702,6 +832,9 @@ final class Table implements TextChunk {
   }
 }
 
+/**
+ * Wraps a table cell to prevent it from being coalesced by {@link InlineText}.
+ */
 final class TableCell implements TextChunk {
   final TextChunk body;
   final int colspan, rowspan;
@@ -723,6 +856,7 @@ final class TableCell implements TextChunk {
   }
 }
 
+/** Centers its body in its container. */
 final class CenteredText implements TextChunk {
   final TextChunk body;
 
@@ -735,6 +869,7 @@ final class CenteredText implements TextChunk {
   public int width() { return body.width(); }
 
   public void write(int containerWidth, StringBuilder out) {
+    // Break out lines so we can center them individualy.
     String[] lines;
     {
       StringBuilder sb = new StringBuilder();
