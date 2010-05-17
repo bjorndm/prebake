@@ -434,7 +434,7 @@ public abstract class Prebakery implements Closeable {
                   w.append(sig.name).append('\n');
                   Documentation doc = sig.help;
                   if (doc != null) {
-                    w.append(indent(htmlToText(doc.summaryHtml))).append('\n');
+                    w.append(indent(doc.summaryHtml.plainText())).append('\n');
                   }
                 }
                 break;
@@ -564,10 +564,6 @@ public abstract class Prebakery implements Closeable {
     } finally {
       r.close();
     }
-  }
-
-  private static String htmlToText(String html) {
-    return html;  // TODO
   }
 
   private static String indent(String text) {

@@ -21,7 +21,9 @@ var jars = [
     "third_party/fast-md5/fast-md5.jar",
     "third_party/rhino/js.jar",
     "third_party/findbugs/lib/jsr305.jar",
-    "third_party/junit/junit.jar"];
+    "third_party/junit/junit.jar",
+    "third_party/caja/caja.jar",
+    "third_party/caja/htmlparser.jar"];
 
 ({
   classes: {

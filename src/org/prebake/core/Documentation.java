@@ -41,9 +41,9 @@ import javax.annotation.ParametersAreNonnullByDefault;
 @ParametersAreNonnullByDefault
 public final class Documentation implements JsonSerializable {
   /** A short summary, usually in one sentence. */
-  public final @Nonnull String summaryHtml;
+  public final @Nonnull PreformattedStaticHtml summaryHtml;
   /** A more detailed description. */
-  public final @Nonnull String detailHtml;
+  public final @Nonnull PreformattedStaticHtml detailHtml;
   /**
    * The name and email address of the artifact's maintainer, ideally as a
    * mailbox production per RFC 2822, e.g. {@code John Doe <john.doe@host.tld>}.
@@ -92,9 +92,9 @@ public final class Documentation implements JsonSerializable {
       @Nullable String contactEmail) {
     // TODO: coerce HTML to balanced preformatted static HTML with normalized
     // entities.  The balanced tag part is critical for summaryHtml.
-    this.summaryHtml = summaryHtml != null
-        ? summaryHtml : summaryOf(detailHtml);
-    this.detailHtml = detailHtml;
+    this.summaryHtml = PreformattedStaticHtml.of(summaryHtml != null
+        ? summaryHtml : summaryOf(detailHtml));
+    this.detailHtml = PreformattedStaticHtml.of(detailHtml);
     this.contactEmail = contactEmail;
   }
 
@@ -159,13 +159,15 @@ public final class Documentation implements JsonSerializable {
    * True if it can be rendered as just the detail string without losing data.
    */
   public boolean isDetailOnly() {
-    return contactEmail == null && summaryOf(detailHtml).equals(summaryHtml);
+    return contactEmail == null
+        && summaryOf(detailHtml.plainText()).equals(summaryHtml.plainText());
   }
 
   public void toJson(JsonSink sink) throws IOException { toJson(sink, false); }
 
   public void toJson(JsonSink sink, boolean full) throws IOException {
-    boolean skipSummary = !full && summaryOf(detailHtml).equals(summaryHtml);
+    boolean skipSummary = !full
+        && summaryOf(detailHtml.plainText()).equals(summaryHtml.plainText());
     if (skipSummary && contactEmail == null) {
       sink.writeValue(detailHtml);
       return;
