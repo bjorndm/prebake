@@ -42,7 +42,19 @@ public class PreformattedStaticHtmlTest extends PbTestCase {
     assertEquals(
         "<b>Hello, World!</b>",
         PreformattedStaticHtml.of(
-            "<b style=\"color: red\">Hello, World!").html());
+            "<b style=\"color: expression('alert(1)')\">Hello, World!").html());
+    assertEquals(
+        "<b style=\"color: red\">Hello, World!</b>",
+        PreformattedStaticHtml.of("<b style=color:red>Hello, World!").html());
+    assertEquals(
+        ""
+        + "<b style=\"color: red; font-family: &#39;Courier&#39;\""
+        + ">Hello, World!</b>",
+        PreformattedStaticHtml.of(
+            ""
+            + "<b style="
+            + "color:red;background:expression('alert(1)');font-family:Courier"
+            + ">Hello, World!</b>").html());
     assertEquals(
         "<ul><li>One</li><li>Two</li><li>Three</li></ul>",
         PreformattedStaticHtml.of(
@@ -193,14 +205,32 @@ public class PreformattedStaticHtmlTest extends PbTestCase {
 
   @Test public final void testRomanNumerals() {
     ImmutableList.Builder<String> romanNumerals = ImmutableList.builder();
-    for (int i = 0; i < 20; ++i) {
+    for (int i = 0; i <= 30; ++i) {
       romanNumerals.add(PreformattedStaticHtml.toRomanNumeral(i));
     }
     assertEquals(
         ImmutableList.of(
-            "", "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX",
-            "X", "XI", "XII", "XIII", "XIV", "XV", "XVI", "XVII", "XVIII", "XIX"
+            "",
+            "I", "II", "III", "IV", "V",
+            "VI", "VII", "VIII", "IX", "X",
+            "XI", "XII", "XIII", "XIV", "XV",
+            "XVI", "XVII", "XVIII", "XIX", "XX",
+            "XXI", "XXII", "XXIII", "XXIV", "XXV",
+            "XXVI", "XXVII", "XXVIII", "XXIX", "XXX"
             ),
         romanNumerals.build());
+    assertEquals("XLVIII", PreformattedStaticHtml.toRomanNumeral(48));
+    // Apparently this is more correct than IL.
+    assertEquals("XLIX", PreformattedStaticHtml.toRomanNumeral(49));
+    assertEquals("L", PreformattedStaticHtml.toRomanNumeral(50));
+    assertEquals("LI", PreformattedStaticHtml.toRomanNumeral(51));
+    assertEquals("XCVIII", PreformattedStaticHtml.toRomanNumeral(98));
+    assertEquals("XCIX", PreformattedStaticHtml.toRomanNumeral(99));
+    assertEquals("C", PreformattedStaticHtml.toRomanNumeral(100));
+    assertEquals("CI", PreformattedStaticHtml.toRomanNumeral(101));
+    assertEquals("CMXCVIII", PreformattedStaticHtml.toRomanNumeral(998));
+    assertEquals("CMXCIX", PreformattedStaticHtml.toRomanNumeral(999));
+    assertEquals("M", PreformattedStaticHtml.toRomanNumeral(1000));
+    assertEquals("MI", PreformattedStaticHtml.toRomanNumeral(1001));
   }
 }
