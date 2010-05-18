@@ -31,12 +31,12 @@ function prelim(action, opt_config) {
 ({
   help: {
     summary: 'Copies files to a directory tree.',
-    detail: [
-        'This version of the cp command copies by glob transform.',
-        'E.g. to copy all html files under the doc/ directory to ',
-        'the same location under the www directory do',
-        '<code class="prettypring lang-js">',
-        '  tools.cp("doc/**.html", "www/**.html");</code>'].join('\n'),
+    detail: (
+        'This version of the cp command copies by glob transform.\n'
+        + 'E.g. to copy all html files under the doc/ directory to'
+        + ' the same location under the www directory do\n'
+        + '<code class="prettyprint lang-js">'
+        + '  tools.cp("doc/**.html", "www/**.html");</code>'),
     contact: 'Mike Samuel <mikesamuel@gmail.com>'
   },
   fire: function fire(inputs, product, action, os) {

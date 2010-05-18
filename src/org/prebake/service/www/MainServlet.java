@@ -124,6 +124,7 @@ public final class MainServlet extends HttpServlet {
     String ext = path.substring(path.lastIndexOf('.') + 1);
     String mimeType = MIME_TYPES.get(ext);
     if (mimeType != null) { resp.setContentType(mimeType); }
+    // All hex digits, so not a header splitting vuln.
     resp.setHeader("ETag", inEtag);
     OutputStream out = resp.getOutputStream();
     try {
