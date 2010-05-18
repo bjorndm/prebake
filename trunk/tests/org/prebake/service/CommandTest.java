@@ -45,6 +45,12 @@ public class CommandTest {
   @After
   public void tearDown() { fs = null; }
 
+  @Test public final void testAuthWwwCommand() throws IOException {
+    Command c = new Command.AuthWwwCommand();
+    assertEquals("[\"auth_www\",{}]", c.toString());
+    reparse(c);
+  }
+
   @Test public final void testBakeCommand() throws IOException {
     Command.BakeCommand c = new Command.BakeCommand(ImmutableSet.of(
         "foo", "bar"));

@@ -20,15 +20,20 @@ import org.prebake.js.CommonEnvironment;
 import org.prebake.js.JsonSource;
 import org.prebake.os.OperatingSystem;
 import org.prebake.os.RealOperatingSystem;
+import org.prebake.service.www.MainServlet;
 import org.prebake.util.CommandLineArgs;
 
 import com.google.common.base.Charsets;
+import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.io.ByteStreams;
 import com.google.common.util.concurrent.Executors;
 import com.sleepycat.je.Environment;
 import com.sleepycat.je.EnvironmentConfig;
 
+import org.eclipse.jetty.server.Request;
+import org.eclipse.jetty.server.Server;
+import org.eclipse.jetty.server.handler.AbstractHandler;
 import java.io.File;
 import java.io.IOException;
 import java.io.StringReader;
@@ -47,6 +52,9 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import javax.annotation.ParametersAreNonnullByDefault;
+import javax.servlet.ServletException;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 
 /**
  * An executable class that hooks the Prebakery to the real file system and
@@ -64,30 +72,36 @@ public final class Main {
       System.exit(0);
     }
 
-    MessageQueue mq = new MessageQueue();
-    final FileSystem fs = FileSystems.getDefault();
+    FileSystem fs = FileSystems.getDefault();
     ImmutableMap<String, ?> env = CommonEnvironment.makeEnvironment(
         getSystemPropertyMap());
-    Config config = new CommandLineConfig(fs, mq, args);
-    if (mq.hasErrors()) {
-      System.err.println(USAGE);
-      System.err.println();
-      for (String msg : mq.getMessages()) {
-        System.err.println(msg);
+    Config config;
+    {
+      MessageQueue mq = new MessageQueue();
+      config = new CommandLineConfig(fs, mq, args);
+      if (mq.hasErrors()) {
+        System.err.println(USAGE);
+        System.err.println();
+        for (String msg : mq.getMessages()) {
+          System.err.println(msg);
+        }
+        System.exit(-1);
       }
-      System.exit(-1);
     }
-    final ScheduledExecutorService execer = Executors
+    ScheduledExecutorService execer = Executors
         .getExitingScheduledExecutorService(
             new ScheduledThreadPoolExecutor(16));
     OperatingSystem os = new RealOperatingSystem(fs, execer);
+    final String token;
+    {
+      byte[] bytes = new byte[256];
+      new SecureRandom().nextBytes(bytes);
+      token = new BigInteger(bytes).toString(Character.MAX_RADIX);
+    }
+
     final Prebakery pb = new Prebakery(config, env, execer, os, logger) {
       @Override
-      protected String makeToken() {
-        byte[] bytes = new byte[256];
-        new SecureRandom().nextBytes(bytes);
-        return new BigInteger(bytes).toString(Character.MAX_RADIX);
-      }
+      protected String makeToken() { return token; }
 
       FileSystem getFileSystem() {
         return getConfig().getClientRoot().getFileSystem();
@@ -102,7 +116,7 @@ public final class Main {
             while (true) {
               try {
                 boolean closeSock = true;
-                final Socket sock = ss.accept();
+                Socket sock = ss.accept();
                 // TODO: move sock handling to a worker or use java.nio stuff.
                 try {
                   byte[] bytes = ByteStreams.toByteArray(sock.getInputStream());
@@ -140,9 +154,43 @@ public final class Main {
       }
     };
 
+    final Server server;
+    if (config.getWwwPort() > 0) {
+      server = new Server(config.getWwwPort());
+      server.setHandler(new AbstractHandler() {
+        MainServlet servlet = new MainServlet(token);
+        public void handle(
+            String tgt, Request r, HttpServletRequest req,
+            HttpServletResponse resp)
+            throws IOException, ServletException {
+          try {
+            servlet.service(req, resp);
+          } catch (RuntimeException ex) {
+            ex.printStackTrace();  // TODO
+            throw ex;
+          }
+        }
+      });
+      try {
+        server.start();
+      } catch (Exception ex) {
+        Throwables.propagate(ex);
+      }
+    } else {
+      server = null;
+    }
+    // TODO: debug unknown flags no warning issued
+
     // If an interrupt signal is received,
     Runtime.getRuntime().addShutdownHook(new Thread(new Runnable() {
-      public void run() { pb.close(); }
+      public void run() {
+        pb.close();
+        try {
+          if (server != null) { server.stop(); }
+        } catch (Exception ex) {
+          Throwables.propagate(ex);
+        }
+      }
     }));
 
     final boolean[] exitMutex = new boolean[1];

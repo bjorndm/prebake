@@ -1,0 +1,23 @@
+<gxp:template name="org.prebake.service.www.AuthHelpPage"
+ xmlns="http://www.w3.org/1999/xhtml"
+ xmlns:gxp="http://google.com/2001/gxp">
+<html>
+  <head>
+    <title>Prebake Authorization</title>
+  </head>
+  <body>
+    <h1>Prebake Authorization</h1>
+    <p>You have not been authenticated to prebake.</p>
+    <p>Prebake needs to know that you are authorized to read source files.
+    Run <code>bake
+    <gxp:eval expr="org.prebake.channel.Command.Verb.auth_www"/></code>
+    and paste the URL it gives you into your browser
+    to set up your credentials.</p>
+    <p>Alternatively you can look in the
+    <tt><gxp:eval expr="org.prebake.channel.FileNames.DIR"/></tt>
+    directory for the
+    <tt><gxp:eval expr="org.prebake.channel.FileNames.TOKEN"/></tt>
+    file and use it to construct a URL like <tt>/auth?&lt;token&gt;</tt>.</p>
+  </body>
+</html>
+</gxp:template>

@@ -88,7 +88,7 @@ function schema(typeDescriptor) {
         return predicateSchema(
             typeDescriptor, function (x) { return x === x >> 0; });
     }
-  } else if (typeDescriptor instanceof Array) {
+  } else if (isArray(typeDescriptor)) {
     var optionMap = {};
     for (var i = 0, n = typeDescriptor.length; i < n; ++i) {
       var val = typeDescriptor[i];
@@ -145,14 +145,17 @@ function unionSchema(options) {
       // we don't print spurious error messages from the first.
       var delayedConsole = {
         warn: function () {
-          delayed.push(function (c) { c.warn.apply(c, arguments); });
+          var args = arguments;
+          delayed.push(function (c) { c.warn.apply(c, args); });
         },
         error: function () {
-          delayed.push(function (c) { c.error.apply(c, arguments); });
+          var args = arguments;
+          delayed.push(function (c) { c.error.apply(c, args); });
         },
         didYouMean: function () {
+          var args = arguments;
           delayed.push(function (c) {
-            c.didYouMean && c.didYouMean.apply(c, arguments);
+            if (c.didYouMean) { c.didYouMean.apply(c, args); }
           });
         }
       };
@@ -189,7 +192,7 @@ function unionSchema(options) {
 function arraySchema(delegate) {
   return {
     check: function (key, value, out, console, stack) {
-      if (!(value instanceof Array)) {
+      if (!isArray(value)) {
         console.error(
             'Expected an array, not ' + JSON.stringify(value)
             + ' for ' + stack);
@@ -407,6 +410,12 @@ function predicateSchema(typeDescriptor, predicate) {
 }
 
 var hop = {}.hasOwnProperty;
+var str = {}.toString;
+
+function isArray(o) {
+  // TODO Figure out why instanceof Array doesn't work.
+  return o instanceof Array || str.call(o) === '[object Array]';
+}
 
 function mixin(from, to) {
   for (var k in from) {

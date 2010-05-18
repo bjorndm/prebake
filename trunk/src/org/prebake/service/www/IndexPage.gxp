@@ -1,0 +1,13 @@
+<gxp:template name="org.prebake.service.www.IndexPage"
+ xmlns="http://www.w3.org/1999/xhtml"
+ xmlns:gxp="http://google.com/2001/gxp">
+<html>
+  <head>
+    <title>Prebake Home</title>
+  </head>
+  <body>
+    <h1>Prebake</h1>
+    Welcome to prebake.  TODO
+  </body>
+</html>
+</gxp:template>
