@@ -37,7 +37,8 @@ var jars = [
       contact: "Mike Samuel <mikesamuel@gmail.com>"
     },
     actions: [tools.javac(["src///**.java"].concat(jars), "lib///**.class"),
-              tools.cp("src/**.{css,js,txt}", "lib/**.{css,js,txt}"),
+              tools.cp("src/org/prebake/service/**.{css,js,txt}",
+                       "lib/org/prebake/service/**.{css,js,txt}"),
               tools.ls("src/org/prebake/service/tools/*.js",
                        "lib/org/prebake/service/tools/tools.txt")]
   },

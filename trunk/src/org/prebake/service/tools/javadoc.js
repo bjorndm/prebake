@@ -60,8 +60,9 @@ function decodeOptions(optionsSchema, action, opt_config) {
 }
 
 ({
-  help: ('Builds HTML Java API documentation from java source files\n'
-         + schemaModule.example(schemaModule.schema(options))),
+  help: ('Builds HTML Java API documentation from java source files.\n'
+         + '<pre class="prettyprint lang-js">'
+         + schemaModule.example(schemaModule.schema(options)) + '</pre>'),
   check: decodeOptions.bind({}, options),
   fire: function fire(inputs, product, action, os) {
     var opt = {};

@@ -159,15 +159,17 @@ public final class Documentation implements JsonSerializable {
    * True if it can be rendered as just the detail string without losing data.
    */
   public boolean isDetailOnly() {
-    return contactEmail == null
-        && summaryOf(detailHtml.plainText()).equals(summaryHtml.plainText());
+    return contactEmail == null && isSummaryInferred();
+  }
+
+  public boolean isSummaryInferred() {
+    return summaryOf(detailHtml.plainText()).equals(summaryHtml.plainText());
   }
 
   public void toJson(JsonSink sink) throws IOException { toJson(sink, false); }
 
   public void toJson(JsonSink sink, boolean full) throws IOException {
-    boolean skipSummary = !full
-        && summaryOf(detailHtml.plainText()).equals(summaryHtml.plainText());
+    boolean skipSummary = !full && isSummaryInferred();
     if (skipSummary && contactEmail == null) {
       sink.writeValue(detailHtml);
       return;

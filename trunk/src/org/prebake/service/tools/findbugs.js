@@ -54,8 +54,9 @@ function decodeOptions(optionsSchema, action, opt_config) {
 }
 
 ({
-  help: ('Runs FindBugs to find common problems in Java source code\n'
-         + schemaModule.example(schemaModule.schema(options))),
+  help: ('Runs FindBugs to find common problems in Java source code.'
+         + '\n<pre class="prettyprint lang-js">'
+         + schemaModule.example(schemaModule.schema(options)) + '</pre>'),
   check: decodeOptions.bind({}, options),
   fire: function fire(inputs, product, action, os) {
     var config = {};

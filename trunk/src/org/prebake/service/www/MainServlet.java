@@ -14,11 +14,21 @@
 
 package org.prebake.service.www;
 
+import org.prebake.core.Hash;
+import org.prebake.service.Prebakery;
+import org.prebake.service.plan.Product;
+
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.io.Writer;
 import java.net.URI;
 import java.net.URLDecoder;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.Locale;
+import java.util.Map;
 
 import javax.servlet.ServletException;
 import javax.servlet.http.Cookie;
@@ -26,18 +36,27 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Maps;
+import com.google.common.io.ByteStreams;
 import com.google.gxp.base.GxpContext;
 
 public final class MainServlet extends HttpServlet {
   private final String token;
+  private final Prebakery pb;
 
-  public MainServlet(String token) {
+  public MainServlet(String token, Prebakery pb) {
     this.token = token;
+    this.pb = pb;
   }
 
   private boolean checkAuthorized(
       String path, HttpServletRequest req, HttpServletResponse resp)
       throws IOException {
+    if (path.startsWith("/www-files/")) {
+      serveStaticFile(path.substring(1), req, resp);
+      return false;
+    }
     if ("/auth".equals(path)) {
       String query = req.getQueryString();
       if (query != null && URLDecoder.decode(query, "UTF-8").equals(token)) {
@@ -64,6 +83,53 @@ public final class MainServlet extends HttpServlet {
       if (authed) { return true; }
       redirectTo(resp, "/auth-help.html");
       return false;
+    }
+  }
+
+  private static final Map<String, String> MIME_TYPES = ImmutableMap.of(
+      "css", "text/css;charset=UTF-8");
+  private static final Map<String, String> ETAGS
+      = Collections.synchronizedMap(new LinkedHashMap<String, String>() {
+    @Override public boolean removeEldestEntry(Map.Entry<String, String> e) {
+      return this.size() > 64;
+    }
+  });
+
+  private static void serveStaticFile(
+      String path, HttpServletRequest req, HttpServletResponse resp)
+      throws IOException {
+    String inEtag = req.getHeader("If-None-Match");
+    String etag = ETAGS.get(path);
+    if (etag != null && etag.equals(inEtag)) {
+      resp.setStatus(304);
+      resp.getOutputStream().close();
+      return;
+    }
+    InputStream in = MainServlet.class.getResourceAsStream(path);
+    if (in == null) {
+      resp.sendError(404);
+      return;
+    }
+    byte[] content;
+    try {
+      content = ByteStreams.toByteArray(in);
+    } finally {
+      in.close();
+    }
+    if (inEtag == null) {
+      inEtag = Hash.builder().withData(content).build().toHexString();
+      ETAGS.put(path, inEtag);
+    }
+    resp.setContentLength(content.length);
+    String ext = path.substring(path.lastIndexOf('.') + 1);
+    String mimeType = MIME_TYPES.get(ext);
+    if (mimeType != null) { resp.setContentType(mimeType); }
+    resp.setHeader("ETag", inEtag);
+    OutputStream out = resp.getOutputStream();
+    try {
+      out.write(content);
+    } finally {
+      out.close();
     }
   }
 
@@ -150,9 +216,15 @@ public final class MainServlet extends HttpServlet {
 
   private void serveIndex(HttpServletResponse resp) throws IOException {
     Writer w = resp.getWriter();
-    IndexPage.write(w, GxpContext.builder(Locale.ENGLISH).build());
+    Map<String, Product> products = Maps.newTreeMap(LEXICAL);
+    products.putAll(pb.getProducts());
+    IndexPage.write(
+        w, GxpContext.builder(Locale.ENGLISH).build(), pb.getTools(), products);
     w.close();
   }
+  private static final Comparator<String> LEXICAL = new Comparator<String>() {
+    public int compare(String a, String b) { return a.compareTo(b); }
+  };
 
   /** @param encodedUriPath an already encoded URI path. */
   private void redirectTo(HttpServletResponse resp, String encodedUriPath)

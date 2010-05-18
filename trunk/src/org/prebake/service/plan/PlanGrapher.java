@@ -64,15 +64,20 @@ public final class PlanGrapher {
     public void artifactDestroyed(String name) { unprocessed.put(name, null); }
   };
 
-  public synchronized PlanGraph snapshot() {
-    processProducts();
-    String[] productNames = nodes.keySet().toArray(NO_STRING);
-    Arrays.sort(productNames);
-    int n = productNames.length;
-    EndPoints[] prodEndPoints = new EndPoints[n];
-    for (int i = n; --i >= 0;) {
-      prodEndPoints[i] = nodes.get(productNames[i]);
+  public PlanGraph snapshot() {
+    String[] productNames;
+    EndPoints[] prodEndPoints;
+    synchronized (this) {
+      processProducts();
+      productNames = nodes.keySet().toArray(NO_STRING);
+      Arrays.sort(productNames);
+      int n = productNames.length;
+      prodEndPoints = new EndPoints[n];
+      for (int i = n; --i >= 0;) {
+        prodEndPoints[i] = nodes.get(productNames[i]);
+      }
     }
+    int n = productNames.length;
     PlanGraph.Builder b = PlanGraph.builder(productNames);
     for (int i = 0; i < n; ++i) {
       String p = productNames[i];

@@ -35,7 +35,8 @@ function prelim(action, opt_config) {
         'This version of the cp command copies by glob transform.',
         'E.g. to copy all html files under the doc/ directory to ',
         'the same location under the www directory do',
-        '  tools.cp("doc/**.html", "www/**.html");'].join('\n'),
+        '<code class="prettypring lang-js">',
+        '  tools.cp("doc/**.html", "www/**.html");</code>'].join('\n'),
     contact: 'Mike Samuel <mikesamuel@gmail.com>'
   },
   fire: function fire(inputs, product, action, os) {
