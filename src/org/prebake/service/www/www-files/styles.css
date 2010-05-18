@@ -1,0 +1,17 @@
+.preformat { white-space: pre-wrap }
+
+body { background-color: #fff; color: #000; margin: 10px; font-family: Arial }
+
+h1 {
+  padding: 2px;
+  border-radius: 6px; -moz-border-radius: 6px; -webkit-border-radius: 6px;
+  font-size: 200%;
+  font-weight: bold;
+  font-variant: small-caps;
+  font-family: sans-serif;
+  text-decoration: smallcaps;
+  color: #337;
+  border: #337 solid 4px;
+  padding: 2px 2px 2px 30px;
+  background: #eef url(prebake.gif) no-repeat center left;  /* TODO */
+}

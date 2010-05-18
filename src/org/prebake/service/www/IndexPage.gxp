@@ -1,13 +1,47 @@
 <gxp:template name="org.prebake.service.www.IndexPage"
  xmlns="http://www.w3.org/1999/xhtml"
  xmlns:gxp="http://google.com/2001/gxp">
+<gxp:import class="org.prebake.service.tools.ToolSignature"/>
+<gxp:import class="org.prebake.service.plan.Product"/>
+<gxp:import class="java.util.List"/>
+<gxp:import class="java.util.Map"/>
+<gxp:param name="tools" type="List{ToolSignature}"/>
+<gxp:param name="products" type="Map{String, Product}"/>
 <html>
   <head>
     <title>Prebake Home</title>
+    <link rel="stylesheet" type="text/css" href="www-files/styles.css"/>
   </head>
   <body>
     <h1>Prebake</h1>
-    Welcome to prebake.  TODO
+    Welcome to prebake.
+    <h2 id="tools"><a href="tools/index.html">Tools</a></h2>
+    <gxp:loop var="tool" type="ToolSignature" iterable="tools">
+      <h3><a>
+        <gxp:attr name="href">tools/<gxp:eval expr="tool.name"/></gxp:attr>
+        <gxp:eval expr="tool.name"/>
+      </a></h3>
+      <gxp:if cond="tool.help != null">
+        <gxp:if cond="!tool.help.isSummaryInferred()">
+          <p class="preformat"><gxp:eval expr="tool.help.summaryHtml"/></p>
+        </gxp:if>
+        <div class="preformat"><gxp:eval expr="tool.help.detailHtml"/></div>
+      </gxp:if>
+    </gxp:loop>
+
+    <h2 id="products"><a href="products/index.html">Products</a></h2>
+    <gxp:loop var="product" type="Product" iterable="products.values()">
+      <h3><a>
+        <gxp:attr name="href">plans/<gxp:eval expr="product.name"/></gxp:attr>
+        <gxp:eval expr="product.name"/>
+      </a></h3>
+      <gxp:if cond="product.help != null">
+        <gxp:if cond="!product.help.isSummaryInferred()">
+          <p class="preformat"><gxp:eval expr="product.help.summaryHtml"/></p>
+        </gxp:if>
+        <div class="preformat"><gxp:eval expr="product.help.detailHtml"/></div>
+      </gxp:if>
+    </gxp:loop>
   </body>
 </html>
 </gxp:template>

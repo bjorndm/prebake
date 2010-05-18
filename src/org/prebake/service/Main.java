@@ -24,7 +24,6 @@ import org.prebake.service.www.MainServlet;
 import org.prebake.util.CommandLineArgs;
 
 import com.google.common.base.Charsets;
-import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.io.ByteStreams;
 import com.google.common.util.concurrent.Executors;
@@ -158,7 +157,7 @@ public final class Main {
     if (config.getWwwPort() > 0) {
       server = new Server(config.getWwwPort());
       server.setHandler(new AbstractHandler() {
-        MainServlet servlet = new MainServlet(token);
+        MainServlet servlet = new MainServlet(token, pb);
         public void handle(
             String tgt, Request r, HttpServletRequest req,
             HttpServletResponse resp)
@@ -174,7 +173,9 @@ public final class Main {
       try {
         server.start();
       } catch (Exception ex) {
-        Throwables.propagate(ex);
+        logger.log(
+            Level.SEVERE, "Failed to start http server on port "
+            + config.getWwwPort(), ex);
       }
     } else {
       server = null;
@@ -188,7 +189,7 @@ public final class Main {
         try {
           if (server != null) { server.stop(); }
         } catch (Exception ex) {
-          Throwables.propagate(ex);
+          logger.log(Level.SEVERE, "Error shutting down http server", ex);
         }
       }
     }));

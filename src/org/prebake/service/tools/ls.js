@@ -37,8 +37,8 @@ function prelim(action, opt_config) {
 }
 
 ({
-  help:
-    'Dumps a listing of its input files to the exact file matched by the input',
+  help: ('Dumps a listing of its input files to the exact file'
+         + ' matched by the input.'),
   check: prelim,
   fire: function fire(inputs, product, action, os) {
     var config = {};

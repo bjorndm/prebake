@@ -13,7 +13,7 @@
 // limitations under the License.
 
 ({
-  help: 'Pack or unpack a java Archive',
+  help: 'Pack or unpack a java Archive.',
   check: function (action) {
     // TODO check d, cp options.
   },

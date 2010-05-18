@@ -55,6 +55,8 @@ import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
+import com.google.gxp.base.GxpContext;
+import com.google.gxp.html.HtmlClosure;
 
 import org.w3c.dom.Attr;
 import org.w3c.dom.Element;
@@ -68,7 +70,7 @@ import org.w3c.dom.Node;
  * @see <a href="http://code.google.com/p/prebake/wiki/PreformattedStaticHtml">
  *     wiki</a>
  */
-public class PreformattedStaticHtml implements JsonSerializable {
+public class PreformattedStaticHtml implements JsonSerializable, HtmlClosure {
   /** Input HTML that is lazily converted to HTML or plain text as need. */
   private final String src;
   private transient String html;
@@ -216,6 +218,10 @@ public class PreformattedStaticHtml implements JsonSerializable {
       }
     }
     return sb.toString();
+  }
+
+  public void write(Appendable out, GxpContext c) throws IOException {
+    out.append(html());
   }
 }
 

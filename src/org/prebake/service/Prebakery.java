@@ -27,6 +27,7 @@ import org.prebake.service.bake.Baker;
 import org.prebake.service.plan.Ingredient;
 import org.prebake.service.plan.PlanGraph;
 import org.prebake.service.plan.Planner;
+import org.prebake.service.plan.Product;
 import org.prebake.service.plan.Recipe;
 import org.prebake.service.tools.ToolBox;
 import org.prebake.service.tools.ToolSignature;
@@ -58,6 +59,7 @@ import java.nio.file.StandardOpenOption;
 import java.nio.file.attribute.DosFileAttributeView;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutionException;
@@ -182,6 +184,37 @@ public abstract class Prebakery implements Closeable {
   }
 
   public Config getConfig() { return config; }
+
+  public List<ToolSignature> getTools() {
+    ImmutableList.Builder<ToolSignature> toolList = ImmutableList.builder();
+    ToolBox tools = this.tools;
+    if (tools != null) {
+      for (Future<ToolSignature> f : tools.getAvailableToolSignatures()) {
+        try {
+          ToolSignature sig = f.get();
+          if (sig != null) { toolList.add(sig); }
+        } catch (InterruptedException ex) {
+          // This is best effort.
+        } catch (ExecutionException ex) {
+          // This is best effort.
+        }
+      }
+    }
+    return toolList.build();
+  }
+
+  public PlanGraph getPlanGraph() {
+    Planner planner = this.planner;
+    return planner != null
+        ? planner.getPlanGraph()
+        : PlanGraph.builder().build();
+  }
+
+  public Map<String, Product> getProducts() {
+    Planner planner = this.planner;
+    if (planner != null) { return planner.getProducts(); }
+    return ImmutableMap.of();
+  }
 
   /**
    * @param portHint the port to use or 0 to let the system choose a port.
@@ -347,7 +380,7 @@ public abstract class Prebakery implements Closeable {
             switch (cmd.verb) {
               case auth_www:
                 w.write("http://127.0.0.1:" + config.getWwwPort() + "/auth?"
-                        + UriUtil.encode(token));
+                        + UriUtil.encode(token) + "\n");
                 break;
               case bake:
                 ccl = new ClientChannel(w);
