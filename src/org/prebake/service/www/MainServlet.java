@@ -29,6 +29,7 @@ import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
+import java.util.TreeMap;
 
 import javax.servlet.ServletException;
 import javax.servlet.http.Cookie;
@@ -37,7 +38,6 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Maps;
 import com.google.common.io.ByteStreams;
 import com.google.gxp.base.GxpContext;
 
@@ -216,7 +216,7 @@ public final class MainServlet extends HttpServlet {
 
   private void serveIndex(HttpServletResponse resp) throws IOException {
     Writer w = resp.getWriter();
-    Map<String, Product> products = Maps.newTreeMap(LEXICAL);
+    Map<String, Product> products = new TreeMap<String, Product>(LEXICAL);
     products.putAll(pb.getProducts());
     IndexPage.write(
         w, GxpContext.builder(Locale.ENGLISH).build(), pb.getTools(), products);
