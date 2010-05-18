@@ -46,6 +46,7 @@ import javax.annotation.ParametersAreNonnullByDefault;
 public abstract class Command implements JsonSerializable {
   public enum Verb {
     handshake,
+    auth_www,
     bake,
     files_changed,
     graph,
@@ -90,6 +91,7 @@ public abstract class Command implements JsonSerializable {
     src.expect("]");
     switch (v) {
       case bake:          return new BakeCommand(toProducts(args));
+      case auth_www:      return new AuthWwwCommand();
       case files_changed: return new FilesChangedCommand(toPaths(args, fs));
       case graph:         return new GraphCommand(toProducts(args));
       case handshake:     return new HandshakeCommand((String) args.get(0));
@@ -164,6 +166,12 @@ public abstract class Command implements JsonSerializable {
     }
 
     @Override public Iterable<?> getParams() { return products; }
+  }
+
+  public static final class AuthWwwCommand extends Command {
+    public AuthWwwCommand() { super(Verb.auth_www); }
+
+    @Override public Iterable<?> getParams() { return ImmutableList.of(); }
   }
 
   public static final class FilesChangedCommand extends Command {

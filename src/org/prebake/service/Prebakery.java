@@ -31,6 +31,7 @@ import org.prebake.service.plan.Recipe;
 import org.prebake.service.tools.ToolBox;
 import org.prebake.service.tools.ToolSignature;
 
+import com.google.caja.lexer.escaping.UriUtil;
 import com.google.common.base.Charsets;
 import com.google.common.base.Function;
 import com.google.common.base.Predicate;
@@ -344,6 +345,10 @@ public abstract class Prebakery implements Closeable {
               return;
             }
             switch (cmd.verb) {
+              case auth_www:
+                w.write("http://127.0.0.1:" + config.getWwwPort() + "/auth?"
+                        + UriUtil.encode(token));
+                break;
               case bake:
                 ccl = new ClientChannel(w);
                 logger.addHandler(ccl);

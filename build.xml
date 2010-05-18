@@ -8,6 +8,7 @@
   <property name="tests"       location="tests"/>
   <property name="third_party" location="third_party"/>
   <!--== outputs ==-->
+  <property name="genfiles"    location="ant-genfiles"/>
   <property name="reports"     location="ant-reports"/>  <!-- emma reports -->
   <property name="lib"         location="ant-lib"/>
   <property name="docs"        location="ant-docs"/>
@@ -24,6 +25,19 @@
     <pathelement path="${third_party}/caja/caja.jar"/>
     <pathelement path="${third_party}/caja/htmlparser.jar"/>
     <pathelement path="${third_party}/caja/json_simple/json_simple.jar"/>
+    <pathelement path="${third_party}/gxp/gxp-snapshot.jar"/>
+    <pathelement path="${third_party}/jetty/lib/servlet-api-2.5.jar"/>
+    <pathelement
+     path="${third_party}/jetty/lib/jetty-continuation-7.0.2.v20100331.jar"/>
+    <pathelement
+     path="${third_party}/jetty/lib/jetty-http-7.0.2.v20100331.jar"/>
+    <pathelement path="${third_party}/jetty/lib/jetty-io-7.0.2.v20100331.jar"/>
+    <pathelement
+     path="${third_party}/jetty/lib/jetty-server-7.0.2.v20100331.jar"/>
+    <pathelement
+     path="${third_party}/jetty/lib/jetty-servlet-7.0.2.v20100331.jar"/>
+    <pathelement
+     path="${third_party}/jetty/lib/jetty-util-7.0.2.v20100331.jar"/>
   </path>
   <path id="classpath.tests.compile">
     <path refid="classpath.compile"/>
@@ -43,6 +57,7 @@
   <target name="clean"
    description="deletes all generated files leaving only sources">
     <delete dir="${docs}"/>
+    <delete dir="${genfiles}"/>
     <delete dir="${jars}"/>
     <delete dir="${lib}"/>
     <delete dir="${reports}"/>
@@ -50,6 +65,7 @@
 
   <target name="dirs">
     <mkdir dir="${docs}"/>
+    <mkdir dir="${genfiles}"/>
     <mkdir dir="${jars}"/>
     <mkdir dir="${lib}"/>
     <mkdir dir="${reports}"/>
@@ -113,16 +129,27 @@
      includenosourcepackages="true"
      linksource="yes">
       <link offline="false" href="http://download.java.net/jdk7/docs/api/"/>
-      <link offline="false" href="http://guava-libraries.googlecode.com/svn/trunk/javadoc/"/>
+      <link offline="false"
+       href="http://guava-libraries.googlecode.com/svn/trunk/javadoc/"/>
     </javadoc>
   </target>
 
-  <target name="classes" depends="dirs">
+  <target name="gxps">
+    <taskdef name="gxpc" classname="com.google.gxp.compiler.ant.GxpcTask"
+     classpath="${third_party}/gxp/gxp-snapshot.jar" />
+    <gxpc
+     srcdir="${src}"
+     srcpaths="${src}"
+     destdir="${genfiles}"
+     target="org.prebake.messages" />
+  </target>
+
+  <target name="classes" depends="dirs, gxps">
     <javac destdir="${lib}" debug="true" target="1.5" source="1.5">
       <src path="${src}"/>
+      <src path="${genfiles}"/>
       <classpath refid="classpath.compile"/>
       <include name="**/*.java"/>
-      <exclude name="org/prebake/fs/*.java"/>
       <compilerarg line="-Xlint:deprecation"/>
       <compilerarg line="-Xlint:unchecked"/>
     </javac>
@@ -156,7 +183,7 @@
   <target name="jars" depends="classes">
     <jar destfile="${jars}/client.jar">
       <fileset dir="${lib}">
-	<include name="**/*.class"/>
+        <include name="**/*.class"/>
         <exclude name="org/prebake/service/**/*"/>
       </fileset>
       <manifest>
@@ -167,10 +194,10 @@
     </jar>
     <jar destfile="${jars}/service.jar">
       <fileset dir="${lib}">
-	<include name="**/*.class"/>
-	<include name="**/*.js"/>
-	<include name="**/*.css"/>
-	<include name="**/*.txt"/>
+        <include name="**/*.class"/>
+        <include name="**/*.js"/>
+        <include name="**/*.css"/>
+        <include name="**/*.txt"/>
         <exclude name="org/prebake/client/**/*"/>
       </fileset>
       <manifest>
@@ -180,7 +207,18 @@
                 ../third_party/bdb/je.jar
                 ../third_party/fast-md5/fast-md5.jar
                 ../third_party/rhino/js.jar
-                ../third_party/junit/junit.jar"/>
+                ../third_party/junit/junit.jar
+                ../third_party/caja/caja.jar
+                ../third_party/caja/htmlparser.jar
+                ../third_party/caja/json_simple/json_simple.jar
+                ../third_party/gxp/gxp-snapshot.jar
+                ../third_party/jetty/lib/servlet-api-2.5.jar
+                ../third_party/jetty/lib/jetty-continuation-7.0.2.v20100331.jar
+                ../third_party/jetty/lib/jetty-http-7.0.2.v20100331.jar
+                ../third_party/jetty/lib/jetty-io-7.0.2.v20100331.jar
+                ../third_party/jetty/lib/jetty-server-7.0.2.v20100331.jar
+                ../third_party/jetty/lib/jetty-servlet-7.0.2.v20100331.jar
+                ../third_party/jetty/lib/jetty-util-7.0.2.v20100331.jar"/>
       </manifest>
     </jar>
   </target>
