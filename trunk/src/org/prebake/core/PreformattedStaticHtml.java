@@ -26,18 +26,30 @@ import java.util.List;
 import java.util.Locale;
 import java.util.PriorityQueue;
 
+import com.google.caja.lang.css.CssSchema;
 import com.google.caja.lang.html.HTML;
 import com.google.caja.lang.html.HtmlSchema;
+import com.google.caja.lexer.CharProducer;
 import com.google.caja.lexer.HtmlTokenType;
 import com.google.caja.lexer.InputSource;
 import com.google.caja.lexer.ParseException;
+import com.google.caja.lexer.TokenConsumer;
 import com.google.caja.lexer.TokenQueue;
+import com.google.caja.parser.AncestorChain;
+import com.google.caja.parser.css.CssParser;
+import com.google.caja.parser.css.CssTree;
 import com.google.caja.parser.html.AttribKey;
 import com.google.caja.parser.html.DomParser;
 import com.google.caja.parser.html.ElKey;
 import com.google.caja.parser.html.Namespaces;
 import com.google.caja.parser.html.Nodes;
+import com.google.caja.plugin.CssRewriter;
+import com.google.caja.plugin.CssValidator;
+import com.google.caja.plugin.UriPolicy;
 import com.google.caja.reporting.DevNullMessageQueue;
+import com.google.caja.reporting.MessageLevel;
+import com.google.caja.reporting.MessageQueue;
+import com.google.caja.reporting.RenderContext;
 import com.google.common.base.Function;
 import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableList;
@@ -102,9 +114,11 @@ public class PreformattedStaticHtml implements JsonSerializable {
       DomParser p = new DomParser(
           tq, /* as HTML */ false, DevNullMessageQueue.singleton());
       Node html = p.parseFragment();
-      HtmlSchema schema = HtmlSchema.getDefault(
+      HtmlSchema htmlSchema = HtmlSchema.getDefault(
           DevNullMessageQueue.singleton());
-      DomFilter f = new DomFilter(schema);
+      CssSchema cssSchema = CssSchema.getDefaultCss21Schema(
+          DevNullMessageQueue.singleton());
+      DomFilter f = new DomFilter(htmlSchema, cssSchema);
       TextChunk tc = f.filter(html);
       this.html = Nodes.render(html);
       // Produce the plain text form.
@@ -170,7 +184,7 @@ public class PreformattedStaticHtml implements JsonSerializable {
     while (n >= 10) { sb.append('X'); n -= 10; }
     while (n >= 5) { sb.append('V'); n -= 5; }
     while (n >= 1) { sb.append('I'); n -= 1; }
-    for (int i = 0; i + 3 < sb.length(); ++i) {
+    for (int i = sb.length() - 3; --i >= 0;) {
       char ch = sb.charAt(i);
       if (ch == sb.charAt(i + 1)
           && ch == sb.charAt(i + 2)
@@ -210,8 +224,10 @@ public class PreformattedStaticHtml implements JsonSerializable {
  */
 final class DomFilter {
   final HtmlSchema htmlSchema;
-  DomFilter(HtmlSchema htmlSchema) {
+  final CssSchema cssSchema;
+  DomFilter(HtmlSchema htmlSchema, CssSchema cssSchema) {
     this.htmlSchema = htmlSchema;
+    this.cssSchema = cssSchema;
   }
 
   TextChunk filter(Node n) {
@@ -232,11 +248,42 @@ final class DomFilter {
           } else {
             String value = a.getValue();
             HTML.Attribute ainfo = htmlSchema.lookupAttribute(akey);
+            HTML.Attribute.Type t = ainfo != null ? ainfo.getType() : null;
             if (ainfo == null || !ainfo.getValueCriterion().accept(value)
                 // TODO: white-list, and use caja's static HTML checker instead.
-                || ainfo.getType() == HTML.Attribute.Type.SCRIPT
-                || ainfo.getType() == HTML.Attribute.Type.STYLE) {
+                || t == HTML.Attribute.Type.SCRIPT) {
               el.removeAttributeNode(a);
+            } else if (t == HTML.Attribute.Type.STYLE) {
+              String css = a.getValue();
+              String sanitizedCss = null;
+              try {
+                MessageQueue mq = DevNullMessageQueue.singleton();
+                CharProducer cssP = CharProducer.Factory.fromString(
+                    css, InputSource.UNKNOWN);
+                CssParser cssp = new CssParser(
+                    CssParser.makeTokenQueue(cssP, mq, false),
+                    mq, MessageLevel.WARNING);
+                CssTree.DeclarationGroup decls = cssp.parseDeclarationGroup();
+                CssValidator v = new CssValidator(cssSchema, htmlSchema, mq);
+                CssRewriter rw = new CssRewriter(
+                    UriPolicy.IDENTITY, cssSchema, mq);
+                AncestorChain<CssTree.DeclarationGroup> ac
+                    = AncestorChain.instance(decls);
+                v.validateCss(ac);
+                rw.rewrite(ac);
+                StringBuilder sb = new StringBuilder();
+                TokenConsumer tc = decls.makeRenderer(sb, null);
+                decls.render(new RenderContext(tc));
+                tc.noMoreTokens();
+                if (sb.length() != 0) { sanitizedCss = sb.toString(); }
+              } catch (ParseException ex) {
+                // Remove below.
+              }
+              if (sanitizedCss == null) {
+                el.removeAttributeNode(a);
+              } else {
+                a.setValue(sanitizedCss);
+              }
             }
           }
         }
