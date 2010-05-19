@@ -227,7 +227,7 @@ public final class MainServlet extends HttpServlet {
     Writer w = resp.getWriter();
     PlanIndexPage.write(
         w, GxpContext.builder(Locale.ENGLISH).build(),
-        pb.getPlanGraph(), pb.getProducts());
+        pb.getPlanGraph(), pb.getProducts(), pb.getUpToDateProducts());
     w.close();
   }
 
