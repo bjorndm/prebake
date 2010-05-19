@@ -45,7 +45,8 @@ var jars = [
           "test files."].join("\n"),
       contact: "Mike Samuel <mikesamuel@gmail.com>"
     },
-    actions: [tools.javac(["src///**.java"].concat(jars), "lib///**.class"),
+    actions: [tools.javac(["src///**.java", "genfiles///**.java"].concat(jars),
+                          "lib///**.class"),
               tools.cp("src/org/prebake/service/**.{css,js,txt}",
                        "lib/org/prebake/service/**.{css,js,txt}"),
               tools.ls("src/org/prebake/service/tools/*.js",
@@ -60,6 +61,7 @@ var jars = [
     actions: [tools.javac(["tests///**.java", "lib///**.class"].concat(jars),
                           "test-lib///**.class")]
   },
+  gxps: tools.gxpc("src///**.gxp", "genfiles///**.java", { warn: "error" }),
   runtests: {
     help: "Runs JUnit tests putting test results under reports",
     actions: [tools.junit(
