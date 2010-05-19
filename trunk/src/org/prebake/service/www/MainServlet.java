@@ -186,7 +186,7 @@ public final class MainServlet extends HttpServlet {
     }
     Path clientRoot = pb.getConfig().getClientRoot();
     String sep = clientRoot.getFileSystem().getSeparator();
-    if (!"/".equals(sep)) { subPath.replace("/", sep); }
+    if (!"/".equals(sep)) { subPath = subPath.replace("/", sep); }
     Path requestedPath = clientRoot.resolve(subPath).normalize();
     if (!requestedPath.startsWith(clientRoot)) {
       resp.sendError(404);
