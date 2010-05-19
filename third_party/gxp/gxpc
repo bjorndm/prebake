@@ -1,0 +1,7 @@
+#!/bin/bash
+
+if [ -z "$GXP_HOME" ]; then
+  GXP_HOME="$(dirname "$0")"
+fi
+
+java -classpath "$GXP_HOME"/gxp-snapshot.jar com.google.gxp.compiler.cli.Gxpc "$@"
