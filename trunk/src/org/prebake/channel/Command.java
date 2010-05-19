@@ -91,7 +91,7 @@ public abstract class Command implements JsonSerializable {
     src.expect("]");
     switch (v) {
       case bake:          return new BakeCommand(toProducts(args));
-      case auth_www:      return new AuthWwwCommand();
+      case auth_www:      return new AuthWwwCommand(toUriPath(args));
       case files_changed: return new FilesChangedCommand(toPaths(args, fs));
       case graph:         return new GraphCommand(toProducts(args));
       case handshake:     return new HandshakeCommand((String) args.get(0));
@@ -157,6 +157,17 @@ public abstract class Command implements JsonSerializable {
     return paths;
   }
 
+  private static String toUriPath(List<?> json) throws IOException {
+    if (json.isEmpty()) { return null; }
+    if (json.size() == 1) {
+      Object item = json.get(0);
+      if (item == null || item instanceof String) { return (String) item; }
+    }
+    throw new IOException(
+        JsonSink.stringify(json)
+        + " should contain a single string URI path or be empty");
+  }
+
   public static final class BakeCommand extends Command {
     public final Set<String> products;
 
@@ -169,9 +180,17 @@ public abstract class Command implements JsonSerializable {
   }
 
   public static final class AuthWwwCommand extends Command {
-    public AuthWwwCommand() { super(Verb.auth_www); }
+    public final String continuePath;
 
-    @Override public Iterable<?> getParams() { return ImmutableList.of(); }
+    public AuthWwwCommand(String continuePath) {
+      super(Verb.auth_www);
+      this.continuePath = continuePath;
+    }
+
+    @Override public Iterable<?> getParams() {
+      if (continuePath == null) { return ImmutableList.of(); }
+      return ImmutableList.of(continuePath);
+    }
   }
 
   public static final class FilesChangedCommand extends Command {

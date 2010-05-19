@@ -29,7 +29,7 @@
       </gxp:if>
     </gxp:loop>
 
-    <h2 id="products"><a href="products/index.html">Products</a></h2>
+    <h2 id="products"><a href="plan/index.html">Products</a></h2>
     <gxp:loop var="product" type="Product" iterable="products.values()">
       <h3><a>
         <gxp:attr name="href">plans/<gxp:eval expr="product.name"/></gxp:attr>

@@ -26,9 +26,9 @@
  * <pre>
  * /
  *   index.html                             Starting page with links
- *   plans/
+ *   plan/
  *     index.html                           Plan graph and list of products
- *     plans.json                           JSON formatted plan summary.
+ *     plan.json                            JSON formatted plan summary.
  *     &lt;product-name<sub>0</sub>&gt;                      HTML product docs.
  *     &lt;product-name<sub>1</sub>&gt;
  *     ...

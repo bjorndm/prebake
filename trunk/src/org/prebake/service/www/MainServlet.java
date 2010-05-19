@@ -23,7 +23,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.Writer;
 import java.net.URI;
-import java.net.URLDecoder;
+import java.nio.file.Path;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -45,6 +45,8 @@ public final class MainServlet extends HttpServlet {
   private final String token;
   private final Prebakery pb;
 
+  private static final String AUTH_COOKIE_NAME = "pbauth";
+
   public MainServlet(String token, Prebakery pb) {
     this.token = token;
     this.pb = pb;
@@ -58,10 +60,11 @@ public final class MainServlet extends HttpServlet {
       return false;
     }
     if ("/auth".equals(path)) {
-      String query = req.getQueryString();
-      if (query != null && URLDecoder.decode(query, "UTF-8").equals(token)) {
-        resp.addCookie(new Cookie("pbauth", token));
-        redirectTo(resp, "/index.html");
+      String queryToken = req.getParameter("tok");
+      if (token.equals(queryToken)) {
+        resp.addCookie(new Cookie(AUTH_COOKIE_NAME, token));
+        String continuePath = req.getParameter("continue");
+        redirectTo(resp, continuePath != null ? continuePath : "/index.html");
       } else {
         resp.sendError(HttpServletResponse.SC_UNAUTHORIZED);
       }
@@ -74,7 +77,7 @@ public final class MainServlet extends HttpServlet {
       Cookie[] cookies = req.getCookies();
       if (cookies != null) {
         for (Cookie cookie : cookies) {
-          if ("pbauth".equals(cookie.getName())) {
+          if (AUTH_COOKIE_NAME.equals(cookie.getName())) {
             if (cookie.getValue().equals(token)) { authed = true; }
             break;
           }
@@ -87,7 +90,8 @@ public final class MainServlet extends HttpServlet {
   }
 
   private static final Map<String, String> MIME_TYPES = ImmutableMap.of(
-      "css", "text/css;charset=UTF-8");
+      "css", "text/css;charset=UTF-8",
+      "js", "text/javascript;charset=UTF-8");
   private static final Map<String, String> ETAGS
       = Collections.synchronizedMap(new LinkedHashMap<String, String>() {
     @Override public boolean removeEldestEntry(Map.Entry<String, String> e) {
@@ -155,28 +159,57 @@ public final class MainServlet extends HttpServlet {
       } else {
         serveToolDoc(subPath, resp);
       }
-    } else if (path.startsWith("/plans")) {
-      String subPath = path.substring(6);
+    } else if (path.startsWith("/plan")) {
+      String subPath = path.substring(5);
       if ("/".equals(subPath)) {
-        redirectTo(resp, "/plans/index.html");
+        redirectTo(resp, "/plan/index.html");
       } else if ("/index.html".equals(subPath)) {
-        servePlansIndex(resp);
+        servePlanIndex(resp);
       } else if ("/plans.json".equals(subPath)) {
-        servePlansJson(resp);
+        servePlanJson(resp);
       } else {
-        servePlanDoc(subPath, resp);
+        serveProductDoc(subPath.substring(1), resp);
       }
-    } else if (path.startsWith("/mirror")) {
-      String subPath = path.substring(7);
+    } else if (path.startsWith("/mirror/")) {
+      String subPath = path.substring(8);
       mirrorClientFile(subPath, resp);
     } else {
       resp.sendError(404);
     }
   }
 
-  private void mirrorClientFile(String subPath, HttpServletResponse resp) {
-    // TODO Auto-generated method stub
-
+  private void mirrorClientFile(String subPath, HttpServletResponse resp)
+      throws IOException {
+    if (pb.getConfig().getIgnorePattern().matcher(subPath).find()) {
+      resp.sendError(404);
+      return;
+    }
+    Path clientRoot = pb.getConfig().getClientRoot();
+    String sep = clientRoot.getFileSystem().getSeparator();
+    if (!"/".equals(sep)) { subPath.replace("/", sep); }
+    Path requestedPath = clientRoot.resolve(subPath).normalize();
+    if (!requestedPath.startsWith(clientRoot)) {
+      resp.sendError(404);
+      return;
+    }
+    InputStream in;
+    try {
+      in = requestedPath.newInputStream();
+    } catch (IOException ex) {
+      resp.sendError(404);
+      return;
+    }
+    try {
+      // TODO: best guess at content-type.
+      OutputStream out = resp.getOutputStream();
+      try {
+        ByteStreams.copy(in, out);
+      } finally {
+        out.close();
+      }
+    } finally {
+      in.close();
+    }
   }
 
   private void serveAuthHelp(HttpServletResponse resp) throws IOException {
@@ -185,17 +218,20 @@ public final class MainServlet extends HttpServlet {
     w.close();
   }
 
-  private void servePlanDoc(String subPath, HttpServletResponse resp) {
+  private void servePlanJson(HttpServletResponse resp) {
     // TODO Auto-generated method stub
 
   }
 
-  private void servePlansJson(HttpServletResponse resp) {
-    // TODO Auto-generated method stub
-
+  private void servePlanIndex(HttpServletResponse resp) throws IOException {
+    Writer w = resp.getWriter();
+    PlanIndexPage.write(
+        w, GxpContext.builder(Locale.ENGLISH).build(),
+        pb.getPlanGraph(), pb.getProducts());
+    w.close();
   }
 
-  private void servePlansIndex(HttpServletResponse resp) {
+  private void serveProductDoc(String subPath, HttpServletResponse resp) {
     // TODO Auto-generated method stub
 
   }

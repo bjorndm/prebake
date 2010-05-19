@@ -46,8 +46,12 @@ public class CommandTest {
   public void tearDown() { fs = null; }
 
   @Test public final void testAuthWwwCommand() throws IOException {
-    Command c = new Command.AuthWwwCommand();
+    Command c;
+    c = new Command.AuthWwwCommand(null);
     assertEquals("[\"auth_www\",{}]", c.toString());
+    reparse(c);
+    c = new Command.AuthWwwCommand("/foo");
+    assertEquals("[\"auth_www\",{},\"/foo\"]", c.toString());
     reparse(c);
   }
 
