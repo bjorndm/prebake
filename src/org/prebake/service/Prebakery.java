@@ -379,8 +379,13 @@ public abstract class Prebakery implements Closeable {
             }
             switch (cmd.verb) {
               case auth_www:
-                w.write("http://127.0.0.1:" + config.getWwwPort() + "/auth?"
-                        + UriUtil.encode(token) + "\n");
+                String uriPath = ((Command.AuthWwwCommand) cmd).continuePath;
+                w.write("http://127.0.0.1:" + config.getWwwPort() + "/auth?tok="
+                        + UriUtil.encode(token)
+                        + (uriPath != null
+                           ? "&continue=" + UriUtil.encode(uriPath)
+                           : "")
+                        + "\n");
                 break;
               case bake:
                 ccl = new ClientChannel(w);

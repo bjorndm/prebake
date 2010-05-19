@@ -160,6 +160,11 @@
         <include name="org/prebake/service/www/www-files/**/*.css"/>
       </fileset>
     </copy>
+    <copy todir="${lib}/org/prebake/service/www/www-files/dracula">
+      <fileset dir="${third_party}/dracula/js">
+        <include name="*.js"/>
+      </fileset>
+    </copy>
     <fileset dir="${lib}/org/prebake/service/tools" id="builtin.tools">
       <include name="*.js"/>
     </fileset>

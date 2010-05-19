@@ -1,0 +1,67 @@
+<gxp:template name="org.prebake.service.www.PlanIndexPage"
+ xmlns="http://www.w3.org/1999/xhtml"
+ xmlns:gxp="http://google.com/2001/gxp">
+<gxp:import class="org.prebake.service.plan.PlanGraph"/>
+<gxp:import class="org.prebake.service.plan.Product"/>
+<gxp:import class="java.util.Map"/>
+<gxp:param name="planGraph" type="PlanGraph"/>
+<gxp:param name="products" type="Map{String, Product}"/>
+<html>
+  <head>
+    <title>Plans</title>
+    <script type="text/javascript" src="../www-files/dracula/raphael-min.js"/>
+    <script type="text/javascript" src="../www-files/dracula/graffle.js"/>
+    <script type="text/javascript" src="../www-files/dracula/graph.js"/>
+    <link rel="stylesheet" type="text/css" href="../www-files/styles.css"/>
+  </head>
+  <body>
+    <h1>Plans</h1>
+    <h2>The Plan Graph</h2>
+    <div id="plan-graph"></div>
+    <!-- The below was adapted from third_party/dracula/index.html -->
+    <script type="text/javascript">
+var height = 400;
+var width = 800;
+/* only do all this when document has finished loading (needed for RaphaelJS */
+window.onload = function() {
+  var g = new Graph();
+  <gxp:loop var="nodeName" type="String" iterable="planGraph.nodes">
+  g.addNode(<gxp:eval expr="nodeName"/>);
+  </gxp:loop>
+  <gxp:loop var="e" type="Map.Entry{String, String}"
+   iterable="planGraph.edges.entries()">
+  g.addEdge(<gxp:eval expr="e.getKey()"/>, <gxp:eval expr="e.getValue()"/>,
+            { directed: true });
+  </gxp:loop>
+
+  <!-- layout the graph using the Spring layout implementation -->
+  var layout = new Graph.Layout.Spring(g);
+  layout.layout();
+
+  <!-- draw the graph using the RaphaelJS draw implementation -->
+  var renderer = new Graph.Renderer.Raphael('plan-graph', g, width, height);
+  renderer.draw();
+
+  <gxp:loop var="nodeName" type="String" iterable="planGraph.nodes">
+  g.nodes[<gxp:eval expr="nodeName"/>].shape.click(
+      function () { window.location = '#detail:' + <gxp:eval expr="nodeName"/>; });
+  </gxp:loop>
+};
+    </script>
+    <h2>Products</h2>
+    <gxp:loop var="product" type="Product" iterable="products.values()">
+      <h3><a>
+        <gxp:attr name="id">detail:<gxp:eval expr="product.name"/></gxp:attr>
+        <gxp:attr name="href">plans/<gxp:eval expr="product.name"/></gxp:attr>
+        <gxp:eval expr="product.name"/>
+      </a></h3>
+      <gxp:if cond="product.help != null">
+        <gxp:if cond="!product.help.isSummaryInferred()">
+          <p class="preformat"><gxp:eval expr="product.help.summaryHtml"/></p>
+        </gxp:if>
+        <div class="preformat"><gxp:eval expr="product.help.detailHtml"/></div>
+      </gxp:if>
+    </gxp:loop>
+  </body>
+</html>
+</gxp:template>
