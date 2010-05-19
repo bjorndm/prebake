@@ -31,7 +31,6 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.TreeMap;
 
-import javax.servlet.ServletException;
 import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
@@ -102,12 +101,14 @@ public final class MainServlet extends HttpServlet {
   private static void serveStaticFile(
       String path, HttpServletRequest req, HttpServletResponse resp)
       throws IOException {
-    String inEtag = req.getHeader("If-None-Match");
     String etag = ETAGS.get(path);
-    if (etag != null && etag.equals(inEtag)) {
-      resp.setStatus(304);
-      resp.getOutputStream().close();
-      return;
+    {
+      String inEtag = req.getHeader("If-None-Match");
+      if (etag != null && etag.equals(inEtag)) {
+        resp.setStatus(304);
+        resp.getOutputStream().close();
+        return;
+      }
     }
     InputStream in = MainServlet.class.getResourceAsStream(path);
     if (in == null) {
@@ -120,16 +121,16 @@ public final class MainServlet extends HttpServlet {
     } finally {
       in.close();
     }
-    if (inEtag == null) {
-      inEtag = Hash.builder().withData(content).build().toHexString();
-      ETAGS.put(path, inEtag);
+    if (etag == null) {
+      etag = Hash.builder().withData(content).build().toHexString();
+      ETAGS.put(path, etag);
     }
     resp.setContentLength(content.length);
     String ext = path.substring(path.lastIndexOf('.') + 1);
     String mimeType = MIME_TYPES.get(ext);
     if (mimeType != null) { resp.setContentType(mimeType); }
     // All hex digits, so not a header splitting vuln.
-    resp.setHeader("ETag", inEtag);
+    resp.setHeader("ETag", etag);
     OutputStream out = resp.getOutputStream();
     try {
       out.write(content);
@@ -138,9 +139,17 @@ public final class MainServlet extends HttpServlet {
     }
   }
 
+  private static String requireNoNewline(String s) {
+    for (int i = 0, n = s.length(); i < n; ++i) {
+      char ch = s.charAt(i);
+      if (ch == '\r' || ch == '\n') { throw new IllegalArgumentException(s); }
+    }
+    return s;
+  }
+
   @Override
   public void doGet(HttpServletRequest req, HttpServletResponse resp)
-      throws IOException, ServletException {
+      throws IOException {
     String path = URI.create(req.getRequestURI()).getPath();
     if (!checkAuthorized(path, req, resp)) { return; }
 
@@ -271,7 +280,7 @@ public final class MainServlet extends HttpServlet {
 
   @Override
   public void doPost(HttpServletRequest req, HttpServletResponse resp)
-      throws ServletException, IOException {
+      throws IOException {
     String path = URI.create(req.getRequestURI()).getPath();
     if (!checkAuthorized(path, req, resp)) { return; }
     // TODO
