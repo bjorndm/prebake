@@ -15,7 +15,9 @@
 package org.prebake.service.www;
 
 import org.prebake.core.Hash;
+import org.prebake.js.JsonSink;
 import org.prebake.service.Prebakery;
+import org.prebake.service.plan.PlanGraph;
 import org.prebake.service.plan.Product;
 
 import java.io.IOException;
@@ -29,6 +31,7 @@ import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeMap;
 
 import javax.servlet.http.Cookie;
@@ -139,14 +142,6 @@ public final class MainServlet extends HttpServlet {
     }
   }
 
-  private static String requireNoNewline(String s) {
-    for (int i = 0, n = s.length(); i < n; ++i) {
-      char ch = s.charAt(i);
-      if (ch == '\r' || ch == '\n') { throw new IllegalArgumentException(s); }
-    }
-    return s;
-  }
-
   @Override
   public void doGet(HttpServletRequest req, HttpServletResponse resp)
       throws IOException {
@@ -227,9 +222,40 @@ public final class MainServlet extends HttpServlet {
     w.close();
   }
 
-  private void servePlanJson(HttpServletResponse resp) {
-    // TODO Auto-generated method stub
+  private void servePlanJson(HttpServletResponse resp) throws IOException {
+    resp.setContentType("application/json; charset=UTF-8");
+    Writer w = resp.getWriter();
+    try {
+      JsonSink sink = new JsonSink(w);
+      Set<String> upToDate = pb.getUpToDateProducts();
+      PlanGraph pg = pb.getPlanGraph();
+      sink.write("{");
+      sink.writeValue("products");
+      sink.write(":");
+      sink.writeValue(pb.getProducts());
+      sink.write(",");
+      sink.writeValue("graph");
+      sink.write(":");
+      sink.write("{");
+      for (String productName : pg.nodes) {
+        sink.writeValue(productName);
+        sink.write(":");
+        sink.write("{");
+        sink.writeValue("upToDate");
+        sink.write(":");
+        sink.writeValue(upToDate.contains(productName));
+        sink.write(",");
+        sink.writeValue("requires");
+        sink.write(":");
+        sink.writeValue(pg.edges.get(productName));
+        sink.write("}");
+      }
+      sink.write("}");
+      sink.write("}");
 
+    } finally {
+      w.close();
+    }
   }
 
   private void servePlanIndex(HttpServletResponse resp) throws IOException {
