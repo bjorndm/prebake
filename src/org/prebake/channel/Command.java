@@ -34,6 +34,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import javax.annotation.Nullable;
 import javax.annotation.ParametersAreNonnullByDefault;
 
 /**
@@ -182,7 +183,7 @@ public abstract class Command implements JsonSerializable {
   public static final class AuthWwwCommand extends Command {
     public final String continuePath;
 
-    public AuthWwwCommand(String continuePath) {
+    public AuthWwwCommand(@Nullable String continuePath) {
       super(Verb.auth_www);
       this.continuePath = continuePath;
     }

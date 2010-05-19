@@ -48,12 +48,9 @@
         jarsourcedir = glob.rootOf(action.inputs);
       }
       jarfile = glob.xformer('foo', action.outputs[0])('foo');
-      jarcontent = '';
       var xform = glob.xformer(
           jarsourcedir.replace(sys.io.file.separator, '/') + '/**', '**');
-      for (var i = 0, n = inputs.length; i < n; ++i) {
-        jarcontent[i] = xform(inputs[i]);
-      }
+      jarcontent = Array.map(inputs, xform);
     } else {
       throw new Error('Cannot determine whether to jar orunjar');
     }
@@ -72,15 +69,35 @@
     var command = ['jar', letterFlags];
     if (!noManifest) {
       var manifestFile = os.tmpfile('mf');
-      if (0 !== os.exec('echo', manifestBuf.join('\n'))
+      // TODO: stop working with the jar commands's ridiculous manifest format.
+      // Why do properties files not work for specifying a properties file?
+      var manifestFileContent = manifestBuf.join('\n');
+      for (var brokenLines;
+           (brokenLines = manifestFileContent.replace(
+                /(^|[\r\n])(.{40})(?=.)/,
+                function (_, brk, line) {
+                  var pre = line.replace(/\s+$/, '');
+                  return brk + pre + '\n  ' + line.substring(pre.length);
+                })) !== manifestFileContent;
+           manifestFileContent = brokenLines) {
+      }
+      if (0 !== os.exec('echo', manifestFileContent)
           .writeTo(manifestFile).run().waitFor()) {
-        return false;
+        return {
+          waitFor: function () { return -1; },
+          run: function () { return this; }
+        };
       }
       command.push(manifestFile);
     }
     command.push(jarfile);
-    if (jarsourcedir) { command.push('-C', jarsourcedir); }
-    command = command.concat(jarcontent);
+    if (jarsourcedir) {
+      for (var i = 0, n = jarcontent.length; i < n; ++i) {
+        command.push('-C', jarsourcedir, jarcontent[i]);
+      }
+    } else {
+      command = command.concat(jarcontent);
+    }
     return os.exec.apply({}, command);
   }
 });

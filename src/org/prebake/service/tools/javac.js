@@ -147,7 +147,7 @@ function decodeOptions(optionsSchema, action, opt_config) {
       if (config.Xlint.length) {
         command.push('-Xlint:' + config.Xlint);
       } else {
-        command.push('-Xlint' + config.Xlint);
+        command.push('-Xlint');
       }
     }
     command = command.concat(sources);
