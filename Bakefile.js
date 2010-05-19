@@ -24,7 +24,16 @@ var jars = [
     "third_party/junit/junit.jar",
     "third_party/caja/caja.jar",
     "third_party/caja/htmlparser.jar",
-    "third_party/caja/json_simple/json_simple.jar"];
+    "third_party/caja/json_simple/json_simple.jar",
+    "third_party/gxp/gxp-snapshot.jar",
+    "third_party/jetty/lib/servlet-api-2.5.jar",
+    "third_party/jetty/lib/jetty-continuation-7.0.2.v20100331.jar",
+    "third_party/jetty/lib/jetty-http-7.0.2.v20100331.jar",
+    "third_party/jetty/lib/jetty-io-7.0.2.v20100331.jar",
+    "third_party/jetty/lib/jetty-server-7.0.2.v20100331.jar",
+    "third_party/jetty/lib/jetty-servlet-7.0.2.v20100331.jar",
+    "third_party/jetty/lib/jetty-util-7.0.2.v20100331.jar"
+    ];
 
 ({
   classes: {

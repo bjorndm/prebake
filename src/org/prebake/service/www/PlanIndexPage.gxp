@@ -4,8 +4,10 @@
 <gxp:import class="org.prebake.service.plan.PlanGraph"/>
 <gxp:import class="org.prebake.service.plan.Product"/>
 <gxp:import class="java.util.Map"/>
+<gxp:import class="java.util.Set"/>
 <gxp:param name="planGraph" type="PlanGraph"/>
 <gxp:param name="products" type="Map{String, Product}"/>
+<gxp:param name="validProducts" type="Set{String}"/>
 <html>
   <head>
     <title>Plans</title>
@@ -24,9 +26,37 @@ var height = 400;
 var width = 800;
 /* only do all this when document has finished loading (needed for RaphaelJS */
 window.onload = function() {
+  var staleNode = {
+    getShape: function (r, x, y) {
+      var shape = r.ellipse(x, y, 30, 20);
+      shape.attr(  // Dark green border around green
+          {fill: '#ccc', stroke: '#666', "fill-opacity": 0, "stroke-width": 2});
+      return shape;
+    }
+  };
+  var upToDateNode = {
+    getShape: function validNodeShape(r, x, y) {
+      var shape = r.ellipse(x, y, 30, 20);
+      shape.attr(  // Dark grey border around grey
+          {fill: '#afa', stroke: '#484', "fill-opacity": 0, "stroke-width": 2});
+      return shape;
+    }
+  };
+
+  var upToDateNodes = {
+    <gxp:loop var="nodeName" type="String" iterable="validProducts"
+     ><gxp:eval expr="nodeName"/>: true,</gxp:loop>
+    '-': void 0
+  };
+  function isUpToDate(nodeName) {
+    return upToDateNodes[nodeName] === true;
+  }
+
   var g = new Graph();
   <gxp:loop var="nodeName" type="String" iterable="planGraph.nodes">
-  g.addNode(<gxp:eval expr="nodeName"/>);
+  g.addNode(
+      <gxp:eval expr="nodeName"/>,
+      isUpToDate(<gxp:eval expr="nodeName"/>) ? upToDateNode : staleNode);
   </gxp:loop>
   <gxp:loop var="e" type="Map.Entry{String, String}"
    iterable="planGraph.edges.entries()">

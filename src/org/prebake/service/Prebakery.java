@@ -216,6 +216,10 @@ public abstract class Prebakery implements Closeable {
     return ImmutableMap.of();
   }
 
+  public Set<String> getUpToDateProducts() {
+    return baker.getUpToDateProducts();
+  }
+
   /**
    * @param portHint the port to use or 0 to let the system choose a port.
    * @param q receives commands from the outside.

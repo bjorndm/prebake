@@ -206,6 +206,14 @@ public final class Baker {
     }
   }
 
+  public Set<String> getUpToDateProducts() {
+    ImmutableSet.Builder<String> upToDate = ImmutableSet.builder();
+    for (ProductStatus status : ImmutableSet.copyOf(productStatuses.values())) {
+      if (status.isUpToDate()) { upToDate.add(status.name); }
+    }
+    return upToDate.build();
+  }
+
   private Path createWorkingDirectory(String productName) throws IOException {
     Path path = os.getTempDir().resolve("prebake-" + productName);
     if (path.exists()) { cleanWorkingDirectory(path); }
@@ -358,6 +366,7 @@ public final class Baker {
     private Future<Boolean> buildFuture;
     private GlobUnion inputs;
     private ImmutableSet<String> tools;
+    private boolean upToDate;
 
     ProductStatus(String name) { this.name = name; }
 
@@ -444,7 +453,10 @@ public final class Baker {
 
     public synchronized void markValid(boolean valid) {
       if (!valid) { setBuildFuture(null); }
+      this.upToDate = valid;
     }
+
+    synchronized boolean isUpToDate() { return upToDate; }
   }
 
   private static final class ProductStatusChain {
