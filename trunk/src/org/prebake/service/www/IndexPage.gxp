@@ -3,9 +3,10 @@
  xmlns:gxp="http://google.com/2001/gxp">
 <gxp:import class="org.prebake.service.tools.ToolSignature"/>
 <gxp:import class="org.prebake.service.plan.Product"/>
-<gxp:import class="java.util.List"/>
+<gxp:import class="java.util.Set"/>
 <gxp:import class="java.util.Map"/>
-<gxp:param name="tools" type="List{ToolSignature}"/>
+<gxp:param name="toolNames" type="Set{String}"/>
+<gxp:param name="tools" type="Map{String, ToolSignature}"/>
 <gxp:param name="products" type="Map{String, Product}"/>
 <html>
   <head>
@@ -16,17 +17,19 @@
     <h1>Prebake</h1>
     Welcome to prebake.
     <h2 id="tools"><a href="tools/index.html">Tools</a></h2>
-    <gxp:loop var="tool" type="ToolSignature" iterable="tools">
-      <h3><a>
-        <gxp:attr name="href">tools/<gxp:eval expr="tool.name"/></gxp:attr>
-        <gxp:eval expr="tool.name"/>
-      </a></h3>
-      <gxp:if cond="tool.help != null">
-        <gxp:if cond="!tool.help.isSummaryInferred()">
-          <p class="preformat"><gxp:eval expr="tool.help.summaryHtml"/></p>
+    <gxp:loop var="toolName" type="String" iterable="toolNames">
+      <gxp:abbr name="tool" type="ToolSignature" expr="tools.get(toolName)">
+        <h3><a>
+          <gxp:attr name="href">tools/<gxp:eval expr="toolName"/></gxp:attr>
+          <gxp:eval expr="toolName"/>
+        </a></h3>
+        <gxp:if cond="tool != null &amp;&amp; tool.help != null">
+          <gxp:if cond="!tool.help.isSummaryInferred()">
+            <p class="preformat"><gxp:eval expr="tool.help.summaryHtml"/></p>
+          </gxp:if>
+          <div class="preformat"><gxp:eval expr="tool.help.detailHtml"/></div>
         </gxp:if>
-        <div class="preformat"><gxp:eval expr="tool.help.detailHtml"/></div>
-      </gxp:if>
+      </gxp:abbr>
     </gxp:loop>
 
     <h2 id="products"><a href="plan/index.html">Products</a></h2>

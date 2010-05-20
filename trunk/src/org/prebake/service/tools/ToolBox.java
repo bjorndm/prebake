@@ -47,6 +47,7 @@ import java.nio.file.WatchKey;
 import java.nio.file.WatchService;
 import java.nio.file.attribute.Attributes;
 import java.nio.file.attribute.BasicFileAttributes;
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -244,6 +245,16 @@ public class ToolBox implements ToolProvider {
       }
     }
     return promises;
+  }
+
+  /**
+   * The set of tool names including those for invalid tools -- tools whose
+   * definitions don't parse or evaluate as valid JavaScript.
+   */
+  public final Set<String> getToolNames() {
+    String[] toolNames = tools.keySet().toArray(new String[0]);
+    Arrays.sort(toolNames);
+    return ImmutableSet.of(toolNames);
   }
 
   private static final Set<String> FREE_VARS_OK = ImmutableSet.<String>builder()

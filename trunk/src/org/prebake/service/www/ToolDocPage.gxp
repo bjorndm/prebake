@@ -1,0 +1,22 @@
+<gxp:template name="org.prebake.service.www.ToolDocPage"
+ xmlns="http://www.w3.org/1999/xhtml"
+ xmlns:gxp="http://google.com/2001/gxp">
+<gxp:import class="org.prebake.service.tools.ToolSignature"/>
+<gxp:param name="toolName" type="String"/>
+<gxp:param name="tool" type="ToolSignature"/>
+<html>
+  <head>
+    <title>Tool <gxp:eval expr="toolName"/></title>
+    <link rel="stylesheet" type="text/css" href="../www-files/styles.css"/>
+  </head>
+  <body>
+    <h1>Tool <gxp:eval expr="toolName"/></h1>
+    <gxp:if cond="tool != null &amp;&amp; tool.help != null">
+      <gxp:if cond="!tool.help.isSummaryInferred()">
+        <p class="preformat"><gxp:eval expr="tool.help.summaryHtml"/></p>
+      </gxp:if>
+      <div class="preformat"><gxp:eval expr="tool.help.detailHtml"/></div>
+    </gxp:if>
+  </body>
+</html>
+</gxp:template>

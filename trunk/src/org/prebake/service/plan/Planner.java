@@ -44,6 +44,7 @@ import java.io.Closeable;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.file.Path;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
@@ -141,7 +142,7 @@ public final class Planner implements Closeable {
    * in two or more plan files that run to completion.
    */
   public Map<String, Product> getProducts() {
-    Map<String, Product> allProducts = Maps.newLinkedHashMap();
+    Map<String, Product> allProducts = Maps.newHashMap();
     for (Future<ImmutableList<Product>> pp : getProductLists()) {
       try {
         Iterable<Product> products = pp.get();
@@ -153,8 +154,8 @@ public final class Planner implements Closeable {
             Product old = allProducts.put(p.name, null);
             if (old != null) {
               logger.log(
-                  Level.WARNING, "Duplicate product {0} in {1}",
-                  new Object[] { p.name, old.source });
+                  Level.WARNING, "Duplicate product {0} in {1} and {2}",
+                  new Object[] { p.name, p.source, old.source });
             }
           }
         }
@@ -170,7 +171,13 @@ public final class Planner implements Closeable {
       Map.Entry<String, Product> e = it.next();
       if (e.getValue() == null) { it.remove(); }
     }
-    return allProducts;
+    // Now, hide nondeterminism from clients by producing a reliable key order.
+    ImmutableMap.Builder<String, Product> b = ImmutableMap.builder();
+    String[] keys = allProducts.keySet().toArray(
+        new String[allProducts.size()]);
+    Arrays.sort(keys);
+    for (String key : keys) { b.put(key, allProducts.get(key)); }
+    return b.build();
   }
 
   /**
