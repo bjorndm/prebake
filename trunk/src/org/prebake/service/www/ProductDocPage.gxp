@@ -1,0 +1,52 @@
+<gxp:template name="org.prebake.service.www.ProductDocPage"
+ xmlns="http://www.w3.org/1999/xhtml"
+ xmlns:gxp="http://google.com/2001/gxp"
+ xmlns:expr="http://google.com/2001/gxp/expressions">
+<gxp:import class="org.prebake.service.plan.Product"/>
+<gxp:import class="org.prebake.core.Glob"/>
+<gxp:param name="p" type="Product"/>
+<gxp:param name="upToDate" type="boolean"/>
+<html>
+  <head>
+    <title>Product <gxp:eval expr="p.name"/></title>
+    <link rel="stylesheet" type="text/css" href="../www-files/styles.css"/>
+  </head>
+  <body>
+    <h1 id="top" expr:class='upToDate ? "up-to-date" : "stale"'
+     >Product <b><gxp:eval expr="p.name"/></b> from
+      <tt><gxp:eval expr="p.source"/></tt></h1>
+    <table>
+      <tr>
+        <th id="inputs">Inputs</th>
+        <td colspan="4">
+          <gxp:loop var="glob" type="Glob" iterable="p.inputs">
+            <gxp:eval expr="glob"/><br/>
+          </gxp:loop>
+        </td>
+      </tr>
+      <tr>
+        <th id="outputs">Outputs</th>
+        <td colspan="4">
+          <gxp:loop var="glob" type="Glob" iterable="p.outputs">
+            <gxp:eval expr="glob"/><br/>
+          </gxp:loop>
+        </td>
+      </tr>
+      <gxp:if cond="p.help != null">
+      <tr>
+        <th id="help">Help</th>
+        <td>
+          <gxp:if cond="!p.help.isSummaryInferred()">
+          <p><gxp:eval expr="p.help.summaryHtml"/></p>
+          </gxp:if>
+          <gxp:eval expr="p.help.detailHtml"/>
+          <gxp:if cond="p.help.contactEmail != null">
+          <p><gxp:eval expr="p.help.contactEmail"/></p>
+          </gxp:if>
+        </td>
+      </tr>
+      </gxp:if>
+   </table>
+  </body>
+</html>
+</gxp:template>

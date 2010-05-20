@@ -44,6 +44,11 @@
  *     &lt;mirror of tree under prebake-www&gt;   Generated client reports.
  *   prebake-api/
  *     do                                   POST only API.
+ *   log
+ *     product
+ *       &lt;product-name<sub>0</sub>&gt;
+ *     tool
+ *       &lt;tool-name<sub>0</sub>&gt;
  * </pre>
  */
 @javax.annotation.ParametersAreNonnullByDefault

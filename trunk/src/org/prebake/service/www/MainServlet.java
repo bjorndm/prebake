@@ -169,7 +169,7 @@ public final class MainServlet extends HttpServlet {
         redirectTo(resp, "/plan/index.html");
       } else if ("/index.html".equals(subPath)) {
         servePlanIndex(resp);
-      } else if ("/plans.json".equals(subPath)) {
+      } else if ("/plan.json".equals(subPath)) {
         servePlanJson(resp);
       } else {
         serveProductDoc(subPath.substring(1), resp);
@@ -232,7 +232,18 @@ public final class MainServlet extends HttpServlet {
       sink.write("{");
       sink.writeValue("products");
       sink.write(":");
-      sink.writeValue(pb.getProducts());
+      // We can't just write out the products because that would include
+      // the bake function which is not renderable to JSON.
+      sink.write("{");
+      boolean needComma = false;
+      for (Product p : pb.getProducts().values()) {
+        if (needComma) { sink.write(","); }
+        sink.writeValue(p.name);
+        sink.write(":");
+        sink.writeValue(p.withJsonOnly());
+        needComma = true;
+      }
+      sink.write("}");
       sink.write(",");
       sink.writeValue("graph");
       sink.write(":");
@@ -266,9 +277,18 @@ public final class MainServlet extends HttpServlet {
     w.close();
   }
 
-  private void serveProductDoc(String subPath, HttpServletResponse resp) {
-    // TODO Auto-generated method stub
-
+  private void serveProductDoc(String productName, HttpServletResponse resp)
+      throws IOException {
+    Product product = pb.getProducts().get(productName);
+    if (product == null) {
+      resp.sendError(404);
+      return;
+    }
+    Writer w = resp.getWriter();
+    ProductDocPage.write(
+        w, GxpContext.builder(Locale.ENGLISH).build(),
+        product, pb.getUpToDateProducts().contains(productName));
+    w.close();
   }
 
   private void serveToolDoc(String subPath, HttpServletResponse resp) {
@@ -283,7 +303,6 @@ public final class MainServlet extends HttpServlet {
 
   private void serveToolsIndex(HttpServletResponse resp) {
     // TODO Auto-generated method stub
-
   }
 
   private void serveIndex(HttpServletResponse resp) throws IOException {
