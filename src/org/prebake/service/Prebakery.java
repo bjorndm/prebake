@@ -185,14 +185,19 @@ public abstract class Prebakery implements Closeable {
 
   public Config getConfig() { return config; }
 
-  public List<ToolSignature> getTools() {
-    ImmutableList.Builder<ToolSignature> toolList = ImmutableList.builder();
-    ToolBox tools = this.tools;
+  /**
+   * Snapshot of the available valid tools.
+   * @return a map m such that map {@code m.get(k).name.equals(k)}.
+   */
+  public Map<String, ToolSignature> getTools() {
+    ImmutableMap.Builder<String, ToolSignature> byName = ImmutableMap.builder();
+    ToolBox tools;
+    synchronized (this) { tools = this.tools; }
     if (tools != null) {
       for (Future<ToolSignature> f : tools.getAvailableToolSignatures()) {
         try {
           ToolSignature sig = f.get();
-          if (sig != null) { toolList.add(sig); }
+          if (sig != null) { byName.put(sig.name, sig); }
         } catch (InterruptedException ex) {
           // This is best effort.
         } catch (ExecutionException ex) {
@@ -200,24 +205,43 @@ public abstract class Prebakery implements Closeable {
         }
       }
     }
-    return toolList.build();
+    return byName.build();
   }
 
+  /** Snapshot of the names of tools including names of invalid tools. */
+  public Set<String> getToolNames() {
+    ToolBox tools;
+    synchronized (this) { tools = this.tools; }
+    Set<String> toolNames = null;
+    if (tools != null) { toolNames = tools.getToolNames(); }
+    return toolNames != null ? toolNames : ImmutableSet.<String>of();
+  }
+
+  /** Snapshot of the plan graph. */
   public PlanGraph getPlanGraph() {
-    Planner planner = this.planner;
-    return planner != null
-        ? planner.getPlanGraph()
-        : PlanGraph.builder().build();
+    Planner planner;
+    synchronized (this) { planner = this.planner; }
+    PlanGraph graph = null;
+    if (planner != null) { graph = planner.getPlanGraph(); }
+    return graph != null ? graph : PlanGraph.builder().build();
   }
 
+  /** Snapshot of products. */
   public Map<String, Product> getProducts() {
-    Planner planner = this.planner;
-    if (planner != null) { return planner.getProducts(); }
-    return ImmutableMap.of();
+    Planner planner;
+    synchronized (this) { planner = this.planner; }
+    Map<String, Product> products = null;
+    if (planner != null) { products = planner.getProducts(); }
+    return products != null ? products : ImmutableMap.<String, Product>of();
   }
 
+  /** Snapshot of the names of up-to-date products. */
   public Set<String> getUpToDateProducts() {
-    return baker.getUpToDateProducts();
+    Baker baker;
+    synchronized (this) { baker = this.baker; }
+    Set<String> products = null;
+    if (baker != null) { products = baker.getUpToDateProducts(); }
+    return products != null ? products : ImmutableSet.<String>of();
   }
 
   /**

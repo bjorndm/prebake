@@ -1,0 +1,33 @@
+<gxp:template name="org.prebake.service.www.ToolsIndexPage"
+ xmlns="http://www.w3.org/1999/xhtml"
+ xmlns:gxp="http://google.com/2001/gxp"
+ xmlns:expr="http://google.com/2001/gxp/expressions">
+<gxp:import class="org.prebake.service.tools.ToolSignature"/>
+<gxp:import class="java.util.Map"/>
+<gxp:import class="java.util.Set"/>
+<gxp:param name="tools" type="Map{String,ToolSignature}"/>
+<gxp:param name="toolNames" type="Set{String}"/>
+<html>
+  <head>
+    <title>Tools</title>
+    <link rel="stylesheet" type="text/css" href="../www-files/styles.css"/>
+  </head>
+  <body>
+    <h1>Tools</h1>
+    <gxp:loop var="toolName" type="String" iterable="toolNames">
+      <gxp:abbr name="tool" type="ToolSignature" expr="tools.get(toolName)">
+        <h3><a expr:class='tool != null ? "up-to-date" : "stale"'>
+          <gxp:attr name="href"><gxp:eval expr="toolName"/></gxp:attr>
+          <gxp:eval expr="toolName"/>
+        </a></h3>
+        <gxp:if cond="tool != null &amp;&amp; tool.help != null">
+          <gxp:if cond="!tool.help.isSummaryInferred()">
+            <p class="preformat"><gxp:eval expr="tool.help.summaryHtml"/></p>
+          </gxp:if>
+          <div class="preformat"><gxp:eval expr="tool.help.detailHtml"/></div>
+        </gxp:if>
+      </gxp:abbr>
+    </gxp:loop>
+  </body>
+</html>
+</gxp:template>

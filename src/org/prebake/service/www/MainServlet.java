@@ -19,6 +19,7 @@ import org.prebake.js.JsonSink;
 import org.prebake.service.Prebakery;
 import org.prebake.service.plan.PlanGraph;
 import org.prebake.service.plan.Product;
+import org.prebake.service.tools.ToolSignature;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -27,13 +28,10 @@ import java.io.Writer;
 import java.net.URI;
 import java.nio.file.Path;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
-import java.util.TreeMap;
-
 import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
@@ -152,27 +150,27 @@ public final class MainServlet extends HttpServlet {
       redirectTo(resp, "/index.html");
     } else if ("/index.html".equals(path)) {
       serveIndex(resp);
-    } else if (path.startsWith("/tools")) {
-      String subPath = path.substring(6);
-      if ("/".equals(subPath)) {
+    } else if (path.startsWith("/tools/")) {
+      String subPath = path.substring(7);
+      if ("".equals(subPath)) {
         redirectTo(resp, "/tools/index.html");
-      } else if ("/index.html".equals(subPath)) {
+      } else if ("index.html".equals(subPath)) {
         serveToolsIndex(resp);
-      } else if ("/tools.json".equals(subPath)) {
+      } else if ("tools.json".equals(subPath)) {
         serveToolsJson(resp);
       } else {
         serveToolDoc(subPath, resp);
       }
-    } else if (path.startsWith("/plan")) {
-      String subPath = path.substring(5);
-      if ("/".equals(subPath)) {
+    } else if (path.startsWith("/plan/")) {
+      String subPath = path.substring(6);
+      if ("".equals(subPath)) {
         redirectTo(resp, "/plan/index.html");
-      } else if ("/index.html".equals(subPath)) {
+      } else if ("index.html".equals(subPath)) {
         servePlanIndex(resp);
-      } else if ("/plan.json".equals(subPath)) {
+      } else if ("plan.json".equals(subPath)) {
         servePlanJson(resp);
       } else {
-        serveProductDoc(subPath.substring(1), resp);
+        serveProductDoc(subPath, resp);
       }
     } else if (path.startsWith("/mirror/")) {
       String subPath = path.substring(8);
@@ -281,6 +279,7 @@ public final class MainServlet extends HttpServlet {
       throws IOException {
     Product product = pb.getProducts().get(productName);
     if (product == null) {
+      // TODO: show the log instead.
       resp.sendError(404);
       return;
     }
@@ -291,9 +290,17 @@ public final class MainServlet extends HttpServlet {
     w.close();
   }
 
-  private void serveToolDoc(String subPath, HttpServletResponse resp) {
-    // TODO Auto-generated method stub
-
+  private void serveToolDoc(String toolName, HttpServletResponse resp)
+      throws IOException {
+    if (!pb.getToolNames().contains(toolName)) {
+      resp.sendError(404);
+      return;
+    }
+    ToolSignature sig = pb.getTools().get(toolName);
+    Writer w = resp.getWriter();
+    ToolDocPage.write(
+        w, GxpContext.builder(Locale.ENGLISH).build(), toolName, sig);
+    w.close();
   }
 
   private void serveToolsJson(HttpServletResponse resp) {
@@ -301,21 +308,22 @@ public final class MainServlet extends HttpServlet {
 
   }
 
-  private void serveToolsIndex(HttpServletResponse resp) {
-    // TODO Auto-generated method stub
+  private void serveToolsIndex(HttpServletResponse resp) throws IOException {
+    Writer w = resp.getWriter();
+    ToolsIndexPage.write(
+        w, GxpContext.builder(Locale.ENGLISH).build(), pb.getTools(),
+        pb.getToolNames());
+    w.close();
   }
 
   private void serveIndex(HttpServletResponse resp) throws IOException {
     Writer w = resp.getWriter();
-    Map<String, Product> products = new TreeMap<String, Product>(LEXICAL);
-    products.putAll(pb.getProducts());
+    Map<String, Product> products = pb.getProducts();
     IndexPage.write(
-        w, GxpContext.builder(Locale.ENGLISH).build(), pb.getTools(), products);
+        w, GxpContext.builder(Locale.ENGLISH).build(),
+        pb.getToolNames(), pb.getTools(), products);
     w.close();
   }
-  private static final Comparator<String> LEXICAL = new Comparator<String>() {
-    public int compare(String a, String b) { return a.compareTo(b); }
-  };
 
   /** @param encodedUriPath an already encoded URI path. */
   private void redirectTo(HttpServletResponse resp, String encodedUriPath)

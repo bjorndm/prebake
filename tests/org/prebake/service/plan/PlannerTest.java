@@ -313,7 +313,7 @@ public class PlannerTest extends PbTestCase {
         .withTools(tool("gcc"))
         .withPlanFiles("p1.js", "p2.js")
         .expectProduct("q", action("gcc", "**.o", "**.lib"))
-        .expectLog("WARNING: Duplicate product p in p1.js")
+        .expectLog("WARNING: Duplicate product p in p2.js and p1.js")
         .run();
   }
 
