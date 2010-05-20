@@ -100,6 +100,17 @@ public final class Product implements JsonSerializable {
         name, null, inputs, outputs, actions, false, bake, source);
   }
 
+  /**
+   * Returns a version with all data that can't be serialized to JSON stripped
+   * out, so {@code withJsonOnly.toJson(myJsonSink)} is guaranteed to produce
+   * valid JSON not YSON.
+   */
+  public Product withJsonOnly() {
+    if (bake == null) { return this; }
+    return new Product(
+	name, help, inputs, outputs, actions, isIntermediate, null, source);
+  }
+
   @Override
   public String toString() {
     return JsonSerializable.StringUtil.toString(this);

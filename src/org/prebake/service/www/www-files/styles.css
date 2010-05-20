@@ -13,5 +13,10 @@ h1 {
   color: #337;
   border: #337 solid 4px;
   padding: 2px 2px 2px 30px;
-  background: #eef url(prebake.gif) no-repeat center left;  /* TODO */
+  background: #eef url(prebake.png) no-repeat center left;  /* TODO */
 }
+
+td, th { vertical-align: top }
+
+.up-to-date { color: #080 }
+.stale { color: #444 }

@@ -82,7 +82,7 @@ window.onload = function() {
     <gxp:loop var="product" type="Product" iterable="products.values()">
       <h3><a>
         <gxp:attr name="id">detail:<gxp:eval expr="product.name"/></gxp:attr>
-        <gxp:attr name="href">plans/<gxp:eval expr="product.name"/></gxp:attr>
+        <gxp:attr name="href">./<gxp:eval expr="product.name"/></gxp:attr>
         <gxp:eval expr="product.name"/>
       </a></h3>
       <gxp:if cond="product.help != null">
