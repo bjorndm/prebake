@@ -10,6 +10,8 @@
         token
         archive/
           ...
+        logs/
+          ...
         00000000.jdb
         je.lck
 }}}
@@ -39,6 +41,10 @@ build to produce one less `*.o` file.
 If a developer accidentally switches outputs and inputs in a build
 rule in strange ways, they could lose data.  If that happens to you, look
 under the `archive` directory.
+
+=== {{{<client-root>/.prebake/logs}}} ===
+
+Contains a `.log` file for each [ToolFile tool] and [Product product] that has been built containing pertinent log info.
 
 === {{{<client-root>/.prebake/je.*}} and {{{<client-root>/.prebake/*.jdb}}} ===
 
