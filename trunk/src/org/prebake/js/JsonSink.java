@@ -89,12 +89,21 @@ public final class JsonSink implements Closeable {
         case '\f': sub = 'f'; break;
         case '\r': sub = 'r'; break;
         case '"': case '\\': sub = ch; break;
+        // If we want to embed the output in JavaScript then we need to escape
+        // all JavaScript newlines.
+        case '\u0085': case '\u2028': case '\u2029': sub = 'u'; break;
         default: sub = -1; break;
       }
       if (sub != -1) {
         out.append(s, pos, i);
         out.append('\\');
         out.append((char) sub);
+        if (sub == 'u') {
+          out.append(HEX[(ch >>> 12) & 0xf])
+              .append(HEX[(ch >>> 8) & 0xf])
+              .append(HEX[(ch >>> 4) & 0xf])
+              .append(HEX[ch & 0xf]);
+        }
         pos = i + 1;
       }
     }
@@ -102,6 +111,11 @@ public final class JsonSink implements Closeable {
     out.append('"');
     return this;
   }
+
+  private static final char[] HEX = new char[] {
+    '0', '1', '2', '3', '4', '5', '6', '7',
+    '8', '9', 'A', 'B', 'C', 'D', 'E', 'F',
+  };
 
   public JsonSink writeValue(@Nullable Map<String, ?> obj) throws IOException {
     if (obj == null) {
