@@ -12,24 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package org.prebake.channel;
-
-import org.prebake.service.Prebakery;
+package org.prebake.util;
 
 /**
- * Constants for the names of files created by the {@link Prebakery} service.
+ * A clock based upon {@link System#nanoTime()}.
  *
- * @see <a href="http://code.google.com/p/prebake/wiki/PrebakeDirectory">wiki
- *     </a>
  * @author Mike Samuel <mikesamuel@gmail.com>
  */
-public final class FileNames {
-  public static final String DIR = ".prebake";
-  public static final String CMD_LINE = "cmdline";
-  public static final String PORT = "port";
-  public static final String TOKEN = "token";
-  public static final String ARCHIVE = "archive";
-  public static final String LOGS = "logs";
+public final class SystemClock implements Clock {
+  private SystemClock() { /* singleton */ }
+  public long nanoTime() { return System.nanoTime(); }
+  @Override public String toString() { return "[SystemClock]"; }
 
-  private FileNames() { /* not instantiable */ }
+  private static final SystemClock INSTANCE = new SystemClock();
+  public static final SystemClock instance() { return INSTANCE; }
 }

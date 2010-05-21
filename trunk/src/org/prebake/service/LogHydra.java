@@ -15,6 +15,7 @@
 package org.prebake.service;
 
 import org.prebake.channel.FileNames;
+import org.prebake.util.Clock;
 import org.prebake.util.SyncLinkedList;
 import org.prebake.util.SyncListElement;
 
@@ -33,6 +34,7 @@ import java.util.logging.Handler;
 import com.google.common.base.Charsets;
 import com.google.common.collect.Maps;
 import com.google.common.io.Closeables;
+import com.google.common.io.Flushables;
 
 /**
  * A many headed <a href="http://en.wikipedia.org/wiki/Tee_(command)">tee</a>
@@ -45,8 +47,8 @@ import com.google.common.io.Closeables;
  * and cosmic rays.
  * <p>
  * To help diagnose problems, prebake centralizes log collection.  For each
- * {@link NonFileArtifact}, prebake maintains a log file under the
- * {@link FileNames#LOGS logs} directory.
+ * {@link org.prebake.fs.NonFileArtifact}, prebake maintains a log file under
+ * the {@link FileNames#LOGS logs} directory.
  * <p>
  * Any operation that would change the validity of an artifact must make sure
  * its logs are recorded in a file named after the artifact.
@@ -75,33 +77,39 @@ public abstract class LogHydra {
     int byteQuota;
 
     Head(String artifactDescriptor, OutputStream out, int byteQuota,
-         long lifetimeNanos) {
+         long timeout) {
       this.artifactDescriptor = artifactDescriptor;
       this.out = out;
       this.byteQuota = byteQuota;
-      this.timeout = lifetimeNanos == -1
-          ? -1 : System.nanoTime() + lifetimeNanos;
+      this.timeout = timeout;
     }
   }
 
   private final Path logDir;
+  private final Clock clock;
 
-  /** The newly created hydra still needs to be {@Link #install installed}. */
-  public LogHydra(Path logDir) {
+  /** The newly created hydra still needs to be {@link #install installed}. */
+  public LogHydra(Path logDir, Clock clock) {
     this.logDir = logDir;
+    this.clock = clock;
   }
 
   /**
    * Installs the inheritedProcessStreams, usually by doing something like
    * {@link System#setOut} and {@link System#setErr}, and
    * {@link Logger#addHandler}.
-   * @param inheritedProcessStreams typically
+   * @param wrappedInheritedProcessStreams typically wrappers around
    *   {@code System.out} and {@code System.err}.
    * @param logHandler the log handler to install.
    */
   protected abstract void doInstall(
       OutputStream[] wrappedInheritedProcessStreams, Handler logHandler);
 
+  /**
+   * Should only be called once per instance.
+   * @param inheritedProcessStreams typically {@code System.out} and
+   *     {@code System.err}.
+   */
   public void install(OutputStream[] inheritedProcessStreams) {
     int n = inheritedProcessStreams.length;
     OutputStream[] wrappedInheritedProcessStreams = new OutputStream[n];
@@ -132,27 +140,7 @@ public abstract class LogHydra {
 
         private void multicastBytes(Head h, byte[] bytes, int off, int len) {
           for (; h != null; h = inhQ.after(h)) {
-            boolean valid = h.timeout < 0 || System.nanoTime() < h.timeout;
-            if (valid) {
-              try {
-                synchronized (h) {
-                  h.out.write(bytes, off, len);
-                  if (h.byteQuota >= 0) {
-                    if (h.byteQuota <= len) {
-                      h.out.close();
-                      valid = false;
-                    } else {
-                      h.byteQuota -= len;
-                    }
-                  }
-                }
-              } catch (IOException ex) {
-                valid = false;
-              }
-            }
-            if (!valid) {
-              artifactProcessingEnded(h.artifactDescriptor);
-            }
+            sendBytes(h, bytes, off, len);
           }
         }
       };
@@ -185,18 +173,43 @@ public abstract class LogHydra {
           OutputStreamWriter out = new OutputStreamWriter(bout, Charsets.UTF_8);
           LogRecordWriter w = new LogRecordWriter(out);
           w.writeRecord(r);
+          Flushables.flushQuietly(out);
           byte[] logBytes = bout.toByteArray();
+          int n = logBytes.length;
           for (; h != null; h = loggerQ.after(h)) {
-            try {
-              h.out.write(logBytes);
-            } catch (IOException ex) {
-              artifactProcessingEnded(h.artifactDescriptor);
-            }
+            sendBytes(h, logBytes, 0, n);
           }
         }
       }
     };
     doInstall(wrappedInheritedProcessStreams, logHandler);
+  }
+
+  private void sendBytes(Head h, byte[] bytes, int off, int len) {
+    boolean valid = h.timeout < 0 || clock.nanoTime() < h.timeout;
+    if (valid) {
+      try {
+        synchronized (h) {  // Lock on byteQuota
+          if (h.byteQuota < 0) {
+            h.out.write(bytes, off, len);
+          } else {
+            int hlen = h.byteQuota;
+            if (hlen > len) { hlen = len; }
+            h.out.write(bytes, off, hlen);
+            h.byteQuota -= hlen;
+            if (h.byteQuota <= 0) {
+              h.out.close();
+              valid = false;
+            }
+          }
+        }
+      } catch (IOException ex) {
+        valid = false;
+      }
+    }
+    if (!valid) {
+      artifactProcessingEnded(h.artifactDescriptor);
+    }
   }
 
   private static final int BYTE_QUOTA = 1 << 17;  // 100K
@@ -205,6 +218,15 @@ public abstract class LogHydra {
   /** Adds a head to the hydra. */
   public void artifactProcessingStarted(
       String artifactDescriptor, EnumSet<DataSource> data)
+      throws IOException {
+    artifactProcessingStarted(
+        artifactDescriptor, data, BYTE_QUOTA, LIFETIME_NANOS);
+  }
+
+  /** Adds a head to the hydra. */
+  public void artifactProcessingStarted(
+      String artifactDescriptor, EnumSet<DataSource> data,
+      int quota, long lifetimeNanos)
       throws IOException {
     if (data.isEmpty()) { return; }
     Map<String, Head> headMap;
@@ -216,11 +238,13 @@ public abstract class LogHydra {
       headList = loggerQ;
       headMap = loggerHeads;
     }
+    long timeout = lifetimeNanos < 0 ? -1 : clock.nanoTime() + lifetimeNanos;
     synchronized (headList) {
       if (headMap.containsKey(artifactDescriptor)) { return; }
-      OutputStream out = logDir.resolve(artifactDescriptor).newOutputStream(
-          StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.CREATE);
-      Head h = new Head(artifactDescriptor, out, BYTE_QUOTA, LIFETIME_NANOS);
+      OutputStream out = logDir.resolve(artifactDescriptor + ".log")
+          .newOutputStream(
+              StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.CREATE);
+      Head h = new Head(artifactDescriptor, out, quota, timeout);
       headMap.put(artifactDescriptor, h);
       headList.add(h);
     }
