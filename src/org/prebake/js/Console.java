@@ -209,9 +209,6 @@ public final class Console {
   // TODO: make assert work as assert_
   // TODO: profile, profileEnd, count
 
-  private static final String SIXTEEN_SPACES = "                ";
-  static { assert 16 == SIXTEEN_SPACES.length(); }
-
   private static String valueToStr(Object o) {
     if (o == null) { return "null"; }
     if (o.getClass().isArray()) {
@@ -229,6 +226,7 @@ public final class Console {
   }
 
   private static String toTable(List<? extends String> cells, int n) {
+    // TODO: maybe consolidate with PreformattedStaticHtmls Table class.
     int m = cells.size() / n;
     int[] maxLens = new int[n];
     for (int i = 0; i < m * n; ++i) {
@@ -254,6 +252,9 @@ public final class Console {
     }
     return sb.toString();
   }
+
+  private static final String SIXTEEN_SPACES = "                ";
+  static { assert 16 == SIXTEEN_SPACES.length(); }
 
   private static final class Group {
     final String name;
