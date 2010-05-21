@@ -61,7 +61,7 @@ public final class SyncLinkedList<T extends SyncListElement<T>> {
   }
 
   public synchronized void remove(T el) {
-    if (el.inList) { throw new IllegalStateException(); }
+    if (!el.inList) { throw new IllegalStateException(); }
     // snapshot
     T prev = el.prev;
     T next = el.next;
@@ -84,7 +84,7 @@ public final class SyncLinkedList<T extends SyncListElement<T>> {
   }
 
   public synchronized void add(T el) {
-    if (!el.inList) { throw new IllegalStateException(); }
+    if (el.inList) { throw new IllegalStateException(); }
     if (tail == null) {
       head = el;
     } else {
