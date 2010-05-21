@@ -26,6 +26,7 @@ import org.prebake.util.CommandLineArgs;
 import com.google.common.base.Charsets;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.io.ByteStreams;
+import com.google.common.io.Closeables;
 import com.google.common.util.concurrent.Executors;
 import com.sleepycat.je.Environment;
 import com.sleepycat.je.EnvironmentConfig;
@@ -64,6 +65,9 @@ import javax.servlet.http.HttpServletResponse;
 @ParametersAreNonnullByDefault
 public final class Main {
   public static final void main(String[] argv) {
+    // The prebakery does not read stdin and neither should any execed process.
+    Closeables.closeQuietly(System.in);
+
     final Logger logger = Logger.getLogger(Main.class.getName());
     CommandLineArgs args = new CommandLineArgs(argv);
     if (!CommandLineArgs.setUpLogger(args, logger)) {

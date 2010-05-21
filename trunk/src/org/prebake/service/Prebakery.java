@@ -584,7 +584,7 @@ public abstract class Prebakery implements Closeable {
         logger.removeHandler(outChannel);
         try {
           outChannel.flush();
-          outChannel.out.append('\0');
+          outChannel.out.out.append('\0');
         } catch (IOException ex) {
           logger.log(Level.INFO, "Failed to close channel", ex);
         }
