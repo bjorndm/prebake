@@ -60,7 +60,6 @@ import javax.annotation.ParametersAreNonnullByDefault;
  * the rest of the prefix, {@code /org/prebake} are path elements under the tree
  * root. That glob matches paths like {@code src/org/prebake/Foo.java} ; the
  * paths it matches do not have to have tripled file separators.
- * TODO: update wikidocs with tree roots.
  *
  * @see <a href="http://code.google.com/p/prebake/wiki/Glob">Wiki Docs</a>
  * @author Mike Samuel <mikesamuel@gmail.com>
@@ -264,8 +263,6 @@ public final class Glob implements Comparable<Glob>, JsonSerializable {
    */
   public static Function<String, String> transform(Glob input, Glob output)
       throws IllegalArgumentException {
-    // TODO: document these conventions on the glob wiki page, and expose to
-    // tools.
     int m = input.parts.length, n = output.parts.length;
     // The literal portions of the output glob without connecting slashes.
     // For the output glob "foo/**/bar/baz/*.html", the literal portions are

@@ -227,41 +227,40 @@ public final class MainServlet extends HttpServlet {
       JsonSink sink = new JsonSink(w);
       Set<String> upToDate = pb.getUpToDateProducts();
       PlanGraph pg = pb.getPlanGraph();
-      sink.write("{");
-      sink.writeValue("products");
-      sink.write(":");
+      sink.write("{")
+          .writeValue("products")
+          .write(":");
       // We can't just write out the products because that would include
       // the bake function which is not renderable to JSON.
       sink.write("{");
       boolean needComma = false;
       for (Product p : pb.getProducts().values()) {
         if (needComma) { sink.write(","); }
-        sink.writeValue(p.name);
-        sink.write(":");
-        sink.writeValue(p.withJsonOnly());
+        sink.writeValue(p.name)
+            .write(":")
+            .writeValue(p.withJsonOnly());
         needComma = true;
       }
-      sink.write("}");
-      sink.write(",");
-      sink.writeValue("graph");
-      sink.write(":");
-      sink.write("{");
+      sink.write("}")
+          .write(",")
+          .writeValue("graph")
+          .write(":")
+          .write("{");
       for (String productName : pg.nodes) {
-        sink.writeValue(productName);
-        sink.write(":");
-        sink.write("{");
-        sink.writeValue("upToDate");
-        sink.write(":");
-        sink.writeValue(upToDate.contains(productName));
-        sink.write(",");
-        sink.writeValue("requires");
-        sink.write(":");
-        sink.writeValue(pg.edges.get(productName));
-        sink.write("}");
+        sink.writeValue(productName)
+            .write(":")
+            .write("{")
+            .writeValue("upToDate")
+            .write(":")
+            .writeValue(upToDate.contains(productName))
+            .write(",")
+            .writeValue("requires")
+            .write(":")
+            .writeValue(pg.edges.get(productName))
+            .write("}");
       }
-      sink.write("}");
-      sink.write("}");
-
+      sink.write("}")
+          .write("}");
     } finally {
       w.close();
     }
@@ -303,9 +302,31 @@ public final class MainServlet extends HttpServlet {
     w.close();
   }
 
-  private void serveToolsJson(HttpServletResponse resp) {
-    // TODO Auto-generated method stub
-
+  private void serveToolsJson(HttpServletResponse resp) throws IOException {
+    resp.setContentType("application/json; charset=UTF-8");
+    Writer w = resp.getWriter();
+    try {
+      JsonSink sink = new JsonSink(w);
+      sink.write("{");
+      Map<String, ToolSignature> tools = pb.getTools();
+      boolean sawOne = false;
+      for (String toolName : pb.getToolNames()) {
+        if (sawOne) { sink.write(","); }
+        sawOne = true;
+        sink.writeValue(toolName)
+            .write(":")
+            .write("{");
+        ToolSignature tool = tools.get(toolName);
+        if (tool != null && tool.help != null) {
+          sink.writeValue("help").write(":").writeValue(tool.help).write(",");
+        }
+        sink.writeValue("upToDate").write(":").writeValue(tool != null)
+            .write("}");
+      }
+      sink.write("}");
+    } finally {
+      w.close();
+    }
   }
 
   private void serveToolsIndex(HttpServletResponse resp) throws IOException {
