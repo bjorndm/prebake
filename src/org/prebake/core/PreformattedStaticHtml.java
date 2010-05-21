@@ -87,7 +87,9 @@ public class PreformattedStaticHtml implements JsonSerializable, HtmlClosure {
     this.src = html;
     for (int i = 0, n = html.length(); i < n; ++i) {
       switch (html.charAt(i)) {
-        case '<': case '>': case '&': return;  // Don't set below.
+        case '\r': case '<': case '>': case '&':
+        case '\u0085': case '\u2028': case '\u2029':
+          return;  // Don't set below.
       }
     }
     this.html = this.plainText = html;
@@ -165,16 +167,29 @@ public class PreformattedStaticHtml implements JsonSerializable, HtmlClosure {
     sb.append(SIXTEEN_SPACES, 0, nSpaces);
   }
 
+  private static String[] NO_STRINGS = new String[0];
   /**
-   * Splits around UNIX, Windows, and old mac style newlines returning the empty
-   * array for the empty string.
+   * Splits around POSIX newlines returning the empty array for the empty
+   * string.  We assume that no Windows or old Mac style newlines reach this
+   * code since SimpleTextChunk normalizes newlines.
    */
-  static String[] splitLines(CharSequence s) {
-    if (s.length() == 0) { return new String[0]; }
-    return s.toString().split("\r\n?|\n");
+  static String[] splitLines(CharSequence cs) {
+    int n = cs.length();
+    if (n == 0) { return NO_STRINGS; }
+    String s = cs.toString();
+    int nLines = 1;
+    for (int i = -1; (i = s.indexOf('\n', i + 1)) >= 0;) { ++nLines; }
+    String[] lines = new String[nLines];
+    int start = 0;
+    int k = -1;
+    for (int end; (end = s.indexOf('\n', start)) >= 0; start = end + 1) {
+      lines[++k] = s.substring(start, end);
+    }
+    lines[++k] = s.substring(start, n);
+    return lines;
   }
 
-  /** Renders an integer as an uppercase roman numeral. */
+  /** Renders an integer as an upper-case Roman numeral. */
   static String toRomanNumeral(int n) {
     // Uses the algorithm described at
     // http://turner.faculty.swau.edu/mathematics/materialslibrary/roman/
@@ -478,22 +493,36 @@ class SimpleTextChunk implements TextChunk {
   final int height;
   final int width;
 
-  SimpleTextChunk(String s) {
-    int height = 1;
-    int width = 0;
-    int start = 0;
+  SimpleTextChunk(final String s) {
+    int height = 1;  // Number of lines before index i in s.
+    int width = 0;  // Width of the longest line before index i in s.
+    int start = 0;  // The index on which the current line started.
+    int pos = 0;
     int n = s.length();
+    StringBuilder sb = null;
     for (int i = 0; i < n; ++i) {
       char ch = s.charAt(i);
-      if (ch == '\n' || ch == '\r') {
-        width = Math.max(width, i - start);
-        ++height;
-        if (ch == '\r' && i + 1 < n && s.charAt(i + 1) == '\n') { ++i; }
-        start = i + 1;
+      switch (ch) {
+        case '\n':
+          width = Math.max(width, i - start);
+          ++height;
+          start = i + 1;
+          break;
+        case '\r':
+        case '\u0085': case '\u2028': case '\u2029':
+          // Normalize newlines so we only have to deal with them in one place.
+          if (sb == null) { sb = new StringBuilder(n); }
+          sb.append(s, pos, i).append('\n');
+          width = Math.max(width, i - start);
+          ++height;
+          // Handle the two code-unit sequence CRLF.
+          if (ch == '\r' && i + 1 < n && s.charAt(i + 1) == '\n') { ++i; }
+          pos = start = i + 1;
+          break;
       }
     }
     width = Math.max(n - start, width);
-    this.s = s;
+    this.s = sb == null ? s : sb.append(s, pos, n).toString();
     this.height = height;
     this.width = width;
   }

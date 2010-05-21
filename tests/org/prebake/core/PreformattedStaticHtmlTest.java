@@ -203,6 +203,22 @@ public class PreformattedStaticHtmlTest extends PbTestCase {
             .plainText());
   }
 
+  @Test public final void testNonPosixNewlines() {
+    assertEquals(
+        Joiner.on('\n').join(
+            "Foo",
+            "Bar",
+            "Baz",
+            "Boo",
+            "Far",
+            "Faz",
+            ""),
+        PreformattedStaticHtml.of(
+            "<pre>Foo\nBar\r\nBaz\u2028Boo\u2029Far\u0085Faz\r</pre>")
+            .plainText());
+
+  }
+
   @Test public final void testRomanNumerals() {
     ImmutableList.Builder<String> romanNumerals = ImmutableList.builder();
     for (int i = 0; i <= 30; ++i) {
