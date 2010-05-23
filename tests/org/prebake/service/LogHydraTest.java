@@ -211,8 +211,9 @@ public class LogHydraTest extends PbTestCase {
     hydra.artifactProcessingStarted(
         "foo", EnumSet.of(LogHydra.DataSource.INHERITED_FILE_DESCRIPTORS),
         1024/*B*/, 100/*ns*/);  // timeout=+100
+    // Write a portion of a buffer.
     hydra.wrappedInheritedProcessStreams[0].write(
-        "Hello".getBytes(Charsets.UTF_8));
+        "HHelloo".getBytes(Charsets.UTF_8), 1, 5);
     clock.advance(50);  // t=+50
     hydra.artifactProcessingStarted(
         "bar", EnumSet.of(LogHydra.DataSource.INHERITED_FILE_DESCRIPTORS),
