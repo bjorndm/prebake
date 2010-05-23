@@ -22,7 +22,9 @@ import org.prebake.fs.FileAndHash;
 import org.prebake.fs.FileVersioner;
 import org.prebake.js.Executor;
 import org.prebake.js.YSON;
+import org.prebake.service.ArtifactDescriptors;
 import org.prebake.service.BuiltinResourceLoader;
+import org.prebake.service.LogHydra;
 
 import com.google.common.base.Charsets;
 import com.google.common.base.Function;
@@ -48,6 +50,7 @@ import java.nio.file.WatchService;
 import java.nio.file.attribute.Attributes;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.Arrays;
+import java.util.EnumSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -74,6 +77,7 @@ public class ToolBox implements ToolProvider {
   final FileVersioner files;
   private final ImmutableMap<String, ?> commonJsEnv;
   private final Logger logger;
+  private final LogHydra logHydra;
   private final @Nullable WatchService watcher;
   private final ScheduledExecutorService execer;
   private final List<Path> toolDirs;
@@ -109,11 +113,12 @@ public class ToolBox implements ToolProvider {
    *     tasks and which is used to update tool definitions.
    */
   public ToolBox(FileVersioner files, ImmutableMap<String, ?> commonJsEnv,
-                 Iterable<Path> toolDirs, Logger logger,
+                 Iterable<Path> toolDirs, Logger logger, LogHydra logHydra,
                  ArtifactListener<ToolSignature> listener,
                  ScheduledExecutorService execer)
       throws IOException {
     this.logger = logger;
+    this.logHydra = logHydra;
     toolDirs = this.toolDirs = ImmutableList.<Path>builder().addAll(
         Collections2.transform(
             Sets.newLinkedHashSet(toolDirs), new PathToRealPath()))
@@ -283,9 +288,17 @@ public class ToolBox implements ToolProvider {
       boolean clearedValidator;
 
       public ToolSignature call() {
+        String descrip = ArtifactDescriptors.forTool(t.toolName);
+        try {
+          logHydra.artifactProcessingStarted(
+              descrip, EnumSet.of(LogHydra.DataSource.SERVICE_LOGGER));
+        } catch (IOException ex) {
+          logger.log(Level.SEVERE, "Can't write log file for tool", ex);
+        }
         try {
           return tryToValidate(4);
         } finally {
+          logHydra.artifactProcessingEnded(descrip);
           synchronized (impl.tool) {
             if (!clearedValidator) {
               impl.tool.validator = null;

@@ -110,7 +110,7 @@ public abstract class LogHydra {
    * @param inheritedProcessStreams typically {@code System.out} and
    *     {@code System.err}.
    */
-  public void install(OutputStream[] inheritedProcessStreams) {
+  public void install(OutputStream... inheritedProcessStreams) {
     int n = inheritedProcessStreams.length;
     OutputStream[] wrappedInheritedProcessStreams = new OutputStream[n];
     for (int i = 0; i < n; ++i) {

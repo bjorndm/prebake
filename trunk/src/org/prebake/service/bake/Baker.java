@@ -25,6 +25,8 @@ import org.prebake.fs.NonFileArtifact;
 import org.prebake.js.Executor;
 import org.prebake.js.JsonSink;
 import org.prebake.os.OperatingSystem;
+import org.prebake.service.ArtifactDescriptors;
+import org.prebake.service.LogHydra;
 import org.prebake.service.plan.Action;
 import org.prebake.service.plan.Product;
 import org.prebake.service.tools.ToolProvider;
@@ -37,6 +39,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.Collections;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.Callable;
@@ -69,6 +72,7 @@ public final class Baker {
   private final FileVersioner files;
   private final ImmutableMap<String, ?> commonJsEnv;
   private final Logger logger;
+  private final LogHydra logHydra;
   private final ScheduledExecutorService execer;
   private final ConcurrentHashMap<String, ProductStatus> productStatuses
       = new ConcurrentHashMap<String, ProductStatus>();
@@ -98,12 +102,13 @@ public final class Baker {
   public Baker(
       OperatingSystem os, FileVersioner files,
       ImmutableMap<String, ?> commonJsEnv, int umask, Logger logger,
-      ScheduledExecutorService execer) {
+      LogHydra logHydra, ScheduledExecutorService execer) {
     this.os = os;
     this.files = files;
     this.commonJsEnv = commonJsEnv;
     this.umask = umask;
     this.logger = logger;
+    this.logHydra = logHydra;
     this.execer = execer;
   }
 
@@ -138,7 +143,20 @@ public final class Baker {
         final Product product = status.getProduct();
         Future<Boolean> f = execer.submit(new Callable<Boolean>() {
           public Boolean call() {
-            return build();
+            String artifactDescriptor = ArtifactDescriptors.forProduct(
+                product.name);
+            try {
+              logHydra.artifactProcessingStarted(
+                  artifactDescriptor,
+                  EnumSet.of(LogHydra.DataSource.INHERITED_FILE_DESCRIPTORS));
+            } catch (IOException ex) {
+              logger.log(Level.SEVERE, "Failed to open log file", ex);
+            }
+            try {
+              return build();
+            } finally {
+              logHydra.artifactProcessingEnded(artifactDescriptor);
+            }
           }
 
           private boolean build() {

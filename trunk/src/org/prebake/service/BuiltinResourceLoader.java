@@ -48,6 +48,9 @@ public class BuiltinResourceLoader {
     Path relPath = root.relativize(p);
     String relUriStr = relPath.toString();
     String sep = p.getFileSystem().getSeparator();
+    // TODO: Fix all the places where we do this to also convert a leading
+    // "/" to clientRoot.getRoot(), and expose fromNormPath and toNormPath in
+    // CommonJsEnv.
     if (!"/".equals(sep)) {
       relUriStr = relUriStr.replace(sep, "/");
     }
