@@ -20,11 +20,13 @@ import org.prebake.core.Glob;
 import org.prebake.fs.StubFileVersioner;
 import org.prebake.js.Executor;
 import org.prebake.js.MobileFunction;
+import org.prebake.service.TestLogHydra;
 import org.prebake.service.tools.ToolContent;
 import org.prebake.service.tools.ToolProvider;
 import org.prebake.service.tools.ToolSignature;
 import org.prebake.util.PbTestCase;
 import org.prebake.util.StubScheduledExecutorService;
+import org.prebake.util.TestClock;
 
 import com.google.common.base.Charsets;
 import com.google.common.base.Joiner;
@@ -93,6 +95,15 @@ public class PlannerTest extends PbTestCase {
             "/cwd/plan.js:2:INFO: javac",
             "/cwd/plan.js:2:INFO: cp")
         .run();
+    assertEquals(
+        Joiner.on('\n').join(
+            "/",
+            "  cwd/",
+            "    plan.js \"...\"",
+            "  logs/",
+            "    plan+2e+js.plan.log \"INFO:gcc\\nINFO:javac\\nINFO:cp\\n\"",
+            ""),
+        fileSystemToAsciiArt(test.fs, 40));
   }
 
   @Test public final void testSimpleProduct() throws IOException {
@@ -397,6 +408,7 @@ public class PlannerTest extends PbTestCase {
         }
         public void close() { isClosed = true; }
       };
+      mkdirs(fs.getPath("/logs"));
       return this;
     }
 
@@ -418,8 +430,11 @@ public class PlannerTest extends PbTestCase {
       Logger logger = getLogger(Level.INFO);
       List<Path> planFileList = b.build();
       files.updateFiles(planFileList);
+      TestLogHydra logHydra = new TestLogHydra(
+          logger, fs.getPath("/logs"), new TestClock());
+      logHydra.install();
       planner = new Planner(
-          files, getCommonJsEnv(), toolbox, planFileList, logger,
+          files, getCommonJsEnv(), toolbox, planFileList, logger, logHydra,
           ArtifactListener.Factory.<Product>noop(), execer);
       return this;
     }

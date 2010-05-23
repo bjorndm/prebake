@@ -21,6 +21,7 @@ import org.prebake.js.JsonSink;
 import org.prebake.js.MobileFunction;
 import org.prebake.os.OperatingSystem;
 import org.prebake.os.StubOperatingSystem;
+import org.prebake.service.TestLogHydra;
 import org.prebake.service.plan.Action;
 import org.prebake.service.plan.Product;
 import org.prebake.service.tools.ToolContent;
@@ -28,6 +29,7 @@ import org.prebake.service.tools.ToolProvider;
 import org.prebake.service.tools.ToolSignature;
 import org.prebake.util.PbTestCase;
 import org.prebake.util.StubScheduledExecutorService;
+import org.prebake.util.TestClock;
 
 import java.io.IOException;
 import java.io.OutputStream;
@@ -598,6 +600,7 @@ public class BakerTest extends PbTestCase {
     private OperatingSystem os;
     private StubFileVersioner files;
     private Logger logger;
+    private TestLogHydra logHydra;
     private StubScheduledExecutorService execer;
     private StubToolProvider toolbox;
     private Baker baker;
@@ -611,6 +614,7 @@ public class BakerTest extends PbTestCase {
     Tester withFileSystem(FileSystem fs) throws IOException {
       this.fs = fs;
       logger = getLogger(Level.INFO);
+      logHydra = new TestLogHydra(logger, fs.getPath("/logs"), new TestClock());
       os = new StubOperatingSystem(fs, logger);
       files = new StubFileVersioner(
           fs.getPath("root").toAbsolutePath(),
@@ -626,7 +630,8 @@ public class BakerTest extends PbTestCase {
       files.updateFiles(b.build());
       execer = new StubScheduledExecutorService();
       toolbox = new StubToolProvider();
-      baker = new Baker(os, files, getCommonJsEnv(), 0700, logger, execer);
+      baker = new Baker(
+          os, files, getCommonJsEnv(), 0700, logger, logHydra, execer);
       baker.setToolBox(toolbox);
       return this;
     }

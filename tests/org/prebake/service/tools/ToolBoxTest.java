@@ -19,8 +19,11 @@ import org.prebake.fs.DbFileVersioner;
 import org.prebake.fs.FileVersioner;
 import org.prebake.js.Executor;
 import org.prebake.js.JsonSink;
+import org.prebake.service.LogHydra;
+import org.prebake.service.TestLogHydra;
 import org.prebake.util.PbTestCase;
 import org.prebake.util.StubFileSystemProvider;
+import org.prebake.util.TestClock;
 
 import com.google.common.base.Joiner;
 import com.google.common.base.Predicates;
@@ -50,6 +53,7 @@ import org.junit.Test;
 
 public class ToolBoxTest extends PbTestCase {
   private @Nullable FileSystem fs;
+  private @Nullable LogHydra logHydra;
   private @Nullable Path root;
   private @Nullable Environment env;
   private @Nullable FileVersioner files;
@@ -61,6 +65,7 @@ public class ToolBoxTest extends PbTestCase {
     Logger logger = getLogger(Level.INFO);
     fs = new StubFileSystemProvider("mfs")
         .getFileSystem(URI.create("mfs:///#/root/cwd"));
+    logHydra = new TestLogHydra(logger, fs.getPath("/logs"), new TestClock());
     root = fs.getPath("/root");
     EnvironmentConfig envConfig = new EnvironmentConfig();
     envConfig.setAllowCreate(true);
@@ -211,7 +216,7 @@ public class ToolBoxTest extends PbTestCase {
     void assertSigs(String... expectedSigs) throws Exception {
       ToolBox tb = new ToolBox(
           files, getCommonJsEnv(), toolDirs, getLogger(Level.FINE),
-          ArtifactListener.Factory.<ToolSignature>noop(), execer) {
+          logHydra, ArtifactListener.Factory.<ToolSignature>noop(), execer) {
         @Override
         protected Iterable<String> getBuiltinToolNames() { return builtins; }
       };

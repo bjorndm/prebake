@@ -23,8 +23,10 @@ import org.prebake.os.OperatingSystem;
 import org.prebake.os.StubOperatingSystem;
 import org.prebake.service.Config;
 import org.prebake.service.Prebakery;
+import org.prebake.service.TestLogHydra;
 import org.prebake.util.MoreAsserts;
 import org.prebake.util.PbTestCase;
+import org.prebake.util.TestClock;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -47,6 +49,7 @@ import javax.annotation.Nullable;
 
 import com.google.common.base.Charsets;
 import com.google.common.base.Joiner;
+import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.io.Closeables;
@@ -104,6 +107,7 @@ public class EndToEndTest extends PbTestCase {
             "        a.foo \"foo\"",
             "      plan.js \"...\"",
             "      .prebake/",
+            "        logs/",
             "        cmdline \"...\"",
             "      out/",
             "        a.bar \"foo\"",
@@ -126,6 +130,7 @@ public class EndToEndTest extends PbTestCase {
     /** Issues commands to the service. */
     private Bake client;
     private Logger logger = getLogger(Level.INFO);
+    private TestLogHydra logHydra;
     /** The working directory for the client. */
     private Path clientWorkingDir;
     /** Invoked when the service shuts down. */
@@ -216,8 +221,12 @@ public class EndToEndTest extends PbTestCase {
         }
       };
 
+      logHydra = new TestLogHydra(
+          logger, fs.getPath("/cwd/root/.prebake/logs"), new TestClock());
+      logHydra.install();
+
       service = new Prebakery(
-          config, getCommonJsEnv(), execer, os, logger) {
+          config, getCommonJsEnv(), execer, os, logger, logHydra) {
             @Override
             protected Environment createDbEnv(Path dir) {
               EnvironmentConfig envConfig = new EnvironmentConfig();
@@ -282,6 +291,15 @@ public class EndToEndTest extends PbTestCase {
     }
 
     Tester assertFileSystem(String... expectedFsAsciiArt) {
+      try {
+        // Log files come out in an unpredictable order, so skip them.
+        for (Path p : fs.getPath("/cwd/root/.prebake/logs")
+                 .newDirectoryStream()) {
+          p.delete();
+        }
+      } catch (IOException ex) {
+        Throwables.propagate(ex);
+      }
       assertEquals(
           Joiner.on('\n').join(expectedFsAsciiArt),
           fileSystemToAsciiArt(fs, 40).trim());

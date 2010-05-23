@@ -88,6 +88,7 @@ public abstract class Prebakery implements Closeable {
   private final String token;
   private final LinkedBlockingQueue<Commands> cmdQueue;
   private final Logger logger;
+  private final LogHydra logHydra;
   private final ScheduledExecutorService execer;
   private final OperatingSystem os;
   private Environment env;
@@ -118,7 +119,8 @@ public abstract class Prebakery implements Closeable {
 
   public Prebakery(
       Config config, ImmutableMap<String, ?> commonJsEnv,
-      ScheduledExecutorService execer, OperatingSystem os, Logger logger) {
+      ScheduledExecutorService execer, OperatingSystem os, Logger logger,
+      LogHydra logHydra) {
     assert config != null;
     config = staticCopy(config);
     this.config = config;
@@ -126,6 +128,7 @@ public abstract class Prebakery implements Closeable {
     this.execer = execer;
     this.os = os;
     this.logger = logger;
+    this.logHydra = logHydra;
     this.token = makeToken();
     this.cmdQueue = new LinkedBlockingQueue<Commands>(4);
   }
@@ -317,6 +320,10 @@ public abstract class Prebakery implements Closeable {
     Path cmdlineFile = dir.resolve(fs.getPath(FileNames.CMD_LINE));
     Path portFile = dir.resolve(fs.getPath(FileNames.PORT));
     Path tokenFile = dir.resolve(fs.getPath(FileNames.TOKEN));
+    Path logDir = dir.resolve(fs.getPath(FileNames.LOGS));
+    if (!logDir.exists()) {
+      logDir.createDirectory(FilePerms.perms(config.getUmask(), true));
+    }
     if (!cmdlineFile.exists()) {
       cmdlineFile.createFile(FilePerms.perms(config.getUmask(), false));
     }
@@ -361,13 +368,13 @@ public abstract class Prebakery implements Closeable {
     this.env = createDbEnv(dir);
     this.files = new DbFileVersioner(env, clientRoot, toWatch, logger);
     this.baker = new Baker(
-        os, files, commonJsEnv, config.getUmask(), logger, execer);
+        os, files, commonJsEnv, config.getUmask(), logger, logHydra, execer);
     this.tools = new ToolBox(
-        files, commonJsEnv, config.getToolDirs(), logger, baker.toolListener,
-        execer);
+        files, commonJsEnv, config.getToolDirs(), logger, logHydra,
+        baker.toolListener, execer);
     this.baker.setToolBox(this.tools);
     this.planner = new Planner(
-        files, commonJsEnv, tools, config.getPlanFiles(), logger,
+        files, commonJsEnv, tools, config.getPlanFiles(), logger, logHydra,
         this.baker.prodListener, execer);
   }
 

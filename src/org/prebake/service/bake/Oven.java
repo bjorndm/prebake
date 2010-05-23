@@ -185,6 +185,8 @@ final class Oven {
     }
     Executor.Input src = Executor.Input.builder(
         productJs.toString(), "product-" + p.name)
+        // TODO: use the product plan file as the base dir so that loads in the
+        // product's bake function happen relative to the plan file.
         .withBase(workingDir)
         .withActuals(actuals.build())
         .build();

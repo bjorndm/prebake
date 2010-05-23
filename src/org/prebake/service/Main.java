@@ -15,6 +15,7 @@
 package org.prebake.service;
 
 import org.prebake.channel.Commands;
+import org.prebake.channel.FileNames;
 import org.prebake.core.MessageQueue;
 import org.prebake.js.CommonEnvironment;
 import org.prebake.js.JsonSource;
@@ -22,6 +23,7 @@ import org.prebake.os.OperatingSystem;
 import org.prebake.os.RealOperatingSystem;
 import org.prebake.service.www.MainServlet;
 import org.prebake.util.CommandLineArgs;
+import org.prebake.util.SystemClock;
 
 import com.google.common.base.Charsets;
 import com.google.common.collect.ImmutableMap;
@@ -36,6 +38,8 @@ import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.handler.AbstractHandler;
 import java.io.File;
 import java.io.IOException;
+import java.io.OutputStream;
+import java.io.PrintStream;
 import java.io.StringReader;
 import java.math.BigInteger;
 import java.net.ServerSocket;
@@ -48,6 +52,7 @@ import java.util.Map;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.logging.Handler;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -102,7 +107,22 @@ public final class Main {
       token = new BigInteger(bytes).toString(Character.MAX_RADIX);
     }
 
-    final Prebakery pb = new Prebakery(config, env, execer, os, logger) {
+    final LogHydra hydra = new LogHydra(
+        config.getClientRoot().resolve(FileNames.DIR).resolve(FileNames.LOGS),
+        SystemClock.instance()) {
+      @Override
+      protected void doInstall(
+          OutputStream[] wrappedInheritedProcessStreams, Handler logHandler) {
+        System.setOut(new PrintStream(
+            wrappedInheritedProcessStreams[0], true));
+        System.setErr(new PrintStream(
+            wrappedInheritedProcessStreams[1], true));
+        logger.addHandler(logHandler);
+      }
+    };
+    hydra.install(System.out, System.err);
+
+    final Prebakery pb = new Prebakery(config, env, execer, os, logger, hydra) {
       @Override
       protected String makeToken() { return token; }
 

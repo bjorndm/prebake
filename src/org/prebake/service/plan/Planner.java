@@ -25,7 +25,9 @@ import org.prebake.js.Executor;
 import org.prebake.js.JsonSink;
 import org.prebake.js.YSON;
 import org.prebake.js.YSONConverter;
+import org.prebake.service.ArtifactDescriptors;
 import org.prebake.service.BuiltinResourceLoader;
+import org.prebake.service.LogHydra;
 import org.prebake.service.PrebakeScriptLoader;
 import org.prebake.service.tools.ToolProvider;
 import org.prebake.service.tools.ToolSignature;
@@ -47,6 +49,7 @@ import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.EnumSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -80,6 +83,7 @@ public final class Planner implements Closeable {
   private final ImmutableMap<String, ?> commonJsEnv;
   private final ToolProvider toolbox;
   private final Logger logger;
+  private final LogHydra logHydra;
   private final ScheduledExecutorService execer;
   private final ArtifactAddresser<PlanPart> productAddresser
       = new ArtifactAddresser<PlanPart>() {
@@ -106,11 +110,13 @@ public final class Planner implements Closeable {
   public Planner(
       FileVersioner files, ImmutableMap<String, ?> commonJsEnv,
       ToolProvider toolbox, Iterable<Path> planFiles, Logger logger,
-      ArtifactListener<Product> listener, ScheduledExecutorService execer) {
+      LogHydra logHydra, ArtifactListener<Product> listener,
+      ScheduledExecutorService execer) {
     this.files = files;
     this.commonJsEnv = commonJsEnv;
     this.toolbox = toolbox;
     this.logger = logger;
+    this.logHydra = logHydra;
     this.execer = execer;
     ImmutableMap.Builder<Path, PlanPart> b = ImmutableMap.builder();
     for (Path p : planFiles) { b.put(p, new PlanPart(p)); }
@@ -283,9 +289,20 @@ public final class Planner implements Closeable {
       if (pp.future != null) { return pp.future; }
       return pp.future = execer.submit(new Callable<ImmutableList<Product>>() {
         public ImmutableList<Product> call() throws Exception {
+          // TODO: normalize plan file names.
+          String artifactDescriptor = ArtifactDescriptors.forPlanFile(
+              files.getVersionRoot().relativize(pp.planFile).toString());
+          try {
+            logHydra.artifactProcessingStarted(
+                artifactDescriptor,
+                EnumSet.of(LogHydra.DataSource.SERVICE_LOGGER));
+          } catch (IOException ex) {
+            logger.log(Level.SEVERE, "Failed to open log file", ex);
+          }
           try {
             return derivePlan();
           } finally {
+            logHydra.artifactProcessingEnded(artifactDescriptor);
             pp.future = null;
           }
         }

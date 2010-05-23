@@ -24,7 +24,6 @@ import java.nio.file.FileSystem;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.EnumSet;
-import java.util.logging.Handler;
 import java.util.logging.Level;
 
 import com.google.common.base.Charsets;
@@ -54,7 +53,7 @@ public class LogHydraTest extends PbTestCase {
         "/",
         "  logs/");
     clock = new TestClock();
-    hydra = new TestLogHydra(fs.getPath("/logs"));
+    hydra = new TestLogHydra(getLogger(Level.INFO), fs.getPath("/logs"), clock);
     hydra.install(stubStdoutAndStderr);
     stdout = hydra.wrappedInheritedProcessStreams[0];
     stderr = hydra.wrappedInheritedProcessStreams[1];
@@ -277,19 +276,5 @@ public class LogHydraTest extends PbTestCase {
             "    bar.log \"INFO:Y\\nINFO:Z\\n\"",
             ""),
         fileSystemToAsciiArt(fs, 40));
-  }
-
-  private final class TestLogHydra extends LogHydra {
-    TestLogHydra(Path logDir) { super(logDir, clock); }
-
-    public OutputStream[] wrappedInheritedProcessStreams;
-
-    @Override
-    protected void doInstall(
-        OutputStream[] wrappedInheritedProcessStreams,
-        Handler logHandler) {
-      this.wrappedInheritedProcessStreams = wrappedInheritedProcessStreams;
-      getLogger(Level.INFO).addHandler(logHandler);
-    }
   }
 }
