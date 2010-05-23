@@ -131,7 +131,7 @@ public abstract class LogHydra {
         @Override
         public void write(byte[] bytes, int off, int len) {
           try {
-            inherited.write(bytes);
+            inherited.write(bytes, off, len);
           } catch (IOException ex) {
             // ignore
           }
