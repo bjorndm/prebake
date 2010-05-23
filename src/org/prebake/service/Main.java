@@ -37,6 +37,8 @@ import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.handler.AbstractHandler;
 import java.io.File;
+import java.io.FileDescriptor;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintStream;
@@ -120,7 +122,8 @@ public final class Main {
         logger.addHandler(logHandler);
       }
     };
-    hydra.install(System.out, System.err);
+    hydra.install(new FileOutputStream(FileDescriptor.out),
+                  new FileOutputStream(FileDescriptor.err));
 
     final Prebakery pb = new Prebakery(config, env, execer, os, logger, hydra) {
       @Override
