@@ -1,0 +1,15 @@
+<gxp:template name="org.prebake.service.www.LogPreviewPage"
+  xmlns="http://www.w3.org/1999/xhtml"
+  xmlns:gxp="http://google.com/2001/gxp"
+  xmlns:expr="http://google.com/2001/gxp/expressions">
+<gxp:param name="logPath" type="String"/>
+<gxp:param name="logPreview" type="String"/>
+<tr>
+  <th id="log">Log</th>
+  <td>
+    <a expr:href="logPath" class="logPreview">
+      <div class="log preformat"><gxp:eval expr="logPreview"/></div>
+    </a>
+  </td>
+</tr>
+</gxp:template>

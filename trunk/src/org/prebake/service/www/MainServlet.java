@@ -14,8 +14,10 @@
 
 package org.prebake.service.www;
 
+import org.prebake.channel.FileNames;
 import org.prebake.core.Hash;
 import org.prebake.js.JsonSink;
+import org.prebake.service.ArtifactDescriptors;
 import org.prebake.service.Prebakery;
 import org.prebake.service.plan.PlanGraph;
 import org.prebake.service.plan.Product;
@@ -27,16 +29,21 @@ import java.io.OutputStream;
 import java.io.Writer;
 import java.net.URI;
 import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
+import java.nio.file.attribute.Attributes;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+
+import javax.annotation.Nullable;
 import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import com.google.common.base.Charsets;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.io.ByteStreams;
 import com.google.gxp.base.GxpContext;
@@ -282,10 +289,14 @@ public final class MainServlet extends HttpServlet {
       resp.sendError(404);
       return;
     }
+    String logPreview = readLogPreview(
+        ArtifactDescriptors.forProduct(productName));
+    String logUriPath = "../logs/product/" + productName;
     Writer w = resp.getWriter();
     ProductDocPage.write(
         w, GxpContext.builder(Locale.ENGLISH).build(),
-        product, pb.getUpToDateProducts().contains(productName));
+        product, pb.getUpToDateProducts().contains(productName),
+        logUriPath, logPreview);
     w.close();
   }
 
@@ -358,5 +369,44 @@ public final class MainServlet extends HttpServlet {
     String path = URI.create(req.getRequestURI()).getPath();
     if (!checkAuthorized(path, req, resp)) { return; }
     // TODO
+  }
+
+  private Path getLogPath(String artifactDescriptor) {
+    return pb.getConfig().getClientRoot().resolve(FileNames.DIR)
+        .resolve(FileNames.LOGS).resolve(artifactDescriptor + ".log");
+  }
+
+  /** Tails a log file. */
+  private @Nullable String readLogPreview(String artifactDescriptor) {
+    try {
+      Path p = getLogPath(artifactDescriptor);
+      if (p.notExists()) { return null; }
+      long size = Attributes.readBasicFileAttributes(p).size();
+      if (size == 0 || size > Integer.MAX_VALUE) { return null; }
+      byte[] preview = new byte[(int) Math.min(4096L, size)];
+      int end;
+      InputStream in = p.newInputStream(StandardOpenOption.READ);
+      try {
+        if (size > preview.length) {
+          long tailStart = size - preview.length;
+          if (tailStart != in.skip(tailStart)) {
+            throw new IOException("Failed to skip to tail");
+          }
+        }
+        end = in.read(preview);
+      } finally {
+        in.close();
+      }
+      int start = 0;
+      // Skip over UTF-8 tail bytes so we start with a complete code unit.
+      while (start < end && ((preview[start] & 0xc0) == 0x80)) { ++start; }
+      if (end == start) { return null; }
+      String tail = new String(preview, start, end - start, Charsets.UTF_8);
+      if (size != (end - start)) { tail = "..." + tail; }
+      return tail;
+    } catch (IOException ex) {
+      ex.printStackTrace();
+      return null;
+    }
   }
 }

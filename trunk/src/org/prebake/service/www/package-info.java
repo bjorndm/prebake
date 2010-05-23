@@ -44,7 +44,7 @@
  *     &lt;mirror of tree under prebake-www&gt;   Generated client reports.
  *   prebake-api/
  *     do                                   POST only API.
- *   log
+ *   logs
  *     product
  *       &lt;product-name<sub>0</sub>&gt;
  *     tool
