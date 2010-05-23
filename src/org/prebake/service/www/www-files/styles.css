@@ -20,3 +20,6 @@ td, th { vertical-align: top }
 
 .up-to-date { color: #080 }
 .stale { color: #444 }
+
+.logPreview { text-decoration: none }
+.logPreview:hover { text-decoration: underline }

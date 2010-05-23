@@ -6,6 +6,8 @@
 <gxp:import class="org.prebake.core.Glob"/>
 <gxp:param name="p" type="Product"/>
 <gxp:param name="upToDate" type="boolean"/>
+<gxp:param name="logPath" type="String"/>
+<gxp:param name="logPreview" type="String"/>
 <html>
   <head>
     <title>Product <gxp:eval expr="p.name"/></title>
@@ -16,6 +18,9 @@
      >Product <b><gxp:eval expr="p.name"/></b> from
       <tt><gxp:eval expr="p.source"/></tt></h1>
     <table>
+      <gxp:if cond="!upToDate &amp;&amp; logPreview != null">
+      <gxp:eval expr="LogPreviewPage.getGxpClosure(logPath, logPreview)"/>
+      </gxp:if>
       <tr>
         <th id="inputs">Inputs</th>
         <td colspan="4">
@@ -46,7 +51,10 @@
         </td>
       </tr>
       </gxp:if>
-   </table>
+      <gxp:if cond="upToDate &amp;&amp; logPreview != null">
+      <gxp:eval expr="LogPreviewPage.getGxpClosure(logPath, logPreview)"/>
+      </gxp:if>
+    </table>
   </body>
 </html>
 </gxp:template>
