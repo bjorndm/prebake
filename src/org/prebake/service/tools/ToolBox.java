@@ -98,8 +98,8 @@ public class ToolBox implements ToolProvider {
           return tools.get(name).impls.get(index);
         }
       };
-  private final Future<?> updater;
-  private final ArtifactListener<ToolSignature> listener;
+  final ArtifactListener<ToolSignature> listener;
+  private Future<?> updater;
 
   /**
    * An initialized but inactive tool-box.  Call {@link #start} to activate it.
@@ -150,9 +150,15 @@ public class ToolBox implements ToolProvider {
     // Load the builtin tools from a tools.txt file in this same directory.
     for (String builtin : getBuiltinToolNames()) { checkBuiltin(builtin); }
 
-    this.updater = execer.scheduleWithFixedDelay(new Runnable() {
-      public void run() { getAvailableToolSignatures(); }
-    }, 1000, 1000, TimeUnit.MILLISECONDS);
+    scheduleUpdate();
+  }
+
+  synchronized void scheduleUpdate() {
+    if (this.updater == null || this.updater.isDone()) {
+      this.updater = execer.schedule(new Runnable() {
+        public void run() { getAvailableToolSignatures(); }
+      }, 1000, TimeUnit.MILLISECONDS);
+    }
   }
 
   /**
@@ -288,6 +294,9 @@ public class ToolBox implements ToolProvider {
       boolean clearedValidator;
 
       public ToolSignature call() {
+        synchronized (impl.tool) {
+          if (impl.isValid()) { return impl.sig; }
+        }
         String descrip = ArtifactDescriptors.forTool(t.toolName);
         try {
           logHydra.artifactProcessingStarted(
@@ -309,9 +318,6 @@ public class ToolBox implements ToolProvider {
       }
 
       private ToolSignature tryToValidate(int nTriesRemaining) {
-        synchronized (impl.tool) {
-          if (impl.isValid()) { return impl.sig; }
-        }
         while (--nTriesRemaining >= 0) {
           ToolContent toolJs;
           if (index < 0) {
@@ -531,7 +537,8 @@ public class ToolBox implements ToolProvider {
       Tool tool = tools.get(toolName);
       if (exists) {
         if (tool == null) {
-          tools.put(toolName, tool = new Tool(toolName, localName, listener));
+          tool = new Tool(toolName, localName, this);
+          tools.put(toolName, tool);
         }
         if (!tool.impls.containsKey(dirIndex)) {
           tool.impls.put(dirIndex, new ToolImpl(tool, dirIndex));

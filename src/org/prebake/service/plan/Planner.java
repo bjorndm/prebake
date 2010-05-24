@@ -289,6 +289,9 @@ public final class Planner implements Closeable {
       if (pp.future != null) { return pp.future; }
       return pp.future = execer.submit(new Callable<ImmutableList<Product>>() {
         public ImmutableList<Product> call() throws Exception {
+          synchronized (pp) {
+            if (pp.valid) { return pp.products; }
+          }
           // TODO: normalize plan file names.
           String artifactDescriptor = ArtifactDescriptors.forPlanFile(
               files.getVersionRoot().relativize(pp.planFile).toString());
@@ -303,14 +306,11 @@ public final class Planner implements Closeable {
             return derivePlan();
           } finally {
             logHydra.artifactProcessingEnded(artifactDescriptor);
-            pp.future = null;
+            // TODO: why is the log file not written?
           }
         }
 
         private ImmutableList<Product> derivePlan() {
-          synchronized (pp) {
-            if (pp.valid) { return pp.products; }
-          }
           for (int nAttempts = 4; --nAttempts >= 0;) {
             Hash.Builder hashes = Hash.builder();
             ImmutableList.Builder<Path> paths = ImmutableList.builder();
@@ -330,6 +330,9 @@ public final class Planner implements Closeable {
                       }
                       pp.products = products;
                       pp.valid = true;
+                      logger.log(
+                          Level.INFO, "Plan file {0} is up to date",
+                          pp.planFile);
                       return products;
                     }
                   }

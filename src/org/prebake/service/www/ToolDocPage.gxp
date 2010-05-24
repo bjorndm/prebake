@@ -1,9 +1,12 @@
 <gxp:template name="org.prebake.service.www.ToolDocPage"
  xmlns="http://www.w3.org/1999/xhtml"
- xmlns:gxp="http://google.com/2001/gxp">
+ xmlns:gxp="http://google.com/2001/gxp"
+ xmlns:expr="http://google.com/2001/gxp/expressions">
 <gxp:import class="org.prebake.service.tools.ToolSignature"/>
 <gxp:param name="toolName" type="String"/>
 <gxp:param name="tool" type="ToolSignature"/>
+<gxp:param name="logPath" type="String"/>
+<gxp:param name="logPreview" type="String"/>
 <html>
   <head>
     <title>Tool <gxp:eval expr="toolName"/></title>
@@ -16,6 +19,12 @@
         <p class="preformat"><gxp:eval expr="tool.help.summaryHtml"/></p>
       </gxp:if>
       <div class="preformat"><gxp:eval expr="tool.help.detailHtml"/></div>
+    </gxp:if>
+    <gxp:if cond="logPreview != null">
+    <h2 id="log">Log</h2>
+    <a expr:href="logPath" class="logPreview">
+      <div class="log preformat"><gxp:eval expr="logPreview"/></div>
+    </a>
     </gxp:if>
   </body>
 </html>

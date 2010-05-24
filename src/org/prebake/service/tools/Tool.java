@@ -14,8 +14,6 @@
 
 package org.prebake.service.tools;
 
-import org.prebake.core.ArtifactListener;
-
 import java.nio.file.Path;
 import java.util.SortedMap;
 import java.util.concurrent.Future;
@@ -28,15 +26,13 @@ final class Tool {
   final String toolName;
   final Path localName;
   final SortedMap<Integer, ToolImpl> impls = Maps.newTreeMap();
-  private final ArtifactListener<ToolSignature> listener;
+  final ToolBox toolBox;
   Future<ToolSignature> validator;
 
-  Tool(
-      String toolName, Path localName,
-      ArtifactListener<ToolSignature> listener) {
+  Tool(String toolName, Path localName, ToolBox toolBox) {
     this.toolName = toolName;
     this.localName = localName;
-    this.listener = listener;
+    this.toolBox = toolBox;
   }
 
   void check() {
@@ -51,9 +47,9 @@ final class Tool {
       }
     }
     if (sig != null) {
-      listener.artifactChanged(sig);
+      toolBox.listener.artifactChanged(sig);
     } else {
-      listener.artifactDestroyed(toolName);
+      toolBox.listener.artifactDestroyed(toolName);
     }
   }
 }
