@@ -82,12 +82,6 @@ public class PlannerTest extends PbTestCase {
   }
 
   @Test public final void testToolsAvailable() throws IOException {
-    String[] expectedLog = new String[] {
-      "/cwd/plan.js:2:INFO: gcc",
-      "/cwd/plan.js:2:INFO: javac",
-      "/cwd/plan.js:2:INFO: cp",
-      "INFO: Plan file plan.js is up to date",
-    };
     String planFile = "for(var k in tools){\nconsole.log(k);\n}\n({})";
     test.withFileSystem(
             "/",
