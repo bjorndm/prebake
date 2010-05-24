@@ -182,7 +182,10 @@ public final class Main {
 
     final Server server;
     if (config.getWwwPort() > 0) {
-      server = new Server(config.getWwwPort());
+      server = new Server(config.getWwwPort()) {
+        @Override public String toString() { return "[Prebake Web Server]"; }
+      };
+      server.setSendServerVersion(false);
       server.setHandler(new AbstractHandler() {
         MainServlet servlet = new MainServlet(token, pb);
         public void handle(
@@ -192,11 +195,12 @@ public final class Main {
           try {
             servlet.service(req, resp);
           } catch (RuntimeException ex) {
-            ex.printStackTrace();  // TODO
+            logger.log(Level.WARNING, "Web request failed", ex);
             throw ex;
           }
         }
       });
+      server.setStopAtShutdown(true);
       try {
         server.start();
       } catch (Exception ex) {
@@ -214,9 +218,12 @@ public final class Main {
       public void run() {
         pb.close();
         try {
-          if (server != null) { server.stop(); }
-        } catch (Exception ex) {
-          logger.log(Level.SEVERE, "Error shutting down http server", ex);
+          if (server != null && !(server.isStopping() || server.isStopped())) {
+            server.stop();
+          }
+        } catch (Throwable th) {
+          logger.log(Level.SEVERE, "Error shutting down http server", th);
+          // Don't propagate since the process will soon be dead anyway.
         }
       }
     }));
