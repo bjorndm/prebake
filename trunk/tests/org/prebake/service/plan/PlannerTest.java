@@ -19,6 +19,7 @@ import org.prebake.core.Documentation;
 import org.prebake.core.Glob;
 import org.prebake.fs.StubFileVersioner;
 import org.prebake.js.Executor;
+import org.prebake.js.JsonSink;
 import org.prebake.js.MobileFunction;
 import org.prebake.service.TestLogHydra;
 import org.prebake.service.tools.ToolContent;
@@ -81,10 +82,17 @@ public class PlannerTest extends PbTestCase {
   }
 
   @Test public final void testToolsAvailable() throws IOException {
+    String[] expectedLog = new String[] {
+      "/cwd/plan.js:2:INFO: gcc",
+      "/cwd/plan.js:2:INFO: javac",
+      "/cwd/plan.js:2:INFO: cp",
+      "INFO: Plan file plan.js is up to date",
+    };
+    String planFile = "for(var k in tools){\nconsole.log(k);\n}\n({})";
     test.withFileSystem(
             "/",
             "  cwd/",
-            "    plan.js \"for(var k in tools){\\nconsole.log(k);\\n}\\n({})\"")
+            "    plan.js " + JsonSink.stringify(planFile))
         .withTools(
             tool("gcc"),
             tool("javac"),
@@ -93,17 +101,24 @@ public class PlannerTest extends PbTestCase {
         .expectLog(
             "/cwd/plan.js:2:INFO: gcc",
             "/cwd/plan.js:2:INFO: javac",
-            "/cwd/plan.js:2:INFO: cp")
+            "/cwd/plan.js:2:INFO: cp",
+            "INFO: Plan file plan.js is up to date")
         .run();
     assertEquals(
         Joiner.on('\n').join(
             "/",
             "  cwd/",
-            "    plan.js \"...\"",
+            "    plan.js " + JsonSink.stringify(planFile),
             "  logs/",
-            "    plan+2e+js.plan.log \"INFO:gcc\\nINFO:javac\\nINFO:cp\\n\"",
+            "    plan+2e+js.plan.log "
+                 + JsonSink.stringify(Joiner.on('\n').join(
+                     "INFO:gcc",
+                     "INFO:javac",
+                     "INFO:cp",
+                     "INFO:Plan file plan.js is up to date",
+                     "")),
             ""),
-        fileSystemToAsciiArt(test.fs, 40));
+        fileSystemToAsciiArt(test.fs, 80));
   }
 
   @Test public final void testSimpleProduct() throws IOException {
@@ -114,6 +129,7 @@ public class PlannerTest extends PbTestCase {
         .withTools(tool("gcc"))
         .withPlanFiles("plan1.js")
         .expectProduct("p", action("gcc", "**.c", "**.o"))
+        .expectLog("INFO: Plan file plan1.js is up to date")
         .run();
   }
 
@@ -128,6 +144,7 @@ public class PlannerTest extends PbTestCase {
             "p",
             action("gcc", Arrays.asList("**.c", "**.cc"), Arrays.asList("**.o"))
             )
+        .expectLog("INFO: Plan file plan1.js is up to date")
         .run();
   }
 
@@ -146,7 +163,8 @@ public class PlannerTest extends PbTestCase {
         .expectProduct("myProduct", action("myTool", "**.foo", "**.bar"))
         .expectLog(
             "WARNING: Expected {\"inputs\":['*.glob', ...],...}, not null",
-            "SEVERE: Failed to update plan plan1.js")
+            "SEVERE: Failed to update plan plan1.js",
+            "INFO: Plan file plan2.js is up to date")
         .run();
   }
 
@@ -166,6 +184,7 @@ public class PlannerTest extends PbTestCase {
         .withPlanFiles("plan1.js", "plan2.js")
         .expectProduct("myProduct", action("myTool", "**.foo", "**.bar"))
         .expectLog(
+            "INFO: Plan file plan1.js is up to date",
             "WARNING: Error executing plan plan2.js\n"
             + "org.mozilla.javascript.JavaScriptException:"
             + " [object Object] (/cwd/plan2.js#1)",
@@ -187,6 +206,7 @@ public class PlannerTest extends PbTestCase {
         .withPlanFiles("plan1.js", "plan2.js")
         .expectProduct("myProduct", action("myTool", "**.foo", "**.bar"))
         .expectLog(
+            "INFO: Plan file plan1.js is up to date",
             "WARNING: Failed to execute plan plan2.js\n"
             + "org.prebake.js.Executor$AbnormalExitException:"
             + " org.mozilla.javascript.EvaluatorException:"
@@ -203,7 +223,9 @@ public class PlannerTest extends PbTestCase {
         .withTools(tool(
             "myTool", new Documentation(null, "A very useful tool", null)))
         .withPlanFiles("plan1.js")
-        .expectLog("/cwd/plan1.js:1:INFO: Help: myTool\nA very useful tool")
+        .expectLog(
+            "/cwd/plan1.js:1:INFO: Help: myTool\nA very useful tool",
+            "INFO: Plan file plan1.js is up to date")
         .run();
   }
 
@@ -224,7 +246,9 @@ public class PlannerTest extends PbTestCase {
             new Documentation(null, "munges stuff", null)))
         .withPlanFiles("plan1.js")
         .expectProduct("aProduct", action("munge", "**.a", "**.b"))
-        .expectLog("INFO: Looks spiffy!  Happy munging!")
+        .expectLog(
+            "INFO: Looks spiffy!  Happy munging!",
+            "INFO: Plan file plan1.js is up to date")
         .run();
   }
 
@@ -259,6 +283,7 @@ public class PlannerTest extends PbTestCase {
         .withTools(tool("munge"))
         .withPlanFiles("plan1.js", "plan2.js")  // plan2 does not exists
         .expectLog(
+            "INFO: Plan file plan1.js is up to date",
             "WARNING: Missing plan plan2.js",
             "java.io.FileNotFoundException: /cwd/plan2.js",
             "SEVERE: Failed to update plan plan2.js")
@@ -277,6 +302,7 @@ public class PlannerTest extends PbTestCase {
         .withTools(tool("gcc"))
         .withPlanFiles("plan.js")
         .expectProduct("p", action("gcc", "**.c", "**.o"))
+        .expectLog("INFO: Plan file plan.js is up to date")
         .run();
   }
 
@@ -309,7 +335,8 @@ public class PlannerTest extends PbTestCase {
         .expectLog(
             "WARNING: Error executing plan p.js",
             Executor.ScriptTimeoutException.class.getName() + ": ",
-            "SEVERE: Failed to update plan p.js")
+            "SEVERE: Failed to update plan p.js",
+            "INFO: Plan file q.js is up to date")
         .run();
   }
 
@@ -324,7 +351,10 @@ public class PlannerTest extends PbTestCase {
         .withTools(tool("gcc"))
         .withPlanFiles("p1.js", "p2.js")
         .expectProduct("q", action("gcc", "**.o", "**.lib"))
-        .expectLog("WARNING: Duplicate product p in p2.js and p1.js")
+        .expectLog(
+            "INFO: Plan file p1.js is up to date",
+            "INFO: Plan file p2.js is up to date",
+            "WARNING: Duplicate product p in p2.js and p1.js")
         .run();
   }
 
@@ -348,11 +378,15 @@ public class PlannerTest extends PbTestCase {
         .expectProduct("s", action("cp", "**.d", "**.z"))
         .expectLog(
             "/cwd/p.js:1:INFO: p",
+            "INFO: Plan file p.js is up to date",
             "/cwd/q.js:1:INFO: q",
+            "INFO: Plan file q.js is up to date",
             "/cwd/r.js:1:INFO: r",
             "/cwd/bar/foo.js:1:INFO: foo",
+            "INFO: Plan file r.js is up to date",
             "/cwd/s.js:1:INFO: s",
-            "/cwd/bar/baz.js:1:INFO: baz")
+            "/cwd/bar/baz.js:1:INFO: baz",
+            "INFO: Plan file s.js is up to date")
         .run()
         .writeFile("r.js", "console.log('r'), {r:tools.cp('**/*.c','**/*.y')}")
         .writeFile("bar/baz.js",
@@ -360,8 +394,10 @@ public class PlannerTest extends PbTestCase {
         .updateFiles("r.js", "/cwd/bar/baz.js")
         .expectLog(
             "/cwd/r.js:1:INFO: r",
+            "INFO: Plan file r.js is up to date",
             "/cwd/s.js:1:INFO: s",
-            "/cwd/bar/baz.js:1:INFO: baz")
+            "/cwd/bar/baz.js:1:INFO: baz",
+            "INFO: Plan file s.js is up to date")
         .expectProduct("p", action("cp", "**.a", "**.w"))
         .expectProduct("q", action("cp", "**.b", "**.x"))
         .expectProduct("r", action("cp", "**/*.c", "**/*.y"))

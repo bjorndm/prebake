@@ -179,11 +179,49 @@ public final class MainServlet extends HttpServlet {
       } else {
         serveProductDoc(subPath, resp);
       }
+    } else if (path.startsWith("/logs/")) {
+      serveLogFile(path.substring(6), resp);
     } else if (path.startsWith("/mirror/")) {
       String subPath = path.substring(8);
       mirrorClientFile(subPath, resp);
     } else {
       resp.sendError(404);
+    }
+  }
+
+  private void serveLogFile(String logPath, HttpServletResponse resp)
+      throws IOException {
+    String artifactDescriptor;
+    if (logPath.startsWith("product/")) {
+      artifactDescriptor = logPath.substring(8) + ".product";
+    } else if (logPath.startsWith("tool/")) {
+      artifactDescriptor = logPath.substring(5) + ".tool";
+    } else if (logPath.startsWith("plan/")) {
+      artifactDescriptor = logPath.substring(5) + ".plan";
+    } else {
+      resp.sendError(404);
+      return;
+    }
+    resp.setContentType("text/plain; charset=UTF-8");
+    Path logFile = getLogPath(artifactDescriptor);
+    if (logFile.exists()) {
+      long size = Attributes.readBasicFileAttributes(logFile).size();
+      if (size < Integer.MAX_VALUE) {
+        resp.setContentLength((int) size);
+      }
+      InputStream in = logFile.newInputStream();
+      try {
+        OutputStream out = resp.getOutputStream();
+        try {
+          ByteStreams.copy(in, out);
+        } finally {
+          out.close();
+        }
+      } finally {
+        in.close();
+      }
+    } else {
+      resp.getOutputStream().close();
     }
   }
 
@@ -307,9 +345,12 @@ public final class MainServlet extends HttpServlet {
       return;
     }
     ToolSignature sig = pb.getTools().get(toolName);
+    String logPreview = readLogPreview(ArtifactDescriptors.forTool(toolName));
+    String logUriPath = "../logs/tool/" + toolName;
     Writer w = resp.getWriter();
     ToolDocPage.write(
-        w, GxpContext.builder(Locale.ENGLISH).build(), toolName, sig);
+        w, GxpContext.builder(Locale.ENGLISH).build(), toolName, sig,
+        logUriPath, logPreview);
     w.close();
   }
 

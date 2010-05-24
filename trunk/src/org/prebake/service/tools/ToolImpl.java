@@ -37,7 +37,10 @@ final class ToolImpl implements NonFileArtifact {
     synchronized (tool) {
       this.valid = valid;
       if (sig == null) { return; }
-      if (!valid) { sig = null; }
+      if (!valid) {
+        sig = null;
+        tool.toolBox.scheduleUpdate();
+      }
     }
     tool.check();
   }
