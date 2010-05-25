@@ -17,7 +17,10 @@
     <link rel="stylesheet" type="text/css" href="../www-files/styles.css"/>
   </head>
   <body>
-    <h1>Plans</h1>
+    <h1>Plans
+      <div id="navbar"><a href="../index.html">Top</a> &#x2022; Plan</div>
+    </h1>
+    
     <h2>The Plan Graph</h2>
     <div id="plan-graph"></div>
     <!-- The below was adapted from third_party/dracula/index.html -->

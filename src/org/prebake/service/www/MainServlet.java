@@ -60,7 +60,8 @@ public final class MainServlet extends HttpServlet {
   }
 
   private boolean checkAuthorized(
-      String path, HttpServletRequest req, HttpServletResponse resp)
+      String path, HttpServletRequest req, HttpServletResponse resp,
+      boolean isReadOnly)
       throws IOException {
     if (path.startsWith("/www-files/")) {
       serveStaticFile(path.substring(1), req, resp);
@@ -79,6 +80,9 @@ public final class MainServlet extends HttpServlet {
     } else if ("/auth-help.html".equals(path)) {
       serveAuthHelp(resp);
       return false;
+    } else if (isReadOnly && pb.getConfig().getLocalhostTrusted()
+               && "127.0.0.1".equals(req.getRemoteAddr())) {
+      return true;
     } else {
       boolean authed = false;
       Cookie[] cookies = req.getCookies();
@@ -151,7 +155,7 @@ public final class MainServlet extends HttpServlet {
   public void doGet(HttpServletRequest req, HttpServletResponse resp)
       throws IOException {
     String path = URI.create(req.getRequestURI()).getPath();
-    if (!checkAuthorized(path, req, resp)) { return; }
+    if (!checkAuthorized(path, req, resp, true)) { return; }
 
     if ("/".equals(path)) {
       redirectTo(resp, "/index.html");
@@ -202,6 +206,12 @@ public final class MainServlet extends HttpServlet {
       resp.sendError(404);
       return;
     }
+    serveLogForArtifact(artifactDescriptor, resp);
+  }
+
+  private void serveLogForArtifact(
+      String artifactDescriptor, HttpServletResponse resp)
+      throws IOException {
     resp.setContentType("text/plain; charset=UTF-8");
     Path logFile = getLogPath(artifactDescriptor);
     if (logFile.exists()) {
@@ -323,8 +333,7 @@ public final class MainServlet extends HttpServlet {
       throws IOException {
     Product product = pb.getProducts().get(productName);
     if (product == null) {
-      // TODO: show the log instead.
-      resp.sendError(404);
+      serveLogForArtifact(ArtifactDescriptors.forProduct(productName), resp);
       return;
     }
     String logPreview = readLogPreview(
@@ -333,8 +342,8 @@ public final class MainServlet extends HttpServlet {
     Writer w = resp.getWriter();
     ProductDocPage.write(
         w, GxpContext.builder(Locale.ENGLISH).build(),
-        product, pb.getUpToDateProducts().contains(productName),
-        logUriPath, logPreview);
+        pb.getConfig().getClientRoot(), product,
+        pb.getUpToDateProducts().contains(productName), logUriPath, logPreview);
     w.close();
   }
 
@@ -408,7 +417,7 @@ public final class MainServlet extends HttpServlet {
   public void doPost(HttpServletRequest req, HttpServletResponse resp)
       throws IOException {
     String path = URI.create(req.getRequestURI()).getPath();
-    if (!checkAuthorized(path, req, resp)) { return; }
+    if (!checkAuthorized(path, req, resp, false)) { return; }
     // TODO
   }
 

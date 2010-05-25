@@ -415,6 +415,8 @@ public abstract class Prebakery implements Closeable {
             switch (cmd.verb) {
               case auth_www:
                 String uriPath = ((Command.AuthWwwCommand) cmd).continuePath;
+                // TODO: should we use the loopback address here so the URL can
+                // be handed out?
                 w.write("http://127.0.0.1:" + config.getWwwPort() + "/auth?tok="
                         + UriUtil.encode(token)
                         + (uriPath != null
@@ -612,6 +614,7 @@ public abstract class Prebakery implements Closeable {
     final List<Path> toolDirs = ImmutableList.copyOf(config.getToolDirs());
     final int umask = config.getUmask();
     final int wwwPort = config.getWwwPort();
+    final boolean localhostTrusted = config.getLocalhostTrusted();
     return new Config() {
       public Path getClientRoot() { return clientRoot; }
       public Pattern getIgnorePattern() { return ignorePattern; }
@@ -620,6 +623,7 @@ public abstract class Prebakery implements Closeable {
       public List<Path> getToolDirs() { return toolDirs; }
       public int getUmask() { return umask; }
       public int getWwwPort() { return wwwPort; }
+      public boolean getLocalhostTrusted() { return localhostTrusted; }
     };
   }
 

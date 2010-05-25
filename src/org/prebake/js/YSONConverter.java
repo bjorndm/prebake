@@ -339,11 +339,9 @@ public interface YSONConverter<T> {
               if (!allKeys.contains(key)) {
                 String msg = "Unexpected key " + toErrorString(key);
                 if (key instanceof String) {
-                  DidYouMean.toMessageQueue(
-                      msg, (String) key, problems, allKeysArr);
-                } else {
-                  problems.error(msg);
+                  msg = DidYouMean.toMessage(msg, (String) key, allKeysArr);
                 }
+                problems.error(msg);
               }
             }
             return output;

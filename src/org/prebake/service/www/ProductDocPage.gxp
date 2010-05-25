@@ -2,8 +2,10 @@
  xmlns="http://www.w3.org/1999/xhtml"
  xmlns:gxp="http://google.com/2001/gxp"
  xmlns:expr="http://google.com/2001/gxp/expressions">
+<gxp:import class="java.nio.file.Path"/>
 <gxp:import class="org.prebake.service.plan.Product"/>
 <gxp:import class="org.prebake.core.Glob"/>
+<gxp:param name="clientRoot" type="Path"/>
 <gxp:param name="p" type="Product"/>
 <gxp:param name="upToDate" type="boolean"/>
 <gxp:param name="logPath" type="String"/>
@@ -16,7 +18,9 @@
   <body>
     <h1 id="top" expr:class='upToDate ? "up-to-date" : "stale"'
      >Product <b><gxp:eval expr="p.name"/></b> from
-      <tt><gxp:eval expr="p.source"/></tt></h1>
+      <tt><gxp:eval expr="clientRoot.relativize(p.source)"/></tt>
+      <div id="navbar"><a href="../index.html">Top</a> &#x2022;
+        <a href="index.html">Plan</a> &#x2022; Product</div></h1>
     <table>
       <gxp:if cond="!upToDate &amp;&amp; logPreview != null">
       <gxp:eval expr="LogPreviewPage.getGxpClosure(logPath, logPreview)"/>

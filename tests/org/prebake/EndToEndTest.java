@@ -161,6 +161,7 @@ public class EndToEndTest extends PbTestCase {
         }
         public int getUmask() { return 700; }
         public int getWwwPort() { return -1; }
+        public boolean getLocalhostTrusted() { return false; }
       };
       OperatingSystem os = new StubOperatingSystem(fs, logger);
 
