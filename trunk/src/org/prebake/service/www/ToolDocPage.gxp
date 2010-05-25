@@ -13,7 +13,9 @@
     <link rel="stylesheet" type="text/css" href="../www-files/styles.css"/>
   </head>
   <body>
-    <h1>Tool <gxp:eval expr="toolName"/></h1>
+    <h1>Tool <gxp:eval expr="toolName"/>
+      <div id="navbar"><a href="../index.html">Top</a> &#x2022;
+        <a href="index.html">Tools</a> &#x2022; Tool</div></h1>
     <gxp:if cond="tool != null &amp;&amp; tool.help != null">
       <gxp:if cond="!tool.help.isSummaryInferred()">
         <p class="preformat"><gxp:eval expr="tool.help.summaryHtml"/></p>

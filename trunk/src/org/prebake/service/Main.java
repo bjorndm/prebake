@@ -211,7 +211,6 @@ public final class Main {
     } else {
       server = null;
     }
-    // TODO: debug unknown flags no warning issued
 
     // If an interrupt signal is received,
     Runtime.getRuntime().addShutdownHook(new Thread(new Runnable() {

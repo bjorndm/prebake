@@ -13,7 +13,10 @@
     <link rel="stylesheet" type="text/css" href="../www-files/styles.css"/>
   </head>
   <body>
-    <h1>Tools</h1>
+    <h1>
+      Tools
+      <div id="navbar"><a href="../index.html">Top</a> &#x2022; Tools</div>
+    </h1>
     <gxp:loop var="toolName" type="String" iterable="toolNames">
       <gxp:abbr name="tool" type="ToolSignature" expr="tools.get(toolName)">
         <h3><a expr:class='tool != null ? "up-to-date" : "stale"'>

@@ -62,4 +62,10 @@ public interface Config {
    * @see java.io.File#pathSeparator
    */
   @Nonnull String getPathSeparator();
+  /**
+   * True iff the localhost should not be required to present credentials before
+   * reading information from the source repo from the {@link #getWwwPort HTTP}
+   * service.
+   */
+  boolean getLocalhostTrusted();
 }
