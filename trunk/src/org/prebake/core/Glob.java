@@ -69,11 +69,6 @@ public final class Glob implements Comparable<Glob>, JsonSerializable {
   private final String[] parts;
   private final int treeRootIndex;
   private transient Pattern regex;
-  // TODO: add the notion of a tree root to globs.
-  // For example, the tree root of a set of java files might be the tree root.
-  // Possible syntax
-  // src///**.java
-  // lib///com/google/**.class
 
   private Glob(int treeRootIndex, String... parts) {
     this.parts = parts;
@@ -92,7 +87,7 @@ public final class Glob implements Comparable<Glob>, JsonSerializable {
         case '*':  // * or **
           if (i + 1 < n && s.charAt(i + 1) == '*') {
             ++i;
-            // Three adjacent **'s not allowed.
+            // Three adjacent *'s not allowed.
             if (i + 1 < n && s.charAt(i + 1) == '*') { badGlob(s); }
           }
           sawStar = true;
