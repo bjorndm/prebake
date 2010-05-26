@@ -11,42 +11,57 @@
 <html>
   <head>
     <title>Plans</title>
-    <script type="text/javascript" src="../www-files/dracula/raphael-min.js"/>
-    <script type="text/javascript" src="../www-files/dracula/graffle.js"/>
-    <script type="text/javascript" src="../www-files/dracula/graph.js"/>
+    <script type="text/javascript">
+    <!-- make Math.random replayable so we can get repeatable layout when graph
+          structure does not change. -->
+    (function () {
+      var rnd = Math.random;
+      var nums = [];
+      var pos = 0;
+      Math.random = function () {
+        if (pos === nums.length) {
+          return nums[pos++] = rnd();
+        } else {
+          return nums[pos++];
+        }
+      };
+      Math.resetRandom = function () { pos = 0; };
+    })();
+    </script>
+
+    <!-- General graph objects -->
+    <script type="text/javascript" src="../www-files/foograph/lib/graph.js"/>
+    <script type="text/javascript" src="../www-files/foograph/lib/canvasWrapper.js"/>
+
+    <!-- Vertex layout managers.  Random is used by the others. -->
+    <!-- TODO: is kamdakawi needed? -->
+    <script type="text/javascript"
+     src="../www-files/foograph/lib/vlayouts/random.js"/>
+    <script type="text/javascript"
+     src="../www-files/foograph/lib/vlayouts/kamadakawai.js"/>
+    <script type="text/javascript"
+     src="../www-files/foograph/lib/vlayouts/forcedirected.js"/>
+
     <link rel="stylesheet" type="text/css" href="../www-files/styles.css"/>
   </head>
   <body>
     <h1>Plans
       <div id="navbar"><a href="../index.html">Top</a> &#x2022; Plan</div>
     </h1>
-    
+
     <h2>The Plan Graph</h2>
-    <div id="plan-graph-cont"></div>
-    <!-- The below was adapted from third_party/dracula/index.html -->
+    <div id="plan-graph-cont">
     <script type="text/javascript">
-var height = 400;
-var width = 800;
-/* only do all this when document has finished loading (needed for RaphaelJS */
+    document.write(<![CDATA[
+        '<canvas style="height: 500; display: block" id="plan-graph"></canvas>'
+        ]]>);
 window.onload = function() {
   <!-- Styles used for different kinds of nodes in the draw function below. -->
-  var staleNode = {
-    getShape: function (r, x, y) {
-      var shape = r.ellipse(x, y, 30, 20);
-      shape.attr(  // Dark green border around green
-          {fill: '#ccc', stroke: '#666', "fill-opacity": 0, "stroke-width": 2});
-      return shape;
-    }
-  };
-  var upToDateNode = {
-    getShape: function validNodeShape(r, x, y) {
-      var shape = r.ellipse(x, y, 30, 20);
-      shape.attr(  // Dark grey border around grey
-          {fill: '#afa', stroke: '#484', "fill-opacity": 0, "stroke-width": 2});
-      return shape;
-    }
-  };
-  
+  <!-- Dark green border around green -->
+  var staleNode = new VertexStyle('ellipse', 80, 40, '#cccccc', '#333333', true);
+  <!-- Dark grey border around grey -->
+  var upToDateNode = new VertexStyle('ellipse', 80, 40, '#aaffaa', '#004400', true);
+
   function noop() {}
 
   <!--
@@ -67,7 +82,7 @@ window.onload = function() {
             drawGraph(JSON.parse(json));
           }
         }
-      } 
+      }
     };
     req.open('GET', 'plan.json', true);
     req.send();
@@ -79,43 +94,55 @@ window.onload = function() {
 
   <!-- draws a graph given JSON of the form fetchable from plan.json -->
   function drawGraph(graphJson) {
-    var g = new Graph();
+    // TODO: possibly choose the dims by looking at offset{Width,Height{
+    var canvasCont = document.getElementById('plan-graph-cont');
+    var width = canvasCont.offsetWidth - 4;
+    var  height = canvasCont.offsetHeight - 4;
+
+    Math.resetRandom();
+
+    var g = new Graph('Plan Graph', true<!--directed-->);
+    var vertices = {};
     for (var nodeName in graphJson.graph) {
-      var nodeInfo = graphJson.graph[nodeName]; 
-      g.addNode(nodeName, nodeInfo.upToDate ? upToDateNode : staleNode);
+      var nodeInfo = graphJson.graph[nodeName];
+      var style = nodeInfo.upToDate ? upToDateNode : staleNode;
+      var vertex = vertices[nodeName] = new Vertex(nodeName, -1, -1, style);
+      g.insertVertex(vertex);
     }
     <![CDATA[
-    var nodeStyles = { directed: true };
     for (var nodeName in graphJson.graph) {
       var adjacentNodes = graphJson.graph[nodeName].requires;
+      var startVertex = vertices[nodeName];
       for (var i = 0, n = adjacentNodes.length; i < n; ++i) {
-        g.addEdge(nodeName, adjacentNodes[i], nodeStyles);
+        var endVertex = vertices[adjacentNodes[i]];
+        var label = null;  // TODO: label with glob intersection.
+        g.insertEdge(label, 3/*weight*/, startVertex, endVertex, null/*style*/);
       }
     }
     ]]>
 
-    <!-- layout the graph using the Spring layout implementation -->
-    (new Graph.Layout.Spring(g)).layout();
+    <!-- layout the graph -->
+    new KamadaKawaiVertexLayout(width, height).layout(g);
+    new ForceDirectedVertexLayout(width, height, 400, false<!--re-randomize-->).layout(g);
 
-    <!-- draw the graph using the RaphaelJS draw implementation -->
-    var planGraphCont = document.getElementById('plan-graph-cont');
-    while (planGraphCont.firstChild) {
-      planGraphCont.removeChild(planGraphCont.firstChild);
-    }
-    var planGraphDiv = document.createElement('DIV');
-    planGraphCont.appendChild(planGraphDiv);
-    planGraphDiv.id = 'plan-graph';
-    var renderer = new Graph.Renderer.Raphael('plan-graph', g, width, height);
-    renderer.draw();
+    <!-- set up the canvas -->
+    var canvasCanvas = document.getElementById('plan-graph');
+    canvasCanvas.style.width = width + 'px';
+    canvasCanvas.style.height = height + 'px';
+    canvasCanvas.width = width;
+    canvasCanvas.height = height;
 
-    for (var nodeName in graphJson.graph) {
-      g.nodes[nodeName].shape.click(scrollerTo(nodeName));
-    }
+    <!-- draw the graph -->
+    var canvas = new canvasWrapper(canvasCanvas);
+    canvas.clear();
+    g.plot(canvas);
+    canvas.paint();
   }
-  
+
   requestGraph();
 };
     </script>
+    </div>
     <h2>Products</h2>
     <gxp:loop var="product" type="Product" iterable="products.values()">
       <h3><a>

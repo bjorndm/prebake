@@ -444,6 +444,7 @@ public abstract class Prebakery implements Closeable {
                 }
                 break;
               case files_changed:
+                // TODO: maybe send these via hooks.getUpdates()
                 files.updateFiles(((Command.FilesChangedCommand) cmd).paths);
                 break;
               case graph:
