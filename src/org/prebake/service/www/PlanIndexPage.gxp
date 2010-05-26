@@ -22,13 +22,14 @@
     </h1>
     
     <h2>The Plan Graph</h2>
-    <div id="plan-graph"></div>
+    <div id="plan-graph-cont"></div>
     <!-- The below was adapted from third_party/dracula/index.html -->
     <script type="text/javascript">
 var height = 400;
 var width = 800;
 /* only do all this when document has finished loading (needed for RaphaelJS */
 window.onload = function() {
+  <!-- Styles used for different kinds of nodes in the draw function below. -->
   var staleNode = {
     getShape: function (r, x, y) {
       var shape = r.ellipse(x, y, 30, 20);
@@ -45,40 +46,74 @@ window.onload = function() {
       return shape;
     }
   };
+  
+  function noop() {}
 
-  var upToDateNodes = {
-    <gxp:loop var="nodeName" type="String" iterable="validProducts"
-     ><gxp:eval expr="nodeName"/>: true,</gxp:loop>
-    '-': void 0
-  };
-  function isUpToDate(nodeName) {
-    return upToDateNodes[nodeName] === true;
+  <!--
+      send an XMLHttpRequest to plan.json for graph data and layout the graph
+      when it arrives and refetches after 2.5 seconds.
+    -->
+  var lastJsonDrawn;
+  function requestGraph() {
+    var req = new XMLHttpRequest();
+    req.onreadystatechange = function () {
+      if (req.readyState === 4) {
+        var json = req.responseText;
+        req.onreadystatechange = noop;
+        setTimeout(requestGraph, 2500 /*ms*/);
+        if (req.status === 200) {
+          if (lastJsonDrawn !== json) {
+            lastJsonDrawn = json;
+            drawGraph(JSON.parse(json));
+          }
+        }
+      } 
+    };
+    req.open('GET', 'plan.json', true);
+    req.send();
   }
 
-  var g = new Graph();
-  <gxp:loop var="nodeName" type="String" iterable="planGraph.nodes">
-  g.addNode(
-      <gxp:eval expr="nodeName"/>,
-      isUpToDate(<gxp:eval expr="nodeName"/>) ? upToDateNode : staleNode);
-  </gxp:loop>
-  <gxp:loop var="e" type="Map.Entry{String, String}"
-   iterable="planGraph.edges.entries()">
-  g.addEdge(<gxp:eval expr="e.getKey()"/>, <gxp:eval expr="e.getValue()"/>,
-            { directed: true });
-  </gxp:loop>
+  function scrollerTo(nodeName) {
+    return function () { window.location = '#detail:' + nodeName; };
+  }
 
-  <!-- layout the graph using the Spring layout implementation -->
-  var layout = new Graph.Layout.Spring(g);
-  layout.layout();
+  <!-- draws a graph given JSON of the form fetchable from plan.json -->
+  function drawGraph(graphJson) {
+    var g = new Graph();
+    for (var nodeName in graphJson.graph) {
+      var nodeInfo = graphJson.graph[nodeName]; 
+      g.addNode(nodeName, nodeInfo.upToDate ? upToDateNode : staleNode);
+    }
+    <![CDATA[
+    var nodeStyles = { directed: true };
+    for (var nodeName in graphJson.graph) {
+      var adjacentNodes = graphJson.graph[nodeName].requires;
+      for (var i = 0, n = adjacentNodes.length; i < n; ++i) {
+        g.addEdge(nodeName, adjacentNodes[i], nodeStyles);
+      }
+    }
+    ]]>
 
-  <!-- draw the graph using the RaphaelJS draw implementation -->
-  var renderer = new Graph.Renderer.Raphael('plan-graph', g, width, height);
-  renderer.draw();
+    <!-- layout the graph using the Spring layout implementation -->
+    (new Graph.Layout.Spring(g)).layout();
 
-  <gxp:loop var="nodeName" type="String" iterable="planGraph.nodes">
-  g.nodes[<gxp:eval expr="nodeName"/>].shape.click(
-      function () { window.location = '#detail:' + <gxp:eval expr="nodeName"/>; });
-  </gxp:loop>
+    <!-- draw the graph using the RaphaelJS draw implementation -->
+    var planGraphCont = document.getElementById('plan-graph-cont');
+    while (planGraphCont.firstChild) {
+      planGraphCont.removeChild(planGraphCont.firstChild);
+    }
+    var planGraphDiv = document.createElement('DIV');
+    planGraphCont.appendChild(planGraphDiv);
+    planGraphDiv.id = 'plan-graph';
+    var renderer = new Graph.Renderer.Raphael('plan-graph', g, width, height);
+    renderer.draw();
+
+    for (var nodeName in graphJson.graph) {
+      g.nodes[nodeName].shape.click(scrollerTo(nodeName));
+    }
+  }
+  
+  requestGraph();
 };
     </script>
     <h2>Products</h2>

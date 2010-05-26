@@ -15,8 +15,8 @@
 package org.prebake.service;
 
 /**
- * Maps {@link NonFileArtifact}s to strings that can be part of a file path
- * for use with a {@link LogHydra}.
+ * Maps {@link org.prebake.fs.NonFileArtifact}s to strings that can be part of
+ * a file path for use with a {@link LogHydra}.
  *
  * @author Mike Samuel <mikesamuel@gmail.com>
  */

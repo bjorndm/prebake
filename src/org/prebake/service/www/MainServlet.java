@@ -38,7 +38,6 @@ import java.util.Map;
 import java.util.Set;
 
 import javax.annotation.Nullable;
-import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -48,6 +47,13 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.io.ByteStreams;
 import com.google.gxp.base.GxpContext;
 
+/**
+ * An HTTP servlet that exposes documentation and logs of
+ * {@link org.prebake.service.plan.Planner plan files},
+ * {@link ToolSignature tools}, and {@link Product products}.
+ *
+ * @author Mike Samuel <mikesamuel@gmail.com>
+ */
 public final class MainServlet extends HttpServlet {
   private final String token;
   private final Prebakery pb;
@@ -60,8 +66,7 @@ public final class MainServlet extends HttpServlet {
   }
 
   private boolean checkAuthorized(
-      String path, HttpServletRequest req, HttpServletResponse resp,
-      boolean isReadOnly)
+      String path, Request req, Response resp, boolean isReadOnly)
       throws IOException {
     if (path.startsWith("/www-files/")) {
       serveStaticFile(path.substring(1), req, resp);
@@ -70,7 +75,7 @@ public final class MainServlet extends HttpServlet {
     if ("/auth".equals(path)) {
       String queryToken = req.getParameter("tok");
       if (token.equals(queryToken)) {
-        resp.addCookie(new Cookie(AUTH_COOKIE_NAME, token));
+        resp.addCookie(AUTH_COOKIE_NAME, token);
         String continuePath = req.getParameter("continue");
         redirectTo(resp, continuePath != null ? continuePath : "/index.html");
       } else {
@@ -85,13 +90,10 @@ public final class MainServlet extends HttpServlet {
       return true;
     } else {
       boolean authed = false;
-      Cookie[] cookies = req.getCookies();
-      if (cookies != null) {
-        for (Cookie cookie : cookies) {
-          if (AUTH_COOKIE_NAME.equals(cookie.getName())) {
-            if (cookie.getValue().equals(token)) { authed = true; }
-            break;
-          }
+      for (HttpCookie cookie : req.getCookies()) {
+        if (AUTH_COOKIE_NAME.equals(cookie.getName())) {
+          if (cookie.getValue().equals(token)) { authed = true; }
+          break;
         }
       }
       if (authed) { return true; }
@@ -110,8 +112,7 @@ public final class MainServlet extends HttpServlet {
     }
   });
 
-  private static void serveStaticFile(
-      String path, HttpServletRequest req, HttpServletResponse resp)
+  private static void serveStaticFile(String path, Request req, Response resp)
       throws IOException {
     String etag = ETAGS.get(path);
     {
@@ -154,6 +155,10 @@ public final class MainServlet extends HttpServlet {
   @Override
   public void doGet(HttpServletRequest req, HttpServletResponse resp)
       throws IOException {
+    doGet(Request.Factory.wrap(req), Response.Factory.wrap(resp));
+  }
+
+  public void doGet(Request req, Response resp) throws IOException {
     String path = URI.create(req.getRequestURI()).getPath();
     if (!checkAuthorized(path, req, resp, true)) { return; }
 
@@ -193,8 +198,7 @@ public final class MainServlet extends HttpServlet {
     }
   }
 
-  private void serveLogFile(String logPath, HttpServletResponse resp)
-      throws IOException {
+  private void serveLogFile(String logPath, Response resp) throws IOException {
     String artifactDescriptor;
     if (logPath.startsWith("product/")) {
       artifactDescriptor = logPath.substring(8) + ".product";
@@ -209,8 +213,7 @@ public final class MainServlet extends HttpServlet {
     serveLogForArtifact(artifactDescriptor, resp);
   }
 
-  private void serveLogForArtifact(
-      String artifactDescriptor, HttpServletResponse resp)
+  private void serveLogForArtifact(String artifactDescriptor, Response resp)
       throws IOException {
     resp.setContentType("text/plain; charset=UTF-8");
     Path logFile = getLogPath(artifactDescriptor);
@@ -235,7 +238,7 @@ public final class MainServlet extends HttpServlet {
     }
   }
 
-  private void mirrorClientFile(String subPath, HttpServletResponse resp)
+  private void mirrorClientFile(String subPath, Response resp)
       throws IOException {
     if (pb.getConfig().getIgnorePattern().matcher(subPath).find()) {
       resp.sendError(404);
@@ -269,13 +272,14 @@ public final class MainServlet extends HttpServlet {
     }
   }
 
-  private void serveAuthHelp(HttpServletResponse resp) throws IOException {
+  private void serveAuthHelp(Response resp) throws IOException {
     Writer w = resp.getWriter();
     AuthHelpPage.write(w, GxpContext.builder(Locale.ENGLISH).build());
     w.close();
   }
 
-  private void servePlanJson(HttpServletResponse resp) throws IOException {
+  private void servePlanJson(Response resp) throws IOException {
+    //resp.setContentType("application/json; charset=UTF-8");
     resp.setContentType("application/json; charset=UTF-8");
     Writer w = resp.getWriter();
     try {
@@ -301,7 +305,9 @@ public final class MainServlet extends HttpServlet {
           .writeValue("graph")
           .write(":")
           .write("{");
+      needComma = false;
       for (String productName : pg.nodes) {
+        if (needComma) { sink.write(","); }
         sink.writeValue(productName)
             .write(":")
             .write("{")
@@ -313,6 +319,7 @@ public final class MainServlet extends HttpServlet {
             .write(":")
             .writeValue(pg.edges.get(productName))
             .write("}");
+        needComma = true;
       }
       sink.write("}")
           .write("}");
@@ -321,7 +328,7 @@ public final class MainServlet extends HttpServlet {
     }
   }
 
-  private void servePlanIndex(HttpServletResponse resp) throws IOException {
+  private void servePlanIndex(Response resp) throws IOException {
     Writer w = resp.getWriter();
     PlanIndexPage.write(
         w, GxpContext.builder(Locale.ENGLISH).build(),
@@ -329,7 +336,7 @@ public final class MainServlet extends HttpServlet {
     w.close();
   }
 
-  private void serveProductDoc(String productName, HttpServletResponse resp)
+  private void serveProductDoc(String productName, Response resp)
       throws IOException {
     Product product = pb.getProducts().get(productName);
     if (product == null) {
@@ -347,8 +354,7 @@ public final class MainServlet extends HttpServlet {
     w.close();
   }
 
-  private void serveToolDoc(String toolName, HttpServletResponse resp)
-      throws IOException {
+  private void serveToolDoc(String toolName, Response resp) throws IOException {
     if (!pb.getToolNames().contains(toolName)) {
       resp.sendError(404);
       return;
@@ -363,7 +369,7 @@ public final class MainServlet extends HttpServlet {
     w.close();
   }
 
-  private void serveToolsJson(HttpServletResponse resp) throws IOException {
+  private void serveToolsJson(Response resp) throws IOException {
     resp.setContentType("application/json; charset=UTF-8");
     Writer w = resp.getWriter();
     try {
@@ -390,7 +396,7 @@ public final class MainServlet extends HttpServlet {
     }
   }
 
-  private void serveToolsIndex(HttpServletResponse resp) throws IOException {
+  private void serveToolsIndex(Response resp) throws IOException {
     Writer w = resp.getWriter();
     ToolsIndexPage.write(
         w, GxpContext.builder(Locale.ENGLISH).build(), pb.getTools(),
@@ -398,7 +404,7 @@ public final class MainServlet extends HttpServlet {
     w.close();
   }
 
-  private void serveIndex(HttpServletResponse resp) throws IOException {
+  private void serveIndex(Response resp) throws IOException {
     Writer w = resp.getWriter();
     Map<String, Product> products = pb.getProducts();
     IndexPage.write(
@@ -408,7 +414,7 @@ public final class MainServlet extends HttpServlet {
   }
 
   /** @param encodedUriPath an already encoded URI path. */
-  private void redirectTo(HttpServletResponse resp, String encodedUriPath)
+  private void redirectTo(Response resp, String encodedUriPath)
       throws IOException {
     resp.sendRedirect(encodedUriPath);
   }
@@ -416,6 +422,10 @@ public final class MainServlet extends HttpServlet {
   @Override
   public void doPost(HttpServletRequest req, HttpServletResponse resp)
       throws IOException {
+    doPost(Request.Factory.wrap(req), Response.Factory.wrap(resp));
+  }
+
+  public void doPost(Request req, Response resp) throws IOException {
     String path = URI.create(req.getRequestURI()).getPath();
     if (!checkAuthorized(path, req, resp, false)) { return; }
     // TODO
