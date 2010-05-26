@@ -52,16 +52,9 @@
  * </pre>
  *
  * <pre>
- * TODO: add a local-machine-trusted flag that allows users to connect from
- *   127.0.0.1 without auth_www.  Big scary warnings.
- * TODO: generate log files for tools and products and mirror them under log
- * TODO: show the logs for invalid tools and products on the doc pages.
  * TODO: interactive testbed for globs to test path transforms
  * TODO: interactive testbed for tools to see what command line they generate,
  *   and to get feedback on options
- * TODO: have plan graph page ping periodically to get the latest state.
- *   maybe have it ping the JSON page with a If-Modified-Since and generate the
- *   graph from the JSON.
  * TODO: make the plan graph embeddable -- as an iframe
  * TODO: for demos, have a page that shows the plan graph and a scrolling log
  *   of file watcher changes.

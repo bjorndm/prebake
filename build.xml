@@ -160,9 +160,13 @@
         <include name="org/prebake/service/www/www-files/**/*.css"/>
       </fileset>
     </copy>
-    <copy todir="${lib}/org/prebake/service/www/www-files/dracula">
-      <fileset dir="${third_party}/dracula/js">
-        <include name="*.js"/>
+    <copy todir="${lib}/org/prebake/service/www/www-files/foograph">
+      <fileset dir="${third_party}/foograph">
+        <include name="lib/graph.js"/>
+        <include name="lib/canvasWrapper.js"/>
+        <include name="lib/vlayouts/forcedirected.js"/>
+        <include name="lib/vlayouts/kamadakawai.js"/>
+        <include name="lib/vlayouts/random.js"/>
       </fileset>
     </copy>
     <fileset dir="${lib}/org/prebake/service/tools" id="builtin.tools">

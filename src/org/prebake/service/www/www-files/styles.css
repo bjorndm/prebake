@@ -24,4 +24,4 @@ td, th { vertical-align: top }
 .logPreview { text-decoration: none }
 .logPreview:hover { text-decoration: underline }
 
-#navbar { float: right; font-size: 75% }
+#navbar { float: right; font-size: 75%; margin-right: .5em }
