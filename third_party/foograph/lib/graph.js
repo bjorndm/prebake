@@ -133,8 +133,6 @@ function Graph(label, directed)
  * Vertex object constructor.
  * 
  * @param label Label of this vertex
- * @param next Reference to the next vertex of this graph
- * @param firstEdge First edge of a linked list of edges
  */
 function Vertex(label, x, y, style)
 {

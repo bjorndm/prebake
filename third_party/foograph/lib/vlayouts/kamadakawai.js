@@ -227,7 +227,7 @@ KamadaKawaiVertexLayout.prototype.layout = function(graph)
     this.distance[i4] = this.__djikstraFindShortestPaths(v);
   }
   
-  var edge_length = this.__computeEdgeLength(width);
+  var edge_length = this.__computeEdgeLength(this.width);
 
   var K = this.spring_constant;
   

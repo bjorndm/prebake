@@ -104,7 +104,7 @@ ForceDirectedVertexLayout.prototype.__identifyComponents = function(graph)
     for (var i in componentCenters) {
       for (var j in componentCenters) {
         if (i != j) {
-          e = g.insertEdge("", 3, componentCenters[i], componentCenters[j]);
+          e = graph.insertEdge("", 3, componentCenters[i], componentCenters[j]);
           e.hidden = true;
         }
       }

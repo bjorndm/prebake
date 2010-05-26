@@ -9,7 +9,7 @@ canvasWrapper = function(canvas)
   this.height = canvas.height;
   
   this.clear = function() {
-    this.ctx.clearRect(0, 0, width, height)
+    this.ctx.clearRect(0, 0, canvas.width, canvas.height)
   };
   
   this.setStroke = function(w) {
