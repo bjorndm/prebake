@@ -14,6 +14,8 @@
 
 package org.prebake.util;
 
+import java.util.Calendar;
+
 /**
  * Abstracts away {@link System#nanoTime} so that unittests can easily test
  * expirations.
@@ -24,4 +26,9 @@ package org.prebake.util;
 public interface Clock {
   /** A monotonically (non-strictly) increasing counter. */
   long nanoTime();
+  /**
+   * Converts a monotonic timestamp retrieved via {@link #nanoTime} from the
+   * <b>same</b> clock to a point in time representation.
+   */
+  void toCalendar(long nanoTime, Calendar cal);
 }

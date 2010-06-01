@@ -14,16 +14,25 @@
 
 package org.prebake.util;
 
+import java.util.Calendar;
+
 /**
  * A clock based upon {@link System#nanoTime()}.
  *
  * @author Mike Samuel <mikesamuel@gmail.com>
  */
 public final class SystemClock implements Clock {
+  private static final long NANOS_PER_MILLIS = 1000000L;
+  private final long millisAtZeroNanos
+      = System.currentTimeMillis() - (System.nanoTime() / NANOS_PER_MILLIS);
+
   private SystemClock() { /* singleton */ }
   public long nanoTime() { return System.nanoTime(); }
   @Override public String toString() { return "[SystemClock]"; }
 
   private static final SystemClock INSTANCE = new SystemClock();
   public static final SystemClock instance() { return INSTANCE; }
+  public void toCalendar(long nanoTime, Calendar cal) {
+    cal.setTimeInMillis(millisAtZeroNanos + nanoTime / NANOS_PER_MILLIS);
+  }
 }
