@@ -28,6 +28,7 @@ import org.prebake.js.YSONConverter;
 import org.prebake.service.ArtifactDescriptors;
 import org.prebake.service.BuiltinResourceLoader;
 import org.prebake.service.LogHydra;
+import org.prebake.service.Logs;
 import org.prebake.service.PrebakeScriptLoader;
 import org.prebake.service.tools.ToolProvider;
 import org.prebake.service.tools.ToolSignature;
@@ -82,8 +83,7 @@ public final class Planner implements Closeable {
   private final FileVersioner files;
   private final ImmutableMap<String, ?> commonJsEnv;
   private final ToolProvider toolbox;
-  private final Logger logger;
-  private final LogHydra logHydra;
+  private final Logs logs;
   private final ScheduledExecutorService execer;
   private final ArtifactAddresser<PlanPart> productAddresser
       = new ArtifactAddresser<PlanPart>() {
@@ -102,21 +102,19 @@ public final class Planner implements Closeable {
    * @param files versions plan files.
    * @param commonJsEnv symbols available to plan file and tool file JavaScript.
    * @param toolbox defines the tools available to plan files.
-   * @param logger receives messages about product definitions.
+   * @param logs receive messages about product definitions.
    * @param listener receives updates as products are defined or destroyed.
    * @param execer an executor which is used to schedule periodic maintenance
    *     tasks and which is used to update product definitions.
    */
   public Planner(
       FileVersioner files, ImmutableMap<String, ?> commonJsEnv,
-      ToolProvider toolbox, Iterable<Path> planFiles, Logger logger,
-      LogHydra logHydra, ArtifactListener<Product> listener,
-      ScheduledExecutorService execer) {
+      ToolProvider toolbox, Iterable<Path> planFiles, Logs logs,
+      ArtifactListener<Product> listener, ScheduledExecutorService execer) {
     this.files = files;
     this.commonJsEnv = commonJsEnv;
     this.toolbox = toolbox;
-    this.logger = logger;
-    this.logHydra = logHydra;
+    this.logs = logs;
     this.execer = execer;
     ImmutableMap.Builder<Path, PlanPart> b = ImmutableMap.builder();
     for (Path p : planFiles) { b.put(p, new PlanPart(p)); }
@@ -148,6 +146,7 @@ public final class Planner implements Closeable {
    * in two or more plan files that run to completion.
    */
   public Map<String, Product> getProducts() {
+    Logger logger = logs.logger;
     Map<String, Product> allProducts = Maps.newHashMap();
     for (Future<ImmutableList<Product>> pp : getProductLists()) {
       try {
@@ -193,6 +192,7 @@ public final class Planner implements Closeable {
   public PlanGraph getPlanGraph() { return grapher.snapshot(); }
 
   private List<Future<ImmutableList<Product>>> getProductLists() {
+    Logger logger = logs.logger;
     // TODO: instead create an input so each tool's validator is in its own
     // appropriately named file to keep stack traces informative.
     String toolJs;
@@ -296,21 +296,22 @@ public final class Planner implements Closeable {
           String artifactDescriptor = ArtifactDescriptors.forPlanFile(
               files.getVersionRoot().relativize(pp.planFile).toString());
           try {
-            logHydra.artifactProcessingStarted(
+            logs.logHydra.artifactProcessingStarted(
                 artifactDescriptor,
                 EnumSet.of(LogHydra.DataSource.SERVICE_LOGGER));
           } catch (IOException ex) {
-            logger.log(Level.SEVERE, "Failed to open log file", ex);
+            logs.logger.log(Level.SEVERE, "Failed to open log file", ex);
           }
           try {
             return derivePlan();
           } finally {
-            logHydra.artifactProcessingEnded(artifactDescriptor);
+            logs.logHydra.artifactProcessingEnded(artifactDescriptor);
             // TODO: why is the log file not written?
           }
         }
 
         private ImmutableList<Product> derivePlan() {
+          Logger logger = logs.logger;
           for (int nAttempts = 4; --nAttempts >= 0;) {
             Hash.Builder hashes = Hash.builder();
             ImmutableList.Builder<Path> paths = ImmutableList.builder();
@@ -377,7 +378,7 @@ public final class Planner implements Closeable {
     }
     Executor planRunner = Executor.Factory.createJsExecutor();
     return planRunner.run(
-        YSON.class, logger, new PrebakeScriptLoader(files, paths, hashes),
+        YSON.class, logs.logger, new PrebakeScriptLoader(files, paths, hashes),
         Executor.Input.builder(
             pf.getContentAsString(Charsets.UTF_8), pf.getPath())
         .withActuals(commonJsEnv)
@@ -392,6 +393,7 @@ public final class Planner implements Closeable {
         Product.converter("tmp", pp.planFile))
         .convert(scriptOutput, mq);
     if (mq.hasErrors()) {
+      Logger logger = logs.logger;
       for (String msg : mq.getMessages()) {
         logger.log(Level.WARNING, MessageQueue.escape(msg));
       }

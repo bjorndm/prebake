@@ -17,7 +17,8 @@ package org.prebake.service.www;
 import javax.annotation.Nonnull;
 
 /**
- * Abstracts away {@link Cookie} so tests can just implement the bits we need.
+ * Abstracts away {@link javax.servlet.http.Cookie} so tests can just implement
+ * the bits we need.
  *
  * @author Mike Samuel <mikesamuel@gmail.com>
  */

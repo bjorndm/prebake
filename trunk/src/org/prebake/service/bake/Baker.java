@@ -27,6 +27,7 @@ import org.prebake.js.JsonSink;
 import org.prebake.os.OperatingSystem;
 import org.prebake.service.ArtifactDescriptors;
 import org.prebake.service.LogHydra;
+import org.prebake.service.Logs;
 import org.prebake.service.plan.Action;
 import org.prebake.service.plan.Product;
 import org.prebake.service.tools.ToolProvider;
@@ -71,8 +72,7 @@ public final class Baker {
   private final OperatingSystem os;
   private final FileVersioner files;
   private final ImmutableMap<String, ?> commonJsEnv;
-  private final Logger logger;
-  private final LogHydra logHydra;
+  private final Logs logs;
   private final ScheduledExecutorService execer;
   private final ConcurrentHashMap<String, ProductStatus> productStatuses
       = new ConcurrentHashMap<String, ProductStatus>();
@@ -94,21 +94,20 @@ public final class Baker {
    * @param os used to kick off processes when executing {@link Action action}s.
    * @param files versions the client directory.
    * @param umask for all files and directories created by the baker.
-   * @param logger receives messages about {@link Product product} statuses and
+   * @param logs receive messages about {@link Product product} statuses and
    *     from plan files, tool files, and external processes.
    * @param execer an executor which is used to schedule periodic maintenance
    *     tasks and which is used to update product definitions.
    */
   public Baker(
       OperatingSystem os, FileVersioner files,
-      ImmutableMap<String, ?> commonJsEnv, int umask, Logger logger,
-      LogHydra logHydra, ScheduledExecutorService execer) {
+      ImmutableMap<String, ?> commonJsEnv, int umask, Logs logs,
+      ScheduledExecutorService execer) {
     this.os = os;
     this.files = files;
     this.commonJsEnv = commonJsEnv;
     this.umask = umask;
-    this.logger = logger;
-    this.logHydra = logHydra;
+    this.logs = logs;
     this.execer = execer;
   }
 
@@ -120,8 +119,8 @@ public final class Baker {
     if (toolbox == null) { throw new IllegalArgumentException(); }
     if (this.toolbox != null) { throw new IllegalStateException(); }
     this.toolbox = toolbox;
-    this.oven = new Oven(os, files, commonJsEnv, toolbox, logger);
-    this.finisher = new Finisher(files, umask, logger);
+    this.oven = new Oven(os, files, commonJsEnv, toolbox, logs.logger);
+    this.finisher = new Finisher(files, umask, logs.logger);
   }
 
   /**
@@ -133,7 +132,7 @@ public final class Baker {
     assert toolbox != null;
     final ProductStatus status = productStatuses.get(productName);
     if (status == null) {
-      logger.log(Level.WARNING, "Unrecognized product {0}", productName);
+      logs.logger.log(Level.WARNING, "Unrecognized product {0}", productName);
       ValueFuture<Boolean> vf = ValueFuture.create();
       vf.set(Boolean.FALSE);
       return vf;
@@ -146,20 +145,21 @@ public final class Baker {
             String artifactDescriptor = ArtifactDescriptors.forProduct(
                 product.name);
             try {
-              logHydra.artifactProcessingStarted(
+              logs.logHydra.artifactProcessingStarted(
                   artifactDescriptor,
                   EnumSet.of(LogHydra.DataSource.INHERITED_FILE_DESCRIPTORS));
             } catch (IOException ex) {
-              logger.log(Level.SEVERE, "Failed to open log file", ex);
+              logs.logger.log(Level.SEVERE, "Failed to open log file", ex);
             }
             try {
               return build();
             } finally {
-              logHydra.artifactProcessingEnded(artifactDescriptor);
+              logs.logHydra.artifactProcessingEnded(artifactDescriptor);
             }
           }
 
           private boolean build() {
+            Logger logger = logs.logger;
             logger.log(Level.INFO, "Starting bake of product {0}", productName);
             final Path workDir;
             final ImmutableList<Path> inputs;
@@ -290,12 +290,12 @@ public final class Baker {
         Files.walkFileTree(toDelete, new FileVisitor<Path>() {
           public FileVisitResult postVisitDirectory(Path dir, IOException ex) {
             if (ex != null) {
-              logger.log(Level.WARNING, "Deleting " + dir, ex);
+              logs.logger.log(Level.WARNING, "Deleting " + dir, ex);
             }
             try {
               dir.deleteIfExists();
             } catch (IOException ioex) {
-              logger.log(Level.WARNING, "Deleting " + dir, ioex);
+              logs.logger.log(Level.WARNING, "Deleting " + dir, ioex);
             }
             return FileVisitResult.CONTINUE;
           }
@@ -304,19 +304,19 @@ public final class Baker {
           }
           public FileVisitResult preVisitDirectoryFailed(
               Path dir, IOException ex) {
-            logger.log(Level.WARNING, "Deleting " + dir, ex);
+            logs.logger.log(Level.WARNING, "Deleting " + dir, ex);
             return FileVisitResult.CONTINUE;
           }
           public FileVisitResult visitFile(Path f, BasicFileAttributes atts) {
             try {
               f.deleteIfExists();
             } catch (IOException ioex) {
-              logger.log(Level.WARNING, "Deleting " + f, ioex);
+              logs.logger.log(Level.WARNING, "Deleting " + f, ioex);
             }
             return FileVisitResult.CONTINUE;
           }
           public FileVisitResult visitFileFailed(Path f, IOException ex) {
-            logger.log(Level.WARNING, "Deleting " + f, ex);
+            logs.logger.log(Level.WARNING, "Deleting " + f, ex);
             return FileVisitResult.CONTINUE;
           }
         });
