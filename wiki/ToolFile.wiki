@@ -36,11 +36,13 @@ The `os` parameter is a bundle of operating system operations.
 {{{
 os = {
   exec: function (command, argv...) { ... },  // see below
-  mkdirs: function (paths) { ... },  // Like mkdir -p
-  tmpfile: function (suffix) { ... },  // a temp filename under the workspace
-  dirname: function (path) { ... },  // the parent of the given path
-  basename: function (path) { ... },  // the name of the given path
-  joinPaths: function (paths) { ... }  // resolves the given paths left-to-right
+  mkdirs: function (paths) { ... },     // Like mkdir -p
+  tmpfile: function (suffix) { ... },   // a temp filename under the workspace
+  dirname: function (path) { ... },     // the parent of the given path
+  basename: function (path) { ... },    // the name of the given path
+  joinPaths: function (paths) { ... },  // resolves the given paths left-to-right
+  passed: { ... },                      // a process object like the UNIX true command
+  failed: { ... }                       // a process object like the UNIX false command
 };
 }}}
 
