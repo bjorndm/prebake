@@ -21,6 +21,8 @@ import org.prebake.js.JsonSink;
 import org.prebake.js.MobileFunction;
 import org.prebake.os.OperatingSystem;
 import org.prebake.os.StubOperatingSystem;
+import org.prebake.service.HighLevelLog;
+import org.prebake.service.Logs;
 import org.prebake.service.TestLogHydra;
 import org.prebake.service.plan.Action;
 import org.prebake.service.plan.Product;
@@ -613,8 +615,10 @@ public class BakerTest extends PbTestCase {
 
     Tester withFileSystem(FileSystem fs) throws IOException {
       this.fs = fs;
+      TestClock clock = new TestClock();
       logger = getLogger(Level.INFO);
-      logHydra = new TestLogHydra(logger, fs.getPath("/logs"), new TestClock());
+      logHydra = new TestLogHydra(logger, fs.getPath("/logs"), clock);
+      Logs logs = new Logs(new HighLevelLog(clock), logger, logHydra);
       os = new StubOperatingSystem(fs, logger);
       files = new StubFileVersioner(
           fs.getPath("root").toAbsolutePath(),
@@ -630,8 +634,7 @@ public class BakerTest extends PbTestCase {
       files.updateFiles(b.build());
       execer = new StubScheduledExecutorService();
       toolbox = new StubToolProvider();
-      baker = new Baker(
-          os, files, getCommonJsEnv(), 0700, logger, logHydra, execer);
+      baker = new Baker(os, files, getCommonJsEnv(), 0700, logs, execer);
       baker.setToolBox(toolbox);
       return this;
     }

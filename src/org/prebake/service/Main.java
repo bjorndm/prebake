@@ -22,6 +22,7 @@ import org.prebake.js.JsonSource;
 import org.prebake.os.OperatingSystem;
 import org.prebake.os.RealOperatingSystem;
 import org.prebake.service.www.MainServlet;
+import org.prebake.util.Clock;
 import org.prebake.util.CommandLineArgs;
 import org.prebake.util.SystemClock;
 
@@ -109,9 +110,11 @@ public final class Main {
       token = new BigInteger(bytes).toString(Character.MAX_RADIX);
     }
 
+    final Clock clock = SystemClock.instance();
+
     final LogHydra hydra = new LogHydra(
         config.getClientRoot().resolve(FileNames.DIR).resolve(FileNames.LOGS),
-        SystemClock.instance()) {
+        clock) {
       @Override
       protected void doInstall(
           OutputStream[] wrappedInheritedProcessStreams, Handler logHandler) {
@@ -125,7 +128,11 @@ public final class Main {
     hydra.install(new FileOutputStream(FileDescriptor.out),
                   new FileOutputStream(FileDescriptor.err));
 
-    final Prebakery pb = new Prebakery(config, env, execer, os, logger, hydra) {
+    final HighLevelLog highLevelLog = new HighLevelLog(clock);
+
+    final Logs logs = new Logs(highLevelLog, logger, hydra);
+
+    final Prebakery pb = new Prebakery(config, env, execer, os, logs) {
       @Override
       protected String makeToken() { return token; }
 

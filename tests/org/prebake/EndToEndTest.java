@@ -22,6 +22,8 @@ import org.prebake.js.JsonSource;
 import org.prebake.os.OperatingSystem;
 import org.prebake.os.StubOperatingSystem;
 import org.prebake.service.Config;
+import org.prebake.service.HighLevelLog;
+import org.prebake.service.Logs;
 import org.prebake.service.Prebakery;
 import org.prebake.service.TestLogHydra;
 import org.prebake.util.MoreAsserts;
@@ -129,8 +131,7 @@ public class EndToEndTest extends PbTestCase {
     private Prebakery service;
     /** Issues commands to the service. */
     private Bake client;
-    private Logger logger = getLogger(Level.INFO);
-    private TestLogHydra logHydra;
+    private Logs logs;
     /** The working directory for the client. */
     private Path clientWorkingDir;
     /** Invoked when the service shuts down. */
@@ -149,6 +150,7 @@ public class EndToEndTest extends PbTestCase {
     }
 
     Tester start() {
+      Logger logger = getLogger(Level.INFO);
       Config config = new Config() {
         public Path getClientRoot() { return fs.getPath("/cwd/root"); }
         public Pattern getIgnorePattern() { return null; }
@@ -222,12 +224,18 @@ public class EndToEndTest extends PbTestCase {
         }
       };
 
-      logHydra = new TestLogHydra(
-          logger, fs.getPath("/cwd/root/.prebake/logs"), new TestClock());
+      TestClock clock = new TestClock();
+
+      TestLogHydra logHydra = new TestLogHydra(
+          logger, fs.getPath("/cwd/root/.prebake/logs"), clock);
       logHydra.install();
 
+      HighLevelLog highLevelLog = new HighLevelLog(clock);
+
+      logs = new Logs(highLevelLog, logger, logHydra);
+
       service = new Prebakery(
-          config, getCommonJsEnv(), execer, os, logger, logHydra) {
+          config, getCommonJsEnv(), execer, os, logs) {
             @Override
             protected Environment createDbEnv(Path dir) {
               EnvironmentConfig envConfig = new EnvironmentConfig();

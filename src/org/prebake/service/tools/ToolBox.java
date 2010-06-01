@@ -25,6 +25,7 @@ import org.prebake.js.YSON;
 import org.prebake.service.ArtifactDescriptors;
 import org.prebake.service.BuiltinResourceLoader;
 import org.prebake.service.LogHydra;
+import org.prebake.service.Logs;
 
 import com.google.common.base.Charsets;
 import com.google.common.base.Function;
@@ -76,8 +77,7 @@ public class ToolBox implements ToolProvider {
   private final FileSystem fs;
   final FileVersioner files;
   private final ImmutableMap<String, ?> commonJsEnv;
-  private final Logger logger;
-  private final LogHydra logHydra;
+  private final Logs logs;
   private final @Nullable WatchService watcher;
   private final ScheduledExecutorService execer;
   private final List<Path> toolDirs;
@@ -106,19 +106,18 @@ public class ToolBox implements ToolProvider {
    * @param files versions any tool files that are under the client directory.
    * @param commonJsEnv symbols available to tool files and plan files.
    * @param toolDirs the set of directories to search for tools.
-   * @param logger receives messages about tool building progress.
+   * @param logs receive messages about tool building progress.
    * @param listener is updated when tool definitions are invalidated or
    *     validated.
    * @param execer an executor which is used to schedule periodic maintenance
    *     tasks and which is used to update tool definitions.
    */
   public ToolBox(FileVersioner files, ImmutableMap<String, ?> commonJsEnv,
-                 Iterable<Path> toolDirs, Logger logger, LogHydra logHydra,
+                 Iterable<Path> toolDirs, Logs logs,
                  ArtifactListener<ToolSignature> listener,
                  ScheduledExecutorService execer)
       throws IOException {
-    this.logger = logger;
-    this.logHydra = logHydra;
+    this.logs = logs;
     toolDirs = this.toolDirs = ImmutableList.<Path>builder().addAll(
         Collections2.transform(
             Sets.newLinkedHashSet(toolDirs), new PathToRealPath()))
@@ -129,7 +128,8 @@ public class ToolBox implements ToolProvider {
     this.fs = files.getFileSystem();
     this.files = files;
     this.commonJsEnv = commonJsEnv;
-    this.listener = ArtifactListener.Factory.loggingListener(listener, logger);
+    this.listener = ArtifactListener.Factory.loggingListener(
+        listener, logs.logger);
     this.execer = execer;
     if (!this.toolDirs.isEmpty()) {
       for (Path toolDir : toolDirs) {
@@ -179,7 +179,7 @@ public class ToolBox implements ToolProvider {
         keyToDir.put(key, toolDir);
       }
       for (Path toolDir : realToolDirs) {
-        logger.log(Level.FINE, "Looking in {0}", toolDir);
+        logs.logger.log(Level.FINE, "Looking in {0}", toolDir);
         for (Path child : toolDir.newDirectoryStream("*.js")) {
           checkUserProvided(toolDir, child.getName());
         }
@@ -218,7 +218,7 @@ public class ToolBox implements ToolProvider {
           }
         }
       };
-      logger.log(Level.FINE, "Starting watcher");
+      logs.logger.log(Level.FINE, "Starting watcher");
       Thread th = new Thread(r);
       th.setDaemon(true);
       th.start();
@@ -299,15 +299,15 @@ public class ToolBox implements ToolProvider {
         }
         String descrip = ArtifactDescriptors.forTool(t.toolName);
         try {
-          logHydra.artifactProcessingStarted(
+          logs.logHydra.artifactProcessingStarted(
               descrip, EnumSet.of(LogHydra.DataSource.SERVICE_LOGGER));
         } catch (IOException ex) {
-          logger.log(Level.SEVERE, "Can't write log file for tool", ex);
+          logs.logger.log(Level.SEVERE, "Can't write log file for tool", ex);
         }
         try {
           return tryToValidate(4);
         } finally {
-          logHydra.artifactProcessingEnded(descrip);
+          logs.logHydra.artifactProcessingEnded(descrip);
           synchronized (impl.tool) {
             if (!clearedValidator) {
               impl.tool.validator = null;
@@ -318,6 +318,7 @@ public class ToolBox implements ToolProvider {
       }
 
       private ToolSignature tryToValidate(int nTriesRemaining) {
+        Logger logger = logs.logger;
         while (--nTriesRemaining >= 0) {
           ToolContent toolJs;
           if (index < 0) {
@@ -494,18 +495,18 @@ public class ToolBox implements ToolProvider {
   }
 
   private void checkBuiltin(String fileName) {
-    logger.log(Level.FINE, "checking builtin {0}", fileName);
+    logs.logger.log(Level.FINE, "checking builtin {0}", fileName);
     InputStream in = ToolBox.class.getResourceAsStream(fileName);
     boolean exists;
     if (in != null) {
       try {
         in.close();
       } catch (IOException ex) {
-        logger.log(Level.SEVERE, "Failed to read builtin " + fileName, ex);
+        logs.logger.log(Level.SEVERE, "Failed to read builtin " + fileName, ex);
       }
       exists = true;
     } else {
-      logger.log(Level.WARNING, "Missing builtin {0}", fileName);
+      logs.logger.log(Level.WARNING, "Missing builtin {0}", fileName);
       exists = false;
     }
     check(dirIndices.size() - 1, exists, fs.getPath(fileName));
@@ -513,7 +514,7 @@ public class ToolBox implements ToolProvider {
 
   private void checkUserProvided(Path dir, Path file) {
     Path fullPath = dir.resolve(file);
-    logger.log(Level.FINE, "checking file {0}", fullPath);
+    logs.logger.log(Level.FINE, "checking file {0}", fullPath);
     boolean exists = fullPath.exists();
     if (exists) {
       BasicFileAttributes attrs;

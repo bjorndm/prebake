@@ -19,7 +19,8 @@ import org.prebake.fs.DbFileVersioner;
 import org.prebake.fs.FileVersioner;
 import org.prebake.js.Executor;
 import org.prebake.js.JsonSink;
-import org.prebake.service.LogHydra;
+import org.prebake.service.HighLevelLog;
+import org.prebake.service.Logs;
 import org.prebake.service.TestLogHydra;
 import org.prebake.util.PbTestCase;
 import org.prebake.util.StubFileSystemProvider;
@@ -53,7 +54,7 @@ import org.junit.Test;
 
 public class ToolBoxTest extends PbTestCase {
   private @Nullable FileSystem fs;
-  private @Nullable LogHydra logHydra;
+  private @Nullable Logs logs;
   private @Nullable Path root;
   private @Nullable Environment env;
   private @Nullable FileVersioner files;
@@ -65,7 +66,11 @@ public class ToolBoxTest extends PbTestCase {
     Logger logger = getLogger(Level.INFO);
     fs = new StubFileSystemProvider("mfs")
         .getFileSystem(URI.create("mfs:///#/root/cwd"));
-    logHydra = new TestLogHydra(logger, fs.getPath("/logs"), new TestClock());
+    TestClock clock = new TestClock();
+    logs = new Logs(
+        new HighLevelLog(clock),
+        getLogger(Level.INFO),
+        new TestLogHydra(logger, fs.getPath("/logs"), clock));
     root = fs.getPath("/root");
     EnvironmentConfig envConfig = new EnvironmentConfig();
     envConfig.setAllowCreate(true);
@@ -215,8 +220,8 @@ public class ToolBoxTest extends PbTestCase {
 
     void assertSigs(String... expectedSigs) throws Exception {
       ToolBox tb = new ToolBox(
-          files, getCommonJsEnv(), toolDirs, getLogger(Level.FINE),
-          logHydra, ArtifactListener.Factory.<ToolSignature>noop(), execer) {
+          files, getCommonJsEnv(), toolDirs, logs,
+          ArtifactListener.Factory.<ToolSignature>noop(), execer) {
         @Override
         protected Iterable<String> getBuiltinToolNames() { return builtins; }
       };

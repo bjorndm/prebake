@@ -87,8 +87,7 @@ public abstract class Prebakery implements Closeable {
   private final ImmutableMap<String, ?> commonJsEnv;
   private final String token;
   private final LinkedBlockingQueue<Commands> cmdQueue;
-  private final Logger logger;
-  private final LogHydra logHydra;
+  private final Logs logs;
   private final ScheduledExecutorService execer;
   private final OperatingSystem os;
   private Environment env;
@@ -119,16 +118,14 @@ public abstract class Prebakery implements Closeable {
 
   public Prebakery(
       Config config, ImmutableMap<String, ?> commonJsEnv,
-      ScheduledExecutorService execer, OperatingSystem os, Logger logger,
-      LogHydra logHydra) {
+      ScheduledExecutorService execer, OperatingSystem os, Logs logs) {
     assert config != null;
     config = staticCopy(config);
     this.config = config;
     this.commonJsEnv = commonJsEnv;
     this.execer = execer;
     this.os = os;
-    this.logger = logger;
-    this.logHydra = logHydra;
+    this.logs = logs;
     this.token = makeToken();
     this.cmdQueue = new LinkedBlockingQueue<Commands>(4);
   }
@@ -272,6 +269,7 @@ public abstract class Prebakery implements Closeable {
       throws IOException;
 
   public synchronized void start(@Nullable Runnable onClose) {
+    Logger logger = logs.logger;
     if (this.onClose != null) { throw new IllegalStateException(); }
     logger.log(Level.INFO, "Starting");
     if (onClose == null) { onClose = new Noop(); }
@@ -366,15 +364,15 @@ public abstract class Prebakery implements Closeable {
     };
 
     this.env = createDbEnv(dir);
-    this.files = new DbFileVersioner(env, clientRoot, toWatch, logger);
+    this.files = new DbFileVersioner(env, clientRoot, toWatch, logs.logger);
     this.baker = new Baker(
-        os, files, commonJsEnv, config.getUmask(), logger, logHydra, execer);
+        os, files, commonJsEnv, config.getUmask(), logs, execer);
     this.tools = new ToolBox(
-        files, commonJsEnv, config.getToolDirs(), logger, logHydra,
+        files, commonJsEnv, config.getToolDirs(), logs,
         baker.toolListener, execer);
     this.baker.setToolBox(this.tools);
     this.planner = new Planner(
-        files, commonJsEnv, tools, config.getPlanFiles(), logger, logHydra,
+        files, commonJsEnv, tools, config.getPlanFiles(), logs,
         this.baker.prodListener, execer);
   }
 
@@ -393,7 +391,7 @@ public abstract class Prebakery implements Closeable {
     try {
       hooks.start();
     } catch (IOException ex) {
-      logger.log(Level.SEVERE, "Failed to start directory hooks", ex);
+      logs.logger.log(Level.SEVERE, "Failed to start directory hooks", ex);
     }
   }
 
@@ -406,6 +404,7 @@ public abstract class Prebakery implements Closeable {
         final Writer w = new OutputStreamWriter(out, Charsets.UTF_8);
         boolean closeChannel = true;
         ClientChannel ccl = null;
+        Logger logger = logs.logger;
         try {
           for (Command cmd : c) {
             if (cmd.verb != Command.Verb.handshake && !authed) {
@@ -559,6 +558,7 @@ public abstract class Prebakery implements Closeable {
           final Ingredient ingredient, final Function<Boolean, ?> whenDone) {
         execer.submit(new Runnable() {
           public void run() {
+            Logger logger = logs.logger;
             logger.log(Level.INFO, "Cooking {0}", ingredient.product);
             String prod = ingredient.product;
             boolean status = false;
@@ -585,6 +585,7 @@ public abstract class Prebakery implements Closeable {
       }
 
       public void done(boolean allSucceeded) {
+        Logger logger = logs.logger;
         logger.log(
             Level.FINE, "Bake of {0} {1}",
             new Object[] { products, allSucceeded ? "succeeded" : "failed" });

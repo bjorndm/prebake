@@ -21,10 +21,13 @@ import org.prebake.fs.StubFileVersioner;
 import org.prebake.js.Executor;
 import org.prebake.js.JsonSink;
 import org.prebake.js.MobileFunction;
+import org.prebake.service.HighLevelLog;
+import org.prebake.service.Logs;
 import org.prebake.service.TestLogHydra;
 import org.prebake.service.tools.ToolContent;
 import org.prebake.service.tools.ToolProvider;
 import org.prebake.service.tools.ToolSignature;
+import org.prebake.util.Clock;
 import org.prebake.util.PbTestCase;
 import org.prebake.util.StubScheduledExecutorService;
 import org.prebake.util.TestClock;
@@ -460,11 +463,13 @@ public class PlannerTest extends PbTestCase {
       Logger logger = getLogger(Level.INFO);
       List<Path> planFileList = b.build();
       files.updateFiles(planFileList);
+      Clock clock = new TestClock();
       TestLogHydra logHydra = new TestLogHydra(
-          logger, fs.getPath("/logs"), new TestClock());
+          logger, fs.getPath("/logs"), clock);
       logHydra.install();
+      Logs logs = new Logs(new HighLevelLog(clock), logger, logHydra);
       planner = new Planner(
-          files, getCommonJsEnv(), toolbox, planFileList, logger, logHydra,
+          files, getCommonJsEnv(), toolbox, planFileList, logs,
           ArtifactListener.Factory.<Product>noop(), execer);
       return this;
     }
