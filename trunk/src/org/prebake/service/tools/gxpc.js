@@ -120,12 +120,8 @@ function decodeOptions(optionsSchema, action, opt_config) {
   check: decodeOptions.bind({}, options),
   fire: function fire(inputs, product, action, os) {
     var opt = {};
-    if (!decodeOptions(options, action, opt)) {
-      return {
-        waitFor: function () { return -1; },
-        run: function () { return this; }
-      };
-    }
+    if (!decodeOptions(options, action, opt)) { return os.failed; }
+    if (inputs.length === 0) { return os.passed; }
     var command = ['gxpc', '--dir', opt.dir];
     if (opt.g) { command.push('--g'); }
     if (opt.message_source) { command.push(opt.message_source); }

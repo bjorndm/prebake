@@ -42,10 +42,7 @@ function prelim(action, opt_config) {
   fire: function fire(inputs, product, action, os) {
     var config = {};
     if (!prelim(action, config)) {
-      return {
-        run: function () { return this; },
-        waitFor: function () { return -1; }
-      };
+      return os.failed;
     }
     var xform = config.xform;
     var processes = [];

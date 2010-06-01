@@ -86,4 +86,14 @@ public final class LsTest extends ToolTestCase {
         .expectLog("Exited with true")
         .run();
   }
+
+  @Test public final void testNoInputs() throws IOException {
+    tester
+        .withInput(Glob.fromString("foo/bar/*"))
+        .expectExec(1, "echo")
+        .expectLog("Running process 1")
+        .expectLog("Waiting for process 1")
+        .expectLog("Exited with true")
+        .run();
+  }
 }

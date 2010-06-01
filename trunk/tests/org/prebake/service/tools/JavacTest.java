@@ -316,4 +316,12 @@ public class JavacTest extends ToolTestCase {
         .expectLog("Exited with false")
         .run();
   }
+
+  @Test public final void testNoInputs() throws IOException {
+    tester
+       .withInput(Glob.fromString("src/com/foo/**.java"))
+       .withOutput(Glob.fromString("jartmp///com/goo/**.class"))
+       .expectLog("Exited with true")
+       .run();
+  }
 }
