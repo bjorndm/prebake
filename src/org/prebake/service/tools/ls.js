@@ -42,14 +42,14 @@ function prelim(action, opt_config) {
   check: prelim,
   fire: function fire(inputs, product, action, os) {
     var config = {};
-    if (!prelim(action, config)) {
-      return {
-        run: function () { return this; },
-        waitFor: function () { return -1; }
-      };
-    }
+    if (!prelim(action, config)) { return os.failed; }
     var outFile = config.outFile;
-    var p = os.exec.apply({}, ['ls'].concat(inputs));
+    var p;
+    if (inputs.length === 0) {
+      p = os.exec('echo');
+    } else {
+      p = os.exec.apply({}, ['ls'].concat(inputs));
+    }
     if (outFile !== undefined) { p = p.writeTo(outFile); }
     return p;
   }

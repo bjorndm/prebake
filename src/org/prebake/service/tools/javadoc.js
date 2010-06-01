@@ -66,12 +66,7 @@ function decodeOptions(optionsSchema, action, opt_config) {
   check: decodeOptions.bind({}, options),
   fire: function fire(inputs, product, action, os) {
     var opt = {};
-    if (!decodeOptions(options, action, opt)) {
-      return {
-        waitFor: function () { return -1; },
-        run: function () { return this; }
-      };
-    }
+    if (!decodeOptions(options, action, opt)) { return os.failed; }
     var outDir = opt.d;
     if (typeof outDir !== 'string') {
       outDir = glob.rootOf(action.outputs);

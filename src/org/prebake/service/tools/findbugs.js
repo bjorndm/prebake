@@ -60,12 +60,7 @@ function decodeOptions(optionsSchema, action, opt_config) {
   check: decodeOptions.bind({}, options),
   fire: function fire(inputs, product, action, os) {
     var config = {};
-    if (!decodeOptions(options, action, config)) {
-      return {
-        run: function () { return this; },
-        waitFor: function () { return -1; }
-      };
-    }
+    if (!decodeOptions(options, action, config)) { return os.failed; }
     var pathSeparator = sys.io.path.separator;
     var extraClasspath = [];
     var sources = [];
@@ -93,10 +88,7 @@ function decodeOptions(optionsSchema, action, opt_config) {
           outputFile = glob.xformer('foo', output)('foo');
         } catch (ex) {
           console.error('Cannot determine output file : ' + ex.message);
-          return {
-            run: function () { return this; },
-            waitFor: function () { return -1; }
-          };
+          return os.failed;
         }
         break;
       }
@@ -105,10 +97,7 @@ function decodeOptions(optionsSchema, action, opt_config) {
       console.error(
           'No output file.  Please specify an output with an'
           + ' .html, .xml, or .xdoc extension.');
-      return {
-        run: function () { return this; },
-        waitFor: function () { return -1; }
-      };
+      return os.failed;
     }
     var classpath = config.classpath;
     if (extraClasspath.length) {
@@ -129,9 +118,7 @@ function decodeOptions(optionsSchema, action, opt_config) {
       this.waitFor = function () {
         var result = proc.waitFor();
         if (result === 0 || result === 1) {
-          if (result) {
-            console.log('See findbugs report at ' + outputFile);
-          }
+          if (result) { console.log('See findbugs report at ' + outputFile); }
           return 0;
         } else {
           console.warn('Findbugs failed with status code ' + result);

@@ -83,10 +83,7 @@
       }
       if (0 !== os.exec('echo', manifestFileContent)
           .writeTo(manifestFile).run().waitFor()) {
-        return {
-          waitFor: function () { return -1; },
-          run: function () { return this; }
-        };
+        return os.failed;
       }
       command.push(manifestFile);
     }

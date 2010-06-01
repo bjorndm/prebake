@@ -33,6 +33,32 @@ import com.google.common.collect.ImmutableMap;
  * @author Mike Samuel <mikesamuel@gmail.com>
  */
 public final class JsOperatingSystemEnv {
+  private static ImmutableMap<String, ?> stubProcess(
+      final Integer result, final String model) {
+    class Holder {
+      ImmutableMap<String, ?> jsObj = ImmutableMap.of(
+        "help_", (
+            "A process that mimics the UNIX " + model + " command by"
+            + " yielding " + result + " without consuming any input or"
+            + " producing any output."),
+        "run", new SimpleMembranableFunction(
+            "Returns the process so that calls can be chained",
+            "run", "a process object") {
+          public Object apply(Object[] args) { return jsObj; }
+        },
+        "waitFor", new SimpleMembranableFunction(
+            "Returns " + result + " without delay",
+            "run", "a process object") {
+          public Object apply(Object[] args) { return result; }
+        });
+    }
+    return new Holder().jsObj;
+  }
+
+  private static final ImmutableMap<String, ?> FAILED_PROCESS_STUB
+      = stubProcess(1, "false");
+  private static final ImmutableMap<String, ?> PASSED_PROCESS_STUB
+      = stubProcess(0, "true");
 
   public static ImmutableMap<String, ?> makeJsInterface(
       final Path workingDir, MembranableFunction execFn) {
@@ -119,6 +145,8 @@ public final class JsOperatingSystemEnv {
         .put("dirname", dirnameFn)
         .put("basename", basenameFn)
         .put("joinPaths", joinPathsFn)
+        .put("failed", FAILED_PROCESS_STUB)
+        .put("passed", PASSED_PROCESS_STUB)
         .build();
   }
 
