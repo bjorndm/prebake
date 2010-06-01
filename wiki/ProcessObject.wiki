@@ -8,13 +8,14 @@ Process objects *must* have `waitFor` and `run` methods with the same semantics 
 
 A process object *may* additionally have the other methods on `os.exec`'s return value like `pipeTo`, `writeTo`, `readFrom`, `appendTo`, `env`, and `kill`.
 
-A trivial NOP process object is 
+A trivial NOP process object that behaves like the UNIX `true` command is 
 {{{
 ({
   waitFor: function () { return 0; },
   run: function () { return this; }
 })
 }}}
+and `os.passed` is just such a process object available in [ToolFile ToolFile]s and  `os.failed` is a similar process object that returns 1 instead like the UNIX `false` command. 
 
 == `waitFor()` ==
 Blocks and returns 0 to indicate success, and any nonzero integral value to indicate failure.
