@@ -32,48 +32,49 @@ public final class HighLevelLogTest extends PbTestCase {
     assertFormattedEvents(
         log,
         "<ul>",
-        entry("19900101T000000Z", "1989-12-31 19:00:00",
-              "19900101T000000Z", "1989-12-31 19:00:00",
+        entry("19900101T000000Z", "19:00:00",
+              "PT0S", "<span class=\"low-value\">00:00</span>",
               "Started"),
         "</ul>");
     clock.advance(3 * sec);
-    log.planStatusChanged(true);
+    log.planStatusChanged(clock.nanoTime(), "plan.js", true);
     clock.advance(60 * sec);
-    log.productStatusChanged("foo", true);
-    log.productStatusChanged("bar", true);
-    clock.advance(60 * sec);
-    log.productStatusChanged("<baz>", true);
+    log.productStatusChanged(clock.nanoTime(), "foo", true);
+    log.productStatusChanged(clock.nanoTime(), "bar", true);
+    clock.advance(30 * sec);
+    log.productStatusChanged(clock.nanoTime(), "<baz>", true);
     assertFormattedEvents(
         log,
         "<ul>",
-        entry("19900101T000000Z", "1989-12-31 19:00:00",
-              "19900101T000000Z", "1989-12-31 19:00:00",
+        entry("19900101T000000Z", "19:00:00",
+              "PT0S", "<span class=\"low-value\">00:00</span>",
               "Started"),
-        entry("19900101T000003Z", "1989-12-31 19:00:03",
-              "19900101T000003Z", "1989-12-31 19:00:03",
-              "plan up to date : plan"),
-        entry("19900101T000103Z", "1989-12-31 19:01:03",
-              "19900101T000203Z", "1989-12-31 19:02:03",
+        entry("19900101T000003Z", "19:00:03",
+              "PT0S", "<span class=\"low-value\">00:00</span>",
+              "plan up to date : plan.js"),
+        entry("19900101T000103Z", "19:01:03",
+              "PT30S", "<span class=\"low-value\">00:</span>30",
               "products up to date : foo, bar, &lt;baz&gt;"),
         "</ul>");
-    log.productStatusChanged("boo", true);
-    log.productStatusChanged("far", true);
-    log.productStatusChanged("faz", true);
-    log.productStatusChanged("bar", false);
+    clock.advance(30 * sec);
+    log.productStatusChanged(clock.nanoTime(), "boo", true);
+    log.productStatusChanged(clock.nanoTime(), "far", true);
+    log.productStatusChanged(clock.nanoTime(), "faz", true);
+    log.productStatusChanged(clock.nanoTime(), "bar", false);
     assertFormattedEvents(
         log,
         "<ul>",
-        entry("19900101T000000Z", "1989-12-31 19:00:00",
-              "19900101T000000Z", "1989-12-31 19:00:00",
+        entry("19900101T000000Z", "19:00:00",
+              "PT0S", "<span class=\"low-value\">00:00</span>",
               "Started"),
-        entry("19900101T000003Z", "1989-12-31 19:00:03",
-              "19900101T000003Z", "1989-12-31 19:00:03",
-              "plan up to date : plan"),
-        entry("19900101T000103Z", "1989-12-31 19:01:03",
-              "19900101T000203Z", "1989-12-31 19:02:03",
+        entry("19900101T000003Z", "19:00:03",
+              "PT0S", "<span class=\"low-value\">00:00</span>",
+              "plan up to date : plan.js"),
+        entry("19900101T000103Z", "19:01:03",
+              "PT60S", "01:00",
               "6 products up to date"),
-        entry("19900101T000203Z", "1989-12-31 19:02:03",
-              "19900101T000203Z", "1989-12-31 19:02:03",
+        entry("19900101T000203Z", "19:02:03",
+              "PT0S", "<span class=\"low-value\">00:00</span>",
               "product invalid : bar"),
         "</ul>");
   }
@@ -83,19 +84,21 @@ public final class HighLevelLogTest extends PbTestCase {
         + pretty + "</abbr>";
   }
 
+  private static String dur(String className, String hcal, String pretty) {
+    return "<abbr class=\"" + className + "\" title=\"" + hcal + "\">"
+        + pretty + "</abbr>";
+  }
+
   private static String entry(
       String startTimeHcal, String startTime,
-      String endTimeHcal, String endTime,
+      String durHcal, String dur,
       String text) {
-    boolean sameTime = startTimeHcal.equals(endTimeHcal);
     return Joiner.on("").join(
         "<li>",
         "<span class=\"time\">",
         time("dtstart", startTimeHcal, startTime),
-        sameTime ? "<span class=\"redundant-end-date\">" : "",
-        " - ",
-        time("dtend", endTimeHcal, endTime),
-        sameTime ? "</span>" : "",
+        " + ",
+        dur("duration", durHcal, dur),
         "</span>",
         text,
         "</li>\n");

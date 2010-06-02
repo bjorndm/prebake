@@ -23,7 +23,6 @@ import org.prebake.service.HighLevelLog;
 import org.prebake.service.Logs;
 import org.prebake.service.TestLogHydra;
 import org.prebake.util.PbTestCase;
-import org.prebake.util.StubFileSystemProvider;
 import org.prebake.util.TestClock;
 
 import com.google.common.base.Joiner;
@@ -35,7 +34,6 @@ import com.sleepycat.je.EnvironmentConfig;
 
 import java.io.File;
 import java.io.IOException;
-import java.net.URI;
 import java.nio.file.FileSystem;
 import java.nio.file.Path;
 import java.util.Arrays;
@@ -64,8 +62,12 @@ public class ToolBoxTest extends PbTestCase {
   @Before
   public void setUp() throws IOException {
     Logger logger = getLogger(Level.INFO);
-    fs = new StubFileSystemProvider("mfs")
-        .getFileSystem(URI.create("mfs:///#/root/cwd"));
+    fs = fileSystemFromAsciiArt(
+        "/root/cwd",
+        "/",
+        "  root/",
+        "    cwd/",
+        "  logs/");
     TestClock clock = new TestClock();
     logs = new Logs(
         new HighLevelLog(clock),

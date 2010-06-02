@@ -34,22 +34,4 @@ final class Tool {
     this.localName = localName;
     this.toolBox = toolBox;
   }
-
-  void check() {
-    ToolSignature sig = null;
-    synchronized (this) {
-      Integer index = impls.firstKey();
-      if (index == null || (sig = impls.get(index).sig) == null) {
-        if (validator != null) {
-          validator.cancel(false);
-          validator = null;
-        }
-      }
-    }
-    if (sig != null) {
-      toolBox.listener.artifactChanged(sig);
-    } else {
-      toolBox.listener.artifactDestroyed(toolName);
-    }
-  }
 }

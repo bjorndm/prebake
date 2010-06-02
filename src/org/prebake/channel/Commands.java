@@ -22,7 +22,7 @@ import com.google.common.collect.ImmutableList;
 
 import java.io.IOException;
 import java.io.OutputStream;
-import java.nio.file.FileSystem;
+import java.nio.file.Path;
 import java.util.Iterator;
 
 import javax.annotation.Nullable;
@@ -49,13 +49,13 @@ public final class Commands implements Iterable<Command>, JsonSerializable {
   public OutputStream getResponse() { return response; }
 
   public static Commands fromJson(
-      FileSystem fs, JsonSource src, @Nullable OutputStream response)
+      Path clientRoot, JsonSource src, @Nullable OutputStream response)
       throws IOException {
     ImmutableList.Builder<Command> cmds = ImmutableList.builder();
     src.expect("[");
     if (!src.check("]")) {
       do {
-        cmds.add(Command.fromJson(src, fs));
+        cmds.add(Command.fromJson(src, clientRoot));
       } while (src.check(","));
       src.expect("]");
     }

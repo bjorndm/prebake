@@ -52,6 +52,7 @@ import java.nio.file.FileSystems;
 import java.nio.file.Path;
 import java.security.SecureRandom;
 import java.util.Map;
+import java.util.TimeZone;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
@@ -112,9 +113,10 @@ public final class Main {
 
     final Clock clock = SystemClock.instance();
 
+    final Path clientRoot = config.getClientRoot();
+
     final LogHydra hydra = new LogHydra(
-        config.getClientRoot().resolve(FileNames.DIR).resolve(FileNames.LOGS),
-        clock) {
+        clientRoot.resolve(FileNames.DIR).resolve(FileNames.LOGS), clock) {
       @Override
       protected void doInstall(
           OutputStream[] wrappedInheritedProcessStreams, Handler logHandler) {
@@ -136,10 +138,6 @@ public final class Main {
       @Override
       protected String makeToken() { return token; }
 
-      FileSystem getFileSystem() {
-        return getConfig().getClientRoot().getFileSystem();
-      }
-
       @Override
       protected int openChannel(int portHint, final BlockingQueue<Commands> q)
           throws IOException {
@@ -157,7 +155,7 @@ public final class Main {
                   String commandText = new String(bytes, Charsets.UTF_8);
                   try {
                     q.put(Commands.fromJson(
-                        getFileSystem(),
+                        clientRoot,
                         new JsonSource(new StringReader(commandText)),
                         sock.getOutputStream()));
                     // Closing sock is now the service's responsibility.
@@ -194,7 +192,7 @@ public final class Main {
       };
       server.setSendServerVersion(false);
       server.setHandler(new AbstractHandler() {
-        MainServlet servlet = new MainServlet(token, pb);
+        MainServlet servlet = new MainServlet(token, pb, TimeZone.getDefault());
         public void handle(
             String tgt, Request r, HttpServletRequest req,
             HttpServletResponse resp)

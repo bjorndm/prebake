@@ -88,7 +88,7 @@ public final class Planner implements Closeable {
   private final ArtifactAddresser<PlanPart> productAddresser
       = new ArtifactAddresser<PlanPart>() {
     public String addressFor(PlanPart artifact) {
-      return artifact.planFile.toString();
+      return artifact.normPath;
     }
     public PlanPart lookup(String address) {
       return planParts.get(files.getFileSystem().getPath(address));
@@ -292,9 +292,8 @@ public final class Planner implements Closeable {
           synchronized (pp) {
             if (pp.valid) { return pp.products; }
           }
-          // TODO: normalize plan file names.
           String artifactDescriptor = ArtifactDescriptors.forPlanFile(
-              files.getVersionRoot().relativize(pp.planFile).toString());
+              pp.normPath);
           try {
             logs.logHydra.artifactProcessingStarted(
                 artifactDescriptor,
@@ -313,6 +312,7 @@ public final class Planner implements Closeable {
         private ImmutableList<Product> derivePlan() {
           Logger logger = logs.logger;
           for (int nAttempts = 4; --nAttempts >= 0;) {
+            long t0 = logs.highLevelLog.getClock().nanoTime();
             Hash.Builder hashes = Hash.builder();
             ImmutableList.Builder<Path> paths = ImmutableList.builder();
             try {
@@ -322,20 +322,24 @@ public final class Planner implements Closeable {
                 Object javaObj = planFileOut.result.toJavaObject();
                 ImmutableList<Product> products = unpack(pp, javaObj);
                 if (products != null) {
+                  boolean isValid;
                   synchronized (pp) {
-                    if (files.updateArtifact(
-                            productAddresser, pp, paths.build(),
-                            hashes.build())) {
+                    isValid = files.updateArtifact(
+                        productAddresser, pp, paths.build(),
+                        hashes.build());
+                    if (isValid) {
                       for (Product p : products) {
                         listener.artifactChanged(p);
                       }
                       pp.products = products;
-                      pp.valid = true;
-                      logger.log(
-                          Level.INFO, "Plan file {0} is up to date",
-                          pp.planFile);
-                      return products;
                     }
+                  }
+                  if (isValid) {
+                    logger.log(
+                        Level.INFO, "Plan file {0} is up to date",
+                        pp.planFile);
+                    logs.highLevelLog.planStatusChanged(t0, pp.normPath, true);
+                    return products;
                   }
                   logger.log(
                       Level.WARNING, "Version skew for {0}.  {1} attempts left",
@@ -408,40 +412,53 @@ public final class Planner implements Closeable {
 
   private final class PlanPart implements NonFileArtifact {
     final Path planFile;
+    final String normPath;
     ImmutableList<Product> products;
     boolean valid;
     Future<ImmutableList<Product>> future;
 
-    PlanPart(Path planFile) { this.planFile = planFile; }
+    PlanPart(Path planFile) {
+      this.planFile = planFile;
+      String normPath = files.getVersionRoot().relativize(planFile).toString();
+      String sep = planFile.getFileSystem().getSeparator();
+      if (!"/".equals(sep)) { normPath = normPath.replace(sep, "/"); }
+      this.normPath = normPath;
+    }
 
-    public synchronized void markValid(boolean valid) {
-      this.valid = valid;
-      if (!valid) {
-        if (this.products != null) {
-          List<Product> products = this.products;
-          this.products = null;
-          if (future != null) {
-            future.cancel(false);
-            future = null;
-          }
-          synchronized (productsByName) {
-            for (Product p : products) {
-              productsByName.remove(p.name, p);
-              Collection<Product> prods = productsByName.get(p.name);
-              switch (prods.size()) {
-                case 0:
-                  // No more products with this name left.
-                  listener.artifactDestroyed(p.name);
-                  break;
-                case 1:
-                  // Previously the product was masked, but no longer.
-                  listener.artifactChanged(prods.iterator().next());
-                  break;
-                default: break;  // Still masked.
+    public void markValid(boolean valid) {
+      synchronized (this) {
+        this.valid = valid;
+        if (!valid) {
+          if (this.products != null) {
+            List<Product> products = this.products;
+            this.products = null;
+            if (future != null) {
+              future.cancel(false);
+              future = null;
+            }
+            synchronized (productsByName) {
+              for (Product p : products) {
+                productsByName.remove(p.name, p);
+                Collection<Product> prods = productsByName.get(p.name);
+                switch (prods.size()) {
+                  case 0:
+                    // No more products with this name left.
+                    listener.artifactDestroyed(p.name);
+                    break;
+                  case 1:
+                    // Previously the product was masked, but no longer.
+                    listener.artifactChanged(prods.iterator().next());
+                    break;
+                  default: break;  // Still masked.
+                }
               }
             }
           }
         }
+      }
+      if (!valid) {
+        logs.highLevelLog.planStatusChanged(
+            logs.highLevelLog.getClock().nanoTime(), normPath, false);
       }
     }
   }

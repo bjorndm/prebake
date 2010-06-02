@@ -40,15 +40,26 @@ var jars = [
     help: {
       summary: "Puts all the java classes and resources under lib",
       detail: [
-          "Puts under lib/ everything that needs to go in the main jar",
-          "including the client, service, and builtin tools; but excluding",
-          "test files."].join("\n"),
+          "Puts under lib/ all the classes that needs to go in the main jars",
+          "including the client and service classes; but excluding tests."
+          ].join("\n"),
       contact: "Mike Samuel <mikesamuel@gmail.com>"
     },
     actions: [tools.javac(["src///**.java", "genfiles///**.java"].concat(jars),
-                          "lib///**.class"),
-              tools.cp("src/org/prebake/service/**.{css,js,txt}",
+                          "lib///**.class")]
+  },
+  resources: {
+    help: {
+      summary: "Puts all the resources under lib",
+      detail: [
+          "Puts under lib/ all the data files that needs to go in the main jars",
+          "including the builtin tools."
+          ].join("\n"),
+      contact: "Mike Samuel <mikesamuel@gmail.com>"
+    },
+    actions: [tools.cp("src/org/prebake/service/**.{css,js,txt}",
                        "lib/org/prebake/service/**.{css,js,txt}"),
+              // Make a list of the builtin tools.
               tools.ls("src/org/prebake/service/tools/*.js",
                        "lib/org/prebake/service/tools/tools.txt")]
   },

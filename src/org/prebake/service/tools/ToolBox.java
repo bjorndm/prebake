@@ -77,7 +77,7 @@ public class ToolBox implements ToolProvider {
   private final FileSystem fs;
   final FileVersioner files;
   private final ImmutableMap<String, ?> commonJsEnv;
-  private final Logs logs;
+  final Logs logs;
   private final @Nullable WatchService watcher;
   private final ScheduledExecutorService execer;
   private final List<Path> toolDirs;
@@ -320,6 +320,7 @@ public class ToolBox implements ToolProvider {
       private ToolSignature tryToValidate(int nTriesRemaining) {
         Logger logger = logs.logger;
         while (--nTriesRemaining >= 0) {
+          long t0 = logs.highLevelLog.getClock().nanoTime();
           ToolContent toolJs;
           if (index < 0) {
             logger.log(Level.SEVERE, "Tool {0} not on search path", t.toolName);
@@ -397,12 +398,9 @@ public class ToolBox implements ToolProvider {
           synchronized (impl.tool) {
             success = files.updateArtifact(
                 addresser, impl, paths.build(), hashes.build());
-            if (success) { impl.sig = toolSig; }
+            if (success) { impl.update(t0, toolSig); }
           }
-          if (success) {
-            t.check();
-            return toolSig;
-          }
+          if (success) { return toolSig; }
           logger.log(
               Level.INFO, "Failed to update tool {0}.  {1} tries remaining",
               new Object[] { t.toolName, nTriesRemaining });

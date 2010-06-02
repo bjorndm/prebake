@@ -75,7 +75,8 @@ public abstract class Bake {
   }
 
   @VisibleForTesting
-  public Commands decodeArgv(Path cwd, String... argv) throws IOException {
+  public Commands decodeArgv(Path clientRoot, String... argv)
+       throws IOException {
     int n = argv.length;
     Command cmd = null;
     if (n != 0) {
@@ -93,7 +94,7 @@ public abstract class Bake {
       out.write("]");
       out.close();
       cmd = Command.fromJson(
-          new JsonSource(new StringReader(sb.toString())), cwd.getFileSystem());
+          new JsonSource(new StringReader(sb.toString())), clientRoot);
     }
 
     List<Command> commands = Lists.newArrayList();
