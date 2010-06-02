@@ -22,11 +22,11 @@ import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.GregorianCalendar;
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.Set;
 import java.util.TimeZone;
 import com.google.caja.lexer.escaping.Escaping;
-import com.google.common.base.Joiner;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
@@ -34,7 +34,8 @@ import com.google.common.collect.Sets;
 
 /**
  * A high level log that allows for a compact view of recent activity.
- * Usually this log is viewed by the {@link org.prebake.service.www web} view.
+ * Usually this log is viewed via the
+ * {@link org.prebake.service.www.MainServlet web} view.
  *
  * @author Mike Samuel <mikesamuel@gmail.com>
  */
@@ -46,22 +47,38 @@ public final class HighLevelLog {
 
   public HighLevelLog(Clock clock) {
     this.clock = clock;
+    // Make sure there is always a last item on the list to simplify enqueue.
     recentItems.add(new SystemStartupEvent(clock.nanoTime()));
   }
 
-  public void productStatusChanged(String productName, boolean upToDate) {
+  public Clock getClock() { return clock; }
+
+  /**
+   * Log the fact that a product's status has changed.
+   * @param t0 a timestamp relative to this log's {@link #getClock clock}.
+   */
+  public void productStatusChanged(
+      long t0, String productName, boolean upToDate) {
     enqueue(new StatusChangedEvent(
-        clock.nanoTime(), upToDate, "product", productName));
+        t0, clock.nanoTime(), upToDate, "product", productName));
   }
 
-  public void toolStatusChanged(String toolName, boolean upToDate) {
+  /**
+   * Log the fact that a tool's status has changed.
+   * @param t0 a timestamp relative to this log's {@link #getClock clock}.
+   */
+  public void toolStatusChanged(long t0, String toolName, boolean upToDate) {
     enqueue(new StatusChangedEvent(
-        clock.nanoTime(), upToDate, "tool", toolName));
+        t0, clock.nanoTime(), upToDate, "tool", toolName));
   }
 
-  public void planStatusChanged(boolean upToDate) {
+  /**
+   * Log the fact that a plan's status has changed.
+   * @param t0 a timestamp relative to this log's {@link #getClock clock}.
+   */
+  public void planStatusChanged(long t0, String planFile, boolean upToDate) {
     enqueue(new StatusChangedEvent(
-        clock.nanoTime(), upToDate, "plan", "plan"));
+        t0, clock.nanoTime(), upToDate, "plan", planFile));
   }
 
   private void enqueue(HighLevelEvent e) {
@@ -87,28 +104,24 @@ public final class HighLevelLog {
     }
   }
 
+  private static final long NANOSECS_PER_SEC = 1000 * 1000 * 1000;
+
   public PreformattedStaticHtml formatEvents(
       Iterable<? extends HighLevelEvent> events, TimeZone tz) {
     StringBuilder html = new StringBuilder();
     html.append("<ul>");
-    StringBuilder plainText = new StringBuilder();
     for (HighLevelEvent e : events) {
       html.append("<li><span class=\"time\">");
       long t0 = e.t0;
-      long t1 = e.t0 + e.duration;
       formatDate(t0, true, tz, html);
-      if (t1 == t0) { html.append("<span class=\"redundant-end-date\">"); }
-      html.append(" - ");
-      formatDate(t1, false, tz, html);
-      if (t1 == t0) { html.append("</span>"); }  // end redundant-end-date
+      html.append(" + ");
+      formatDuration(e.duration, html);
       html.append("</span>");  // end time
-      plainText.setLength(0);
       try {
-        e.format(plainText);
+        e.formatHtml(html);
       } catch (IOException ex) {
         Throwables.propagate(ex);
       }
-      Escaping.escapeXml(plainText, false, html);
       html.append("</li>");
     }
     html.append("</ul>");
@@ -119,6 +132,7 @@ public final class HighLevelLog {
       long nanoTime, boolean start, TimeZone tz, StringBuilder out) {
     String hcal, pretty;
     {
+      // It's easier for a lot of hcalendar clients if all dates are in UTC.
       Calendar c = new GregorianCalendar(TimeZone.getTimeZone("UTC"));
       clock.toCalendar(nanoTime, c);
 
@@ -128,15 +142,51 @@ public final class HighLevelLog {
 
       // Switch to the user visible timezone.
       c.setTimeZone(tz);
-      DateFormat prettyFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+      DateFormat prettyFormat = new SimpleDateFormat(
+          /*"yyyy-MM-dd " + */ "HH:mm:ss");
       prettyFormat.setCalendar(c);
       pretty = prettyFormat.format(c.getTimeInMillis());
     }
 
     out.append("<abbr class=\"").append(start ? "dtstart" : "dtend")
         .append("\" title=\"")
-    // It's easier for a lot of hcalendar clients if all dates are in UTC.
         .append(hcal).append("\">").append(pretty).append("</abbr>");
+  }
+
+  private void formatDuration(long nanos, StringBuilder out) {
+    long seconds = nanos / NANOSECS_PER_SEC;
+    int sign = 1;
+    if (seconds < 0) {
+      sign = -1;
+      seconds *= -1;
+    }
+    String hcalDur = (sign < 0 ? "-" : "") + "PT" + seconds + "S";
+    out.append("<abbr class=\"duration\" title=\"").append(hcalDur)
+        .append("\">");
+
+    long minutes = seconds / 60;
+    seconds -= minutes * 60;
+    //long hours = minutes / 60;
+    //minutes -= hours * 60;
+
+    boolean lowValueInfoOpen = minutes == 0;
+    if (lowValueInfoOpen) { out.append("<span class=\"low-value\">"); }
+    //lowValueInfoOpen = durationDigits(hours, false, lowValueInfoOpen, out);
+    lowValueInfoOpen = durationDigits(minutes, false, lowValueInfoOpen, out);
+    lowValueInfoOpen = durationDigits(seconds, true, lowValueInfoOpen, out);
+    if (lowValueInfoOpen) { out.append("</span>"); }
+  }
+
+  private boolean durationDigits(
+      long n, boolean colon, boolean lowValueInfoOpen, StringBuilder out) {
+    if (colon) { out.append(':'); }
+    if (n != 0 && lowValueInfoOpen) {
+      out.append("</span>");
+      lowValueInfoOpen = false;
+    }
+    if (n < 10) { out.append('0'); }
+    out.append(Long.toString(n));
+    return lowValueInfoOpen;
   }
 
   static abstract class HighLevelEvent {
@@ -150,7 +200,7 @@ public final class HighLevelLog {
      * @param e an event whose t0 is at or before this event's t0.
      */
     abstract boolean foldInto(HighLevelEvent e);
-    abstract void format(Appendable out) throws IOException;
+    abstract void formatHtml(Appendable out) throws IOException;
   }
 }
 
@@ -161,7 +211,7 @@ final class SystemStartupEvent extends HighLevelLog.HighLevelEvent {
   boolean foldInto(HighLevelLog.HighLevelEvent e) { return false; }
 
   @Override
-  void format(Appendable out) throws IOException { out.append("Started"); }
+  void formatHtml(Appendable out) throws IOException { out.append("Started"); }
 }
 
 final class StatusChangedEvent extends HighLevelLog.HighLevelEvent {
@@ -175,8 +225,11 @@ final class StatusChangedEvent extends HighLevelLog.HighLevelEvent {
    *     an {@code 's'}.
    */
   StatusChangedEvent(
-      long t0, boolean upToDate, String artifactType, String artifactName) {
+      long t0, long t1, boolean upToDate, String artifactType,
+      String artifactName) {
     super(t0);
+    assert t1 >= t0;
+    this.duration = t1 - t0;
     this.upToDate = upToDate;
     this.artifactType = artifactType;
     this.artifacts.add(artifactName);
@@ -194,15 +247,22 @@ final class StatusChangedEvent extends HighLevelLog.HighLevelEvent {
   }
 
   @Override
-  public void format(Appendable out) throws IOException {
+  public void formatHtml(Appendable out) throws IOException {
     int nArtifacts = artifacts.size();
     if (nArtifacts > 5) {
       out.append(Integer.toString(nArtifacts)).append(' ');
       formatMessage(nArtifacts, out);
     } else {
       formatMessage(nArtifacts, out);
-      out.append(" : ");
-      Joiner.on(", ").appendTo(out, artifacts);
+      Iterator<String> it = artifacts.iterator();
+      if (it.hasNext()) {
+        out.append(" : ");
+        Escaping.escapeXml(it.next(), false, out);
+        while (it.hasNext()) {
+          out.append(", ");
+          Escaping.escapeXml(it.next(), false, out);
+        }
+      }
     }
   }
 

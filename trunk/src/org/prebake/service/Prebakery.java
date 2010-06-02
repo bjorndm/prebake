@@ -244,6 +244,8 @@ public abstract class Prebakery implements Closeable {
     return products != null ? products : ImmutableSet.<String>of();
   }
 
+  public HighLevelLog getHighLevelLog() { return logs.highLevelLog; }
+
   /**
    * @param portHint the port to use or 0 to let the system choose a port.
    * @param q receives commands from the outside.

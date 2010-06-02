@@ -26,7 +26,6 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 
 import java.io.IOException;
-import java.nio.file.FileSystem;
 import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.util.Collections;
@@ -71,8 +70,10 @@ public abstract class Command implements JsonSerializable {
     this.verb = verb;
   }
 
-  public static Command fromJson(JsonSource src, FileSystem fs)
-      throws IOException {
+  /**
+   * @oaram root the client root against which paths are resolved.
+   */
+  public static Command fromJson(JsonSource src, Path root) throws IOException {
     src.expect("[");
     String verb = src.expectString();
     Verb v;
@@ -93,7 +94,7 @@ public abstract class Command implements JsonSerializable {
     switch (v) {
       case bake:          return new BakeCommand(toProducts(args));
       case auth_www:      return new AuthWwwCommand(toUriPath(args));
-      case files_changed: return new FilesChangedCommand(toPaths(args, fs));
+      case files_changed: return new FilesChangedCommand(toPaths(args, root));
       case graph:         return new GraphCommand(toProducts(args));
       case handshake:     return new HandshakeCommand((String) args.get(0));
       case plan:          return new PlanCommand(toProducts(args));
@@ -141,7 +142,7 @@ public abstract class Command implements JsonSerializable {
     return products;
   }
 
-  private static Set<Path> toPaths(List<?> json, FileSystem fs)
+  private static Set<Path> toPaths(List<?> json, Path clientRoot)
       throws IOException {
     Set<Path> paths = Sets.newLinkedHashSet();
     for (Object o : json) {
@@ -150,7 +151,7 @@ public abstract class Command implements JsonSerializable {
         throw new IOException(o + " is not a string");
       }
       try {
-        paths.add(fs.getPath((String) o));
+        paths.add(clientRoot.resolve((String) o));
       } catch (InvalidPathException ex) {
         throw (IOException) new IOException("Bad path " + o).initCause(ex);
       }

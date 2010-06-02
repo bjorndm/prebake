@@ -164,6 +164,7 @@ public final class Baker {
             final Path workDir;
             final ImmutableList<Path> inputs;
             boolean passed = false;
+            long t0 = logs.highLevelLog.getClock().nanoTime();
 
             try {
               inputs = sortedFilesMatching(files, product.inputs);
@@ -173,7 +174,8 @@ public final class Baker {
                 Hash.Builder hashes = Hash.builder();
 
                 Set<Path> workingDirInputs = Sets.newLinkedHashSet();
-                copyToWorkingDirectory(inputs, workDir, workingDirInputs);
+                copyToWorkingDirectory(
+                    inputs, workDir, workingDirInputs, paths, hashes);
                 Executor.Output<Boolean> result = oven.executeActions(
                     workDir, product, inputs, paths, hashes);
                 if (Boolean.TRUE.equals(result.result)) {
@@ -190,6 +192,8 @@ public final class Baker {
                       passed = true;
                       logger.log(
                           Level.INFO, "Product up to date: {0}", product.name);
+                      logs.highLevelLog.productStatusChanged(
+                          t0, product.name, true);
                     } else {
                       logger.log(
                           Level.WARNING, "Version skew for {0}", product.name);
@@ -240,7 +244,8 @@ public final class Baker {
   }
 
   private void copyToWorkingDirectory(
-      Iterable<Path> inputs, Path workingDir, Set<Path> workingDirInputs)
+      Iterable<Path> inputs, Path workingDir, Set<Path> workingDirInputs,
+      ImmutableList.Builder<Path> paths, Hash.Builder hashes)
       throws IOException {
     Path root = files.getVersionRoot();
     for (Path input : inputs) {
@@ -250,6 +255,8 @@ public final class Baker {
       workingDirInputs.add(workingDirInput);
       mkdirs(workingDirInput.getParent());
       clientInput.copyTo(workingDirInput);
+      paths.add(clientInput);
+      hashes.withHash(Hash.builder().withFile(workingDirInput).build());
     }
   }
 
@@ -469,9 +476,15 @@ public final class Baker {
 
     synchronized Future<Boolean> getBuildFuture() { return buildFuture; }
 
-    public synchronized void markValid(boolean valid) {
-      if (!valid) { setBuildFuture(null); }
-      this.upToDate = valid;
+    public void markValid(boolean valid) {
+      synchronized (this) {
+        if (!valid) { setBuildFuture(null); }
+        this.upToDate = valid;
+      }
+      if (!valid) {
+        logs.highLevelLog.productStatusChanged(
+            logs.highLevelLog.getClock().nanoTime(), name, valid);
+      }
     }
 
     synchronized boolean isUpToDate() { return upToDate; }

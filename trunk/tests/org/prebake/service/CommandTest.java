@@ -110,7 +110,7 @@ public class CommandTest {
   }
 
   private Command reparse(Command c) throws IOException {
-    Command c2 = Command.fromJson(jss(c.toString()), fs);
+    Command c2 = Command.fromJson(jss(c.toString()), fs.getPath("/root"));
     assertEquals(c2.getClass(), c.getClass());
     assertEquals(c2.toString(), c.toString());
     return c2;

@@ -30,4 +30,9 @@ public interface NonFileArtifact {
    *     org.prebake.core.Hash)
    */
   void markValid(boolean valid);
+  // TODO: thread a value through to markValid from updateArtifact so that we
+  // can clean up a lot of the
+  //    if updateArtifact(...)
+  //      do something like markValid but with a value
+  // and clean up the markValid implementations.
 }

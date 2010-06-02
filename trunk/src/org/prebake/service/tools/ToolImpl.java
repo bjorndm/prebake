@@ -15,6 +15,7 @@
 package org.prebake.service.tools;
 
 import org.prebake.fs.NonFileArtifact;
+import org.prebake.service.HighLevelLog;
 
 import javax.annotation.Nullable;
 import javax.annotation.ParametersAreNonnullByDefault;
@@ -34,14 +35,31 @@ final class ToolImpl implements NonFileArtifact {
   public boolean isValid() { return valid; }
 
   public void markValid(boolean valid) {
-    synchronized (tool) {
-      this.valid = valid;
-      if (sig == null) { return; }
-      if (!valid) {
-        sig = null;
-        tool.toolBox.scheduleUpdate();
-      }
+    if (!valid) {
+      update(tool.toolBox.logs.highLevelLog.getClock().nanoTime(), null);
     }
-    tool.check();
+    // Otherwise, expect the toolbox to call update subsequently.
+  }
+
+  void update(long t0, @Nullable ToolSignature newSig) {
+    boolean needUpdate;
+    ToolSignature oldSig;
+    synchronized (tool) {
+      this.valid = newSig != null;
+      oldSig = this.sig;
+      this.sig = newSig;
+      needUpdate = oldSig != null && newSig == null;
+    }
+    if (needUpdate) { tool.toolBox.scheduleUpdate(); }
+
+    if (newSig != null) {
+      if (!newSig.equals(oldSig)) {
+        tool.toolBox.listener.artifactChanged(sig);
+      }
+    } else if (oldSig != null) {
+      tool.toolBox.listener.artifactDestroyed(tool.toolName);
+    }
+    HighLevelLog hll = tool.toolBox.logs.highLevelLog;
+    hll.toolStatusChanged(t0, tool.toolName, newSig != null);
   }
 }

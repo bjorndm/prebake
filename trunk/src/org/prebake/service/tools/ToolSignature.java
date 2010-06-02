@@ -23,6 +23,7 @@ import org.prebake.js.YSONConverter;
 
 import java.io.IOException;
 import java.util.Map;
+import java.util.Objects;
 
 import javax.annotation.Nullable;
 import javax.annotation.ParametersAreNonnullByDefault;
@@ -65,6 +66,17 @@ public final class ToolSignature implements JsonSerializable {
   public String toString() {
     return JsonSerializable.StringUtil.toString(this);
   }
+
+  @Override public boolean equals(Object o) {
+    if (!(o instanceof ToolSignature)) { return false; }
+    ToolSignature that = (ToolSignature) o;
+    return this.deterministic == that.deterministic
+        && this.name.equals(that.name)
+        && Objects.equals(this.productChecker, that.productChecker)
+        && Objects.equals(this.help, that.help);
+  }
+
+  @Override public int hashCode() { return name.hashCode(); }
 
   private static final YSONConverter<MobileFunction> FN
       = YSONConverter.Factory.withType(MobileFunction.class);

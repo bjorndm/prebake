@@ -305,7 +305,7 @@ public class BakeTest extends PbTestCase {
 
     BakeTestRunner withArgv(String... argv) throws IOException {
       this.prebakeDir = bake.findPrebakeDir(this.cwd);
-      this.commands = bake.decodeArgv(cwd, argv);
+      this.commands = bake.decodeArgv(this.prebakeDir.getParent(), argv);
       return this;
     }
 

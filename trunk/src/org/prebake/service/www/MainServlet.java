@@ -16,6 +16,7 @@ package org.prebake.service.www;
 
 import org.prebake.channel.FileNames;
 import org.prebake.core.Hash;
+import org.prebake.core.PreformattedStaticHtml;
 import org.prebake.js.JsonSink;
 import org.prebake.service.ArtifactDescriptors;
 import org.prebake.service.Prebakery;
@@ -36,6 +37,7 @@ import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.TimeZone;
 
 import javax.annotation.Nullable;
 import javax.servlet.http.HttpServlet;
@@ -57,12 +59,19 @@ import com.google.gxp.base.GxpContext;
 public final class MainServlet extends HttpServlet {
   private final String token;
   private final Prebakery pb;
+  /**
+   * The timezone to present dates in.
+   * Since this servlet presents diagnostics for a single user's client we don't
+   * try and choose a timezone per user.
+   */
+  private final TimeZone tz;
 
   private static final String AUTH_COOKIE_NAME = "pbauth";
 
-  public MainServlet(String token, Prebakery pb) {
+  public MainServlet(String token, Prebakery pb, TimeZone tz) {
     this.token = token;
     this.pb = pb;
+    this.tz = tz;
   }
 
   private boolean checkAuthorized(
@@ -206,6 +215,16 @@ public final class MainServlet extends HttpServlet {
       artifactDescriptor = logPath.substring(5) + ".tool";
     } else if (logPath.startsWith("plan/")) {
       artifactDescriptor = logPath.substring(5) + ".plan";
+    } else if (logPath.equals("summary.html")) {
+      resp.setContentType("text/html; charset=UTF-8");
+      Writer w = resp.getWriter();
+      PreformattedStaticHtml html = pb.getHighLevelLog().formatEvents(
+          pb.getHighLevelLog().snapshot(), tz);
+      RecentActivityPage.write(
+          w, GxpContext.builder(Locale.ENGLISH).build(),
+          html);
+      w.close();
+      return;
     } else {
       resp.sendError(404);
       return;
@@ -273,6 +292,7 @@ public final class MainServlet extends HttpServlet {
   }
 
   private void serveAuthHelp(Response resp) throws IOException {
+    resp.setContentType("text/html; charset=UTF-8");
     Writer w = resp.getWriter();
     AuthHelpPage.write(w, GxpContext.builder(Locale.ENGLISH).build());
     w.close();
@@ -329,6 +349,7 @@ public final class MainServlet extends HttpServlet {
   }
 
   private void servePlanIndex(Response resp) throws IOException {
+    resp.setContentType("text/html; charset=UTF-8");
     Writer w = resp.getWriter();
     PlanIndexPage.write(
         w, GxpContext.builder(Locale.ENGLISH).build(),
@@ -346,6 +367,7 @@ public final class MainServlet extends HttpServlet {
     String logPreview = readLogPreview(
         ArtifactDescriptors.forProduct(productName));
     String logUriPath = "../logs/product/" + productName;
+    resp.setContentType("text/html; charset=UTF-8");
     Writer w = resp.getWriter();
     ProductDocPage.write(
         w, GxpContext.builder(Locale.ENGLISH).build(),
@@ -362,6 +384,7 @@ public final class MainServlet extends HttpServlet {
     ToolSignature sig = pb.getTools().get(toolName);
     String logPreview = readLogPreview(ArtifactDescriptors.forTool(toolName));
     String logUriPath = "../logs/tool/" + toolName;
+    resp.setContentType("text/html; charset=UTF-8");
     Writer w = resp.getWriter();
     ToolDocPage.write(
         w, GxpContext.builder(Locale.ENGLISH).build(), toolName, sig,
@@ -397,6 +420,7 @@ public final class MainServlet extends HttpServlet {
   }
 
   private void serveToolsIndex(Response resp) throws IOException {
+    resp.setContentType("text/html; charset=UTF-8");
     Writer w = resp.getWriter();
     ToolsIndexPage.write(
         w, GxpContext.builder(Locale.ENGLISH).build(), pb.getTools(),
@@ -405,6 +429,7 @@ public final class MainServlet extends HttpServlet {
   }
 
   private void serveIndex(Response resp) throws IOException {
+    resp.setContentType("text/html; charset=UTF-8");
     Writer w = resp.getWriter();
     Map<String, Product> products = pb.getProducts();
     IndexPage.write(

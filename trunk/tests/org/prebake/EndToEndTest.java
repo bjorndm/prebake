@@ -97,9 +97,11 @@ public class EndToEndTest extends PbTestCase {
         .assertResult(0)
         .waitForShutdown()
         .assertLog(
+            "INFO:Plan file /cwd/root/plan.js is up to date",
             "INFO:Cooking foo",
             "INFO:Starting bake of product foo",
             "INFO:Running cp with [src/a.foo, out/a.bar]",
+            "INFO:Copied 1 file",
             "INFO:Cooked foo")
         .assertFileSystem(
             "/",
@@ -151,7 +153,7 @@ public class EndToEndTest extends PbTestCase {
 
     Tester start() {
       Logger logger = getLogger(Level.INFO);
-      Config config = new Config() {
+      final Config config = new Config() {
         public Path getClientRoot() { return fs.getPath("/cwd/root"); }
         public Pattern getIgnorePattern() { return null; }
         public String getPathSeparator() { return ":"; }
@@ -186,7 +188,7 @@ public class EndToEndTest extends PbTestCase {
                       closed = true;
                       byte[] commandBytes = clientBytes.toByteArray();
                       Commands commands = Commands.fromJson(
-                          fs,
+                          config.getClientRoot(),
                           new JsonSource(new StringReader(
                               new String(commandBytes, Charsets.UTF_8))),
                           pipe.out);
@@ -268,7 +270,7 @@ public class EndToEndTest extends PbTestCase {
       int result;
       try {
         Path prebakeDir = client.findPrebakeDir(clientWorkingDir);
-        Commands commands = client.decodeArgv(clientWorkingDir, argv);
+        Commands commands = client.decodeArgv(prebakeDir.getParent(), argv);
         result = client.issueCommands(prebakeDir, commands, clientOut);
       } catch (IOException ex) {
         ex.printStackTrace();

@@ -49,6 +49,7 @@
  *       &lt;product-name<sub>0</sub>&gt;
  *     tool
  *       &lt;tool-name<sub>0</sub>&gt;
+ *     summary.html                         Log of recent activity
  * </pre>
  *
  * <pre>

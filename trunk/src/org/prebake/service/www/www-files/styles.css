@@ -1,3 +1,4 @@
+/* So PreformattedStaticHtml works */
 .preformat { white-space: pre-wrap }
 
 body { background-color: #fff; color: #000; margin: 10px; font-family: Arial }
@@ -18,10 +19,26 @@ h1 {
 
 td, th { vertical-align: top }
 
+/* Used on names of tools and products. */
 .up-to-date { color: #080 }
 .stale { color: #444 }
 
+/* Log previews are links to the main log file,
+ * but reading them is hard when every line is underlined. */
 .logPreview { text-decoration: none }
 .logPreview:hover { text-decoration: underline }
 
+/* A group of links on each page to parent pages that floats to the
+ * right of the title. */
 #navbar { float: right; font-size: 75%; margin-right: .5em }
+
+/* An iframe that contains a self-updating log */
+#summary-log {
+  width: 16em; height: 100%;
+  border: 1px solid block; margin-right: 1em
+}
+
+/* Separate the the recent activity log from the time */
+li .time { margin-right: 1ex }
+/* Deemphasize padding digits. */
+.low-value { color: #666 }

@@ -221,8 +221,7 @@ public abstract class FileVersioner {
     loop.start();
     List<UpdateRecord> changed = Lists.newArrayList();
     try {
-      for (int i = 0; i < n; ++i) {
-        UpdateRecord r = records[i];
+      for (UpdateRecord r : records) {
         if (r == null) { continue; }
         Hash newHash = r.hash;
         boolean success;
@@ -388,29 +387,11 @@ public abstract class FileVersioner {
   public <T extends NonFileArtifact> boolean updateArtifact(
       ArtifactAddresser<T> as, T artifact,
       Collection<Path> prerequisites, Hash prereqHash) {
-    Set<Path> keyPaths;
-    {
-      int n = prerequisites.size();
-      keyPaths = Sets.newHashSetWithExpectedSize(n);
-      Path parent = root.getFileSystem().getPath("..");
-      Iterator<Path> paths = prerequisites.iterator();
-      for (int i = 0; i < n; ++i) {
-        Path p = paths.next();
-        // Normalize the path failing if not under the root of watched files.
-        try {
-          Path keyPath = root.relativize(p.toRealPath(false));
-          if (keyPath.getNameCount() != 0
-              && parent.equals(keyPath.getName(0))) {
-            logger.log(Level.FINER, "Skipping ext prerequisite {0}", p);
-          } else {
-            keyPaths.add(keyPath);
-          }
-        } catch (IllegalArgumentException ex) {  // p under different root path
-          continue;
-        } catch (IOException ex) {
-          continue;
-        }
-      }
+    Set<Path> keyPaths = Sets.newHashSetWithExpectedSize(prerequisites.size());
+    for (Path p : prerequisites) {
+      // Normalize the path failing if not under the root of watched files.
+      Path keyPath = toKeyPath(p);
+      if (keyPath != null) { keyPaths.add(keyPath); }
     }
 
     Iterator<Path> it = keyPaths.iterator();
@@ -423,15 +404,15 @@ public abstract class FileVersioner {
       }
     }
 
+    int index = indexForAddresser(as);  // assumes addressers long lived
+    assert addressers.get(index) == as;
+    String address = index + ":" + as.addressFor(artifact);
+
     // Lock this for read so we can rehash and store the validity without
     // fearing that the file hash store will change in the meantime and fail to
     // invalidate the artifact.
     derivativeHashLock.readLock().lock();
     try {
-      int index = indexForAddresser(as);  // assumes addressers long lived
-      assert addressers.get(index) == as;
-      String address = index + ":" + as.addressFor(artifact);
-
       Hash.Builder rehash = Hash.builder();
       getHashes(prerequisites, rehash);
       if (!prereqHash.equals(rehash.build())) {
