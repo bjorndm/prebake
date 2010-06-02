@@ -71,7 +71,7 @@ public abstract class Command implements JsonSerializable {
   }
 
   /**
-   * @oaram root the client root against which paths are resolved.
+   * @param root the client root against which paths are resolved.
    */
   public static Command fromJson(JsonSource src, Path root) throws IOException {
     src.expect("[");
