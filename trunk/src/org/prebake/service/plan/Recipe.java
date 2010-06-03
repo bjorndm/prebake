@@ -70,6 +70,7 @@ public final class Recipe {
   public interface Chef {
     /**
      * Called with each ingredient as its prerequisites are prepared.
+     * @param ingredient the one to make.
      * @param whenDone should be called by the chef when ingredient is prepared
      *     with the value {@code true} if it was successfully prepared, and
      *     {@code false} if not.
@@ -105,7 +106,7 @@ final class Cooker {
               for (Ingredient postReq : ingredient.postRequisites) {
                 Integer nNeededInt = nIngredientsNeeded.get(postReq);
                 int nNeeded = nNeededInt != null
-                    ? nNeededInt.intValue() : postReq.nIngredients;
+                    ? nNeededInt.intValue() : postReq.preRequisites.size();
                 if (nNeeded == 1) {
                   nIngredientsNeeded.remove(postReq);
                   readyToCook.add(postReq);

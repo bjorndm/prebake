@@ -184,7 +184,7 @@ public class DirectoryHooks implements Closeable {
             // TODO: if we know the toWatch predicate skips everything under dir
             // then don't continue.
             // HACK: don't watch the .prebake directory, especially the
-            // archives.
+            // archives and logs.
             if (root.isSameFile(dir.getParent())
                 && dir.getName().toString().equals(FileNames.DIR)) {
               return FileVisitResult.SKIP_SUBTREE;

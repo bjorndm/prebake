@@ -158,7 +158,8 @@ public final class PlanGraph {
         }
         processing.remove(product);
         ingredient = new Ingredient(
-            product, edges.get(product).size(), postReqs.build());
+            product, ImmutableList.copyOf(edges.get(product)),
+            postReqs.build());
         ingredients.put(product, ingredient);
         return ingredient;
       }
