@@ -206,7 +206,8 @@ public final class Baker {
                   synchronized (status) {
                     if (status.product.equals(product)
                         && files.updateArtifact(
-                            addresser, status, paths.build(), hashes.build())) {
+                            addresser, status, t0, paths.build(),
+                            hashes.build())) {
                       passed = true;
                       synchronized (productDeps) {
                         for (String prereq : prereqs) {
@@ -218,8 +219,6 @@ public final class Baker {
                   if (passed) {
                     logger.log(
                         Level.INFO, "Product up to date: {0}", product.name);
-                    logs.highLevelLog.productStatusChanged(
-                        t0, product.name, true);
                   } else {
                     logger.log(
                         Level.WARNING, "Version skew for {0}", product.name);
@@ -410,7 +409,7 @@ public final class Baker {
   };
 
   @ParametersAreNonnullByDefault
-  private final class ProductStatus implements NonFileArtifact {
+  private final class ProductStatus implements NonFileArtifact<Long> {
     final String name;
     private Product product;
     /** Iff the product is built, non-null. */
@@ -502,27 +501,30 @@ public final class Baker {
 
     synchronized Future<Boolean> getBuildFuture() { return buildFuture; }
 
-    public void markValid(boolean valid) {
+    public void invalidate() {
       synchronized (this) {
-        if (!valid) { setBuildFuture(null); }
-        this.upToDate = valid;
+        setBuildFuture(null);
+        this.upToDate = false;
       }
-      if (!valid) {
-        logs.highLevelLog.productStatusChanged(
-            logs.highLevelLog.getClock().nanoTime(), name, valid);
-        // We need to invalidate products that depend on this product.
-        // The file versioner does not do this transitive work for us.
-        Collection<String> postReqs;
-        synchronized (productDeps) {
-          postReqs = productDeps.removeAll(name);
-        }
-        for (String postReq : postReqs) {
-          ProductStatus dep = productStatuses.get(postReq);
-          // TODO: do we need to remove any path -> artifact address in the
-          // file versioner.
-          if (dep != null) { dep.markValid(false); }
-        }
+      logs.highLevelLog.productStatusChanged(
+          logs.highLevelLog.getClock().nanoTime(), name, false);
+      // We need to invalidate products that depend on this product.
+      // The file versioner does not do this transitive work for us.
+      Collection<String> postReqs;
+      synchronized (productDeps) {
+        postReqs = productDeps.removeAll(name);
       }
+      for (String postReq : postReqs) {
+        ProductStatus dep = productStatuses.get(postReq);
+        // TODO: do we need to remove any path -> artifact address in the
+        // file versioner.
+        if (dep != null) { dep.invalidate(); }
+      }
+    }
+
+    public void validate(Long t0) {
+      synchronized (this) { this.upToDate = true; }
+      logs.highLevelLog.productStatusChanged(t0, name, false);
     }
 
     synchronized boolean isUpToDate() { return upToDate; }

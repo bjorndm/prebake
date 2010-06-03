@@ -394,11 +394,11 @@ public class ToolBox implements ToolProvider {
             return null;
           }
 
+          ToolBoxResult result = new ToolBoxResult(t0, toolSig);
           boolean success;
           synchronized (impl.tool) {
             success = files.updateArtifact(
-                addresser, impl, paths.build(), hashes.build());
-            if (success) { impl.update(t0, toolSig); }
+                addresser, impl, result, paths.build(), hashes.build());
           }
           if (success) { return toolSig; }
           logger.log(

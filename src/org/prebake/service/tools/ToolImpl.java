@@ -21,7 +21,7 @@ import javax.annotation.Nullable;
 import javax.annotation.ParametersAreNonnullByDefault;
 
 @ParametersAreNonnullByDefault
-final class ToolImpl implements NonFileArtifact {
+final class ToolImpl implements NonFileArtifact<ToolBoxResult> {
   final Tool tool;
   final int index;
   @Nullable ToolSignature sig;
@@ -34,11 +34,12 @@ final class ToolImpl implements NonFileArtifact {
 
   public boolean isValid() { return valid; }
 
-  public void markValid(boolean valid) {
-    if (!valid) {
-      update(tool.toolBox.logs.highLevelLog.getClock().nanoTime(), null);
-    }
-    // Otherwise, expect the toolbox to call update subsequently.
+  public void invalidate() {
+    update(tool.toolBox.logs.highLevelLog.getClock().nanoTime(), null);
+  }
+
+  public void validate(ToolBoxResult result) {
+    update(result.t0, result.sig);
   }
 
   void update(long t0, @Nullable ToolSignature newSig) {

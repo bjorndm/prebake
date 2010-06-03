@@ -21,18 +21,20 @@ package org.prebake.fs;
  *
  * @author Mike Samuel <mikesamuel@gmail.com>
  */
-public interface NonFileArtifact {
+public interface NonFileArtifact<T> {
   /**
-   * @param valid false if the artifact is now invalid, and true if it is now
-   *    valid.
+   * Notifies the artifact that it is invalid because one of its dependencies
+   * changed.
    * @see FileVersioner#updateArtifact(
    *     ArtifactAddresser, NonFileArtifact, java.util.Collection,
    *     org.prebake.core.Hash)
    */
-  void markValid(boolean valid);
-  // TODO: thread a value through to markValid from updateArtifact so that we
-  // can clean up a lot of the
-  //    if updateArtifact(...)
-  //      do something like markValid but with a value
-  // and clean up the markValid implementations.
+  void invalidate();
+  /**
+   * Notifies the artifact that it is valid with the given value.
+   * @see FileVersioner#updateArtifact(
+   *     ArtifactAddresser, NonFileArtifact, java.util.Collection,
+   *     org.prebake.core.Hash)
+   */
+  void validate(T value);
 }
