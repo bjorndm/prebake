@@ -39,6 +39,7 @@ import java.nio.file.FileVisitor;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.BasicFileAttributes;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.List;
@@ -54,11 +55,15 @@ import java.util.logging.Logger;
 import javax.annotation.Nullable;
 import javax.annotation.ParametersAreNonnullByDefault;
 
+import com.google.common.base.Supplier;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import com.google.common.collect.Multimap;
+import com.google.common.collect.Multimaps;
 import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.ValueFuture;
 
@@ -78,6 +83,15 @@ public final class Baker {
       = new ConcurrentHashMap<String, ProductStatus>();
   private final ConcurrentHashMap<String, ProductStatusChain> toolDeps
       = new ConcurrentHashMap<String, ProductStatusChain>();
+  /**
+   * For each name of an up-to-date product, the names of products that depend
+   * on it.
+   */
+  private final Multimap<String, String> productDeps = Multimaps.newSetMultimap(
+      Maps.<String, Collection<String>>newHashMap(),
+      new Supplier<Set<String>>() {
+        public Set<String> get() { return Sets.newHashSet(); }
+      });
   private ToolProvider toolbox;
   private final ArtifactAddresser<ProductStatus> addresser
       = new ArtifactAddresser<ProductStatus>() {
@@ -125,10 +139,15 @@ public final class Baker {
 
   /**
    * Returns a promise to bring the named product up-to-date.
+   * @param prereqs the products that this product depends on.  We use these
+   *     instead of the ingredient postReqs since the prereqs are guaranteed
+   *     to be complete, while the postReqs for a Recipe depend on the
+   *     products to be baked, and so are a subset of the dependers.
    * @return a future whose result is true if the product is up-to-date, and
    *     false if it cannot be brought up-to-date.
    */
-  public Future<Boolean> bake(final String productName) {
+  public Future<Boolean> bake(
+      final String productName, final ImmutableList<String> prereqs) {
     assert toolbox != null;
     final ProductStatus status = productStatuses.get(productName);
     if (status == null) {
@@ -179,10 +198,9 @@ public final class Baker {
                 Executor.Output<Boolean> result = oven.executeActions(
                     workDir, product, inputs, paths, hashes);
                 if (Boolean.TRUE.equals(result.result)) {
-                  ImmutableList<Path> outputs;
                   // TODO: can't pass if there are problems moving files to the
                   // repo.
-                  outputs = finisher.moveToRepo(
+                  ImmutableList<Path> outputs = finisher.moveToRepo(
                       product.name, workDir, workingDirInputs, product.outputs);
                   files.updateFiles(outputs);
                   synchronized (status) {
@@ -190,14 +208,21 @@ public final class Baker {
                         && files.updateArtifact(
                             addresser, status, paths.build(), hashes.build())) {
                       passed = true;
-                      logger.log(
-                          Level.INFO, "Product up to date: {0}", product.name);
-                      logs.highLevelLog.productStatusChanged(
-                          t0, product.name, true);
-                    } else {
-                      logger.log(
-                          Level.WARNING, "Version skew for {0}", product.name);
+                      synchronized (productDeps) {
+                        for (String prereq : prereqs) {
+                          productDeps.put(prereq, product.name);
+                        }
+                      }
                     }
+                  }
+                  if (passed) {
+                    logger.log(
+                        Level.INFO, "Product up to date: {0}", product.name);
+                    logs.highLevelLog.productStatusChanged(
+                        t0, product.name, true);
+                  } else {
+                    logger.log(
+                        Level.WARNING, "Version skew for {0}", product.name);
                   }
                 } else {
                   if (result.exit != null) {
@@ -218,6 +243,7 @@ public final class Baker {
             } catch (IOException ex) {
               logger.log(
                   Level.SEVERE, "Failed to build product " + product.name, ex);
+              passed = false;
             }
             return passed;
           }
@@ -484,6 +510,18 @@ public final class Baker {
       if (!valid) {
         logs.highLevelLog.productStatusChanged(
             logs.highLevelLog.getClock().nanoTime(), name, valid);
+        // We need to invalidate products that depend on this product.
+        // The file versioner does not do this transitive work for us.
+        Collection<String> postReqs;
+        synchronized (productDeps) {
+          postReqs = productDeps.removeAll(name);
+        }
+        for (String postReq : postReqs) {
+          ProductStatus dep = productStatuses.get(postReq);
+          // TODO: do we need to remove any path -> artifact address in the
+          // file versioner.
+          if (dep != null) { dep.markValid(false); }
+        }
       }
     }
 

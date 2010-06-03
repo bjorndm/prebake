@@ -565,7 +565,7 @@ public abstract class Prebakery implements Closeable {
             String prod = ingredient.product;
             boolean status = false;
             try {
-              status = baker.bake(prod).get();
+              status = baker.bake(prod, ingredient.preRequisites).get();
             } catch (ExecutionException ex) {
               logger.log(Level.SEVERE, "Failed to build " + prod, ex);
             } catch (InterruptedException ex) {

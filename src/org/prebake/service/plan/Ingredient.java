@@ -28,17 +28,21 @@ public final class Ingredient {
   /** The name of the product that must be built to prepare this ingredient. */
   public final String product;
   /**
-   * The Recipes whose required ingredients can be decremented once this
+   * The ingredients whose preReq count can be decremented once this
    * ingredient is prepared.
    */
   public final ImmutableList<Ingredient> postRequisites;
-  /** The number of ingredients. */
-  public final int nIngredients;
+  /**
+   * The names of ingredients that must be prepared before this ingredient can
+   * be prepared.
+   */
+  public final ImmutableList<String> preRequisites;
 
   public Ingredient(
-      String product, int nIngredients, ImmutableList<Ingredient> postReqs) {
+      String product, ImmutableList<String> preReqs,
+      ImmutableList<Ingredient> postReqs) {
     this.product = product;
-    this.nIngredients = nIngredients;
+    this.preRequisites = preReqs;
     this.postRequisites = postReqs;
   }
 }

@@ -15,8 +15,11 @@
 package org.prebake.service;
 
 import java.io.Closeable;
+import java.io.Flushable;
 import java.util.logging.Handler;
 import java.util.logging.LogRecord;
+
+import com.google.common.io.Flushables;
 
 /**
  * A log handler that channels log output to clients for the time their
@@ -35,5 +38,11 @@ final class ClientChannel extends Handler implements Closeable {
 
   @Override public void flush() { out.flush(); }
 
-  @Override public void publish(LogRecord r) { out.writeRecord(r); }
+  @Override public void publish(LogRecord r) {
+    out.writeRecord(r);
+    Appendable underlying = out.out;
+    if (underlying instanceof Flushable) {
+      Flushables.flushQuietly((Flushable) underlying);
+    }
+  }
 }

@@ -594,10 +594,12 @@ public class BakerTest extends PbTestCase {
   // TODO: process returns error code.
   // TODO: changed output is updated
   // TODO: source file deleted and generated file archived
+  // TODO: changing an input invalidates a product and any products
+  // that depend on it.
   // TODO: actions time out
-  // TODO: process takes a long time.
+  // TODO: process that takes a long time.
 
-  private class Tester {
+  private final class Tester {
     FileSystem fs;
     private OperatingSystem os;
     private StubFileVersioner files;
@@ -656,9 +658,9 @@ public class BakerTest extends PbTestCase {
       return this;
     }
 
-    Tester build(String productName)
+    Tester build(String productName, String... prereqs)
         throws ExecutionException, InterruptedException {
-      Boolean result = baker.bake(productName).get();
+      Boolean result = baker.bake(productName, ImmutableList.of(prereqs)).get();
       assertEquals(successExpectation, result);
       return this;
     }
