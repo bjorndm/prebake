@@ -230,7 +230,7 @@ final class CommandLineConfig implements Config {
           }
         }
       } else if (clientRoot != null) {
-        planFiles.add(clientRoot.resolve("recipe.js"));
+        planFiles.add(clientRoot.resolve("Bakefile.js"));
       }
       this.planFiles = ImmutableSet.copyOf(planFiles);
       this.toolDirs = ImmutableList.copyOf(toolDirs);
@@ -296,6 +296,8 @@ final class CommandLineConfig implements Config {
   }
 
   public static String toArgv(Config config) {
+    // TODO: include critical environment variables
+    // like PATH, CWD, and CLASSPATH
     List<String> argv = Lists.newArrayList();
     Path root = config.getClientRoot();
     if (root != null) {

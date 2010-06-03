@@ -45,8 +45,8 @@ var jars = [
           ].join("\n"),
       contact: "Mike Samuel <mikesamuel@gmail.com>"
     },
-    actions: [tools.javac(["src///**.java", "genfiles///**.java"].concat(jars),
-                          "lib///**.class")]
+    actions: [tools.javac(["src///**.java", "out/genfiles///**.java"].concat(jars),
+                          "out/lib///**.class")]
   },
   resources: {
     help: {
@@ -58,10 +58,10 @@ var jars = [
       contact: "Mike Samuel <mikesamuel@gmail.com>"
     },
     actions: [tools.cp("src/org/prebake/service/**.{css,js,txt}",
-                       "lib/org/prebake/service/**.{css,js,txt}"),
+                       "out/lib/org/prebake/service/**.{css,js,txt}"),
               // Make a list of the builtin tools.
               tools.ls("src/org/prebake/service/tools/*.js",
-                       "lib/org/prebake/service/tools/tools.txt")]
+                       "out/lib/org/prebake/service/tools/tools.txt")]
   },
   tests: {
     help: {
@@ -69,44 +69,43 @@ var jars = [
       detail:  "Puts under test-lib/ everything needed for junit tests",
       contact: "Mike Samuel <mikesamuel@gmail.com>"
     },
-    actions: [tools.javac(["tests///**.java", "lib///**.class"].concat(jars),
-                          "test-lib///**.class")]
+    actions: [tools.javac(["tests///**.java", "out/lib///**.class"].concat(jars),
+                          "out/test-lib///**.class")]
   },
-  gxps: tools.gxpc("src///**.gxp", "genfiles///**.java", { warn: "error" }),
+  gxps: tools.gxpc("src///**.gxp", "out/genfiles///**.java", { warn: "error" }),
   runtests: {
     help: "Runs JUnit tests putting test results under reports",
     actions: [tools.junit(
-        ["test-lib///**.class",
-         "lib///**",
-         "jars/service.jar"].concat(jars),
-        "reports/tests///**.{json,html,css}",
-        { test_class_filter: "**Test.class",
-          runner_classpath: jars })]
+        ["out/test-lib///**.class", "out/lib///**", "out/jars/service.jar"]
+        .concat(jars),
+        "out/reports/tests///**.{json,html,css}",
+        { test_class_filter: "**Test.class", runner_classpath: jars })]
   },
   docs: {
     help: "Puts javadoc under docs",
-    actions: [tools.javadoc(["src/**.java"].concat(jars), "doc/api///**.html",
-                            {visibility: "protected"})]
+    actions: [tools.javadoc(
+        ["src/**.java"].concat(jars), "out/doc/api///**.html",
+        { visibility: "protected" })]
   },
   checks: {
     help: "Runs FindBugs over the source code (and test code)",
-    actions: [tools.findbugs(["{test-lib,lib}///**.class"].concat(jars),
-                             "reports/bugs///index.html",
+    actions: [tools.findbugs(["out/{test-lib,lib}///**.class"].concat(jars),
+                             "out/reports/bugs///index.html",
                              { effort: "max", priority: "medium" })]
   },
   jars: {
     help: "Packages service and client into separate jars",
     actions: [
         tools.jar(
-            "lib///**.class", "jars/client.jar",
+            "out/lib///**.class", "out/jars/client.jar",
             {
               manifest: {
                 "Main-Class": "org.prebake.client.Main",
-                "Class-Path": "../third_party/guava-libraries/guava.jar"
+                "Class-Path": "../../third_party/guava-libraries/guava.jar"
               }
             }),
         tools.jar(
-            "lib///**.{class,js,css,txt}", "jars/service.jar",
+            "out/lib///**.{class,js,css,txt}", "out/jars/service.jar",
             {
               manifest: {
                 "Main-Class": "org.prebake.service.Main",

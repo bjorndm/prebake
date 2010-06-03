@@ -16,6 +16,7 @@ package org.prebake.service.bake;
 
 import org.prebake.js.MembranableFunction;
 import org.prebake.js.SimpleMembranableFunction;
+import org.prebake.js.SimpleMembranableMethod;
 
 import java.io.File;
 import java.io.IOException;
@@ -35,24 +36,21 @@ import com.google.common.collect.ImmutableMap;
 public final class JsOperatingSystemEnv {
   private static ImmutableMap<String, ?> stubProcess(
       final Integer result, final String model) {
-    class Holder {
-      ImmutableMap<String, ?> jsObj = ImmutableMap.of(
+    return ImmutableMap.of(
         "help_", (
             "A process that mimics the UNIX " + model + " command by"
             + " yielding " + result + " without consuming any input or"
             + " producing any output."),
-        "run", new SimpleMembranableFunction(
+        "run", new SimpleMembranableMethod(
             "Returns the process so that calls can be chained",
             "run", "a process object") {
-          public Object apply(Object[] args) { return jsObj; }
+          public Object apply(Object[] args) { return args[0]; }
         },
-        "waitFor", new SimpleMembranableFunction(
+        "waitFor", new SimpleMembranableMethod(
             "Returns " + result + " without delay",
             "run", "a process object") {
           public Object apply(Object[] args) { return result; }
         });
-    }
-    return new Holder().jsObj;
   }
 
   private static final ImmutableMap<String, ?> FAILED_PROCESS_STUB
@@ -151,8 +149,13 @@ public final class JsOperatingSystemEnv {
   }
 
   static Iterable<String> stringsIn(Object[] args) {
+    return stringsIn(args, 0, args.length);
+  }
+
+  static Iterable<String> stringsIn(Object[] args, int start, int end) {
     ImmutableList.Builder<String> b = ImmutableList.builder();
-    for (Object arg : args) {
+    for (int i = start; i < end; ++i) {
+      Object arg = args[i];
       if (arg instanceof String) {
         b.add((String) arg);
       } else if (arg instanceof Iterable<?>) {

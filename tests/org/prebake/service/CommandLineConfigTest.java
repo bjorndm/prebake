@@ -17,14 +17,11 @@ package org.prebake.service;
 import org.prebake.core.MessageQueue;
 import org.prebake.util.CommandLineArgs;
 import org.prebake.util.PbTestCase;
-import org.prebake.util.StubFileSystemProvider;
-
 import com.google.common.base.Joiner;
 
 import org.junit.Test;
 
 import java.io.IOException;
-import java.net.URI;
 import java.nio.file.FileSystem;
 import java.util.regex.Pattern;
 
@@ -35,47 +32,47 @@ public class CommandLineConfigTest extends PbTestCase {
     assertEquals("[]", CommandLineConfig.toArgv(c));
     c = assertConfig(
         new String[] { "--root=/" }, false,
-        "Plan file /recipe.js is not a file");
+        "Plan file /Bakefile.js is not a file");
     assertEquals(
-        "[\"--root\",\"/\",\"/recipe.js\"]",
+        "[\"--root\",\"/\",\"/Bakefile.js\"]",
         CommandLineConfig.toArgv(c));
     c = assertConfig(
         new String[] { "--root", "/" }, false,
-        "Plan file /recipe.js is not a file");
+        "Plan file /Bakefile.js is not a file");
     assertEquals(
-        "[\"--root\",\"/\",\"/recipe.js\"]",
+        "[\"--root\",\"/\",\"/Bakefile.js\"]",
         CommandLineConfig.toArgv(c));
     c = assertConfig(
         new String[] { "--root", "/foo" }, false,
-        "Plan file /foo/recipe.js is not a file");
+        "Plan file /foo/Bakefile.js is not a file");
     assertEquals(
-        "[\"--root\",\"/foo\",\"/foo/recipe.js\"]",
+        "[\"--root\",\"/foo\",\"/foo/Bakefile.js\"]",
         CommandLineConfig.toArgv(c));
     c = assertConfig(new String[] { "--root", "/foo/bar/project" }, true);
     assertEquals(
-        "[\"--root\",\"/foo/bar/project\",\"/foo/bar/project/recipe.js\"]",
+        "[\"--root\",\"/foo/bar/project\",\"/foo/bar/project/Bakefile.js\"]",
         CommandLineConfig.toArgv(c));
     c = assertConfig(
-        new String[] { "--root", "/foo/bar/project", "project/recipe.js" },
+        new String[] { "--root", "/foo/bar/project", "project/Bakefile.js" },
         true);
     assertEquals("/foo/bar/project", c.getClientRoot().toString());
-    assertEquals("[/foo/bar/project/recipe.js]", c.getPlanFiles().toString());
+    assertEquals("[/foo/bar/project/Bakefile.js]", c.getPlanFiles().toString());
     assertEquals(
-        "[\"--root\",\"/foo/bar/project\",\"/foo/bar/project/recipe.js\"]",
+        "[\"--root\",\"/foo/bar/project\",\"/foo/bar/project/Bakefile.js\"]",
         CommandLineConfig.toArgv(c));
     c = assertConfig(
-        new String[] { "--root", "/foo/bar/project", "project/recipee.js" },
+        new String[] { "--root", "/foo/bar/project", "project/Bakefilee.js" },
         false,
-        "Plan file /foo/bar/project/recipee.js is not a file");
+        "Plan file /foo/bar/project/Bakefilee.js is not a file");
     assertEquals(
-        "[\"--root\",\"/foo/bar/project\",\"/foo/bar/project/recipee.js\"]",
+        "[\"--root\",\"/foo/bar/project\",\"/foo/bar/project/Bakefilee.js\"]",
         CommandLineConfig.toArgv(c));
     c = assertConfig(
         new String[] { "--root", "/foo/bar/project", "--root=/foo" },
         false, "Dupe arg --root");
     assertEquals("/foo/bar/project", c.getClientRoot().toString());
     assertEquals(
-        "[\"--root\",\"/foo/bar/project\",\"/foo/bar/project/recipe.js\"]",
+        "[\"--root\",\"/foo/bar/project\",\"/foo/bar/project/Bakefile.js\"]",
         CommandLineConfig.toArgv(c));
   }
 
@@ -94,7 +91,7 @@ public class CommandLineConfigTest extends PbTestCase {
         ""
         + "[\"--root\",\"/foo/bar/project\","
         + "\"--ignore\",\"^.*~$\","
-        + "\"/foo/bar/project/recipe.js\"]",
+        + "\"/foo/bar/project/Bakefile.js\"]",
         CommandLineConfig.toArgv(c));
     c = assertConfig(
         new String[] { "--root=project", "--ignore=^.*~$", "--ignore=\\.bak$" },
@@ -109,7 +106,7 @@ public class CommandLineConfigTest extends PbTestCase {
     assertEquals(
         ""
         + "[\"--root\",\"/foo/bar/project\","
-        + "\"/foo/bar/project/recipe.js\"]",
+        + "\"/foo/bar/project/Bakefile.js\"]",
         CommandLineConfig.toArgv(c));
     c = assertConfig(new String[] { "--root=project", "--umask=750" }, true);
     assertEquals(0750, c.getUmask());
@@ -117,7 +114,7 @@ public class CommandLineConfigTest extends PbTestCase {
         ""
         + "[\"--root\",\"/foo/bar/project\","
         + "\"--umask\",\"750\","
-        + "\"/foo/bar/project/recipe.js\"]",
+        + "\"/foo/bar/project/Bakefile.js\"]",
         CommandLineConfig.toArgv(c));
     c = assertConfig(
         new String[] { "--root=project", "--umask=750", "--umask=640" },
@@ -146,7 +143,7 @@ public class CommandLineConfigTest extends PbTestCase {
     assertEquals(
         ""
         + "[\"--root\",\"/foo/bar/project\","
-        + "\"/foo/bar/project/recipe.js\"]",
+        + "\"/foo/bar/project/Bakefile.js\"]",
         CommandLineConfig.toArgv(c));
     c = assertConfig(
         new String[] { "--root=project", "--www-port=8080" }, true);
@@ -155,7 +152,7 @@ public class CommandLineConfigTest extends PbTestCase {
         ""
         + "[\"--root\",\"/foo/bar/project\","
         + "\"--www-port\",\"8080\","
-        + "\"/foo/bar/project/recipe.js\"]",
+        + "\"/foo/bar/project/Bakefile.js\"]",
         CommandLineConfig.toArgv(c));
     c = assertConfig(
         new String[] { "--root=project", "--www-port=8080", "--www-port=8000" },
@@ -197,7 +194,7 @@ public class CommandLineConfigTest extends PbTestCase {
         ""
         + "[\"--root\",\"/foo/bar/project\","
         + "\"--tools\",\"/foo/bar/tools:/foo/bar/project/ptools\","
-        + "\"/foo/bar/project/recipe.js\"]",
+        + "\"/foo/bar/project/Bakefile.js\"]",
         CommandLineConfig.toArgv(c));
     c = assertConfig(
         new String[] {
@@ -213,40 +210,40 @@ public class CommandLineConfigTest extends PbTestCase {
   @Test public final void testPlanPaths() throws IOException {
     Config c;
     c = assertConfig(new String[] { "--root=project" }, true);
-    assertEquals("[/foo/bar/project/recipe.js]", c.getPlanFiles().toString());
+    assertEquals("[/foo/bar/project/Bakefile.js]", c.getPlanFiles().toString());
     c = assertConfig(
-        new String[] { "--root=project", "project/recipe.js" }, true);
-    assertEquals("[/foo/bar/project/recipe.js]", c.getPlanFiles().toString());
+        new String[] { "--root=project", "project/Bakefile.js" }, true);
+    assertEquals("[/foo/bar/project/Bakefile.js]", c.getPlanFiles().toString());
     c = assertConfig(
-        new String[] { "--root=project", "project/recipe2.js" }, true);
-    assertEquals("[/foo/bar/project/recipe2.js]", c.getPlanFiles().toString());
+        new String[] { "--root=project", "project/Bakefile2.js" }, true);
+    assertEquals("[/foo/bar/project/Bakefile2.js]", c.getPlanFiles().toString());
     c = assertConfig(
         new String[] {
-            "--root=project", "project/recipe2.js", "project/recipe.js" },
+            "--root=project", "project/Bakefile2.js", "project/Bakefile.js" },
         true);
     assertEquals(
-        "[/foo/bar/project/recipe2.js, /foo/bar/project/recipe.js]",
+        "[/foo/bar/project/Bakefile2.js, /foo/bar/project/Bakefile.js]",
         c.getPlanFiles().toString());
     assertEquals(
         ""
         + "[\"--root\",\"/foo/bar/project\","
-        + "\"/foo/bar/project/recipe2.js\","
-        + "\"/foo/bar/project/recipe.js\"]",
+        + "\"/foo/bar/project/Bakefile2.js\","
+        + "\"/foo/bar/project/Bakefile.js\"]",
         CommandLineConfig.toArgv(c));
     assertConfig(
         new String[] {
             "--root=project",
-            "project/recipe2.js", "project/recipe.js",
-            "/foo/bar/project/recipe.js" },
+            "project/Bakefile2.js", "project/Bakefile.js",
+            "/foo/bar/project/Bakefile.js" },
         false,
-        "Duplicate plan file /foo/bar/project/recipe.js");
+        "Duplicate plan file /foo/bar/project/Bakefile.js");
     assertConfig(
         new String[] {
             "--root=project",
-            "project/recipe2.js", "/foo/bar/project/recipe.js",
-            "project/recipe.js" },
+            "project/Bakefile2.js", "/foo/bar/project/Bakefile.js",
+            "project/Bakefile.js" },
         false,
-        "Duplicate plan file /foo/bar/project/recipe.js");
+        "Duplicate plan file /foo/bar/project/Bakefile.js");
   }
 
   @Test public final void testMisspelledParams() throws IOException {
@@ -260,16 +257,20 @@ public class CommandLineConfigTest extends PbTestCase {
   private CommandLineConfig assertConfig(
       String[] argv, boolean ok, String... msgs) throws IOException {
     MessageQueue mq = new MessageQueue();
-    FileSystem fs = new StubFileSystemProvider("mfs")
-        .getFileSystem(URI.create("mfs://#/foo/bar"));
-    mkdirs(fs.getPath("/foo/bar/project/src"));
-    mkdirs(fs.getPath("/foo/bar/tools"));
-    mkdirs(fs.getPath("/foo/bar/project/ptools"));
-    fs.getPath("/foo/bar/project/recipe.js").createFile();
-    fs.getPath("/foo/bar/project/recipe2.js").createFile();
-    fs.getPath("/foo/bar/project/src/main.cc").createFile();
-    fs.getPath("/foo/bar/project/src/main.h").createFile();
-
+    FileSystem fs = fileSystemFromAsciiArt(
+        "/foo/bar",
+        "/",
+        "  foo/",
+        "    bar/",
+        "      project/",
+        "        Bakefile.js",
+        "        Bakefile2.js",
+        "        src/",
+        "          main.cc",
+        "          main.h",
+        "        ptools/",
+        "      tools/"
+        );
     CommandLineConfig config = new CommandLineConfig(
         fs, mq, new CommandLineArgs(argv));
     assertEquals(Joiner.on('\n').join(msgs),

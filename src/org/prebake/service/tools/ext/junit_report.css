@@ -66,5 +66,7 @@ h1 .nav_anc, h1 .nav_sep, h1 .nav_top { background: #ddf; padding: .125em .25em 
 /* Make stack traces pretty */
 .tree_level_4 .Trace .value .filtered { color: #888 }
 /* Make it obvious which parts are different in comparison failures. */
+/* TODO: what colors can we use that are not confusing for users
+ * with RG color blindness. */
 .tree_level_4 .Trace .value .golden { color: #080; font-weight: bold }
 .tree_level_4 .Trace .value .actual { color: #800; font-weight: bold }

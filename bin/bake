@@ -7,4 +7,14 @@ fi
 source "$PREBAKE_HOME"/bin/common.sh
 check_java_version
 
-"$JAVA" -jar "$PREBAKE_HOME/ant-jars/client.jar" "$@"
+# Default to bake if the first parameter is not a known command.
+case "$1" in
+auth_www | bake | files_changed | graph | plan | shutdown | sync | tool_help)
+  cmd_guess=""
+  ;;
+*)
+  cmd_guess="bake"
+  ;;
+esac
+
+exec "$JAVA" -jar "$PREBAKE_HOME/ant-jars/client.jar" $cmd_guess "$@"

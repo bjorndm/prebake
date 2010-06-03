@@ -598,6 +598,8 @@ public class BakerTest extends PbTestCase {
   // that depend on it.
   // TODO: actions time out
   // TODO: process that takes a long time.
+  // TODO: wrapping a process by using the old process as a prototype returns
+  // the wrapper from run() and other methods.
 
   private final class Tester {
     FileSystem fs;

@@ -214,6 +214,7 @@ public abstract class Bake {
         }
         lastByte = buf[n - 1];
       }
+      out.write('\n');
       return lastByte;
     } finally {
       conn.close();

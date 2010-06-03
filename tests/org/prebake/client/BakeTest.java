@@ -55,7 +55,7 @@ public class BakeTest extends PbTestCase {
         .expectResult(0)
         .expectSent(
             "[[\"handshake\",{},\"S3cR37\"],[\"bake\",{},\"this\",\"that\"]]")
-        .expectOutput("OK")
+        .expectOutput("OK\n")
         .expectConnClosed();
   }
 
@@ -91,7 +91,7 @@ public class BakeTest extends PbTestCase {
         .expectResult(0)
         .expectSent(
             "[[\"handshake\",{},\"S3cR37\"],[\"bake\",{},\"this\",\"that\"]]")
-        .expectOutput("OK")
+        .expectOutput("OK\n")
         .expectConnClosed();
   }
 
@@ -155,7 +155,7 @@ public class BakeTest extends PbTestCase {
         // And sends over the updated token.
         .expectSent(
             "[[\"handshake\",{},\"70K3n\"],[\"bake\",{},\"this\",\"that\"]]")
-        .expectOutput("OK")
+        .expectOutput("OK\n")
         .expectConnClosed();
   }
 
@@ -186,7 +186,7 @@ public class BakeTest extends PbTestCase {
         // and sends the new token.
         .expectSent(
             "[[\"handshake\",{},\"70K3n\"],[\"bake\",{},\"this\",\"that\"]]")
-        .expectOutput("OK")
+        .expectOutput("OK\n")
         .expectConnClosed();
   }
 
