@@ -20,21 +20,14 @@ package org.prebake.fs;
  * or an edge in the dependency graph.
  *
  * @author Mike Samuel <mikesamuel@gmail.com>
+ * @see FileVersioner#updateArtifact
  */
 public interface NonFileArtifact<T> {
   /**
    * Notifies the artifact that it is invalid because one of its dependencies
    * changed.
-   * @see FileVersioner#updateArtifact(
-   *     ArtifactAddresser, NonFileArtifact, java.util.Collection,
-   *     org.prebake.core.Hash)
    */
   void invalidate();
-  /**
-   * Notifies the artifact that it is valid with the given value.
-   * @see FileVersioner#updateArtifact(
-   *     ArtifactAddresser, NonFileArtifact, java.util.Collection,
-   *     org.prebake.core.Hash)
-   */
+  /** Notifies the artifact that it is valid with the given value. */
   void validate(T value);
 }

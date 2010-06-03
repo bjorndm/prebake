@@ -219,7 +219,7 @@ public final class MainServlet extends HttpServlet {
       resp.setContentType("text/html; charset=UTF-8");
       Writer w = resp.getWriter();
       PreformattedStaticHtml html = pb.getHighLevelLog().formatEvents(
-          pb.getHighLevelLog().snapshot(), tz);
+          pb.getHighLevelLog().snapshot(), ServletEntityLinker.INSTANCE, tz);
       RecentActivityPage.write(
           w, GxpContext.builder(Locale.ENGLISH).build(),
           html);

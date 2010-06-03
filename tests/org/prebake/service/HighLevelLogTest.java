@@ -17,6 +17,7 @@ package org.prebake.service;
 import org.prebake.util.PbTestCase;
 import org.prebake.util.TestClock;
 
+import java.io.IOException;
 import java.util.TimeZone;
 
 import com.google.common.base.Joiner;
@@ -54,7 +55,8 @@ public final class HighLevelLogTest extends PbTestCase {
               "plan up to date : plan.js"),
         entry("19900101T000103Z", "19:01:03",
               "PT30S", "<span class=\"low-value\">00:</span>30",
-              "products up to date : foo, bar, &lt;baz&gt;"),
+              ("products up to date : "
+               + "foo, <a href=\"products/bar.html\">bar</a>, &lt;baz&gt;")),
         "</ul>");
     clock.advance(30 * sec);
     log.productStatusChanged(clock.nanoTime(), "boo", true);
@@ -75,7 +77,7 @@ public final class HighLevelLogTest extends PbTestCase {
               "6 products up to date"),
         entry("19900101T000203Z", "19:02:03",
               "PT0S", "<span class=\"low-value\">00:00</span>",
-              "product invalid : bar"),
+              "product invalid : <a href=\"products/bar.html\">bar</a>"),
         "</ul>");
   }
 
@@ -104,11 +106,31 @@ public final class HighLevelLogTest extends PbTestCase {
         "</li>\n");
   }
 
+  /** Links the product bar and no other entities. */
+  private static final class TestEntityLinker implements EntityLinker {
+    public void endLink(String entityType, String entityName, Appendable out)
+        throws IOException {
+      assertEquals("bar", entityName);
+      assertEquals("product", entityType);
+      out.append("</a>");
+    }
+
+    public boolean linkEntity(
+        String entityType, String entityName, Appendable out)
+        throws IOException {
+      if (!("bar".equals(entityName) && "product".equals(entityType))) {
+        return false;
+      }
+      out.append("<a href=\"products/bar.html\">");
+      return true;
+    }
+  }
+
   private void assertFormattedEvents(HighLevelLog log, String... golden) {
     TimeZone est = TimeZone.getTimeZone("EST");
     assertEquals(
         Joiner.on("").join(golden),
-        log.formatEvents(log.snapshot(), est).html()
+        log.formatEvents(log.snapshot(), new TestEntityLinker(), est).html()
             .replace("</li>", "</li>\n"));
   }
 }

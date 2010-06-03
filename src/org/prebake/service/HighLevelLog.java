@@ -26,6 +26,7 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.Set;
 import java.util.TimeZone;
+
 import com.google.caja.lexer.escaping.Escaping;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
@@ -107,7 +108,7 @@ public final class HighLevelLog {
   private static final long NANOSECS_PER_SEC = 1000 * 1000 * 1000;
 
   public PreformattedStaticHtml formatEvents(
-      Iterable<? extends HighLevelEvent> events, TimeZone tz) {
+      Iterable<? extends HighLevelEvent> events, EntityLinker el, TimeZone tz) {
     StringBuilder html = new StringBuilder();
     html.append("<ul>");
     for (HighLevelEvent e : events) {
@@ -118,7 +119,7 @@ public final class HighLevelLog {
       formatDuration(e.duration, html);
       html.append("</span>");  // end time
       try {
-        e.formatHtml(html);
+        e.formatHtml(el, html);
       } catch (IOException ex) {
         Throwables.propagate(ex);
       }
@@ -200,7 +201,13 @@ public final class HighLevelLog {
      * @param e an event whose t0 is at or before this event's t0.
      */
     abstract boolean foldInto(HighLevelEvent e);
-    abstract void formatHtml(Appendable out) throws IOException;
+    /**
+     * @param el specifies how to link product names and tool names.
+     * @param out channel to which HTML output is written.
+     * @throws IOException if out raises an IOException.
+     */
+    abstract void formatHtml(EntityLinker el, Appendable out)
+        throws IOException;
   }
 }
 
@@ -211,7 +218,9 @@ final class SystemStartupEvent extends HighLevelLog.HighLevelEvent {
   boolean foldInto(HighLevelLog.HighLevelEvent e) { return false; }
 
   @Override
-  void formatHtml(Appendable out) throws IOException { out.append("Started"); }
+  void formatHtml(EntityLinker el, Appendable out) throws IOException {
+    out.append("Started");
+  }
 }
 
 final class StatusChangedEvent extends HighLevelLog.HighLevelEvent {
@@ -236,7 +245,7 @@ final class StatusChangedEvent extends HighLevelLog.HighLevelEvent {
   }
 
   @Override
-  public boolean foldInto(HighLevelLog.HighLevelEvent e) {
+  boolean foldInto(HighLevelLog.HighLevelEvent e) {
     if (e.getClass() != this.getClass()) { return false; }
     StatusChangedEvent that = (StatusChangedEvent) e;
     if (this.upToDate != that.upToDate) { return false; }
@@ -247,28 +256,33 @@ final class StatusChangedEvent extends HighLevelLog.HighLevelEvent {
   }
 
   @Override
-  public void formatHtml(Appendable out) throws IOException {
+  void formatHtml(EntityLinker el, Appendable out)
+      throws IOException {
     int nArtifacts = artifacts.size();
     if (nArtifacts > 5) {
       out.append(Integer.toString(nArtifacts)).append(' ');
-      formatMessage(nArtifacts, out);
+      writeMessage(nArtifacts, el, out);
     } else {
-      formatMessage(nArtifacts, out);
-      Iterator<String> it = artifacts.iterator();
-      if (it.hasNext()) {
-        out.append(" : ");
-        Escaping.escapeXml(it.next(), false, out);
-        while (it.hasNext()) {
-          out.append(", ");
-          Escaping.escapeXml(it.next(), false, out);
-        }
+      writeMessage(nArtifacts, el, out);
+      String sep = " : ";
+      for (Iterator<String> it = artifacts.iterator(); it.hasNext();) {
+        out.append(sep);
+        sep = ", ";
+
+        String artifactName = it.next();
+        boolean endLink = el.linkEntity(artifactType, artifactName, out);
+        Escaping.escapeXml(artifactName, false, out);
+        if (endLink) { el.endLink(artifactType, artifactName, out); }
       }
     }
   }
 
-  private void formatMessage(int n, Appendable out) throws IOException {
+  private void writeMessage(int n, EntityLinker el, Appendable out)
+      throws IOException {
+    boolean endLink = el.linkEntity(artifactType, null, out);
     out.append(artifactType);
     if (n != 1) { out.append('s'); }
+    if (endLink) { el.endLink(artifactType, null, out); }
     out.append(upToDate ? " up to date" : " invalid");
   }
 }
