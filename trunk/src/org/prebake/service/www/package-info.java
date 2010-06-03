@@ -59,6 +59,7 @@
  * TODO: make the plan graph embeddable -- as an iframe
  * TODO: for demos, have a page that shows the plan graph and a scrolling log
  *   of file watcher changes.
+ * TODO: make sure product files do not conflict with "index.html"
  * </pre>
  */
 @javax.annotation.ParametersAreNonnullByDefault
