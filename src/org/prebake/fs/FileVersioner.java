@@ -378,11 +378,22 @@ public abstract class FileVersioner {
 
   public static final Hash NO_FILE_HASH = Hash.builder().build();
   /**
-   * @param artifact a newly valid non file artifact.
+   * Checks that the files that an artifact depends on are still valid before
+   * marking that artifact valid and recording the prerequisites so that the
+   * artifact can be invalidated should any of the prerequisites subsequently
+   * change.
+   *
    * @param as the address space for item.
+   * @param artifact a newly valid non file artifact that was derived from
+   *    prerequisites.
+   * @param value passed to {@link NonFileArtifact#validate} if the artifact
+   *    can indeed be validated.
    * @param prerequisites the files on which item depends.
-   * @param prereqHash the hash of prerequisites at the time item became valid.
+   * @param prereqHash the hash of prerequisites at the time artifact was
+   *    derived from them.
    * @return true if item is really valid -- if its hash is up-to-date.
+   *    If false, then one or more of the prerequisites has changed since
+   *    artifact was derived.
    */
   public <X, T extends NonFileArtifact<X>> boolean updateArtifact(
       ArtifactAddresser<T> as, T artifact, @Nullable X value,
