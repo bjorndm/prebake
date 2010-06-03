@@ -286,10 +286,10 @@ public abstract class FileVersioner {
         int nsIndex = Integer.parseInt(address.substring(0, colon));
         ArtifactAddresser<?> as = addressers.get(nsIndex);
         if (as != null) {
-          NonFileArtifact inv = as.lookup(address.substring(colon + 1));
+          NonFileArtifact<?> inv = as.lookup(address.substring(colon + 1));
           if (inv != null) {
             logger.log(Level.FINER, "Invalidating {0}", address);
-            inv.markValid(false);
+            inv.invalidate();
           }
         }
       } catch (RuntimeException ex) {
@@ -384,8 +384,8 @@ public abstract class FileVersioner {
    * @param prereqHash the hash of prerequisites at the time item became valid.
    * @return true if item is really valid -- if its hash is up-to-date.
    */
-  public <T extends NonFileArtifact> boolean updateArtifact(
-      ArtifactAddresser<T> as, T artifact,
+  public <X, T extends NonFileArtifact<X>> boolean updateArtifact(
+      ArtifactAddresser<T> as, T artifact, @Nullable X value,
       Collection<Path> prerequisites, Hash prereqHash) {
     Set<Path> keyPaths = Sets.newHashSetWithExpectedSize(prerequisites.size());
     for (Path p : prerequisites) {
@@ -397,7 +397,7 @@ public abstract class FileVersioner {
     Iterator<Path> it = keyPaths.iterator();
     if (!it.hasNext()) {  // No dependencies.
       if (NO_FILE_HASH.equals(prereqHash)) {
-        artifact.markValid(true);
+        artifact.validate(value);
         return true;
       } else {
         return false;
@@ -430,7 +430,7 @@ public abstract class FileVersioner {
       } finally {
         loop.end();
       }
-      artifact.markValid(true);
+      artifact.validate(value);
       logger.log(Level.FINE, "Validated {0}", address);
       return true;
     } finally {

@@ -124,18 +124,26 @@ public class DbFileVersionerTest extends PbTestCase {
   }
 
   @Test public final void testInvalidation() throws Exception {
-    class Tool implements NonFileArtifact {
+    class Tool implements NonFileArtifact<String> {
       public final String name;
       public boolean valid;
       Tool(String name) { this.name = name; }
-      public void markValid(boolean valid) { this.valid = valid; }
+      public void invalidate() { this.valid = false; }
+      public void validate(String s) {
+        assertEquals(name, s);  // Make sure value threaded through properly
+        this.valid = true;
+      }
     }
 
-    class Product implements NonFileArtifact {
+    class Product implements NonFileArtifact<String> {
       public final String name;
       public boolean valid;
       Product(String name) { this.name = name; }
-      public void markValid(boolean valid) { this.valid = valid; }
+      public void invalidate() { this.valid = false; }
+      public void validate(String s) {
+        assertEquals(name, s);  // Make sure value threaded through properly
+        this.valid = true;
+      }
     }
 
     final Map<String, Tool> tools = Maps.newHashMap();
@@ -186,7 +194,8 @@ public class DbFileVersionerTest extends PbTestCase {
     //       |   /       \  |  /
     //       java         docs               Products
 
-    assertTrue(fh.updateArtifact(toolAddresser, javat, paths(a), getHash(a)));
+    assertTrue(fh.updateArtifact(
+        toolAddresser, javat, "java", paths(a), getHash(a)));
     assertTrue(javat.valid);
     assertFalse(gcct.valid);
     assertFalse(javadoct.valid);
@@ -194,8 +203,8 @@ public class DbFileVersionerTest extends PbTestCase {
     assertFalse(docsp.valid);
 
     // Mismatch between hash and deps
-    assertFalse(
-        fh.updateArtifact(toolAddresser, gcct, paths(a, b), getHash(b)));
+    assertFalse(fh.updateArtifact(
+        toolAddresser, gcct, "gcc", paths(a, b), getHash(b)));
     assertTrue(javat.valid);
     assertFalse(gcct.valid);
     assertFalse(javadoct.valid);
@@ -203,23 +212,24 @@ public class DbFileVersionerTest extends PbTestCase {
     assertFalse(docsp.valid);
 
     // Second attempt succeeds.
-    assertTrue(fh.updateArtifact(toolAddresser, gcct, paths(b), getHash(b)));
+    assertTrue(fh.updateArtifact(
+        toolAddresser, gcct, "gcc", paths(b), getHash(b)));
     assertTrue(javat.valid);
     assertTrue(gcct.valid);
     assertFalse(javadoct.valid);
     assertFalse(javap.valid);
     assertFalse(docsp.valid);
 
-    assertTrue(
-        fh.updateArtifact(toolAddresser, javadoct, paths(c, d), getHash(c, d)));
+    assertTrue(fh.updateArtifact(
+        toolAddresser, javadoct, "javadoc", paths(c, d), getHash(c, d)));
     assertTrue(javat.valid);
     assertTrue(gcct.valid);
     assertTrue(javadoct.valid);
     assertFalse(javap.valid);
     assertFalse(docsp.valid);
 
-    assertTrue(
-        fh.updateArtifact(productAddresser, javap, paths(a, b), getHash(a, b)));
+    assertTrue(fh.updateArtifact(
+        productAddresser, javap, "java", paths(a, b), getHash(a, b)));
     assertTrue(javat.valid);
     assertTrue(gcct.valid);
     assertTrue(javadoct.valid);
@@ -227,7 +237,7 @@ public class DbFileVersionerTest extends PbTestCase {
     assertFalse(docsp.valid);
 
     assertTrue(fh.updateArtifact(
-        productAddresser, docsp, paths(b, c, d), getHash(b, c, d)));
+        productAddresser, docsp, "docs", paths(b, c, d), getHash(b, c, d)));
     assertTrue(javat.valid);
     assertTrue(gcct.valid);
     assertTrue(javadoct.valid);
@@ -258,8 +268,8 @@ public class DbFileVersionerTest extends PbTestCase {
     assertFalse(docsp.valid);
 
     // hash is not stale.
-    assertFalse(
-        fh.updateArtifact(productAddresser, docsp, paths(b, c, d), hash));
+    assertFalse(fh.updateArtifact(
+        productAddresser, docsp, "docs", paths(b, c, d), hash));
     assertTrue(javat.valid);
     assertFalse(gcct.valid);
     assertFalse(javadoct.valid);

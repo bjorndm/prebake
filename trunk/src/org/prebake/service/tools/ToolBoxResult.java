@@ -12,25 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package org.prebake.fs;
-
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
-import javax.annotation.ParametersAreNonnullByDefault;
+package org.prebake.service.tools;
 
 /**
- * A reversible mapping from {@link NonFileArtifact}s to addresses.
+ * A pair of a timestamp and a ToolSignature.
  *
  * @author Mike Samuel <mikesamuel@gmail.com>
  */
-@ParametersAreNonnullByDefault
-public interface ArtifactAddresser<T extends NonFileArtifact<?>> {
-  /** Returns the artifact with the given address. */
-  @Nullable T lookup(String address);
-  /**
-   * The address for the given artifact.
-   * This is the dual of {@link #lookup} so
-   *     {@code lookup(addressFor(artifact)) == artifact}.
-   */
-  @Nonnull String addressFor(T artifact);
+public final class ToolBoxResult {
+  /** Time when building a tool started relative to the logs clock. */
+  final long t0;
+  /** The result of building a tool. */
+  final ToolSignature sig;
+  ToolBoxResult(long t0, ToolSignature sig) {
+    this.t0 = t0;
+    this.sig = sig;
+  }
 }

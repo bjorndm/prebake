@@ -325,20 +325,13 @@ public final class Planner implements Closeable {
                   boolean isValid;
                   synchronized (pp) {
                     isValid = files.updateArtifact(
-                        productAddresser, pp, paths.build(),
-                        hashes.build());
-                    if (isValid) {
-                      for (Product p : products) {
-                        listener.artifactChanged(p);
-                      }
-                      pp.products = products;
-                    }
+                        productAddresser, pp, new PlannerResult(t0, products),
+                        paths.build(), hashes.build());
                   }
                   if (isValid) {
                     logger.log(
                         Level.INFO, "Plan file {0} is up to date",
                         pp.planFile);
-                    logs.highLevelLog.planStatusChanged(t0, pp.normPath, true);
                     return products;
                   }
                   logger.log(
@@ -410,7 +403,7 @@ public final class Planner implements Closeable {
     return b.build();
   }
 
-  private final class PlanPart implements NonFileArtifact {
+  private final class PlanPart implements NonFileArtifact<PlannerResult> {
     final Path planFile;
     final String normPath;
     ImmutableList<Product> products;
@@ -425,45 +418,61 @@ public final class Planner implements Closeable {
       this.normPath = normPath;
     }
 
-    public void markValid(boolean valid) {
+    public void invalidate() {
       synchronized (this) {
-        this.valid = valid;
-        if (!valid) {
-          if (this.products != null) {
-            List<Product> products = this.products;
-            this.products = null;
-            if (future != null) {
-              future.cancel(false);
-              future = null;
-            }
-            synchronized (productsByName) {
-              for (Product p : products) {
-                productsByName.remove(p.name, p);
-                Collection<Product> prods = productsByName.get(p.name);
-                switch (prods.size()) {
-                  case 0:
-                    // No more products with this name left.
-                    listener.artifactDestroyed(p.name);
-                    break;
-                  case 1:
-                    // Previously the product was masked, but no longer.
-                    listener.artifactChanged(prods.iterator().next());
-                    break;
-                  default: break;  // Still masked.
-                }
+        this.valid = false;
+        List<Product> products = this.products;
+        if (products != null) {
+          this.products = null;
+          if (future != null) {
+            future.cancel(false);
+            future = null;
+          }
+          synchronized (productsByName) {
+            for (Product p : products) {
+              productsByName.remove(p.name, p);
+              Collection<Product> prods = productsByName.get(p.name);
+              switch (prods.size()) {
+                case 0:
+                  // No more products with this name left.
+                  listener.artifactDestroyed(p.name);
+                  break;
+                case 1:
+                  // Previously the product was masked, but no longer.
+                  listener.artifactChanged(prods.iterator().next());
+                  break;
+                default: break;  // Still masked.
               }
             }
           }
         }
       }
-      if (!valid) {
-        logs.highLevelLog.planStatusChanged(
-            logs.highLevelLog.getClock().nanoTime(), normPath, false);
+      logs.highLevelLog.planStatusChanged(
+          logs.highLevelLog.getClock().nanoTime(), normPath, false);
+    }
+
+    public void validate(PlannerResult result) {
+      ImmutableList<Product> products = result.products;
+      synchronized (this) {
+        this.valid = true;
+        this.products = products;
       }
+      for (Product p : products) { listener.artifactChanged(p); }
+      logs.highLevelLog.planStatusChanged(result.t0, normPath, true);
     }
   }
 
   private static final class ListSupplier<T> implements Supplier<List<T>> {
     public List<T> get() { return Lists.newArrayList(); }
+  }
+
+  private static final class PlannerResult {
+    final long t0;
+    final ImmutableList<Product> products;
+
+    PlannerResult(long t0, ImmutableList<Product> products) {
+      this.t0 = t0;
+      this.products = products;
+    }
   }
 }
