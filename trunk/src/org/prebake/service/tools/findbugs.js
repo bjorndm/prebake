@@ -114,19 +114,19 @@ function decodeOptions(optionsSchema, action, opt_config) {
     command = command.concat(sources);
 
     var proc = os.exec.apply({}, command);
-    function OutProc() {
-      this.waitFor = function () {
-        var result = proc.waitFor();
-        if (result === 0 || result === 1) {
-          if (result) { console.log('See findbugs report at ' + outputFile); }
-          return 0;
-        } else {
-          console.warn('Findbugs failed with status code ' + result);
-          return result;
-        }
-      };
-    }
-    OutProc.prototype = proc;
-    return new OutProc;
+    // Wrap proc to reinterpret the process result.
+    var wrapperProc = {};
+    schemaModule.mixin(proc, wrapperProc);
+    wrapperProc.waitFor = function () {
+      var result = proc.waitFor();
+      if (result === 0 || result === 1) {
+        if (result) { console.log('See findbugs report at ' + outputFile); }
+        return 0;
+      } else {
+        console.warn('Findbugs failed with status code ' + result);
+        return result;
+      }
+    };
+    return wrapperProc;
   }
 });

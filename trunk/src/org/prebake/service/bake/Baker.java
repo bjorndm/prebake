@@ -524,7 +524,7 @@ public final class Baker {
 
     public void validate(Long t0) {
       synchronized (this) { this.upToDate = true; }
-      logs.highLevelLog.productStatusChanged(t0, name, false);
+      logs.highLevelLog.productStatusChanged(t0, name, true);
     }
 
     synchronized boolean isUpToDate() { return upToDate; }

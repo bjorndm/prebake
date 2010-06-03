@@ -15,6 +15,7 @@
 package org.prebake.service.bake;
 
 import org.prebake.js.SimpleMembranableFunction;
+import org.prebake.js.SimpleMembranableMethod;
 import org.prebake.os.OperatingSystem;
 import org.prebake.os.OsProcess;
 
@@ -63,180 +64,179 @@ final class ExecFn extends SimpleMembranableFunction {
       .weakKeys().makeMap();
 
   public Object apply(Object[] args) {
-    if (args.length == 0 || args[0] == null) {
+    Iterator<String> argvIt = JsOperatingSystemEnv.stringsIn(args).iterator();
+    if (!argvIt.hasNext()) {
       throw new IllegalArgumentException("No command specified");
     }
-    String cmd = (String) args[0];
+    String cmd = argvIt.next();
     List<String> argv = Lists.newArrayList();
-    for (int i = 1, n = args.length; i < n; ++i) {
-      if (args[i] != null) {
-        try {
-          argv.add(checker.check((String) args[i]));
-        } catch (IllegalArgumentException ex) {
-          logger.log(
-              Level.WARNING, "Possible attempt to touch client dir", ex);
-          throw ex;
-        }
+    while (argvIt.hasNext()) {
+      try {
+        argv.add(checker.check(argvIt.next()));
+      } catch (IllegalArgumentException ex) {
+        logger.log(
+            Level.WARNING, "Possible attempt to touch client dir", ex);
+        throw ex;
       }
     }
-    final OsProcess p = os.run(
+    OsProcess p = os.run(
         workingDir, cmd, argv.toArray(new String[argv.size()]));
-    return new JsObjMaker(p).jsObj;
+    return makeJsProcessObj(p);
   }
 
-  final class JsObjMaker {
-    final ImmutableMap<String, ?> jsObj;
-    boolean run;  // The run() method should be a noop if called multiple times.
-    JsObjMaker(final OsProcess p) {
-      this.jsObj = ImmutableMap.<String, Object>builder()
-          .put("pipeTo", new SimpleMembranableFunction(
-              "Links this process's output to the given process's input",
-              "pipeTo", "this", "process") {
-            public Object apply(Object[] args) {
-              if (args.length != 1) { throw new IndexOutOfBoundsException(); }
-              OsProcess q = JS_OBJ_TO_PROCESS.get(args[0]);
-              if (q == null) { throw new IllegalArgumentException(); }
-              p.pipeTo(q);
-              // Start it running if it is not already.
+  private Object makeJsProcessObj(final OsProcess p) {
+    // The run() method should be a noop if called multiple times.
+    final boolean[] run = new boolean[1];
+    Object jsObj = ImmutableMap.<String, Object>builder()
+        .put("pipeTo", new SimpleMembranableMethod(
+            "Links this process's output to the given process's input",
+            "pipeTo", "this", "process") {
+          public Object apply(Object[] args) {
+            if (args.length != 2) { throw new IndexOutOfBoundsException(); }
+            OsProcess q = JS_OBJ_TO_PROCESS.get(args[1]);
+            if (q == null) { throw new IllegalArgumentException(); }
+            p.pipeTo(q);
+            // Start it running if it is not already.
+            try {
+              if (q.runIfNotRunning()) {
+                runningProcesses.add(q);
+              }
+            } catch (IOException ex) {
+              Throwables.propagate(ex);
+            } catch (InterruptedException ex) {
+              Throwables.propagate(ex);
+            }
+            return args[0];
+          }
+        })
+        .put("readFrom", new SimpleMembranableMethod(
+            "Streams the given file to this process's input.",
+            "readFrom", "this", "file") {
+          public Object apply(Object[] args) {
+            if (args.length != 2) { throw new IndexOutOfBoundsException(); }
+            if (!(args[1] instanceof String)) {
+              throw new ClassCastException(args[1].getClass().getName());
+            }
+            try {
+              p.readFrom(checker.check(workingDir.resolve((String) args[1])));
+            } catch (IOException ex) {
+              logger.log(
+                  Level.WARNING, "Possible attempt to touch client dir", ex);
+              throw new RuntimeException(ex.getMessage());
+            }
+            return args[0];
+          }
+        })
+        .put("appendTo", new SimpleMembranableMethod(
+            "Streams this process's output to the end of the given file.",
+            "appendTo", "this", "file") {
+          public Object apply(Object[] args) {
+            if (args.length != 2) { throw new IndexOutOfBoundsException(); }
+            if (!(args[1] instanceof String)) {
+              throw new ClassCastException(args[1].getClass().getName());
+            }
+            try {
+              Path outPath = workingDir.resolve((String) args[1]);
+              // We use 0700 since we're only operating in the working dir.
+              Baker.mkdirs(outPath.getParent(), 0700);
+              p.appendTo(checker.check(outPath));
+            } catch (IOException ex) {
+              logger.log(
+                  Level.WARNING, "Possible attempt to touch client dir", ex);
+              throw new RuntimeException(ex.getMessage());
+            }
+            return args[0];
+          }
+        })
+        .put("writeTo", new SimpleMembranableMethod(
+            "Streams this process's output to the given file.",
+            "writeTo", "this", "file") {
+          public Object apply(Object[] args) {
+            if (args.length != 2) { throw new IndexOutOfBoundsException(); }
+            if (!(args[1] instanceof String)) {
+              throw new ClassCastException(args[1].getClass().getName());
+            }
+            try {
+              Path outPath = workingDir.resolve((String) args[1]);
+              // We use 0700 since we're only operating in the working dir.
+              Baker.mkdirs(outPath.getParent(), 0700);
+              p.writeTo(checker.check(outPath));
+            } catch (IOException ex) {
+              logger.log(
+                  Level.WARNING, "Possible attempt to touch client dir", ex);
+              throw new RuntimeException(ex.getMessage());
+            }
+            return args[0];
+          }
+        })
+        .put("noInheritEnv", new SimpleMembranableMethod(
+            "Don't inherit environment from the JVM",
+            "noInheritEnv", "this") {
+          public Object apply(Object[] args) {
+            p.noInheritEnv();
+            return args[0];
+          }
+        })
+        .put("env", new SimpleMembranableMethod(
+            "Sets environment key/value pairs.", "env", "this",
+            "key", "value...") {
+          public Object apply(Object[] args) {
+            if (args.length == 2 && args[1] instanceof Map<?, ?>) {
+              for (Map.Entry<?, ?> e : ((Map<?, ?>) args[1]).entrySet()) {
+                p.env((String) e.getKey(), (String) e.getValue());
+              }
+            } else {
+              Iterator<String> it = JsOperatingSystemEnv.stringsIn(
+                  args, 1, args.length)
+                  .iterator();
+              while (it.hasNext()) {
+                p.env(it.next(), it.next());
+              }
+            }
+            return args[0];
+          }
+        })
+        .put("run", new SimpleMembranableMethod(
+            "Starts an external process.", "run", "this") {
+          public Object apply(Object[] args) {
+            if (!run[0]) {
+              run[0] = true;
               try {
-                if (q.runIfNotRunning()) {
-                  runningProcesses.add(q);
-                }
-              } catch (IOException ex) {
-                Throwables.propagate(ex);
+                p.run();
+                runningProcesses.add(p);
               } catch (InterruptedException ex) {
                 Throwables.propagate(ex);
-              }
-              return jsObj;
-            }
-          })
-          .put("readFrom", new SimpleMembranableFunction(
-              "Streams the given file to this process's input.",
-              "readFrom", "this", "file") {
-            public Object apply(Object[] args) {
-              if (args.length != 1) { throw new IndexOutOfBoundsException(); }
-              if (!(args[0] instanceof String)) {
-                throw new ClassCastException(args[0].getClass().getName());
-              }
-              try {
-                p.readFrom(checker.check(workingDir.resolve((String) args[0])));
               } catch (IOException ex) {
-                logger.log(
-                    Level.WARNING, "Possible attempt to touch client dir", ex);
-                throw new RuntimeException(ex.getMessage());
-              }
-              return jsObj;
-            }
-          })
-          .put("appendTo", new SimpleMembranableFunction(
-              "Streams this process's output to the end of the given file.",
-              "appendTo", "this", "file") {
-            public ImmutableMap<String, ?> apply(Object[] args) {
-              if (args.length != 1) { throw new IndexOutOfBoundsException(); }
-              if (!(args[0] instanceof String)) {
-                throw new ClassCastException(args[0].getClass().getName());
-              }
-              try {
-                Path outPath = workingDir.resolve((String) args[0]);
-                // We use 0700 since we're only operating in the working dir.
-                Baker.mkdirs(outPath.getParent(), 0700);
-                p.appendTo(checker.check(outPath));
-              } catch (IOException ex) {
-                logger.log(
-                    Level.WARNING, "Possible attempt to touch client dir", ex);
-                throw new RuntimeException(ex.getMessage());
-              }
-              return jsObj;
-            }
-          })
-          .put("writeTo", new SimpleMembranableFunction(
-              "Streams this process's output to the given file.",
-              "writeTo", "this", "file") {
-            public ImmutableMap<String, ?> apply(Object[] args) {
-              if (args.length != 1) { throw new IndexOutOfBoundsException(); }
-              if (!(args[0] instanceof String)) {
-                throw new ClassCastException(args[0].getClass().getName());
-              }
-              try {
-                Path outPath = workingDir.resolve((String) args[0]);
-                // We use 0700 since we're only operating in the working dir.
-                Baker.mkdirs(outPath.getParent(), 0700);
-                p.writeTo(checker.check(outPath));
-              } catch (IOException ex) {
-                logger.log(
-                    Level.WARNING, "Possible attempt to touch client dir", ex);
-                throw new RuntimeException(ex.getMessage());
-              }
-              return jsObj;
-            }
-          })
-          .put("noInheritEnv", new SimpleMembranableFunction(
-              "Don't inherit environment from the JVM",
-              "noInheritEnv", "this") {
-            public Object apply(Object[] args) {
-              p.noInheritEnv();
-              return jsObj;
-            }
-          })
-          .put("env", new SimpleMembranableFunction(
-              "Sets environment key/value pairs.", "env", "this",
-              "key", "value...") {
-            public Object apply(Object[] args) {
-              if (args.length == 1 && args[0] instanceof Map<?, ?>) {
-                for (Map.Entry<?, ?> e : ((Map<?, ?>) args[0]).entrySet()) {
-                  p.env((String) e.getKey(), (String) e.getValue());
-                }
-              } else {
-                Iterator<String> it = JsOperatingSystemEnv.stringsIn(args)
-                    .iterator();
-                while (it.hasNext()) {
-                  p.env(it.next(), it.next());
-                }
-              }
-              return jsObj;
-            }
-          })
-          .put("run", new SimpleMembranableFunction(
-              "Starts an external process.", "run", "this") {
-            public Object apply(Object[] args) {
-              if (!run) {
-                run = true;
-                try {
-                  p.run();
-                  runningProcesses.add(p);
-                } catch (InterruptedException ex) {
-                  Throwables.propagate(ex);
-                } catch (IOException ex) {
-                  Throwables.propagate(ex);
-                }
-              }
-              return jsObj;
-            }
-          })
-          .put("kill", new SimpleMembranableFunction(
-              "Kills a running process", "kill", null) {
-            public Object apply(Object[] args) {
-              p.kill();
-              return null;
-            }
-          })
-          .put("waitFor", new SimpleMembranableFunction(
-              "Waits for a process to end and returns its exit status",
-              "waitFor", "<int>") {
-            public Object apply(Object[] args) {
-              try {
-                int result = p.waitFor();
-                runningProcesses.remove(p);
-                return result;
-              } catch (InterruptedException ex) {
                 Throwables.propagate(ex);
-                return -1;  // unreachable
               }
             }
-          })
-          .build();
-      JS_OBJ_TO_PROCESS.put(jsObj, p);
-    }
+            return args[0];
+          }
+        })
+        .put("kill", new SimpleMembranableFunction(
+            "Kills a running process", "kill", null) {
+          public Object apply(Object[] args) {
+            p.kill();
+            return null;
+          }
+        })
+        .put("waitFor", new SimpleMembranableFunction(
+            "Waits for a process to end and returns its exit status",
+            "waitFor", "<int>") {
+          public Object apply(Object[] args) {
+            try {
+              int result = p.waitFor();
+              runningProcesses.remove(p);
+              return result & 0xff;
+            } catch (InterruptedException ex) {
+              Throwables.propagate(ex);
+              return 0xff;  // unreachable
+            }
+          }
+        })
+        .build();
+    JS_OBJ_TO_PROCESS.put(jsObj, p);
+    return jsObj;
   }
 
   void killOpenProcesses() {

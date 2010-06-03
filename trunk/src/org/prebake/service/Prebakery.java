@@ -426,6 +426,9 @@ public abstract class Prebakery implements Closeable {
                         + "\n");
                 break;
               case bake:
+                // TODO: get rid of the ClientChannel
+                // and use the LogHydra instead so that all output gets sent
+                // to observing clients.
                 ccl = new ClientChannel(w);
                 logger.addHandler(ccl);
                 try {

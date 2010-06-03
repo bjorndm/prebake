@@ -70,7 +70,10 @@ function decodeOptions(optionsSchema, action, opt_config) {
 }
 
 ({
-  help: ('JUnit Test Runner.\n<pre class="prettyprint lang-js">'
+  help: ('JUnit Test Runner.\n'
+         + 'If the tests passed the output will have the property '
+         + ' <code>junitTestsPassed</code> with value <code>true</code>.\n'
+         + '<pre class="prettyprint lang-js">'
          + schemaModule.example(schemaModule.schema(options)) + '</pre>'),
   check: decodeOptions.bind({}, options),
   fire: function fire(inputs, product, action, os) {
@@ -150,24 +153,28 @@ function decodeOptions(optionsSchema, action, opt_config) {
         reportDir || '', reportTypes]
         .concat(testClasses);
     var proc = os.exec.apply({}, command);
-    var result;
-    function OutProc() {
-      this.waitFor = function () {
-        result = proc.waitFor();
-        // See JUnitRunner.Result enum.
-        if (result === 0 || result === -1) {
-          if (result) {
-            console.warn('JUnit Tests failed');
-          } else {
-            console.log('JUnit Tests passed');
-          }
+    // Wrap proc to reinterpret the process result using JunitRunner
+    // conventions.
+    var wrapperProc = {};
+    schemaModule.mixin(proc, wrapperProc);
+    wrapperProc.waitFor = function () {
+      var result = proc.waitFor();
+      // See JUnitRunner.Result enum.
+      var testsPassed = (result === 0);
+      if (testsPassed || result === 255) {
+        if (result) {
+          console.warn('JUnit Tests failed');
         } else {
-          console.warn('JUnit failed with result ' + result);
+          console.log('JUnit Tests passed');
         }
-        return result;
-      };
-    }
-    OutProc.prototype = proc;
-    return new OutProc;
+      } else {
+        console.warn('JUnit failed with result ' + result);
+      }
+      // Make sure that if tests failed we still copy the results back,
+      // but record the fact in the junitTestsPassed property.
+      wrapperProc.junitTestsPassed = testsPassed;
+      return result === 255 ? 0 : result;
+    };
+    return wrapperProc;
   }
 });

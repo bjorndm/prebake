@@ -41,11 +41,13 @@ import org.mozilla.javascript.ScriptableObject;
 final class WrappedFunction extends BaseFunction {
   private final Membrane membrane;
   private final Function<Object[], Object> body;
+  private final boolean passThis;
 
   WrappedFunction(
       Membrane membrane, Function<Object[], Object> body) {
     this.membrane = membrane;
     this.body = body;
+    this.passThis = body instanceof MembranableMethod;
     ScriptRuntime.setFunctionProtoAndParent(this, membrane.scope);
     if (body instanceof MembranableFunction) {
       Documentation doc = ((MembranableFunction) body).getHelp();
@@ -75,9 +77,11 @@ final class WrappedFunction extends BaseFunction {
     // result.
     long t0 = System.nanoTime();
 
-    Object[] membranedInputs = new Object[args.length];
-    for (int i = 0, n = args.length; i < n; ++i) {
-      membranedInputs[i] = membrane.fromJs(args[i]);
+    int k = passThis ? 1 : 0;
+    Object[] membranedInputs = new Object[args.length + k];
+    if (passThis) { membranedInputs[0] = membrane.fromJs(thisObj); }
+    for (int i = 0, n = args.length; i < n; ++i, ++k) {
+      membranedInputs[k] = membrane.fromJs(args[i]);
     }
     // TODO: properly translate arrays, and objects
     // to lists and maps respectively.
