@@ -14,6 +14,7 @@ Each command has the form {{{ [}}}_verb_{{{, {"}}}_option_{{{": }}}_value_{{{ },
 || *Verb* || *Options* || *Arguments* || *Effect* ||
 || handshake || N/A || token from PrebakeDirectory || establishes authority to issue commands ||
 || bake || N/A || targets || builds the given targets ||
+|| auth_www || N/A || uri path || emits a URL that can be used to authenticate a browser session to the docs server ||
 || files_changed || N/A || paths || so IDEs can push changes to source files ||
 || graph || N/A || targets || prints, in [http://www.graphviz.org/doc/info/lang.html DOT] format, a graph of the dependencies between the given targets and all targets that any of them indirectly depend upon. ||
 || plan || N/A || targets || prints the targets that would be built if targets were passed to build ||
