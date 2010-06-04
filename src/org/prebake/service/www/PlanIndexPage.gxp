@@ -1,11 +1,9 @@
 <gxp:template name="org.prebake.service.www.PlanIndexPage"
  xmlns="http://www.w3.org/1999/xhtml"
  xmlns:gxp="http://google.com/2001/gxp">
-<gxp:import class="org.prebake.service.plan.PlanGraph"/>
 <gxp:import class="org.prebake.service.plan.Product"/>
 <gxp:import class="java.util.Map"/>
 <gxp:import class="java.util.Set"/>
-<gxp:param name="planGraph" type="PlanGraph"/>
 <gxp:param name="products" type="Map{String, Product}"/>
 <gxp:param name="validProducts" type="Set{String}"/>
 <html>
