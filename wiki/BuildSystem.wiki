@@ -1,0 +1,24 @@
+#summary Mathy definition of a build system.
+
+= What is a Build System? =
+
+A build system permutes a file system to build output files from a set of source files.
+The build system uses a set of rules to produce the output files.
+
+The set of rules specify a transformation from an input file system to an output file system.
+
+  BuildSystem : file-system → file-system'
+
+Build systems typically allow a developer to build portions of file-system' so they can produce an executable for one architecture but not another.  So there exists a conceptual file-system describing all possible outputs : file-system*.
+
+A build system is *consistent* when the developer's real file-system contains all the source files (file-system) and a subset of the files in the conceptual file-system*.
+
+  isConsistent(file-system') == (file-system' ⊃ file-system) && (file-system' ⊂ file-system*)
+
+So the source file-system is trivially consistent.
+
+Many common build systems have no way to know whether they are consistent ; if you build some output files, change a source file, and rebuild you might get a different result than if you had not done the first build.
+
+TODO : model rules
+TODO : consistency in face of rule changes
+TODO : discuss parameterized builds
