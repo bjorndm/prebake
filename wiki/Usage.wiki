@@ -4,20 +4,28 @@
 
 == The prebakery [PreBakery Service] ==
 {{{
-prebakery --root=<client-root-directory> [--ignore=<ignore-pattern>] [--umask=<umash>]  [--tools=<tools-path>] [<plan-file> ...]
+prebakery --root=<client-root-directory> [<logging-options>] [<options>] [<plan-file> ...]
 }}}
 
 will start up the bakery service.  It will write create a {{{.prebake}}} [PrebakeDirectory directory] if there is none already.
 
-|| {{{--root}}} || a [ClientRoot directory] containing all [SourceFile]s || ||
-|| {{{--ignore}}} || a regex of file paths to ignore || E.g. {{{\.bak$|/\.svn/}}} ignores files that end with ".bak" and ".svn" directories and their contents. ||
-|| {{{--umask}}} || [http://en.wikipedia.org/wiki/Umask mask] for permissions on all built files || In octal ||
-|| {{{--tools}}} || a search path for [ToolFile tools] || ||
-|| {{{<plan-file>}}} || paths to [PlanFile plan] files. || If none supplied, defaults to {{{<client-root-directory>/recipe.js}}} ||
+|| {{{--root=<dir>}}} || a [ClientRoot directory] containing all [SourceFile]s || ||
+|| {{{--ignore=<ignore-pattern>}}} || a regex of file paths to ignore || E.g. {{{\.bak$|/\.svn/}}} ignores files that end with ".bak" and ".svn" directories and their contents. ||
+|| {{{--umask=<umask>}}} || [http://en.wikipedia.org/wiki/Umask mask] for permissions on all built files || In octal ||
+|| {{{--tools=<dir0>:<dir1>}}} || a search path for [ToolFile tools] || ||
+|| {{{--www-port}}} || a port number || for serving [http://code.google.com/p/prebake/src/org/prebake/service/www/package-info.java HTTP] documentation, status, and logs ||
+|| {{{-localhost-trusted}}} || boolean || if specified, then the HTTP requests on `--www-port` don't need credentials ||
+|| {{{<plan-file>}}} || paths to [PlanFile plan] files. || If none supplied, defaults to {{{<client-root-directory>/Bakefile.js}}} ||
 
 == The bake [Bake client] ==
 {{{
-bake <verb> <target> ...
+bake [<logging-options>] [<verb>] <target> ...
 }}}
 
-will connect to a {{{prebakery}}} by looking for a {{{.prebake}}} [PrebakeDirectory directory] in an ancestorward traversal and run a build.
+will connect to a {{{prebakery}}} by looking for a {{{.prebake}}} [PrebakeDirectory directory] in an ancestorward traversal and send the specified [PreBakeCommand command].  If no verb is specified, then it defaults to `bake`.
+
+== Commands ==
+Both the [http://code.google.com/p/prebake/source/browse/trunk/src/org/prebake/service/Main.java service] and the [http://code.google.com/p/prebake/source/browse/trunk/src/org/prebake/client/Main.java client] are implemented as Java classes.
+The are executable scripts under the `bin`
+[http://code.google.com/p/prebake/source/browse/trunk/bin/ directory]
+that can be used to launch these in a JVM.
