@@ -13,7 +13,7 @@ will start up the bakery service.  It will write create a {{{.prebake}}} [Prebak
 || {{{--ignore=<ignore-pattern>}}} || a regex of file paths to ignore || E.g. {{{\.bak$|/\.svn/}}} ignores files that end with ".bak" and ".svn" directories and their contents. ||
 || {{{--umask=<umask>}}} || [http://en.wikipedia.org/wiki/Umask mask] for permissions on all built files || In octal ||
 || {{{--tools=<dir0>:<dir1>}}} || a search path for [ToolFile tools] || ||
-|| {{{--www-port}}} || a port number || for serving [http://code.google.com/p/prebake/src/org/prebake/service/www/package-info.java HTTP] documentation, status, and logs ||
+|| {{{--www-port}}} || a port number || for serving [http://code.google.com/p/prebake/source/browse/trunk/src/org/prebake/service/www/package-info.java HTTP] documentation, status, and logs ||
 || {{{-localhost-trusted}}} || boolean || if specified, then the HTTP requests on `--www-port` don't need credentials ||
 || {{{<plan-file>}}} || paths to [PlanFile plan] files. || If none supplied, defaults to {{{<client-root-directory>/Bakefile.js}}} ||
 
