@@ -5,22 +5,58 @@
 A build system permutes a file system to build output files from a set of source files.
 The build system uses a set of rules to produce the output files.
 
-The set of rules specify a transformation from an input file system to an output file system.
+The set of rules specify a transformation from an input file tree to an output file tree.
 
-  BuildSystem : file-system → file-system'
+  BuildSystem : file-tree → file-tree'
 
-Build systems typically allow a developer to build portions of file-system' so they can produce an executable for one architecture but not another.  So there exists a conceptual file-system describing all possible outputs : file-system∗.
+Build systems typically allow a developer to build portions of file-tree' so they can produce an executable for one architecture but not another.  So there exists a conceptual file-tree describing all possible outputs : file-tree∗.
 
-A build system is *consistent* when the developer's real file-system contains all the source files (file-system) and a subset of the files in the conceptual file-system∗.
+== Rules and Targets ==
+Most build systems have the concept of rules.
+A rule specifies how to create output files from input files.
+So in `make`, a rule might be
+{{{
+  %.o : %.c
+          $(CC) $< -o $@
+}}}
+which says "invoke the C compiler with a C source file to produce an output object file.
 
-  isConsistent(file-system') == (file-system' ⊃ file-system) && (file-system' ⊂ file-system∗)
+A target is the application of a rule to a set of files.  In Ant, there is no difference between a rule and a target, but with Make there are generic rules like the above that say how to produce one kind of file from another kind but there are also rules that produce specific files.
 
-So the source file-system is trivially consistent.
+So a target then is a transformation from a group of input files (possibly the whole file-system as in both Ant and Make) to a group of output files.
+
+  Target : input-files -> output-files
+
+Most build systems produce targets by spawning a process and consider it to have successfully built if its exit status indicates success.
+
+== Consistency ==
+
+A build system is *consistent* when the developer's real file-tree contains all the source files (file-tree) and a subset of the files in the conceptual file-tree∗.
+
+  isConsistent(file-tree') == (file-tree' ⊃ file-tree) && (file-tree' ⊂ file-tree∗)
+
+So the source file-tree is trivially consistent.
 
 Many common build systems have no way to know whether they are consistent ; if you build some output files, change a source file, and rebuild you might get a different result than if you had not done the first build.
+ 
+If we start from a known consistent state (the source file-tree) and build targets only when all their inputs are available then we can move from one consistent state to another when
+  # no target spawned a process until that process's inputs were available (prereqs hold)
+  # no process modifed a source file or a previously generated output (non-interference)
+  # all processes spawned by a build target have exited (no unflushed content)
+  # all processes successfully produced their output (local consistency)
 
-TODO : model rules
+== Scheduling ==
+So a build system can maintain consistency by keeping an eye on the processes it spawns to build files.
 
-TODO : consistency in face of rule changes
+But the real test of a build system is in how it moves from an inconsistent state back to a consistent state.
+
+Inconsistency arises in two ways:
+  # the developer changes or deletes a source file.  Now output files that depend on it are a source of inconsistency
+  # the developer changes a rule or target.
+
+Given the above functional definition of a build system, the second is not an inconsistency in a build system, but the replacing of a consistent build system with an inconsistent one.
+
+To move from an inconsistent build to a consistent build, a build system needs to maintain the following additional invariants.
+TODO
 
 TODO : discuss parameterized builds
