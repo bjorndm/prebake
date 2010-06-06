@@ -242,7 +242,7 @@ public interface Executor {
     /** Non-null if the script exited abnormally. */
     @Nullable public final AbnormalExitException exit;
 
-    Output(
+    public Output(
         @Nullable T result, boolean usedSourceOfKnownNondeterminism,
         @Nullable AbnormalExitException exit) {
       this.result = result;

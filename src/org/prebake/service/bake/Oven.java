@@ -201,9 +201,10 @@ final class Oven {
         }
       }
     }
+    Executor.Output<Boolean> runResult;
     try {
       // Run the script.
-      return execer.run(
+      runResult = execer.run(
           Boolean.class, logger, new PrebakeScriptLoader(files, paths, hashes),
           src);
     } finally {
@@ -211,7 +212,10 @@ final class Oven {
       // after we kill it and possibly recreate it for a rebuild.
       // If something wants to spawn long-lasting processes such as a
       // java compilation service, they can spawn a child process and disown it.
-      execFn.killOpenProcesses();
+      if (execFn.killOpenProcesses()) {
+        runResult = new Executor.Output<Boolean>(false, false, null);
+      }
     }
+    return runResult;
   }
 }

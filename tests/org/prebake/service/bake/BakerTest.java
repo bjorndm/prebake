@@ -44,7 +44,9 @@ import java.nio.file.Path;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.StandardOpenOption;
 import java.nio.file.attribute.BasicFileAttributes;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
@@ -179,6 +181,8 @@ public class BakerTest extends PbTestCase {
             "        a.txt \"foo a text\"",
             "        b.html \"foo b html\"",
             "        b.txt \"foo b text\"",
+            "  logs/",
+            "    foo.product.log",  // We haven't installed the hydra so no log.
             "  tmpdir/")
         .assertLog(fooBuiltLogMessage)
         .assertProductStatus("foo", true)
@@ -404,6 +408,8 @@ public class BakerTest extends PbTestCase {
            "        a \"a\"",
            "      o/",
            "        a \"a\"",
+           "  logs/",
+           "    p.product.log",
            "  tmpdir/")
        .assertProductStatus("p", true)
        .writeFile("/cwd/root/i/a", "A")
@@ -421,6 +427,8 @@ public class BakerTest extends PbTestCase {
            "        a \"A\"",
            "      o/",
            "        a \"A\"",
+           "  logs/",
+           "    p.product.log",
            "  tmpdir/");
   }
 
@@ -452,6 +460,8 @@ public class BakerTest extends PbTestCase {
            "        a \"a\"",
            "      o/",
            "        a \"a\"",
+           "  logs/",
+           "    p.product.log",
            "  tmpdir/")
        .assertProductStatus("p", true)
        .writeFile("/cwd/root/i/b", "b")
@@ -471,6 +481,8 @@ public class BakerTest extends PbTestCase {
            "      o/",
            "        a \"a\"",
            "        b \"b\"",
+           "  logs/",
+           "    p.product.log",
            "  tmpdir/");
   }
 
@@ -505,6 +517,8 @@ public class BakerTest extends PbTestCase {
            "      o/",
            "        a \"a\"",
            "        b \"b\"",
+           "  logs/",
+           "    p.product.log",
            "  tmpdir/")
        .assertProductStatus("p", true)
        .deleteFile("/cwd/root/i/b")
@@ -521,11 +535,13 @@ public class BakerTest extends PbTestCase {
            "      i/",
            "        a \"a\"",
            "      o/",
-           "        a \"a\"",
+           "        a \"a\"",      // o/b is gone
            "      .prebake/",
            "        archive/",
            "          o/",
-           "            b \"b\"",
+           "            b \"b\"",  // The output file is archived.
+           "  logs/",
+           "    p.product.log",
            "  tmpdir/")
       .assertLog(
           "INFO: 1 obsolete file(s) can be found under "
@@ -585,15 +601,73 @@ public class BakerTest extends PbTestCase {
            "      p/",  // Rest of p excluded from Product output
            "        j/",
            "          g \"mah dna sgge neerG\"",
+           "  logs/",
+           "    p.product.log",
            "  tmpdir/")
        .assertProductStatus("p", true);
   }
 
-  // TODO: test that unclosed processes result in log messages
+  @Test public final void testProcessReturnsErrorCode() throws Exception {
+    String failJs = (
+        "({fire: function (inputs, product, action, os) { return os.failed; }})"
+        );
+    tester.withFileSystem(
+        "/",
+        "  cwd/",
+        "    tools/",
+        "      fail.js \"" + failJs + "\"",
+        "    root/",
+        "      a \"a\"")
+        .withTool(tool("fail"), "/cwd/tools/fail.js")
+        .withProduct(product(
+            "p", action("fail", ImmutableList.of("a"), ImmutableList.of("b"))))
+        .expectSuccess(false)
+        .build("p")
+        .runPendingTasks()
+        .assertProductStatus("p", false)
+        .assertLog(
+            "INFO: Starting bake of product p",
+            "WARNING: Failed to build product p : false");
+  }
+
+  @Test public final void testProcessNotWaitedFor() throws Exception {
+    String badJs = (
+        ""
+        + "({fire: function (inputs, product, action, os) {\n"
+        + "  os.exec('cp', 'a', 'b').run();\n"  // Run but not waited for.
+        + "  return os.passed;\n"
+        + "}})"
+        );
+    tester.withFileSystem(
+        "/",
+        "  cwd/",
+        "    tools/",
+        "      bad.js " + JsonSink.stringify(badJs) + "",
+        "    root/",
+        "      a \"foo\"",
+        "  tmpdir/")
+        .withTool(tool("bad"), "/cwd/tools/bad.js")
+        .withProduct(product(
+            "p", action("bad", ImmutableList.of("a"), ImmutableList.of("b"))))
+        .expectSuccess(false)
+        .build("p")
+        .runPendingTasks()
+        .assertProductStatus("p", false)
+        .assertLog("WARNING: Aborted still running process cp")
+        .assertFileTree(
+            "/",
+            "  cwd/",
+            "    tools/",
+            "      bad.js \"...\"",
+            "    root/",
+            "      a \"foo\"",
+            "  tmpdir/",
+            "  logs/",
+            "    p.product.log");
+  }
+
   // TODO: output globs that overlap inputs
-  // TODO: process returns error code.
   // TODO: changed output is updated
-  // TODO: source file deleted and generated file archived
   // TODO: changing an input invalidates a product and any products
   // that depend on it.
   // TODO: actions time out
@@ -622,6 +696,7 @@ public class BakerTest extends PbTestCase {
       TestClock clock = new TestClock();
       logger = getLogger(Level.INFO);
       logHydra = new TestLogHydra(logger, fs.getPath("/logs"), clock);
+      fs.getPath("/logs").createDirectory();
       Logs logs = new Logs(new HighLevelLog(clock), logger, logHydra);
       os = new StubOperatingSystem(fs, logger);
       files = new StubFileVersioner(
@@ -686,8 +761,20 @@ public class BakerTest extends PbTestCase {
       return this;
     }
 
-    Tester assertLog(String logEntry) {
-      assertTrue(logEntry, getLog().contains(logEntry));
+    /**
+     * Asserts that the log contains at least the entries given.
+     * @param logEntries in the order they appear in the log.
+     */
+    Tester assertLog(String... logEntries) {
+      int i = 0, n = logEntries.length;
+      Iterator<String> it = getLog().iterator();
+      while (i < n) {
+        if (!it.hasNext()) {
+          fail("Not in log : " + Arrays.asList(logEntries).subList(i, n));
+        }
+        String actualLogEntry = it.next();
+        if (actualLogEntry.equals(logEntries[i])) { ++i; }
+      }
       return this;
     }
 
