@@ -239,14 +239,17 @@ final class ExecFn extends SimpleMembranableFunction {
     return jsObj;
   }
 
-  void killOpenProcesses() {
+  boolean killOpenProcesses() {
     List<OsProcess> processes = Lists.newArrayList(runningProcesses);
     runningProcesses.clear();
+    boolean hadOpenProcesses = false;
     for (OsProcess p : processes) {
       if (p.kill()) {
+        hadOpenProcesses = true;
         logger.log(
             Level.WARNING, "Aborted still running process {0}", p.getCommand());
       }
     }
+    return hadOpenProcesses;
   }
 }
