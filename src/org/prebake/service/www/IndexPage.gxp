@@ -16,7 +16,7 @@
   <body>
     <h1>Prebake</h1>
     <table><tr>
-      <td><iframe src="logs/summary.html" id="summary-log"></iframe></td>
+      <td><iframe src="logs/summary.html" id="summary-log"/></td>
       <td>
         Welcome to prebake.
         <h2 id="tools"><a href="tools/index.html">Tools</a></h2>
