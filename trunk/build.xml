@@ -158,6 +158,7 @@
         <include name="org/prebake/service/tools/**/*.css"/>
         <include name="org/prebake/service/tools/*.js"/>
         <include name="org/prebake/service/www/www-files/**/*.css"/>
+        <include name="org/prebake/service/www/www-files/**/*.js"/>
       </fileset>
     </copy>
     <copy todir="${lib}/org/prebake/service/www/www-files/foograph">

@@ -46,115 +46,37 @@
     <h1>Plans
       <div id="navbar"><a href="../index.html">Top</a> &#x2022; Plan</div>
     </h1>
-
-    <h2>The Plan Graph</h2>
-    <div id="plan-graph-cont">
-    <script type="text/javascript">
-    document.write(<![CDATA[
-        '<canvas style="height: 500; display: block" id="plan-graph"></canvas>'
-        ]]>);
-window.onload = function() {
-  <!-- Styles used for different kinds of nodes in the draw function below. -->
-  <!-- Dark green border around green -->
-  var staleNode = new VertexStyle('ellipse', 80, 40, '#cccccc', '#333333', true);
-  <!-- Dark grey border around grey -->
-  var upToDateNode = new VertexStyle('ellipse', 80, 40, '#aaffaa', '#004400', true);
-
-  function noop() {}
-
-  <!--
-      send an XMLHttpRequest to plan.json for graph data and layout the graph
-      when it arrives and refetches after 2.5 seconds.
-    -->
-  var lastJsonDrawn;
-  function requestGraph() {
-    var req = new XMLHttpRequest();
-    req.onreadystatechange = function () {
-      if (req.readyState === 4) {
-        var json = req.responseText;
-        req.onreadystatechange = noop;
-        setTimeout(requestGraph, 2500 /*ms*/);
-        if (req.status === 200) {
-          if (lastJsonDrawn !== json) {
-            lastJsonDrawn = json;
-            drawGraph(JSON.parse(json));
-          }
-        }
-      }
-    };
-    req.open('GET', 'plan.json', true);
-    req.send();
-  }
-
-  function scrollerTo(nodeName) {
-    return function () { window.location = '#detail:' + nodeName; };
-  }
-
-  <!-- draws a graph given JSON of the form fetchable from plan.json -->
-  function drawGraph(graphJson) {
-    // TODO: possibly choose the dims by looking at offset{Width,Height{
-    var canvasCont = document.getElementById('plan-graph-cont');
-    var width = canvasCont.offsetWidth - 4;
-    var  height = canvasCont.offsetHeight - 4;
-
-    Math.resetRandom();
-
-    var g = new Graph('Plan Graph', true<!--directed-->);
-    var vertices = {};
-    for (var nodeName in graphJson.graph) {
-      var nodeInfo = graphJson.graph[nodeName];
-      var style = nodeInfo.upToDate ? upToDateNode : staleNode;
-      var vertex = vertices[nodeName] = new Vertex(nodeName, -1, -1, style);
-      g.insertVertex(vertex);
-    }
-    <![CDATA[
-    for (var nodeName in graphJson.graph) {
-      var adjacentNodes = graphJson.graph[nodeName].requires;
-      var startVertex = vertices[nodeName];
-      for (var i = 0, n = adjacentNodes.length; i < n; ++i) {
-        var endVertex = vertices[adjacentNodes[i]];
-        var label = null;  // TODO: label with glob intersection.
-        g.insertEdge(label, 3/*weight*/, startVertex, endVertex, null/*style*/);
-      }
-    }
-    ]]>
-
-    <!-- layout the graph -->
-    new KamadaKawaiVertexLayout(width, height).layout(g);
-    new ForceDirectedVertexLayout(width, height, 400, false<!--re-randomize-->).layout(g);
-
-    <!-- set up the canvas -->
-    var canvasCanvas = document.getElementById('plan-graph');
-    canvasCanvas.style.width = width + 'px';
-    canvasCanvas.style.height = height + 'px';
-    canvasCanvas.width = width;
-    canvasCanvas.height = height;
-
-    <!-- draw the graph -->
-    var canvas = new canvasWrapper(canvasCanvas);
-    canvas.clear();
-    g.plot(canvas);
-    canvas.paint();
-  }
-
-  requestGraph();
-};
-    </script>
-    </div>
-    <h2>Products</h2>
-    <gxp:loop var="product" type="Product" iterable="products.values()">
-      <h3><a>
-        <gxp:attr name="id">detail:<gxp:eval expr="product.name"/></gxp:attr>
-        <gxp:attr name="href">./<gxp:eval expr="product.name"/></gxp:attr>
-        <gxp:eval expr="product.name"/>
-      </a></h3>
-      <gxp:if cond="product.help != null">
-        <gxp:if cond="!product.help.isSummaryInferred()">
-          <p class="preformat"><gxp:eval expr="product.help.summaryHtml"/></p>
-        </gxp:if>
-        <div class="preformat"><gxp:eval expr="product.help.detailHtml"/></div>
-      </gxp:if>
-    </gxp:loop>
+    <table width="100%"><tr>
+      <td><iframe src="../logs/summary.html" id="summary-log"/></td>
+      <td>
+        <h2>The Plan Graph</h2>
+        <div id="plan-graph-cont">
+          <script type="text/javascript">
+          <!-- GXP's HTML schema does not include canvas so render it here. -->
+          <![CDATA[
+          document.write(
+             ''
+              + '<canvas style="height: 500px; width: 100%; display: block"'
+              + ' id="plan-graph"></canvas>');
+          ]]></script>
+          <script type="text/javascript" src="../www-files/plan-graph.js" defer="defer"/>
+        </div>
+        <h2>Products</h2>
+        <gxp:loop var="product" type="Product" iterable="products.values()">
+          <h3><a>
+            <gxp:attr name="id">detail:<gxp:eval expr="product.name"/></gxp:attr>
+            <gxp:attr name="href"><gxp:eval expr="product.name"/></gxp:attr>
+            <gxp:eval expr="product.name"/>
+          </a></h3>
+          <gxp:if cond="product.help != null">
+            <gxp:if cond="!product.help.isSummaryInferred()">
+              <p class="preformat"><gxp:eval expr="product.help.summaryHtml"/></p>
+            </gxp:if>
+            <div class="preformat"><gxp:eval expr="product.help.detailHtml"/></div>
+          </gxp:if>
+        </gxp:loop>
+      </td>
+    </tr></table>
   </body>
 </html>
 </gxp:template>
