@@ -1,4 +1,4 @@
-#summary Mathy definition of a build system.
+#summary High level definition of a build system.
 
 = What is a Build System? =
 
