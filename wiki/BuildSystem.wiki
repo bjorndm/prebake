@@ -9,7 +9,12 @@ The set of rules specify a transformation from an input file tree to an output f
 
   BuildSystem : file-tree → file-tree'
 
-Build systems typically allow a developer to build portions of file-tree' so they can produce an executable for one architecture but not another.  So there exists a conceptual file-tree describing all possible outputs : file-tree∗.
+Build systems typically allow a developer to build portions of file-tree' so they can produce an executable for one architecture but not another.  So there exists an ideal file-tree containing all possible outputs : file-tree∗.
+
+This conceptual file-tree l is useful for a number of reasons:
+  # correctness.  To have confidence that their testing will find bugs before production, they need to know that the software they test on their local environment during development is similar to what the master build will produce for production runs, and not change based on the order in which they edit and manipulate source files.  The functional model is independent of the history of the file tree.
+  # efficiency.  To iterate quickly when working in a large codebase, builds need to be fast.  The functional definition of a build gives us a minimal criterion for deciding when to rebuild files.
+  # repeatability.  For developers to reproduce bugs, they need to be able to check out and build the same version of software that has shipped.  The functional model is independent of history.
 
 == Rules and Targets ==
 Most build systems have the concept of rules.
@@ -102,5 +107,77 @@ If the developer deletes `src/b` the system is inconsistent until `out/b` is del
 Most build systems including Make and Ant do a good job on the first two.  They use file modification timestamps to determine which files have changed.  Timestamps are not bullet-proof, but work reasonably well in practice.  Both though do nothing to preserve the third invariant.
 
 == Parameterized Rules ==
+=== Partial Runs ===
+Many build systems like Ant allow parameterized builds.  If you run tests under JUnit you can write a build rule that will filter tests by looking at system properties that change from one invocation of ant to the next.
+{{{
+  $ ant -Dtest.filter=FooTest runtests
+}}}
+to run only tests in the `FooTest` class and generate an output report with only details of that test.  If run without `-D...` (which sets a Java system property) it would run all tests and the output files, the test report, would contain reports for all tests.
 
-TODO : discuss parameterized builds
+=== L10N/I18N ===
+Often, the build system is involved in localizing a product into multiple languages.
+I might run
+{{{
+  $ LANG=de make all
+}}}
+to build the German language version of my application.  In this case, an environment variable was used to parameterize the build.
+
+=== Cross-Compiles ===
+Some projects need to ship multiple versions of the same dynamically libraries for different architectures, e.g. to generate a directory structure like
+{{{
+  lib/
+    arch/
+      win86/
+        foo.dll
+      linux-64/
+        foo.so
+      macos-x86/
+        foo.dylib
+}}}
+but want to share most of the build rules by using a rule where the architecture is an input parameter.
+
+=== Problems with Incremental Compilation ====
+Parameterized builds can be very useful.  It means that one build rule can serve many purposes.
+But it blows incremental consistency out of the water.  The only way for a build system that is parameterized this way to approximate the file tree based on our functional model is to rebuild from clean every time a parameter changes.  Ant does not do this, sacrificing correctness and repeatability, but it is common practice with Make based builds to use a `configure` script to generate a Makefile with parameters baked in.
+
+=== Functional parameterized targets ===
+We can preserve the functional model of a build system and enable the use cases that inspire parameterized build rules by making sure that parameters are explicit in the file system.
+
+In the case of test filters, the test filter becomes part of the test-report path.
+{{{
+  test-reports/
+    all/
+      report.html
+    only-FooTest/
+      report.html
+}}}
+
+In the case of the localized version of the applications, we would need to include the locale in the file tree.
+{{{
+  docs/
+    de/
+      index.html
+    en/
+      index.html
+    ...
+}}}
+mirroring the way architecture specific files are already bundled in the file tree.
+
+Prebake will expose (TODO: update once done) parameterized build rules by using glob-relations.
+A glob relation is a set of input globs, a set of output globs, and parameter meta-data.
+{{{
+{
+  inputs:  ['src/l10n/${locale}/translation-bundle',
+            'src/docs/index.template.html'],
+  outputs: 'out/docs/${locale}/index.html',
+  parameters: {
+    locale: ['de', 'en', ...]  // Acceptable values
+  }
+}
+}}}
+
+Figuring out which inputs are needed to produce which outputs is a simple matter of substitution.  Some parameters might have an infinite range, which is why we need to accept that for a parameterized build, the ideal file-system really is an idealization and strive for consistency in the set of files needed.
+
+== Where Prebake falls short ==
+TODO: assumptions about invariance of installed tools
+TODO: granularity of targets
