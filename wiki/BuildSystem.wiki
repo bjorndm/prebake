@@ -19,7 +19,7 @@ So in `make`, a rule might be
   %.o : %.c
           $(CC) $< -o $@
 }}}
-which says "invoke the C compiler with a C source file to produce an output object file.
+which says "invoke the C compiler with a C source file to produce an output object file."
 
 A target is the application of a rule to a set of files.  In Ant, there is no difference between a rule and a target, but with Make there are generic rules like the above that say how to produce one kind of file from another kind but there are also rules that produce specific files.
 
@@ -38,7 +38,7 @@ A build system is *consistent* when the developer's real file-tree contains all 
 So the source file-tree is trivially consistent.
 
 Many common build systems have no way to know whether they are consistent ; if you build some output files, change a source file, and rebuild you might get a different result than if you had not done the first build.
- 
+
 If we start from a known consistent state (the source file-tree) and build targets only when all their inputs are available then we can move from one consistent state to another when
   # no target spawned a process until that process's inputs were available (prereqs hold)
   # no process modifed a source file or a previously generated output (non-interference)
@@ -51,12 +51,55 @@ So a build system can maintain consistency by keeping an eye on the processes it
 But the real test of a build system is in how it moves from an inconsistent state back to a consistent state.
 
 Inconsistency arises in two ways:
-  # the developer changes or deletes a source file.  Now output files that depend on it are a source of inconsistency
-  # the developer changes a rule or target.
+  # the developer changes or deletes a source file.  Now output files that depend on the old version are a source of inconsistency
+  # the developer changes a rule or target.  Any output files the old version specified are a source of inconsistency.
 
 Given the above functional definition of a build system, the second is not an inconsistency in a build system, but the replacing of a consistent build system with an inconsistent one.
 
 To move from an inconsistent build to a consistent build, a build system needs to maintain the following additional invariants.
-TODO
+  # a target is scheduled to be rebuilt if one or more of its inputs has changed in a material way
+  # a target is scheduled to be rebuilt when a source file is created that should be an input is rebuilt
+  # when a target's inputs change in such a way that that target no longer specifies an output, that output is deleted or the target is rebuilt and building the target deletes obsolete outputs.
+
+As an example, consider a file tree that has a `src` directory with files that contain numbers, and that produces output files that contain corresponding files incremented by 1.
+{{{
+  src/
+    a : 4
+  out/
+    a : 5
+}}}
+
+If the developer creates a file `src/b` the system is consistent, but would be more useful if there were a corresponding `out/b` file.
+{{{
+  src/
+    a : 4
+    b : 22
+  out/
+    a : 5
+    # missing file out/b
+}}}
+
+If the developer changes `src/a` the system is inconsistent until `out/a` is deleted or changed.
+{{{
+  src/
+    a : 7    # changed
+    b : 22
+  out/
+    a : 5    # needs to be 8
+    b : 23
+}}}
+
+If the developer deletes `src/b` the system is inconsistent until `out/b` is deleted.
+{{{
+  src/
+    a : 7    # changed
+  out/
+    a : 8
+    b : 23   # obsolete file
+}}}
+
+Most build systems including Make and Ant do a good job on the first two.  They use file modification timestamps to determine which files have changed.  Timestamps are not bullet-proof, but work reasonably well in practice.  Both though do nothing to preserve the third invariant.
+
+== Parameterized Rules ==
 
 TODO : discuss parameterized builds
