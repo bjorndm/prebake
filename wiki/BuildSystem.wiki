@@ -92,7 +92,8 @@ If the developer changes `src/a` the system is inconsistent until `out/a` is del
 If the developer deletes `src/b` the system is inconsistent until `out/b` is deleted.
 {{{
   src/
-    a : 7    # changed
+    a : 7
+    # deleted
   out/
     a : 8
     b : 23   # obsolete file
