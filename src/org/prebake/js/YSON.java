@@ -290,12 +290,23 @@ public final class YSON {
       + "\\p{Nd}\\p{Mn}\\p{Mc}\\p{Pc}]*");
 
   /**
+   * True iff s is a valid JavaScript identifier.
    * See <a href="http://interglacial.com/javascript_spec/a-7.html#a-7.6">
    * section 7.6</a> for the definition of a JS identifier.
    */
   public static boolean isValidIdentifier(String s) {
     return !JS_KEYWORDS.contains(s)
         && IDENTIFIER_NAME.matcher(s).matches()
+        && Normalizer.isNormalized(s, Normalizer.Form.NFC);
+  }
+
+  /**
+   * True iff s is a valid JavaScript identifier or keyword.
+   * See <a href="http://interglacial.com/javascript_spec/a-7.html#a-7.6">
+   * section 7.6</a> for the definition of a JS identifier name.
+   */
+  public static boolean isValidIdentifierName(String s) {
+    return IDENTIFIER_NAME.matcher(s).matches()
         && Normalizer.isNormalized(s, Normalizer.Form.NFC);
   }
 
