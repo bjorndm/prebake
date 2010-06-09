@@ -58,7 +58,7 @@ public class GlobSetTest extends PbTestCase {
     for (int run = 50; --run >= 0;) {
       long seed = System.currentTimeMillis();
       try {
-        GlobSet fast = new GlobSet();
+        MutableGlobSet fast = new MutableGlobSet();
         SimpleGlobSet simple = new SimpleGlobSet();
         Random rnd = new Random(seed);
         Glob[] globs = new Glob[100];
@@ -121,7 +121,7 @@ public class GlobSetTest extends PbTestCase {
   }
 
   @Test public final void testGroupByPrefix() {
-    GlobSet gset = new GlobSet();
+    MutableGlobSet gset = new MutableGlobSet();
     gset.add(Glob.fromString("/foo/bar/*.java"));
     gset.add(Glob.fromString("/foo/bar/*.html"));
     gset.add(Glob.fromString("/foo/**/*.txt"));
@@ -139,11 +139,41 @@ public class GlobSetTest extends PbTestCase {
   }
 
   @Test public final void testExactPath() {
-    GlobSet gset = new GlobSet();
+    MutableGlobSet gset = new MutableGlobSet();
     gset.add(Glob.fromString("foo/bar/Foo.java"));
     gset.add(Glob.fromString("baz/*.html"));
     assertTrue(gset.matches(new StubPath("foo/bar/Foo.java")));
     assertFalse(gset.matches(new StubPath("foo/bar/Bar.java")));
+  }
+
+  @Test public final void testImmutableGlobSet() throws Exception {
+    FileSystem fs = fileSystemFromAsciiArt("/", "/");
+
+    MutableGlobSet mgs = new MutableGlobSet();
+    mgs.add(Glob.fromString("foo"));
+
+    assertTrue(mgs.matches(fs.getPath("foo")));
+    assertFalse(mgs.matches(fs.getPath("bar")));
+
+    ImmutableGlobSet igs = ImmutableGlobSet.copyOf(mgs);
+
+    assertTrue(igs.matches(fs.getPath("foo")));
+    assertFalse(igs.matches(fs.getPath("bar")));
+
+    mgs.add(Glob.fromString("bar"));
+
+    assertTrue(mgs.matches(fs.getPath("foo")));
+    assertTrue(mgs.matches(fs.getPath("bar")));
+    assertTrue(igs.matches(fs.getPath("foo")));
+    assertFalse(igs.matches(fs.getPath("bar")));
+
+    // Cannot cast away inability to modify.
+    try {
+      MutableGlobSet.class.cast(igs);
+      fail();
+    } catch (ClassCastException ex) {
+      // OK
+    }
   }
 
   private static final String[] WORDS = {

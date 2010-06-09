@@ -16,7 +16,7 @@ package org.prebake.fs;
 
 import org.prebake.core.ArtifactListener;
 import org.prebake.core.Glob;
-import org.prebake.core.GlobSet;
+import org.prebake.core.MutableGlobSet;
 
 import java.nio.file.Path;
 import java.util.Collection;
@@ -51,7 +51,7 @@ final class GlobDispatcher {
       = Multimaps.synchronizedListMultimap(Multimaps.newListMultimap(
           Maps.<GlobUnion, Collection<ArtifactListener<GlobUnion>>>newHashMap(),
           new ArrayListSupplier<ArtifactListener<GlobUnion>>()));
-  private final GlobSet gset = new GlobSet();
+  private final MutableGlobSet gset = new MutableGlobSet();
   private final Logger logger;
 
   /** @param logger receives exceptions thrown by listeners. */

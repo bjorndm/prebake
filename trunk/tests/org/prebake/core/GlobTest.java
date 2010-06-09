@@ -376,6 +376,9 @@ public class GlobTest extends PbTestCase {
     assertSubst("/foo", "/*(a)", "a=foo");
     assertSubst("/", "/*(a)", "a=");
     assertSubst("foo", "*(a)/foo", "a=");
+    assertSubst("foo/*.txt", "*(a)/foo/*.txt", "a=");
+    assertSubst("boo/foo/*.txt", "*(a)/foo/*.txt", "a=boo");
+    assertSubst("*/foo/bar.txt", "*/foo/*(a).txt", "a=bar");
   }
 
   private void assertRegexMatches(List<String> globStrs, String... golden) {
@@ -450,14 +453,13 @@ public class GlobTest extends PbTestCase {
     assertFalse(Glob.fromString(glob).match(path));
   }
 
-  private void assertSubst(String path, String glob, String... pairs) {
+  private void assertSubst(String golden, String glob, String... pairs) {
     Map<String, String> bindings = Maps.newHashMap();
     for (String pair : pairs) {
       int eq = pair.indexOf('=');
       bindings.put(pair.substring(0, eq), pair.substring(eq + 1));
     }
     Glob g = Glob.fromString(glob);
-    assertEquals(path, g.subst("/", bindings));
-    assertEquals(path.replace('/', '\\'), g.subst("\\", bindings));
+    assertEquals(golden, g.subst(bindings).toString());
   }
 }
