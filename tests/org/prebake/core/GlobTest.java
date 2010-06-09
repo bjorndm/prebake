@@ -358,6 +358,7 @@ public class GlobTest extends PbTestCase {
     assertNoMatch("*(x)/*(x)", "foo/bar");
     assertMatch("*(x)/*(x)", "foo/foo", "x=foo");
     assertMatch("*(x)/**(y)/boo", "foo/bar/baz/boo", "x=foo", "y=bar/baz");
+    assertMatch("*(x)/**/boo/*.html", "foo/bar/baz/boo/index.html", "x=foo");
   }
 
   @Test public final void testSubst() {

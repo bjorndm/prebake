@@ -681,7 +681,8 @@ public final class Glob implements Comparable<Glob>, JsonSerializable {
       Map<String, String> newBindings = Maps.newLinkedHashMap();
 
       for (int i = 0, n = holes.length; i < n; ++i) {
-        String parameterName = holes[i];
+        @Nullable String parameterName = holes[i];
+        if (parameterName == null) { continue; }
         String bindingValue = existingBindings.get(parameterName);
         String value = m.group(i + 1);
         value = value != null ? value.replace('\\', '/') : "";
