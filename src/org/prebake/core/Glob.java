@@ -30,6 +30,7 @@ import com.google.common.collect.Maps;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
@@ -481,6 +482,11 @@ public final class Glob implements Comparable<Glob>, JsonSerializable {
     return Collections.unmodifiableList(Arrays.asList(parts));
   }
 
+  void enumerateHoleNamesOnto(Collection<? super String> out) {
+    if (holes == null) { return; }
+    for (String hole : holes) { if (hole != null) { out.add(hole); } }
+  }
+
   /**
    * The most specific path which is a strict ancestor of all paths matched by
    * this glob.
@@ -703,7 +709,8 @@ public final class Glob implements Comparable<Glob>, JsonSerializable {
     return true;
   }
 
-  public String subst(String pathSep, Map<String, String> bindings) {
+  /** Substitute parameter bindings to get a more specific glob. */
+  public Glob subst(Map<String, String> bindings) {
     StringBuilder sb = new StringBuilder();
     int h = 0;
     boolean pendingSep = false;  // True if we need to write out a separator
@@ -716,26 +723,31 @@ public final class Glob implements Comparable<Glob>, JsonSerializable {
           pendingSep = i == 0 || sb.length() != 0;
           break;
         case '*':
-          String value = null;
-          if (holes != null && bindings != null) {
-            value = bindings.get(holes[h++]);
-          }
-          if (value != null && !"".equals(value)) {
+          String holeName = holes != null ? holes[h++] : null;
+          if (holeName != null) {
+            String value = bindings.get(holeName);
+            if (value != null && !"".equals(value)) {
+              if (pendingSep) {
+                if (!value.startsWith("/")) { sb.append('/'); }
+                pendingSep = false;
+              }
+              if (value.endsWith("/")) {
+                pendingSep = true;
+                value = value.substring(0, value.length() - 1);
+              }
+              sb.append(value);
+            }
+          } else {
             if (pendingSep) {
-              if (!value.startsWith("/")) { sb.append(pathSep); }
+              sb.append('/');
               pendingSep = false;
             }
-            if (value.endsWith("/")) {
-              pendingSep = true;
-              value = value.substring(0, value.length() - 1);
-            }
-            if (!"/".equals(pathSep)) { value = value.replace("/", pathSep); }
-            sb.append(value);
+            sb.append(part);
           }
           break;
         default:
           if (pendingSep) {
-            sb.append(pathSep);
+            sb.append('/');
             pendingSep = false;
           }
           sb.append(part);
@@ -744,8 +756,8 @@ public final class Glob implements Comparable<Glob>, JsonSerializable {
     }
     // Special case /.  Normally we ignore a sep at the end to avoid putting
     // the trailing / in foo/ for consistency.
-    if (pendingSep && sb.length() == 0) { return pathSep; }
-    return sb.toString();
+    if (pendingSep && sb.length() == 0) { return Glob.fromString("/"); }
+    return Glob.fromString(sb.toString());
   }
 
   private void toRegex(

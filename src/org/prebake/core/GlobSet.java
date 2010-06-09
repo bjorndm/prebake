@@ -24,6 +24,7 @@ import com.google.common.collect.Multimaps;
 
 import java.nio.file.Path;
 import java.util.Collection;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
@@ -37,15 +38,13 @@ import javax.annotation.ParametersAreNonnullByDefault;
  * @author Mike Samuel <mikesamuel@gmail.com>
  */
 @ParametersAreNonnullByDefault
-public class GlobSet {
-  final PrefixTree prefixTree = new PrefixTree();
+public abstract class GlobSet implements Iterable<Glob> {
+  private final PrefixTree prefixTree = new PrefixTree();
 
-  public GlobSet() { /* no-op */ }
+  GlobSet() { /* no-op */ }
 
   /** A copy of the given glob set. */
-  public GlobSet(GlobSet gset) {
-    copy(gset.prefixTree, prefixTree);
-  }
+  GlobSet(GlobSet gset) { copy(gset.prefixTree, prefixTree); }
 
   private PrefixTree lookup(Glob glob, boolean create) {
     List<String> parts = glob.parts();
@@ -72,18 +71,8 @@ public class GlobSet {
    * Adds a glob to the set so subsequent calls to {@link #matching} will
    * include it for paths that match glob.
    */
-  public void add(Glob glob) {
+  protected void add(Glob glob) {
     lookup(glob, true).add(glob);
-  }
-
-  /**
-   * Adds all the given globs.
-   * @see #add
-   * @see #remove
-   */
-  public GlobSet addAll(Iterable<Glob> globs) {
-    for (Glob g : globs) { add(g); }
-    return this;
   }
 
   /**
@@ -92,7 +81,7 @@ public class GlobSet {
    * @return true iff the glob changes.  I.e., true iff glob was added and not
    *     subsequently removed prior to this call.
    */
-  public boolean remove(Glob glob) {
+  protected boolean remove(Glob glob) {
     return lookup(glob, false).remove(glob);
   }
 
@@ -245,5 +234,17 @@ public class GlobSet {
       pathStr = pathStr.replace(sep, "/");
     }
     return pathStr;
+  }
+
+  public Iterator<Glob> iterator() {
+    ImmutableList.Builder<Glob> items = ImmutableList.builder();
+    iterateOnto(prefixTree, items);
+    return items.build().iterator();
+  }
+
+  private static void iterateOnto(
+      PrefixTree t, ImmutableList.Builder<? super Glob> out) {
+    out.addAll(t.globsByExtension.values());
+    for (PrefixTree child : t.children.values()) { iterateOnto(child, out); }
   }
 }

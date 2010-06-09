@@ -16,6 +16,8 @@ package org.prebake.service.bake;
 
 import org.prebake.core.Glob;
 import org.prebake.core.GlobSet;
+import org.prebake.core.ImmutableGlobSet;
+import org.prebake.core.MutableGlobSet;
 
 import java.io.IOException;
 import java.nio.file.Path;
@@ -44,8 +46,7 @@ final class WorkingDir {
       final Path workingDir, final Set<Path> exclusions,
       ImmutableList<Glob> toMatch)
       throws IOException {
-    final GlobSet outputMatcher = new GlobSet();
-    outputMatcher.addAll(toMatch);
+    final GlobSet outputMatcher = ImmutableGlobSet.of(toMatch);
     // Get the prefix map so we only walk subtrees that are important.
     // E.g. for output globs
     //     [foo/lib/bar/*.lib, foo/lib/**.o, foo/lib/**.so, foo/bin/*.a]
@@ -85,7 +86,7 @@ final class WorkingDir {
         String pStr = p.toString();
         List<Glob> extras = groupedByDir.get(pStr);
         if (extras != null) {
-          globs = new GlobSet(globs).addAll(extras);
+          globs = new MutableGlobSet(globs).addAll(extras);
           walked.add(pStr);
         }
         BasicFileAttributes attrs = Attributes.readBasicFileAttributes(p);
@@ -104,7 +105,7 @@ final class WorkingDir {
       String prefix = e.getKey();
       if (w.walked.contains(prefix)) { continue; }  // already walked
       Path p = workingDir.resolve(prefix);
-      if (!p.notExists()) { w.walk(p, new GlobSet()); }
+      if (!p.notExists()) { w.walk(p, ImmutableGlobSet.empty()); }
     }
     return w.out.build();
   }
