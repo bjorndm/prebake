@@ -21,6 +21,7 @@ import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.regex.Pattern;
 
 import javax.annotation.Nullable;
@@ -29,6 +30,7 @@ import com.google.common.base.Function;
 import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 
 import org.junit.Test;
 
@@ -72,6 +74,15 @@ public class GlobTest extends PbTestCase {
     assertEquals(
         Arrays.asList("foo", "/", "**", "/", "bar.baz"),
         Glob.fromString("foo/**/bar.baz").parts());
+    assertEquals(
+        Arrays.asList("foo", "/", "**", "/", "bar.baz"),
+        Glob.fromString("foo/**(x)/bar.baz").parts());
+    assertEquals(
+        Arrays.asList("foo", "/", "*", "/", "bar.baz"),
+        Glob.fromString("foo/*(bar)/bar.baz").parts());
+    assertEquals(
+        "foo/**(x)/bar.baz",
+        Glob.fromString("foo/**(x)/bar.baz").toString());
     try {
       Glob.fromString("foo/***/bar.baz");
       fail("parsed");
@@ -86,6 +97,18 @@ public class GlobTest extends PbTestCase {
     }
     try {
       Glob.fromString("foo//bar.baz");
+      fail("parsed");
+    } catch (Glob.GlobSyntaxException ex) {
+      // ok
+    }
+    try {
+      Glob.fromString("*(foo//bar.baz");
+      fail("parsed");
+    } catch (Glob.GlobSyntaxException ex) {
+      // ok
+    }
+    try {
+      Glob.fromString("*(foo())/bar.baz");  // parameter is not a JS identifier
       fail("parsed");
     } catch (Glob.GlobSyntaxException ex) {
       // ok
@@ -318,9 +341,46 @@ public class GlobTest extends PbTestCase {
     assertEquals("lib/org/prebake", Glob.normGlob("lib//org//prebake/"));
   }
 
+  @Test public final void testMatches() {
+    assertMatch("foo/bar", "foo/bar");
+    assertNoMatch("foo/bar", "foo/baz");
+    assertMatch("foo/*", "foo/bar", (String[]) null);
+    assertMatch("foo/*(x)", "foo/bar", "x=bar");
+    assertMatch("foo/**.txt", "foo/bar.txt", (String[]) null);
+    assertMatch("foo/**(x).txt", "foo/bar.txt", "x=bar");
+    assertMatch("foo/**.txt", "foo/bar/baz.txt", (String[]) null);
+    assertMatch("foo/**(x).txt", "foo/bar/baz.txt", "x=bar/baz");
+    assertMatch("foo/**.txt", "foo\\bar\\az.txt", (String[]) null);
+    assertMatch("foo/**(x).txt", "foo\\bar\\baz.txt", "x=bar/baz");
+    assertMatch("foo/**(x)/baz", "foo\\bar\\baz", "x=bar");
+    assertMatch("foo/**(x)/baz", "foo\\baz", "x=");
+    assertMatch("*(x)/*(y)", "foo/baz", "x=foo", "y=baz");
+    assertNoMatch("*(x)/*(x)", "foo/bar");
+    assertMatch("*(x)/*(x)", "foo/foo", "x=foo");
+    assertMatch("*(x)/**(y)/boo", "foo/bar/baz/boo", "x=foo", "y=bar/baz");
+  }
+
+  @Test public final void testSubst() {
+    assertSubst("foo/bar", "foo/*(a)", "a=bar");
+    assertSubst("foo/bar/baz", "foo/**(a)/baz", "a=bar");
+    assertSubst("foo/baz", "foo/**(a)/baz");
+    assertSubst("foo/baz", "foo/**(a)/baz", "a=");
+    assertSubst(
+        "foo/bar/baz/boo.txt",
+        "foo///**(a)/baz/*(b).txt", "a=bar", "b=boo");
+    assertSubst(
+        "foo/boo/baz/bar.txt",
+        "foo///**(b)/baz/*(a).txt", "a=bar", "b=boo");
+    assertSubst("foo", "*(a)/*(b)", "a=foo");
+    assertSubst("/foo", "/*(a)", "a=foo");
+    assertSubst("/", "/*(a)", "a=");
+    assertSubst("foo", "*(a)/foo", "a=");
+  }
+
   private void assertRegexMatches(List<String> globStrs, String... golden) {
     List<Glob> globs = Lists.newArrayList();
     for (String globStr : globStrs) { globs.add(Glob.fromString(globStr)); }
+    Joiner j = Joiner.on(" ; ");
     Pattern p = Glob.toRegex(globs);
     {
       List<String> actual = Lists.newArrayList();
@@ -332,9 +392,7 @@ public class GlobTest extends PbTestCase {
            }) {
         if (p.matcher(candidate).matches()) { actual.add(candidate); }
       }
-      assertEquals(
-          Joiner.on(" ; ").join(golden),
-          Joiner.on(" ; ").join(actual));
+      assertEquals(j.join(golden), j.join(actual));
     }
     {
       List<String> actual = Lists.newArrayList();
@@ -346,9 +404,7 @@ public class GlobTest extends PbTestCase {
            }) {
         if (p.matcher(candidate).matches()) { actual.add(candidate); }
       }
-      assertEquals(
-          Joiner.on(" ; ").join(golden).replace('/', '\\'),
-          Joiner.on(" ; ").join(actual));
+      assertEquals(j.join(golden).replace('/', '\\'), j.join(actual));
     }
   }
 
@@ -357,5 +413,50 @@ public class GlobTest extends PbTestCase {
     Function<String, String> xform = Glob.transform(
         Glob.fromString(input), Glob.fromString(output));
     assertEquals(golden, xform.apply(path));
+  }
+
+  private void assertMatch(
+      String glob, String path, @Nullable String... bindings) {
+    Glob g = Glob.fromString(glob);
+    Map<String, String> bindingsMap = bindings != null
+        ? Maps.<String, String>newLinkedHashMap() : null;
+    assertTrue(g.match(path, bindingsMap));
+    if (bindingsMap != null) {
+      List<String> actual = Lists.newArrayList();
+      for (Map.Entry<String, String> e : bindingsMap.entrySet()) {
+        actual.add(e.getKey() + "=" + e.getValue());
+      }
+      assertEquals(Arrays.asList(bindings), actual);
+      // Now, retest with non-empty bindings
+      if (!bindingsMap.isEmpty()) {
+        Map<String, String> newBindingsMap = Maps.newLinkedHashMap(bindingsMap);
+        assertTrue(g.match(path, newBindingsMap));
+        assertEquals(bindingsMap, newBindingsMap);
+        // Now, test with a partial bindingsMap
+        if (bindingsMap.size() > 1) {
+          for (Map.Entry<String, String> e : bindingsMap.entrySet()) {
+            Map<String, String> singleEntryMap = Maps.newLinkedHashMap();
+            singleEntryMap.put(e.getKey(), e.getValue());
+            assertTrue(g.match(path, singleEntryMap));
+            assertEquals(bindingsMap, singleEntryMap);
+          }
+        }
+      }
+    }
+  }
+
+  private void assertNoMatch(String glob, String path) {
+    assertFalse(Glob.fromString(glob).match(path));
+  }
+
+  private void assertSubst(String path, String glob, String... pairs) {
+    Map<String, String> bindings = Maps.newHashMap();
+    for (String pair : pairs) {
+      int eq = pair.indexOf('=');
+      bindings.put(pair.substring(0, eq), pair.substring(eq + 1));
+    }
+    Glob g = Glob.fromString(glob);
+    assertEquals(path, g.subst("/", bindings));
+    assertEquals(path.replace('/', '\\'), g.subst("\\", bindings));
   }
 }

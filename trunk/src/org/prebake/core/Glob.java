@@ -16,6 +16,7 @@ package org.prebake.core;
 
 import org.prebake.js.JsonSerializable;
 import org.prebake.js.JsonSink;
+import org.prebake.js.YSON;
 import org.prebake.js.YSONConverter;
 
 import com.google.common.base.Function;
@@ -24,6 +25,7 @@ import com.google.common.base.Splitter;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 
 import java.io.IOException;
 import java.nio.file.Path;
@@ -31,6 +33,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -66,21 +69,26 @@ import javax.annotation.ParametersAreNonnullByDefault;
  */
 @ParametersAreNonnullByDefault
 public final class Glob implements Comparable<Glob>, JsonSerializable {
-  private final String[] parts;
   private final int treeRootIndex;
+  private final String[] parts;
+  private final @Nullable String[] holes;
   private transient Pattern regex;
 
-  private Glob(int treeRootIndex, String... parts) {
-    this.parts = parts;
+  private Glob(int treeRootIndex, String[] parts, @Nullable String[] holes) {
     this.treeRootIndex = treeRootIndex;
+    this.parts = parts;
+    this.holes = holes;
   }
+
+  private static final String[] ZERO_STRINGS = new String[0];
 
   /** See the grammar at http://code.google.com/p/prebake/wiki/Glob. */
   public static Glob fromString(String s) {
     int n = s.length();
     int partCount = 0;
     int treeRootIndex = 0;
-    boolean sawStar = false;
+    int nHoles = 0;
+    boolean hasNamedHoles = false;
     for (int i = 0; i < n; ++i) {
       ++partCount;
       switch (s.charAt(i)) {
@@ -90,7 +98,12 @@ public final class Glob implements Comparable<Glob>, JsonSerializable {
             // Three adjacent *'s not allowed.
             if (i + 1 < n && s.charAt(i + 1) == '*') { badGlob(s); }
           }
-          sawStar = true;
+          if (i + 1 < n && s.charAt(i + 1) == '(') {
+            i = s.indexOf(')', i + 2);
+            if (i < 0) { badGlob(s); }
+            hasNamedHoles = true;
+          }
+          ++nHoles;
           break;
         case '/': {
           // Two adjacent path separators not allowed unless as part of a tree
@@ -100,11 +113,9 @@ public final class Glob implements Comparable<Glob>, JsonSerializable {
           switch (i - start) {  // number of extra slashes
             case 0: break;
             case 2:
-              if (treeRootIndex == 0 && !sawStar) {
-                treeRootIndex = partCount - 1;
-                break;
-              }
-              // $FALL-THROUGH$
+              if (treeRootIndex != 0 || nHoles != 0) { badGlob(s); }
+              treeRootIndex = partCount - 1;
+              break;
             default: badGlob(s);
           }
           break;
@@ -121,17 +132,27 @@ public final class Glob implements Comparable<Glob>, JsonSerializable {
       }
     }
     String[] parts = new String[partCount];
-    int k = -1;
-    for (int i = 0; i < n;) {
-      int pos = i;
+    String[] holes = nHoles == 0 ? ZERO_STRINGS : new String[nHoles];
+    int p = -1, h = 0;
+    for (int i = 0; i < n; ++i) {
+      int start = i;
       switch (s.charAt(i)) {
         case '*':
           if (i + 1 < n && s.charAt(i + 1) == '*') { ++i; }
+          parts[++p] = i == start ? "*" : "**";
+          if (i + 1 < n && s.charAt(i + 1) == '(') {
+            int end = s.indexOf(')', i + 2);
+            String hole = holes[h] = s.substring(i + 2, end);
+            if (!YSON.isValidIdentifierName(hole)) { badGlob(s); }
+            i = end;
+          }
+          ++h;
           break;
         case '/':
-          if (k != -1 && k + 1 == treeRootIndex) {
-            i = pos += 2;
+          if (p != -1 && p + 1 == treeRootIndex) {
+            i = start += 2;
           }
+          parts[++p] = i == start ? "/" : "///";
           break;
         default:
           while (i + 1 < n) {
@@ -139,20 +160,20 @@ public final class Glob implements Comparable<Glob>, JsonSerializable {
             if (next == '/') { break; }
             ++i;
           }
+          String part = s.substring(start, i + 1);
+          // . and .. are not allowed as path parts.
+          switch (part.length()) {
+            case 0: throw new IllegalStateException();
+            case 2: if ('.' != part.charAt(1)) { break; }
+            // $FALL-THROUGH$
+            case 1: if ('.' == part.charAt(0)) { badGlob(s); } break;
+            default: break;  // OK
+          }
+          parts[++p] = part;
           break;
       }
-      String part = s.substring(pos, ++i);
-      // . and .. are not allowed as path parts.
-      switch (part.length()) {
-        case 0: throw new IllegalStateException();
-        case 2: if ('.' != part.charAt(1)) { break; }
-          // $FALL-THROUGH$
-        case 1: if ('.' == part.charAt(0)) { badGlob(s); } break;
-        default: break;  // OK
-      }
-      parts[++k] = part;
     }
-    return new Glob(treeRootIndex, parts);
+    return new Glob(treeRootIndex, parts, hasNamedHoles ? holes : null);
   }
 
   private static void badGlob(String glob) {
@@ -427,8 +448,13 @@ public final class Glob implements Comparable<Glob>, JsonSerializable {
       for (int i = 0; i < treeRootIndex; ++i) { sb.append(parts[i]); }
       sb.append("//");
     }
-    for (int i = treeRootIndex, n = parts.length; i < n; ++i) {
-      sb.append(parts[i]);
+    for (int i = treeRootIndex, h = 0, n = parts.length; i < n; ++i) {
+      String part = parts[i];
+      sb.append(part);
+      if (holes != null && part.charAt(0) == '*') {
+        String name = holes[h];
+        if (name != null) { sb.append('(').append(name).append(')'); }
+      }
     }
     return sb.toString();
   }
@@ -542,7 +568,7 @@ public final class Glob implements Comparable<Glob>, JsonSerializable {
       for (int i = np; --i >= 0;) {
         parts[i] = partsReversed.get(np - i - 1);
       }
-      return new Glob(treeRootIndex, parts);
+      return new Glob(treeRootIndex, parts, null);
     }
 
     boolean intersects() {
@@ -631,13 +657,94 @@ public final class Glob implements Comparable<Glob>, JsonSerializable {
   }
 
   /** True iff this glob matches the given path. */
-  public boolean match(String path) {
+  public boolean match(String path) { return match(path, null); }
+
+  /**
+   * True iff this glob matches the given path given the given bindings.
+   * @param parameterBindings if non-null, then any named parameters must match
+   *    keys that are present in the given bindings map.  If the match is
+   *    successful any parameters whose names were not in the map will be put
+   *    into this map.
+   */
+  public boolean match(
+      String path, @Nullable Map<String, String> parameterBindings) {
     if (regex == null) {
       StringBuilder sb = new StringBuilder();
-      toRegex("/\\\\", false, sb);
+      toRegex("/\\\\", holes != null, sb);
       regex = Pattern.compile(sb.toString(), Pattern.DOTALL);
     }
-    return regex.matcher(path).matches();
+    Matcher m = regex.matcher(path);
+    if (!m.matches()) { return false; }
+    if (holes != null) {
+      Map<String, String> existingBindings = parameterBindings != null
+          ? parameterBindings : Collections.<String, String>emptyMap();
+      Map<String, String> newBindings = Maps.newLinkedHashMap();
+
+      for (int i = 0, n = holes.length; i < n; ++i) {
+        String parameterName = holes[i];
+        String bindingValue = existingBindings.get(parameterName);
+        String value = m.group(i + 1);
+        value = value != null ? value.replace('\\', '/') : "";
+        if (bindingValue == null) {
+          String existingBinding = newBindings.put(parameterName, value);
+          if (existingBinding != null && !existingBinding.equals(value)) {
+            // Contradictory binding
+            return false;
+          }
+        } else if (!bindingValue.equals(value)) {
+          return false;
+        }
+      }
+      if (parameterBindings != null) {
+        parameterBindings.putAll(newBindings);
+      }
+    }
+    return true;
+  }
+
+  public String subst(String pathSep, Map<String, String> bindings) {
+    StringBuilder sb = new StringBuilder();
+    int h = 0;
+    boolean pendingSep = false;  // True if we need to write out a separator
+    for (int i = 0, n = parts.length; i < n; ++i) {
+      String part = parts[i];
+      switch (part.charAt(0)) {
+        case '/':
+          // Put a separator at the beginning of /foo. but not at the beginning
+          // of *(a)/foo when a is blank.
+          pendingSep = i == 0 || sb.length() != 0;
+          break;
+        case '*':
+          String value = null;
+          if (holes != null && bindings != null) {
+            value = bindings.get(holes[h++]);
+          }
+          if (value != null && !"".equals(value)) {
+            if (pendingSep) {
+              if (!value.startsWith("/")) { sb.append(pathSep); }
+              pendingSep = false;
+            }
+            if (value.endsWith("/")) {
+              pendingSep = true;
+              value = value.substring(0, value.length() - 1);
+            }
+            if (!"/".equals(pathSep)) { value = value.replace("/", pathSep); }
+            sb.append(value);
+          }
+          break;
+        default:
+          if (pendingSep) {
+            sb.append(pathSep);
+            pendingSep = false;
+          }
+          sb.append(part);
+          break;
+      }
+    }
+    // Special case /.  Normally we ignore a sep at the end to avoid putting
+    // the trailing / in foo/ for consistency.
+    if (pendingSep && sb.length() == 0) { return pathSep; }
+    return sb.toString();
   }
 
   private void toRegex(
