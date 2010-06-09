@@ -22,6 +22,10 @@ A plan file declares zero or more products which are [YSON ΛSON] structures of 
 
 == Name ==
 A string that uniquely identifies this product.
+The name must not be empty and can only contain JavaScript name characters
+(alphanumerics, '_', '$'), dots and dashes; but cannot be all dots.
+
+A good naming convention is dot separated identifiers.
 
 == Inputs ==
 [Glob Globs] that specify which files the actions apply to.

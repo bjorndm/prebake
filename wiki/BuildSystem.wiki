@@ -176,7 +176,7 @@ A glob relation is a set of input globs, a set of output globs, and parameter me
 }
 }}}
 
-Figuring out which inputs are needed to produce which outputs is a simple matter of substitution.  Some parameters might have an infinite range, which is why we need to accept that for a parameterized build, the ideal file-system really is an idealization and strive for consistency in the set of files needed.
+Figuring out which inputs are needed to produce which outputs is a simple matter of substitution.  Some parameters might have an infinite range, which is why we need to accept that for a parameterized build, the ideal file-system really is an idealization and strive for consistency in the set of files needed.  Those parameters with infinite range should have a sensible default.  But for other parameters, the most important ones for release builds, the set of acceptable values is small.
 
 == Where Prebake falls short ==
 TODO: assumptions about invariance of installed tools

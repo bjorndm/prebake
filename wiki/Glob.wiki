@@ -22,6 +22,24 @@ There are many different glob syntaxes used on various systems.
 || {{{foo/**/*.rb}}} || {{{foo/bar.rb}}}, {{{foo/bar/baz/boo.rb}}} || {{{foo.rb}}} ||
 
 
+== Matching and Substitution ==
+A glob can be thought of as a [http://www.cypherpunks.to/erights/elang/grammar/quasi-overview.html quasi-literal] for file paths ; it can provide both match and substitute operators.
+
+The ability to match and substitute can come in handy when trying to map one file tree to another.  For example, in
+{{{
+  tools.cp('src/**/stuff/*.ext1', 'out/**/*.ext2');
+}}}
+defines an action that copies all files that end with `.ext1` that are children of a `stuff` directory under source, to a corresponding directory under `out` but without the `stuff` path element and with a different file extension.
+
+The `cp` tool figures out the destination of each output file by substituting quasi-holes.  Consider applying the above action to the input file `src/foo/bar/stuff/baz.ext1`:
+{{{
+input path    src / foo/bar / stuff / baz .ext1
+input glob    src / **      / stuff / *   .ext1
+output glob   out / **      /         *   .ext2
+output path   out / foo/bar / stuff / baz .ext2
+}}}
+Tools can treat globs as quasis by using the [CommonJsEnv common] `glob.matcher` JavaScript API.
+
 == Constraints ==
 To allow us to efficiently compute intersection, we place some limits on where {{{*}}} and {{{**}}} can appear.
   * three or more asterisks ({{{***}}}) cannot appear in a row.
