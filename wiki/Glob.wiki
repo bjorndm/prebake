@@ -36,7 +36,7 @@ The `cp` tool figures out the destination of each output file by substituting qu
 input path    src / foo/bar / stuff / baz .ext1
 input glob    src / **      / stuff / *   .ext1
 output glob   out / **      /         *   .ext2
-output path   out / foo/bar / stuff / baz .ext2
+output path   out / foo/bar /         baz .ext2
 }}}
 Tools can treat globs as quasis by using the [CommonJsEnv common] `glob.matcher` JavaScript API.
 
@@ -108,9 +108,14 @@ PatternTailNoStar
   ;
 
 PathElement
-  : '**' PathElementNoStar
-  | '*' PathElementNoStar
+  : '**' QuasiNameOpt PathElementNoStar
+  | '*' QuasiNameOpt PathElementNoStar
   | PathElementNoStar
+  ;
+
+QuasiNameOpt
+  : empty
+  | '(' JsIdentifier ')'
   ;
 
 PathElementNoStar
