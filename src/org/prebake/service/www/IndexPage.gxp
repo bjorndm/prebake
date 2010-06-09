@@ -28,9 +28,11 @@
             </a></h3>
             <gxp:if cond="tool != null &amp;&amp; tool.help != null">
               <gxp:if cond="!tool.help.isSummaryInferred()">
-                <p class="preformat"><gxp:eval expr="tool.help.summaryHtml"/></p>
+                <p class="preformat"
+                 ><gxp:eval expr="tool.help.summaryHtml"/></p>
               </gxp:if>
-              <div class="preformat"><gxp:eval expr="tool.help.detailHtml"/></div>
+              <div class="preformat"
+               ><gxp:eval expr="tool.help.detailHtml"/></div>
             </gxp:if>
           </gxp:abbr>
         </gxp:loop>
@@ -38,14 +40,17 @@
         <h2 id="products"><a href="plan/index.html">Products</a></h2>
         <gxp:loop var="product" type="Product" iterable="products.values()">
           <h3><a>
-            <gxp:attr name="href">plan/<gxp:eval expr="product.name"/></gxp:attr>
+            <gxp:attr name="href"
+             >product/<gxp:eval expr="product.name"/></gxp:attr>
             <gxp:eval expr="product.name"/>
           </a></h3>
           <gxp:if cond="product.help != null">
             <gxp:if cond="!product.help.isSummaryInferred()">
-              <p class="preformat"><gxp:eval expr="product.help.summaryHtml"/></p>
+              <p class="preformat"
+               ><gxp:eval expr="product.help.summaryHtml"/></p>
             </gxp:if>
-            <div class="preformat"><gxp:eval expr="product.help.detailHtml"/></div>
+            <div class="preformat"
+             ><gxp:eval expr="product.help.detailHtml"/></div>
           </gxp:if>
         </gxp:loop>
       </td>

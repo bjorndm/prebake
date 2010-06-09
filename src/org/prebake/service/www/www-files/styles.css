@@ -30,7 +30,7 @@ td, th { vertical-align: top }
 
 /* A group of links on each page to parent pages that floats to the
  * right of the title. */
-#navbar { float: right; font-size: 75%; margin-right: .5em }
+#navbar { float: right; font-size: 75%; margin-right: .5em; display: inline }
 
 /* An iframe that contains a self-updating log */
 #summary-log {
@@ -42,3 +42,5 @@ td, th { vertical-align: top }
 li .time { margin-right: 1ex }
 /* Deemphasize padding digits. */
 .low-value { color: #666 }
+
+.selected { background: #ccf }

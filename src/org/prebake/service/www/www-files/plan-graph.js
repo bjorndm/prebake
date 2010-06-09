@@ -33,9 +33,24 @@
     req.send();
   }
 
-  function scrollerTo(nodeName) {
-    return function () { window.location = '#detail:' + nodeName; };
+  var selected;
+  function scrollTo(productName) {
+    var id = 'detail:' + productName;
+    var newSelected = document.getElementById(id);
+    if (selected) {
+      selected.className = selected.className.replace(/\bselected\b/g, '');
+    }
+    selected = newSelected;
+    if (selected) {
+      selected.className = selected.className + ' selected';
+    }
+    window.location = '#' + id;
   }
+  setTimeout(
+      function () {
+        var m = location.hash.match(/^#detail:(.+)$/);
+        if (m) { scrollTo(m[1]); }
+      }, 0);
 
   var canvasCont = document.getElementById('plan-graph-cont');
   var width = canvasCont.offsetWidth - 4;
@@ -75,6 +90,27 @@
     canvasCanvas.style.height = height + 'px';
     canvasCanvas.width = width;
     canvasCanvas.height = height;
+
+    // Register an onclick handler to handle clicks on nodes.
+    canvasCanvas.onclick = function (event) {
+      event = event || window.event;
+      var x = event.clientX;
+      var y = event.clientY;
+      for (var el = canvasCanvas; el; el = el.offsetParent) {
+        x -= el.offsetLeft;
+        y += el.scrollTop - el.offsetTop;
+      }
+      for (var i = 0, n = g.vertices.length; i < n; ++i) {
+        var vertex = g.vertices[i];
+        var dx = x - vertex.x, dy = y - vertex.y;
+        if (dx >= 0 && dx < vertex.style.width
+            && dy >= 0 && dy < vertex.style.height) {
+          var productName = vertex.label;
+          scrollTo(productName);
+          break;
+        }
+      }
+    };
 
     // Draw the graph
     var canvas = new canvasWrapper(canvasCanvas);

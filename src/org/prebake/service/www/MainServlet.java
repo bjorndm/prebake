@@ -171,6 +171,7 @@ public final class MainServlet extends HttpServlet {
     String path = URI.create(req.getRequestURI()).getPath();
     if (!checkAuthorized(path, req, resp, true)) { return; }
 
+    // See package-info.java for the file tree described here.
     if ("/".equals(path)) {
       redirectTo(resp, "/index.html");
     } else if ("/index.html".equals(path)) {
@@ -195,8 +196,10 @@ public final class MainServlet extends HttpServlet {
       } else if ("plan.json".equals(subPath)) {
         servePlanJson(resp);
       } else {
-        serveProductDoc(subPath, resp);
+        resp.sendError(404);
       }
+    } else if (path.startsWith("/product/")) {
+      serveProductDoc(path.substring(9), resp);
     } else if (path.startsWith("/logs/")) {
       serveLogFile(path.substring(6), resp);
     } else if (path.startsWith("/mirror/")) {
@@ -352,8 +355,7 @@ public final class MainServlet extends HttpServlet {
     resp.setContentType("text/html; charset=UTF-8");
     Writer w = resp.getWriter();
     PlanIndexPage.write(
-        w, GxpContext.builder(Locale.ENGLISH).build(),
-        pb.getProducts(), pb.getUpToDateProducts());
+        w, GxpContext.builder(Locale.ENGLISH).build(), pb.getProducts());
     w.close();
   }
 

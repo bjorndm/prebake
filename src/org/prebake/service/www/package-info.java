@@ -29,6 +29,7 @@
  *   plan/
  *     index.html                           Plan graph and list of products
  *     plan.json                            JSON formatted plan summary.
+ *   product/
  *     &lt;product-name<sub>0</sub>&gt;                      HTML product docs.
  *     &lt;product-name<sub>1</sub>&gt;
  *     ...
@@ -56,10 +57,8 @@
  * TODO: interactive testbed for globs to test path transforms
  * TODO: interactive testbed for tools to see what command line they generate,
  *   and to get feedback on options
- * TODO: make the plan graph embeddable -- as an iframe
  * TODO: for demos, have a page that shows the plan graph and a scrolling log
  *   of file watcher changes.
- * TODO: make sure product files do not conflict with "index.html"
  * </pre>
  */
 @javax.annotation.ParametersAreNonnullByDefault

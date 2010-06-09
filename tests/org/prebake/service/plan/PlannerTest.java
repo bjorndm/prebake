@@ -412,6 +412,26 @@ public class PlannerTest extends PbTestCase {
         .run();
   }
 
+  @Test public final void testProductWithBadName1() throws IOException {
+    String planFile = (
+        ""
+        + "({"
+        + "  'b#d':tools.gcc('**.cc', '**.o'),"
+        + "  p    :tools.gcc('**.c', '**.o')"
+        + "});");
+    test.withFileSystem(
+            "/",
+            "  cwd/",
+            "    Bakefile.js " + JsonSink.stringify(planFile))
+        .withTools(tool("gcc"))
+        .withPlanFiles("Bakefile.js")
+        .expectLog(
+            "WARNING: \"b#d\" is not a product name of one or more JS name"
+            + " characters or dashes with dots",
+            "SEVERE: Failed to update plan Bakefile.js")
+        .run();
+  }
+
   // TODO: test plan file that doesn't exist, but then is created.
 
   private final class Tester {

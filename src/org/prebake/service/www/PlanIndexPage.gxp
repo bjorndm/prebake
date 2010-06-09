@@ -3,9 +3,7 @@
  xmlns:gxp="http://google.com/2001/gxp">
 <gxp:import class="org.prebake.service.plan.Product"/>
 <gxp:import class="java.util.Map"/>
-<gxp:import class="java.util.Set"/>
 <gxp:param name="products" type="Map{String, Product}"/>
-<gxp:param name="validProducts" type="Set{String}"/>
 <html>
   <head>
     <title>Plans</title>
@@ -28,8 +26,10 @@
     </script>
 
     <!-- General graph objects -->
-    <script type="text/javascript" src="../www-files/foograph/lib/graph.js"/>
-    <script type="text/javascript" src="../www-files/foograph/lib/canvasWrapper.js"/>
+    <script type="text/javascript"
+     src="../www-files/foograph/lib/graph.js"/>
+    <script type="text/javascript"
+     src="../www-files/foograph/lib/canvasWrapper.js"/>
 
     <!-- Vertex layout managers.  Random is used by the others. -->
     <!-- TODO: is kamdakawi needed? -->
@@ -59,21 +59,28 @@
               + '<canvas style="height: 500px; width: 100%; display: block"'
               + ' id="plan-graph"></canvas>');
           ]]></script>
-          <script type="text/javascript" src="../www-files/plan-graph.js" defer="defer"/>
+          <script type="text/javascript" src="../www-files/plan-graph.js"
+           defer="defer"/>
         </div>
         <h2>Products</h2>
         <gxp:loop var="product" type="Product" iterable="products.values()">
-          <h3><a>
-            <gxp:attr name="id">detail:<gxp:eval expr="product.name"/></gxp:attr>
-            <gxp:attr name="href"><gxp:eval expr="product.name"/></gxp:attr>
-            <gxp:eval expr="product.name"/>
-          </a></h3>
-          <gxp:if cond="product.help != null">
-            <gxp:if cond="!product.help.isSummaryInferred()">
-              <p class="preformat"><gxp:eval expr="product.help.summaryHtml"/></p>
+          <div>
+            <gxp:attr name="id"
+             >detail:<gxp:eval expr="product.name"/></gxp:attr>
+            <h3><a>
+              <gxp:attr name="href"
+               >../product/<gxp:eval expr="product.name"/></gxp:attr>
+              <gxp:eval expr="product.name"/>
+            </a></h3>
+            <gxp:if cond="product.help != null">
+              <gxp:if cond="!product.help.isSummaryInferred()">
+                <p class="preformat"
+                 ><gxp:eval expr="product.help.summaryHtml"/></p>
+              </gxp:if>
+              <div class="preformat"
+               ><gxp:eval expr="product.help.detailHtml"/></div>
             </gxp:if>
-            <div class="preformat"><gxp:eval expr="product.help.detailHtml"/></div>
-          </gxp:if>
+          </div>
         </gxp:loop>
       </td>
     </tr></table>
