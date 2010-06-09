@@ -34,6 +34,7 @@ import org.prebake.service.tools.ToolProvider;
 import org.prebake.service.tools.ToolSignature;
 
 import com.google.common.base.Charsets;
+import com.google.common.base.Predicate;
 import com.google.common.base.Supplier;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
@@ -61,6 +62,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.regex.Pattern;
 
 import javax.annotation.Nonnull;
 import javax.annotation.ParametersAreNonnullByDefault;
@@ -385,7 +387,9 @@ public final class Planner implements Closeable {
   private ImmutableList<Product> unpack(PlanPart pp, Object scriptOutput) {
     MessageQueue mq = new MessageQueue();
     Map<String, Product> productMap = YSONConverter.Factory.mapConverter(
-        YSONConverter.Factory.withType(String.class),
+        YSONConverter.Factory.require(
+            YSONConverter.Factory.withType(String.class),
+            new ProductNamePredicate()),
         // Use a temporary name, and then rename later
         Product.converter("tmp", pp.planFile))
         .convert(scriptOutput, mq);
@@ -473,6 +477,28 @@ public final class Planner implements Closeable {
     PlannerResult(long t0, ImmutableList<Product> products) {
       this.t0 = t0;
       this.products = products;
+    }
+  }
+
+  // TODO: does this duplicate code in YSON.java?
+  private static final String IDENTIFIER_NAME_CHAR = (
+      "$_\\p{Lu}\\p{Ll}\\p{Lt}\\p{Lm}\\p{Lo}\\p{Nl}\\p{Nd}\\p{Mn}\\p{Mc}\\p{Pc}"
+      );
+
+  private static final Pattern PRODUCT_NAME = Pattern.compile(
+      "^[.]*[" + IDENTIFIER_NAME_CHAR + "-][." + IDENTIFIER_NAME_CHAR + "-]*$");
+
+  /**
+   * A valid product name is one or more JS identifier characters or dashes
+   * interspersed with dots.
+   */
+  private static final class ProductNamePredicate implements Predicate<String> {
+    public boolean apply(String prodName) {
+      return PRODUCT_NAME.matcher(prodName).matches();
+    }
+
+    @Override public String toString() {
+      return "a product name of one or more JS name characters or dashes with dots";
     }
   }
 }

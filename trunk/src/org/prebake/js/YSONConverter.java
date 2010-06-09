@@ -18,6 +18,7 @@ import org.prebake.core.DidYouMean;
 import org.prebake.core.MessageQueue;
 
 import com.google.common.base.Function;
+import com.google.common.base.Predicate;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
@@ -118,6 +119,39 @@ public interface YSONConverter<T> {
         }
         public String exampleText() {
           return "<" + type.getSimpleName().toLowerCase(Locale.ENGLISH) + ">";
+        }
+      };
+    }
+
+    /**
+     * Yields a converter that delegates to another converter then requires that
+     * the result matches a predicate.
+     * @param conv does the work of converting.
+     * @param requirement the additional criterion that the output of conv
+     *     must satisfy.  Its {@link #toString} method should return a
+     *     description suitable for error messages.
+     */
+    public static <T> YSONConverter<T> require(
+        final YSONConverter<T> conv, final Predicate<? super T> requirement) {
+      return new YSONConverter<T>() {
+        public T convert(@Nullable Object ysonValue, MessageQueue problems) {
+          MessageQueue mq = new MessageQueue();
+          T result = conv.convert(ysonValue, mq);
+          if (mq.hasErrors()) {
+            List<String> errors = mq.getMessages();
+            int nErrors = errors.size();
+            problems.error(errors.get(0));
+            problems.getMessages().addAll(errors.subList(1, nErrors));
+          } else {
+            problems.getMessages().addAll(mq.getMessages());
+            if (requirement.apply(result)) { return result; }
+            problems.error(toErrorString(result) + " is not " + requirement);
+          }
+          return null;
+        }
+
+        public String exampleText() {
+          return conv.exampleText() + " that is " + requirement;
         }
       };
     }

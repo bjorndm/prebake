@@ -20,7 +20,7 @@
      >Product <b><gxp:eval expr="p.name"/></b> from
       <tt><gxp:eval expr="clientRoot.relativize(p.source)"/></tt>
       <div id="navbar"><a href="../index.html">Top</a> &#x2022;
-        <a href="index.html">Plan</a> &#x2022; Product</div></h1>
+        <a href="../plan/index.html">Plan</a> &#x2022; Product</div></h1>
     <table>
       <gxp:if cond="!upToDate &amp;&amp; logPreview != null">
       <gxp:eval expr="LogPreviewPage.getGxpClosure(logPath, logPreview)"/>

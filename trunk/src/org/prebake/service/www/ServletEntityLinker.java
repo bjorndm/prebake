@@ -45,7 +45,7 @@ final class ServletEntityLinker implements EntityLinker {
     String entityDir, entityPath;
     if ("product".equals(entityType)) {
       if (entityName == null) { return false; }
-      entityDir = "plan";
+      entityDir = "product";
       entityPath = entityName;
     } else if ("plan".equals(entityType)) {
       if (entityName != null) { return false; }
