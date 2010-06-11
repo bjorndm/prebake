@@ -711,6 +711,7 @@ public final class Glob implements Comparable<Glob>, JsonSerializable {
 
   /** Substitute parameter bindings to get a more specific glob. */
   public Glob subst(Map<String, String> bindings) {
+    if (holes == null) { return this; }
     StringBuilder sb = new StringBuilder();
     int h = 0;
     boolean pendingSep = false;  // True if we need to write out a separator
@@ -723,7 +724,7 @@ public final class Glob implements Comparable<Glob>, JsonSerializable {
           pendingSep = i == 0 || sb.length() != 0;
           break;
         case '*':
-          String holeName = holes != null ? holes[h++] : null;
+          String holeName = holes[h++];
           if (holeName != null) {
             String value = bindings.get(holeName);
             if (value != null && !"".equals(value)) {

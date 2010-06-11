@@ -4,9 +4,11 @@
 (function() {
   // Styles used for different kinds of nodes in the draw function below.
   // Dark green border around green.
-  var staleNode = new VertexStyle('ellipse', 80, 40, '#cccccc', '#333333', true);
+  var staleNode = new VertexStyle(
+      'ellipse', 80, 40, '#cccccc', '#333333', true);
   // Dark grey border around grey.
-  var upToDateNode = new VertexStyle('ellipse', 80, 40, '#aaffaa', '#004400', true);
+  var upToDateNode = new VertexStyle(
+      'ellipse', 80, 40, '#aaffaa', '#004400', true);
 
   function noop() {}
 

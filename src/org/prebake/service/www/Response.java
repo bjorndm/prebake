@@ -50,7 +50,9 @@ public interface Response {
         public OutputStream getOutputStream() throws IOException {
           return resp.getOutputStream();
         }
-        public Writer getWriter() throws IOException { return resp.getWriter(); }
+        public Writer getWriter() throws IOException {
+          return resp.getWriter();
+        }
         public void sendError(int status) throws IOException {
           resp.sendError(status);
         }

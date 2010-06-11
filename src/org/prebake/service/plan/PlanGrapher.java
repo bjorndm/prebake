@@ -16,6 +16,7 @@ package org.prebake.service.plan;
 
 import org.prebake.core.ArtifactListener;
 import org.prebake.core.Glob;
+import org.prebake.core.ImmutableGlobSet;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -27,7 +28,6 @@ import java.util.Set;
 import javax.annotation.ParametersAreNonnullByDefault;
 
 import com.google.common.collect.HashMultiset;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Multiset;
@@ -51,7 +51,7 @@ public final class PlanGrapher {
   /** The end points per product. */
   private final Map<String, EndPoints> nodes = Maps.newHashMap();
   /** Glob sets needed to compute the intersection graph of end-points. */
-  private final Multiset<Globs> endPoints = HashMultiset.create();
+  private final Multiset<ImmutableGlobSet> endPoints = HashMultiset.create();
   /** True if there is an edge in the intersection graph of end-points. */
   private final Map<EndPoints, Boolean> edges = Maps.newHashMap();
   /** Products that have not been incorporated into the other collections. */
@@ -81,9 +81,9 @@ public final class PlanGrapher {
     PlanGraph.Builder b = PlanGraph.builder(productNames);
     for (int i = 0; i < n; ++i) {
       String p = productNames[i];
-      Globs sources = prodEndPoints[i].sources;
+      ImmutableGlobSet sources = prodEndPoints[i].sources;
       for (int j = 0; j < n; ++j) {
-        Globs targets = prodEndPoints[j].targets;
+        ImmutableGlobSet targets = prodEndPoints[j].targets;
         if (Boolean.TRUE.equals(edges.get(new EndPoints(sources, targets)))) {
           b.edge(productNames[j], p);
         }
@@ -109,10 +109,10 @@ public final class PlanGrapher {
       }
       unprocessed.clear();
     }
-    List<Globs> oldGlobs = Lists.newArrayList();
+    List<ImmutableGlobSet> oldGlobs = Lists.newArrayList();
     for (Product p : prods) {
-      Globs sources = new Globs(p.inputs);
-      Globs targets = new Globs(p.outputs);
+      ImmutableGlobSet sources = p.getInputs();
+      ImmutableGlobSet targets = p.getOutputs();
       EndPoints newNode = new EndPoints(sources, targets);
       EndPoints oldNode = nodes.get(p.name);
       if (newNode.equals(oldNode)) { continue; }
@@ -131,8 +131,8 @@ public final class PlanGrapher {
         oldGlobs.add(oldNode.targets);
       }
     }
-    Set<Globs> defunct = Sets.newHashSet();
-    for (Globs globs : oldGlobs) {
+    Set<ImmutableGlobSet> defunct = Sets.newHashSet();
+    for (ImmutableGlobSet globs : oldGlobs) {
       if (endPoints.remove(globs, 1) == 0) { defunct.add(globs); }
     }
     if (!defunct.isEmpty()) {
@@ -143,46 +143,24 @@ public final class PlanGrapher {
         }
       }
     }
-    Globs[] globsArr = endPoints.toArray(NO_GLOBS);
+    ImmutableGlobSet[] globsArr = endPoints.toArray(NO_GLOBS);
     for (int n = globsArr.length, i = n; --i >= 0;) {
       for (int j = i; --j >= 0;) {
         if (j == i) { continue; }
         EndPoints ep = new EndPoints(globsArr[i], globsArr[j]);
         if (edges.containsKey(ep)) { continue; }
-        Boolean inter = Glob.overlaps(ep.sources.globs, ep.targets.globs)
-            ? Boolean.TRUE : Boolean.FALSE;
+        Boolean inter = Glob.overlaps(ep.sources, ep.targets);
         edges.put(ep, inter);
         edges.put(new EndPoints(globsArr[j], globsArr[i]), inter);
       }
     }
   }
 
-  private static final class Globs {
-    final ImmutableList<Glob> globs;
-    final int hashCode;
-
-    Globs(List<Glob> globs) {
-      Glob[] globArr = globs.toArray(NO_GLOB);
-      Arrays.sort(globArr);
-      this.globs = ImmutableList.of(globArr);
-      this.hashCode = globs.hashCode();
-    }
-
-    @Override
-    public boolean equals(Object o) {
-      if (!(o instanceof Globs)) { return false; }
-      Globs that = (Globs) o;
-      return this.hashCode == that.hashCode && this.globs.equals(that.globs);
-    }
-    @Override public int hashCode() { return hashCode; }
-    @Override public String toString() { return globs.toString(); }
-  }
-
   private static final class EndPoints {
-    final Globs sources;
-    final Globs targets;
+    final ImmutableGlobSet sources;
+    final ImmutableGlobSet targets;
 
-    EndPoints(Globs sources, Globs targets) {
+    EndPoints(ImmutableGlobSet sources, ImmutableGlobSet targets) {
       this.sources = sources;
       this.targets = targets;
     }
@@ -191,20 +169,18 @@ public final class PlanGrapher {
     public boolean equals(Object o) {
       if (!(o instanceof EndPoints)) { return false; }
       EndPoints that = (EndPoints) o;
-      return this.targets.globs.size() == that.targets.globs.size()
-          && this.sources.equals(that.sources)
+      return this.sources.equals(that.sources)
           && this.targets.equals(that.targets);
     }
 
     @Override public int hashCode() {
-      return sources.hashCode + 31 * targets.hashCode;
+      return sources.hashCode() + 31 * targets.hashCode();
     }
     @Override public String toString() {
       return "[" + sources + " -> " + targets + "]";
     }
   }
 
-  private static final Glob[] NO_GLOB = new Glob[0];
-  private static final Globs[] NO_GLOBS = new Globs[0];
+  private static final ImmutableGlobSet[] NO_GLOBS = new ImmutableGlobSet[0];
   private static final String[] NO_STRING = new String[0];
 }

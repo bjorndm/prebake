@@ -100,6 +100,8 @@ public final class PlanGraph {
    */
   public Recipe makeRecipe(final Set<String> prods)
       throws DependencyCycleException, MissingProductsException {
+    // TODO: make sure all products are concrete, and back-propagate any
+    // parameters to create the ones that are needed.
     {
       Set<String> prodsNeeded = Sets.newHashSet(prods);
       prodsNeeded.removeAll(nodes);

@@ -14,6 +14,8 @@
 
 package org.prebake.util;
 
+import org.prebake.core.Glob;
+import org.prebake.core.ImmutableGlobSet;
 import org.prebake.fs.FilePerms;
 import org.prebake.js.CommonEnvironment;
 import org.prebake.js.JsonSink;
@@ -21,6 +23,7 @@ import org.prebake.js.JsonSource;
 
 import com.google.common.base.Charsets;
 import com.google.common.base.Joiner;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.io.CharStreams;
@@ -45,6 +48,7 @@ import java.nio.file.attribute.BasicFileAttributes;
 import java.nio.file.attribute.FileAttribute;
 import java.nio.file.attribute.PosixFileAttributeView;
 import java.text.MessageFormat;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.logging.Handler;
@@ -367,5 +371,16 @@ public abstract class PbTestCase extends Assert {
       }
     }
     return fs;
+  }
+
+
+  protected static ImmutableGlobSet globs(List<String> globs) {
+    ImmutableList.Builder<Glob> b = ImmutableList.builder();
+    for (String glob : globs) { b.add(Glob.fromString(glob)); }
+    return ImmutableGlobSet.of(b.build());
+  }
+
+  protected static ImmutableGlobSet globs(String... globs) {
+    return globs(Arrays.asList(globs));
   }
 }

@@ -15,6 +15,8 @@
 package org.prebake.service.tools;
 
 import org.prebake.core.Glob;
+import org.prebake.core.GlobRelation;
+import org.prebake.core.ImmutableGlobSet;
 import org.prebake.fs.FileAndHash;
 import org.prebake.js.Executor;
 import org.prebake.js.JsonSink;
@@ -157,13 +159,14 @@ public abstract class ToolTestCase extends PbTestCase {
       wasRun = true;
       final ImmutableList.Builder<String> log = ImmutableList.builder();
       ImmutableMap<String, ?> options = this.options.build();
-      ImmutableList<Glob> inputGlobs = this.inputGlobs.build();
-      ImmutableList<Glob> outputGlobs = this.outputGlobs.build();
+      ImmutableGlobSet inputGlobSet = ImmutableGlobSet.of(inputGlobs.build());
+      ImmutableGlobSet outputGlobSet = ImmutableGlobSet.of(outputGlobs.build());
       Action a = new Action(
-          toolName, inputGlobs, outputGlobs, options);
+          toolName, inputGlobSet, outputGlobSet, options);
       Product p = new Product(
-          "p", null, inputGlobs, outputGlobs, Collections.singletonList(a),
-          false, null, fs.getPath("/root/plan.js"));
+          "p", null, new GlobRelation(inputGlobSet, outputGlobSet),
+          Collections.singletonList(a), false, null,
+          fs.getPath("/root/plan.js"));
       Object os = JsOperatingSystemEnv.makeJsInterface(
           fs.getPath("/work"), new SimpleMembranableFunction(
               "stub exec", "exec", "process", "command", "arg0...") {

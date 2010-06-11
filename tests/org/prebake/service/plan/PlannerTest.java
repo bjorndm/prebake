@@ -16,7 +16,8 @@ package org.prebake.service.plan;
 
 import org.prebake.core.ArtifactListener;
 import org.prebake.core.Documentation;
-import org.prebake.core.Glob;
+import org.prebake.core.GlobRelation;
+import org.prebake.core.GlobSet;
 import org.prebake.fs.StubFileVersioner;
 import org.prebake.js.Executor;
 import org.prebake.js.JsonSink;
@@ -509,10 +510,10 @@ public class PlannerTest extends PbTestCase {
     }
 
     public Tester expectProduct(
-        String name, List<Glob> inputs, List<Glob> outputs, Action... actions) {
+        String name, GlobSet inputs, GlobSet outputs, Action... actions) {
       return expectProducts(new Product(
-          name, null, inputs, outputs, Arrays.asList(actions), false, null,
-          fs.getPath("/cwd")));
+          name, null, new GlobRelation(inputs, outputs), Arrays.asList(actions),
+          false, null, fs.getPath("/cwd")));
     }
 
     public Tester writeFile(String path, String content) throws IOException {
@@ -576,19 +577,14 @@ public class PlannerTest extends PbTestCase {
 
   private static Action action(
       String tool, String input, String output) {
-    return new Action(
-        tool, Collections.singletonList(Glob.fromString(input)),
-        Collections.singletonList(Glob.fromString(output)),
-        ImmutableMap.<String, Object>of());
+    return action(
+        tool, Collections.singletonList(input),
+        Collections.singletonList(output));
   }
 
   private static Action action(
       String tool, List<String> inputs, List<String> outputs) {
-    List<Glob> inputGlobs = Lists.newArrayList();
-    for (String input : inputs) { inputGlobs.add(Glob.fromString(input)); }
-    List<Glob> outputGlobs = Lists.newArrayList();
-    for (String output : outputs) { outputGlobs.add(Glob.fromString(output)); }
-    return new Action(
-        tool, inputGlobs, outputGlobs, ImmutableMap.<String, Object>of());
+        return new Action(
+        tool, globs(inputs), globs(outputs), ImmutableMap.<String, Object>of());
   }
 }

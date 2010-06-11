@@ -10,7 +10,9 @@ h1 {
 }
 h1 .nav_sep { padding: 0 .5em; color: #888 }
 h1 a { font-weight: normal }
-h1 .nav_anc, h1 .nav_sep, h1 .nav_top { background: #ddf; padding: .125em .25em }
+h1 .nav_anc, h1 .nav_sep, h1 .nav_top {
+  background: #ddf; padding: .125em .25em
+}
 
 /* The summary is in-line with the navigation bar. */
 .page_summary {
@@ -44,7 +46,9 @@ h1 .nav_anc, h1 .nav_sep, h1 .nav_top { background: #ddf; padding: .125em .25em 
 /* Faux-columns for child item summaries in index/package/class tables. */
 .data_table .summary_key  { display: inline-block; width: 3em }
 .data_table .total .summary_key  { width: 2em }
-.data_table .summary_value { display: inline-block; width: .75em; text-align: right; margin-right: 1em }
+.data_table .summary_value {
+  display: inline-block; width: .75em; text-align: right; margin-right: 1em
+}
 
 /* Color alternating table rows. */
 .tree_level_1 .data_table tr.even,

@@ -14,6 +14,9 @@
 
 package org.prebake.core;
 
+import org.prebake.js.JsonSerializable;
+import org.prebake.js.JsonSink;
+
 import com.google.common.base.Supplier;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMultimap;
@@ -22,6 +25,7 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.Multimaps;
 
+import java.io.IOException;
 import java.nio.file.Path;
 import java.util.Collection;
 import java.util.Iterator;
@@ -38,7 +42,7 @@ import javax.annotation.ParametersAreNonnullByDefault;
  * @author Mike Samuel <mikesamuel@gmail.com>
  */
 @ParametersAreNonnullByDefault
-public abstract class GlobSet implements Iterable<Glob> {
+public abstract class GlobSet implements Iterable<Glob>, JsonSerializable {
   private final PrefixTree prefixTree = new PrefixTree();
 
   GlobSet() { /* no-op */ }
@@ -236,10 +240,25 @@ public abstract class GlobSet implements Iterable<Glob> {
     return pathStr;
   }
 
-  public Iterator<Glob> iterator() {
+  public Iterator<Glob> iterator() { return snapshot().iterator(); }
+
+  protected ImmutableList<Glob> snapshot() {
     ImmutableList.Builder<Glob> items = ImmutableList.builder();
     iterateOnto(prefixTree, items);
-    return items.build().iterator();
+    return items.build();
+  }
+
+  public void toJson(JsonSink sink) throws IOException {
+    sink.write("[");
+    Iterator<Glob> it = iterator();
+    if (it.hasNext()) {
+      it.next().toJson(sink);
+      while (it.hasNext()) {
+        sink.write(",");
+        it.next().toJson(sink);
+      }
+    }
+    sink.write("]");
   }
 
   private static void iterateOnto(
