@@ -14,6 +14,10 @@
 
 package org.prebake.core;
 
+import org.prebake.js.JsonSerializable;
+import org.prebake.js.JsonSink;
+
+import java.io.IOException;
 import java.nio.file.Path;
 import java.util.Collection;
 import java.util.Iterator;
@@ -29,6 +33,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
+import com.google.gxp.com.google.common.base.Objects;
 
 /**
  * A parameterized relationship between sets of globs.
@@ -44,7 +49,7 @@ public final class GlobRelation {
    * Meta-data about a named glob parameter,
    * e.g. x in {@code out/arch/*(x)/lib/}.
    */
-  public static final class Param {
+  public static final class Param implements JsonSerializable {
     public final String name;
     public final @Nullable ImmutableSet<String> allowedValues;
 
@@ -53,6 +58,23 @@ public final class GlobRelation {
       this.name = name;
       this.allowedValues = allowedValues != null
           ? ImmutableSet.copyOf(allowedValues) : null;
+    }
+
+    @Override public boolean equals(Object o) {
+      if (o == null || o.getClass() != getClass()) { return false; }
+      Param that = (Param) o;
+      return this.name.equals(that.name)
+          && Objects.equal(this.allowedValues, that.allowedValues);
+    }
+
+    @Override public int hashCode() {
+      return name.hashCode() + 31 * allowedValues.hashCode();
+    }
+
+    public void toJson(JsonSink sink) throws IOException {
+      sink.write("{").writeValue("name").write(":").writeValue(name)
+          .write(",").writeValue("values").write(":").writeValue(allowedValues)
+          .write("}");
     }
   }
 
@@ -67,6 +89,10 @@ public final class GlobRelation {
       this.outputs = ImmutableGlobSet.copyOf(outputs);
       this.parameterBindings = ImmutableMap.copyOf(bindings);
     }
+  }
+
+  public GlobRelation(GlobSet inputs, GlobSet outputs) {
+    this(inputs, outputs, ImmutableList.<Param>of());
   }
 
   public GlobRelation(
@@ -144,5 +170,19 @@ public final class GlobRelation {
   private static void findFreeParameterNames(
       ImmutableGlobSet gset, Collection<? super String> free) {
     for (Glob g : gset) { g.enumerateHoleNamesOnto(free); }
+  }
+
+  @Override public boolean equals(Object o) {
+    if (o == null || o.getClass() != getClass()) { return false; }
+    if (this == o) { return true; }
+    GlobRelation that = (GlobRelation) o;
+    return this.inputs.equals(that.inputs)
+        && this.outputs.equals(that.outputs)
+        && this.parameters.equals(that.parameters);
+  }
+
+  @Override public int hashCode() {
+    return inputs.hashCode()
+        + 31 * (outputs.hashCode() + parameters.hashCode());
   }
 }

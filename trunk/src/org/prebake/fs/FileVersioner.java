@@ -16,6 +16,7 @@ package org.prebake.fs;
 
 import org.prebake.core.ArtifactListener;
 import org.prebake.core.Glob;
+import org.prebake.core.GlobSet;
 import org.prebake.core.Hash;
 
 import com.google.common.annotations.VisibleForTesting;
@@ -139,7 +140,7 @@ public abstract class FileVersioner {
   protected abstract List<Path> pathsWithPrefix(
       String prefix, Predicate<String> predicate);
 
-  public List<Path> matching(List<Glob> globs) {
+  public List<Path> matching(GlobSet globs) {
     return pathsWithPrefix(
         Glob.commonPrefix(globs), new PathPredicate(Glob.toRegex(globs)));
   }

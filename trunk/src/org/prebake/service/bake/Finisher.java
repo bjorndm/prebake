@@ -15,7 +15,7 @@
 package org.prebake.service.bake;
 
 import org.prebake.channel.FileNames;
-import org.prebake.core.Glob;
+import org.prebake.core.ImmutableGlobSet;
 import org.prebake.fs.FileVersioner;
 
 import java.io.IOException;
@@ -50,7 +50,7 @@ final class Finisher {
 
   ImmutableList<Path> moveToRepo(
       String productName, Path workingDir, final Set<Path> workingDirInputs,
-      ImmutableList<Glob> toCopyBack)
+      ImmutableGlobSet toCopyBack)
       throws IOException {
     // TODO: respect the ignorable pattern for outPaths.
 
@@ -59,8 +59,8 @@ final class Finisher {
     ImmutableList<Path> outPaths = WorkingDir.matching(
         workingDir, workingDirInputs, toCopyBack);
     // Compute the set of files that are already in the client directory.
-    ImmutableList<Path> existingPaths
-        = Baker.sortedFilesMatching(files, toCopyBack);
+    ImmutableList<Path> existingPaths = Baker.sortedFilesMatching(
+        files, toCopyBack);
 
     Set<Path> newPaths = Sets.newLinkedHashSet(outPaths);
     newPaths.removeAll(existingPaths);

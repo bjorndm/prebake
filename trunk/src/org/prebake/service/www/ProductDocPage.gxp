@@ -28,7 +28,7 @@
       <tr>
         <th id="inputs">Inputs</th>
         <td colspan="4">
-          <gxp:loop var="glob" type="Glob" iterable="p.inputs">
+          <gxp:loop var="glob" type="Glob" iterable="p.getInputs()">
             <gxp:eval expr="glob"/><br/>
           </gxp:loop>
         </td>
@@ -36,7 +36,7 @@
       <tr>
         <th id="outputs">Outputs</th>
         <td colspan="4">
-          <gxp:loop var="glob" type="Glob" iterable="p.outputs">
+          <gxp:loop var="glob" type="Glob" iterable="p.getOutputs()">
             <gxp:eval expr="glob"/><br/>
           </gxp:loop>
         </td>

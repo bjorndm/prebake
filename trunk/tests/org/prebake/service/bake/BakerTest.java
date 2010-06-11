@@ -15,7 +15,7 @@
 package org.prebake.service.bake;
 
 import org.prebake.core.Documentation;
-import org.prebake.core.Glob;
+import org.prebake.core.GlobRelation;
 import org.prebake.fs.StubFileVersioner;
 import org.prebake.js.JsonSink;
 import org.prebake.js.MobileFunction;
@@ -565,8 +565,7 @@ public class BakerTest extends PbTestCase {
        .withTool(tool("cp"), "/cwd/tools/cp.js")
        .withTool(tool("munge"), "/cwd/tools/munge.js")
        .withProduct(new Product(
-           "p", null, ImmutableList.of(Glob.fromString("i/**")),
-           ImmutableList.of(Glob.fromString("o/**"), Glob.fromString("p/j/g")),
+           "p", null, new GlobRelation(globs("i/**"), globs("o/**", "p/j/g")),
            ImmutableList.of(
                action("cp", "o/j/*", "p/j/*"),  // Run later
                action("munge", "i/**", "o/**")),  // Run
@@ -814,7 +813,7 @@ public class BakerTest extends PbTestCase {
 
   private Product product(String name, Action action) {
     return new Product(
-        name, null, action.inputs, action.outputs,
+        name, null, new GlobRelation(action.inputs, action.outputs),
         Collections.singletonList(action), false, null,
         tester.fs.getPath("plans/" + name + ".js"));
   }
@@ -837,20 +836,13 @@ public class BakerTest extends PbTestCase {
   private static Action action(
       String tool, ImmutableMap<String, ?> options,
       String input, String output) {
-    return new Action(
-        tool, Collections.singletonList(Glob.fromString(input)),
-        Collections.singletonList(Glob.fromString(output)),
-        options);
+    return new Action(tool, globs(input), globs(output), options);
   }
 
   private static Action action(
       String tool, List<String> inputs, List<String> outputs) {
-    List<Glob> inputGlobs = Lists.newArrayList();
-    for (String input : inputs) { inputGlobs.add(Glob.fromString(input)); }
-    List<Glob> outputGlobs = Lists.newArrayList();
-    for (String output : outputs) { outputGlobs.add(Glob.fromString(output)); }
     return new Action(
-        tool, inputGlobs, outputGlobs, ImmutableMap.<String, Object>of());
+        tool, globs(inputs), globs(outputs), ImmutableMap.<String, Object>of());
   }
 
   final class StubToolProvider implements ToolProvider {

@@ -16,13 +16,21 @@ package org.prebake.service.plan;
 
 import org.prebake.core.Documentation;
 import org.prebake.core.Glob;
+import org.prebake.core.GlobRelation;
+import org.prebake.core.GlobSet;
+import org.prebake.core.ImmutableGlobSet;
 import org.prebake.core.MessageQueue;
+import org.prebake.core.GlobRelation.Param;
 import org.prebake.js.JsonSerializable;
 import org.prebake.js.JsonSink;
 import org.prebake.js.MobileFunction;
+import org.prebake.js.YSON;
 import org.prebake.js.YSONConverter;
 
+import com.google.common.base.Predicate;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Sets;
 
 import java.io.IOException;
@@ -45,12 +53,11 @@ import javax.annotation.ParametersAreNonnullByDefault;
 public final class Product implements JsonSerializable {
   public final String name;
   public final Documentation help;
-  public final ImmutableList<Glob> inputs;
-  public final ImmutableList<Glob> outputs;
+  public final GlobRelation filesAndParams;
   public final ImmutableList<Action> actions;
   public final boolean isIntermediate;
-  // TODO: document bake method on wiki
   public final MobileFunction bake;
+  public final ImmutableMap<String, String> bindings;
   public final Path source;
 
   /**
@@ -58,9 +65,11 @@ public final class Product implements JsonSerializable {
    *    that will be used in with the build command, so
    *    <code>$ bake build cake</code> will build the product named "cake".
    * @param help optional documentation.
-   * @param inputs the set of files that need to be present when this product's
-   *    actions are executed.
-   * @param outputs the set of files that the product produces.
+   * @param filesAndParams bundles the inputs, the set of files that need to be
+   *    present when this product's actions are executed; with the outputs, the
+   *    set of files that the product produces; with any parameters needed
+   *    before this product is concrete enough to be included in a
+   *    {@link Recipe}.
    * @param actions the commands to execute to produce the outputs from the
    *    inputs.
    * @param isIntermediate true if this product is required by other products
@@ -70,34 +79,45 @@ public final class Product implements JsonSerializable {
    *    others, and reinterpret results.
    */
   public Product(
-      String name, @Nullable Documentation help,
-      List<? extends Glob> inputs, List<? extends Glob> outputs,
+      String name, @Nullable Documentation help, GlobRelation filesAndParams,
       List<? extends Action> actions, boolean isIntermediate,
-      @Nullable MobileFunction bake,
+      @Nullable MobileFunction bake, Path source) {
+    this(name, help, filesAndParams, actions, isIntermediate, bake,
+         ImmutableMap.<String, String>of(), source);
+  }
+
+  public Product(
+      String name, @Nullable Documentation help, GlobRelation filesAndParams,
+      List<? extends Action> actions, boolean isIntermediate,
+      @Nullable MobileFunction bake, Map<String, String> bindings,
       Path source) {
     assert name != null;
-    assert inputs != null;
-    assert outputs != null;
+    assert filesAndParams != null;
     assert actions != null;
     assert source != null;
     this.name = name;
     this.help = help;
-    this.inputs = ImmutableList.copyOf(inputs);
-    this.outputs = ImmutableList.copyOf(outputs);
+    this.filesAndParams = filesAndParams;
     this.actions = ImmutableList.copyOf(actions);
     this.isIntermediate = isIntermediate;
     this.bake = bake;
+    this.bindings = ImmutableMap.copyOf(bindings);
     this.source = source;
   }
 
+  public ImmutableGlobSet getInputs() { return filesAndParams.inputs; }
+
+  public ImmutableGlobSet getOutputs() { return filesAndParams.outputs; }
+
   Product withName(String newName) {
     return new Product(
-        newName, help, inputs, outputs, actions, isIntermediate, bake, source);
+        newName, help, filesAndParams, actions, isIntermediate, bake, bindings,
+        source);
   }
 
   public Product withoutNonBuildableInfo() {
     return new Product(
-        name, null, inputs, outputs, actions, false, bake, source);
+        name, null, filesAndParams, actions, false, bake, bindings, source);
   }
 
   /**
@@ -108,8 +128,40 @@ public final class Product implements JsonSerializable {
   public Product withJsonOnly() {
     if (bake == null) { return this; }
     return new Product(
-	name, help, inputs, outputs, actions, isIntermediate, null, source);
+        name, help, filesAndParams, actions, isIntermediate, null, bindings,
+        source);
   }
+
+  /**
+   * Returns a concrete product by binding inputs and outputs with the given
+   * bindings.
+   */
+  public Product withParameterValues(Map<String, String> parameterValues) {
+    if (parameterValues.isEmpty()) { return this; }
+    ImmutableMap<String, String> bindings;
+    {
+      ImmutableMap.Builder<String, String> b = ImmutableMap.builder();
+      b.putAll(this.bindings);
+      // Will fail if this.bindings and parameterValues have overlapping keys.
+      b.putAll(parameterValues);
+      bindings = b.build();
+    }
+    GlobRelation.Solution s = filesAndParams.withParameterValues(bindings);
+    GlobRelation newFilesAndParams = new GlobRelation(s.inputs, s.outputs);
+    ImmutableList.Builder<Action> newActions = ImmutableList.builder();
+    for (Action a : actions) {
+      newActions.add(a.withParameterValues(bindings));
+    }
+    return new Product(
+        name, help, newFilesAndParams, newActions.build(), isIntermediate, bake,
+        bindings, source);
+  }
+
+  /**
+   * True iff this product has no free parameters, so can be used in a recipe
+   * to build actual files.
+   */
+  public boolean isConcrete() { return filesAndParams.parameters.isEmpty(); }
 
   @Override
   public String toString() {
@@ -126,17 +178,16 @@ public final class Product implements JsonSerializable {
       return false;
     }
     return this.actions.equals(that.actions)
-        && this.inputs.equals(that.inputs)
-        && this.outputs.equals(that.outputs);
+        && this.filesAndParams.equals(that.filesAndParams)
+        && this.bindings.equals(that.bindings);
   }
 
   @Override
   public int hashCode() {
     return name.hashCode() + 31 * (
         actions.hashCode() + 31 * (
-            inputs.hashCode() + 31 * (
-                outputs.hashCode() + 31 * (
-                    isIntermediate ? 1 : 0))));
+            filesAndParams.hashCode() + 31 * (
+                isIntermediate ? 1 : 0)));
   }
 
   /** Property names in the YSON representation. */
@@ -147,13 +198,29 @@ public final class Product implements JsonSerializable {
     actions,
     intermediate,
     bake,
+    bindings,
+    parameters,
     ;
   }
 
   public void toJson(JsonSink sink) throws IOException {
-    sink.write("{").writeValue(Field.inputs).write(":").writeValue(inputs)
-        .write(",").writeValue(Field.outputs).write(":").writeValue(outputs)
-        .write(",").writeValue(Field.actions).write(":").writeValue(actions);
+    GlobSet inputs = filesAndParams.inputs;
+    GlobSet outputs = filesAndParams.outputs;
+    sink.write("{").writeValue(Field.inputs).write(":");
+    inputs.toJson(sink);
+    sink.write(",").writeValue(Field.outputs).write(":");
+    outputs.toJson(sink);
+    sink.write(",").writeValue(Field.actions).write(":").writeValue(actions);
+    if (!filesAndParams.parameters.isEmpty()) {
+      sink.write(":").writeValue(Field.parameters).write(":[");
+      boolean sawOne = false;
+      for (GlobRelation.Param p : filesAndParams.parameters.values()) {
+        if (sawOne) { sink.write(","); }
+        sawOne = true;
+        p.toJson(sink);
+      }
+      sink.write("]");
+    }
     if (isIntermediate) {
       sink.write(",").writeValue(Field.intermediate)
           .write(":").writeValue(isIntermediate);
@@ -166,6 +233,44 @@ public final class Product implements JsonSerializable {
     }
     sink.write("}");
   }
+
+  private static final YSONConverter<String> STRING_CONV
+      = YSONConverter.Factory.withType(String.class);
+
+  private static final YSONConverter<Map<String, Object>> PARAM_FIELDS_CONV
+      = YSONConverter.Factory.mapConverter(String.class)
+          .require(
+              "name", YSONConverter.Factory.require(
+                  STRING_CONV,
+                  new Predicate<String>() {
+                    public boolean apply(String name) {
+                      return YSON.isValidIdentifier(name);
+                    }
+                    @Override public String toString() {
+                      return "a JavaScript identifier";
+                    }
+                  }))
+          .optional(
+              "values", YSONConverter.Factory.listConverter(STRING_CONV),
+              ImmutableList.<String>of())
+          .build();
+
+  private static final YSONConverter<GlobRelation.Param> PARAM_CONV
+      = new YSONConverter<GlobRelation.Param>() {
+    public Param convert(Object ysonValue, MessageQueue problems) {
+      Map<String, Object> fields = PARAM_FIELDS_CONV.convert(
+          ysonValue, problems);
+      if (fields == null) { return null; }
+      String name = (String) fields.get("name");
+      ImmutableSet.Builder<String> values = ImmutableSet.builder();
+      for (Object value : (ImmutableList<?>) fields.get("values")) {
+        values.add((String) value);
+      }
+      return new GlobRelation.Param(name, values.build());
+    }
+
+    public String exampleText() { return PARAM_FIELDS_CONV.exampleText(); }
+  };
 
   private static final YSONConverter<Map<Field, Object>> MAP_CONV
       = YSONConverter.Factory.mapConverter(Field.class)
@@ -184,6 +289,14 @@ public final class Product implements JsonSerializable {
           .optional(
               Field.bake.name(),
               YSONConverter.Factory.withType(MobileFunction.class), null)
+          .optional(
+              Field.bindings.name(),
+              YSONConverter.Factory.mapConverter(STRING_CONV, STRING_CONV),
+              ImmutableMap.<String, String>of())
+          .optional(
+              Field.parameters.name(),
+              YSONConverter.Factory.listConverter(PARAM_CONV),
+              ImmutableList.<GlobRelation.Param>of())
           .build();
   public static YSONConverter<Product> converter(
       final String name, final Path source) {
@@ -205,8 +318,12 @@ public final class Product implements JsonSerializable {
         Map<Field, ?> fields = MAP_CONV.convert(ysonValue, problems);
         if (problems.hasErrors()) { return null; }
         List<Action> actions = getList(fields.get(Field.actions), Action.class);
-        List<Glob> inputs = getList(fields.get(Field.inputs), Glob.class);
-        List<Glob> outputs = getList(fields.get(Field.outputs), Glob.class);
+        List<Glob> inputGlobs = getList(fields.get(Field.inputs), Glob.class);
+        List<Glob> outputGlobs = getList(fields.get(Field.outputs), Glob.class);
+        ImmutableGlobSet inputs = inputGlobs != null
+            ? ImmutableGlobSet.of(inputGlobs) : null;
+        ImmutableGlobSet outputs = outputGlobs != null
+            ? ImmutableGlobSet.of(outputGlobs) : null;
         if (inputs == null || outputs == null) {
           // Default missing (not empty) inputs and outputs to the union of
           // the actions' inputs and outputs.
@@ -215,17 +332,35 @@ public final class Product implements JsonSerializable {
           Set<Glob> outSet = outputs == null
               ? Sets.<Glob>newLinkedHashSet() : null;
           for (Action a : actions) {
-            if (inSet != null) { inSet.addAll(a.inputs); }
-            if (outSet != null) { outSet.addAll(a.outputs); }
+            if (inSet != null) { for (Glob g : a.inputs) { inSet.add(g); } }
+            if (outSet != null) { for (Glob g : a.outputs) { outSet.add(g); } }
           }
-          if (inSet != null) { inputs = ImmutableList.copyOf(inSet); }
-          if (outSet != null) { outputs = ImmutableList.copyOf(outSet); }
+          if (inSet != null) { inputs = ImmutableGlobSet.of(inSet); }
+          if (outSet != null) { outputs = ImmutableGlobSet.of(outSet); }
         }
+        ImmutableList<GlobRelation.Param> params;
+        {
+          ImmutableList.Builder<GlobRelation.Param> b = ImmutableList.builder();
+          for (Object p : (Iterable<?>) fields.get(Field.parameters)) {
+            b.add((GlobRelation.Param) p);
+          }
+          params = b.build();
+        }
+        GlobRelation filesAndParams = new GlobRelation(inputs, outputs, params);
         MobileFunction bake = (MobileFunction) fields.get(Field.bake);
+        Map<String, String> bindings;
+        {
+          ImmutableMap.Builder<String, String> b = ImmutableMap.builder();
+          for (Map.Entry<?, ?> e
+               : ((ImmutableMap<?, ?>) fields.get(Field.bindings)).entrySet()) {
+            b.put((String) e.getKey(), (String) e.getValue());
+          }
+          bindings = b.build();
+        }
         return new Product(
-            name, (Documentation) fields.get(Field.help), inputs, outputs,
+            name, (Documentation) fields.get(Field.help), filesAndParams,
             actions, Boolean.TRUE.equals(fields.get(Field.intermediate)), bake,
-            source);
+            bindings, source);
       }
       public String exampleText() { return MAP_CONV.exampleText(); }
     };

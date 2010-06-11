@@ -498,7 +498,8 @@ public final class Planner implements Closeable {
     }
 
     @Override public String toString() {
-      return "a product name of one or more JS name characters or dashes with dots";
+      return "a product name of one or more JS name characters or dashes"
+          + " with dots";
     }
   }
 }

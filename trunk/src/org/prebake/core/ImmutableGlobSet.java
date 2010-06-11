@@ -15,6 +15,9 @@
 package org.prebake.core;
 
 import java.util.Collections;
+import java.util.Iterator;
+
+import com.google.common.collect.ImmutableList;
 
 /**
  * An immutable {@link GlobSet}.
@@ -24,7 +27,8 @@ import java.util.Collections;
 public final class ImmutableGlobSet extends GlobSet {
   private ImmutableGlobSet(GlobSet gset) { super(gset); }
   private ImmutableGlobSet(Iterable<? extends Glob> globs) {
-    for (Glob g : globs) { this.add(g); }
+    snapshot = ImmutableList.copyOf(globs);  // Preserve iteration order.
+    for (Glob g : snapshot) { this.add(g); }
   }
 
   public static ImmutableGlobSet copyOf(GlobSet gset) {
@@ -38,5 +42,40 @@ public final class ImmutableGlobSet extends GlobSet {
 
   public static ImmutableGlobSet empty() {
     return of(Collections.<Glob>emptySet());
+  }
+
+  private ImmutableList<Glob> snapshot;
+
+  @Override public Iterator<Glob> iterator() {
+    if (snapshot == null) { snapshot = snapshot(); }
+    return snapshot.iterator();
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (o == null || o.getClass() != getClass()) { return false; }
+    if (o == this) { return true; }
+    ImmutableGlobSet that = (ImmutableGlobSet) o;
+    Iterator<Glob> thisIt = this.iterator(), thatIt = that.iterator();
+    while (thisIt.hasNext()) {
+      if (!thatIt.hasNext()) { return false; }
+      if (!thisIt.next().equals(thatIt.next())) { return false; }
+    }
+    return !thatIt.hasNext();
+  }
+
+  private int hc;
+  @Override
+  public int hashCode() {
+    if (hc == 0) {
+      int hc = 0;
+      Iterator<Glob> thisIt = this.iterator();
+      while (thisIt.hasNext()) {
+        hc = hc * 31 + thisIt.next().hashCode();
+      }
+      if (hc == 0) { hc = 1; }
+      this.hc = hc;
+    }
+    return hc;
   }
 }

@@ -34,8 +34,8 @@ import com.google.common.collect.Maps;
  *
  * <p>
  * But we want to allow products to be built in parallel where there is no
- * overlap between their {@link Product#inputs inputs} and
- * {@link Product#outputs outputs}.
+ * overlap between their {@link Product#getInputs inputs} and
+ * {@link Product#getOutputs outputs}.
  * So we represent a recipe as a list of {@link Ingredient ingredients} that
  * need to be made first, and each ingredient points to other ingredients that
  * need this ingredient.  Each ingredient has a count of ingredients that link

@@ -16,6 +16,7 @@ package org.prebake.service.bake;
 
 import org.prebake.core.Glob;
 import org.prebake.core.Hash;
+import org.prebake.core.ImmutableGlobSet;
 import org.prebake.core.MessageQueue;
 import org.prebake.fs.FileVersioner;
 import org.prebake.js.Executor;
@@ -95,11 +96,12 @@ final class Oven {
             ImmutableList<Glob> inputGlobs = Glob.CONV.convert(argv[0], mq);
             // Already vetted by Product parser.
             if (mq.hasErrors()) { throw new IllegalStateException(); }
+            ImmutableGlobSet inputGlobSet = ImmutableGlobSet.of(inputGlobs);
             ImmutableList.Builder<String> actionInputs
                 = ImmutableList.builder();
             try {
               for (Path actionInput : WorkingDir.matching(
-                       workingDir, ImmutableSet.<Path>of(), inputGlobs)) {
+                       workingDir, ImmutableSet.<Path>of(), inputGlobSet)) {
                 actionInputs.add(actionInput.toString());
               }
             } catch (IOException ex) {
@@ -172,10 +174,11 @@ final class Oven {
         Action action = p.actions.get(i);
         productJsSink
             .write(toolNameToLocalName.get(action.toolName))
-            .write(".fire(matching(").writeValue(action.inputs)
-            // .slice(0) works around problem where membraned arrays don't
-            // behave as arrays w.r.t. concat and other builtins.
-            .write(").slice(0),\n    product,\n    product.actions[")
+            .write(".fire(matching(");
+        action.inputs.toJson(productJsSink);
+        // .slice(0) works around problem where membraned arrays don't
+        // behave as arrays w.r.t. concat and other builtins.
+        productJsSink.write(").slice(0),\n    product,\n    product.actions[")
             .write(String.valueOf(i))
             .write("],\n    os)\n");
         productJsSink.write(thunkify ? "}" : ".run().waitFor() === 0");

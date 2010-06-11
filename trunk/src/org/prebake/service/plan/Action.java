@@ -15,6 +15,8 @@
 package org.prebake.service.plan;
 
 import org.prebake.core.Glob;
+import org.prebake.core.GlobSet;
+import org.prebake.core.ImmutableGlobSet;
 import org.prebake.core.MessageQueue;
 import org.prebake.js.JsonSerializable;
 import org.prebake.js.JsonSink;
@@ -44,16 +46,16 @@ public final class Action implements JsonSerializable {
   // { inputs: ..., outputs: ..., x: ... }
 
   public final String toolName;
-  public final ImmutableList<Glob> inputs;
-  public final ImmutableList<Glob> outputs;
+  public final ImmutableGlobSet inputs;
+  public final ImmutableGlobSet outputs;
   public final ImmutableMap<String, ?> options;
 
   public Action(
-      String toolName, List<? extends Glob> inputs,
-      List<? extends Glob> outputs, Map<String, ?> options) {
+      String toolName, GlobSet inputs, GlobSet outputs,
+      Map<String, ?> options) {
     this.toolName = toolName;
-    this.inputs = ImmutableList.copyOf(inputs);
-    this.outputs = ImmutableList.copyOf(outputs);
+    this.inputs = ImmutableGlobSet.copyOf(inputs);
+    this.outputs = ImmutableGlobSet.copyOf(outputs);
     this.options = ImmutableMap.copyOf(options);
     assert ObjUtil.isDeeplyImmutable(options);
   }
@@ -69,12 +71,24 @@ public final class Action implements JsonSerializable {
 
   public void toJson(JsonSink sink) throws IOException {
     sink.write("{").writeValue(Field.tool).write(":").writeValue(toolName)
-        .write(",").writeValue(Field.inputs).write(":").writeValue(inputs)
-        .write(",").writeValue(Field.outputs).write(":").writeValue(outputs);
+        .write(",").writeValue(Field.inputs).write(":");
+    inputs.toJson(sink);
+    sink.write(",").writeValue(Field.outputs).write(":");
+    outputs.toJson(sink);
     if (!options.isEmpty()) {
       sink.write(",").writeValue(Field.options).write(":").writeValue(options);
     }
     sink.write("}");
+  }
+
+  public Action withParameterValues(ImmutableMap<String, String> bindings) {
+    ImmutableList.Builder<Glob> boundInputs = ImmutableList.builder();
+    for (Glob g : inputs) { boundInputs.add(g.subst(bindings)); }
+    ImmutableList.Builder<Glob> boundOutputs = ImmutableList.builder();
+    for (Glob g : outputs) { boundOutputs.add(g.subst(bindings)); }
+    return new Action(
+        toolName, ImmutableGlobSet.of(boundInputs.build()),
+        ImmutableGlobSet.of(boundOutputs.build()), options);
   }
 
   private static final YSONConverter<Map<Field, Object>> MAP_CONV
@@ -97,8 +111,8 @@ public final class Action implements JsonSerializable {
       if (problems.hasErrors()) { return null; }
       return new Action(
           (String) fields.get(Field.tool),
-          (List<Glob>) (List<?>) fields.get(Field.inputs),
-          (List<Glob>) (List<?>) fields.get(Field.outputs),
+          ImmutableGlobSet.of((List<Glob>) (List<?>) fields.get(Field.inputs)),
+          ImmutableGlobSet.of((List<Glob>) (List<?>) fields.get(Field.outputs)),
           (Map<String, ?>) fields.get(Field.options));
     }
 

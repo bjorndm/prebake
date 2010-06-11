@@ -14,7 +14,8 @@
 
 package org.prebake.service.plan;
 
-import org.prebake.core.Glob;
+import org.prebake.core.GlobRelation;
+import org.prebake.core.GlobSet;
 import org.prebake.util.PbTestCase;
 
 import java.io.IOException;
@@ -26,7 +27,6 @@ import java.util.Set;
 
 import com.google.common.base.Function;
 import com.google.common.base.Joiner;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
@@ -211,9 +211,9 @@ public class PlanGrapherTest extends PbTestCase {
     }
   }
 
-  private Product product(String name, List<Glob> inputs, List<Glob> outputs) {
+  private Product product(String name, GlobSet inputs, GlobSet outputs) {
     return new Product(
-        name, null, inputs, outputs,
+        name, null, new GlobRelation(inputs, outputs),
         Collections.singletonList(new Action(
             "tool", inputs, outputs, ImmutableMap.<String, Object>of())),
         false, null, source);
@@ -234,11 +234,5 @@ public class PlanGrapherTest extends PbTestCase {
     assertEquals(
         Joiner.on('\n').join(golden),
         Joiner.on('\n').join(log));
-  }
-
-  private static List<Glob> globs(String... globs) {
-    ImmutableList.Builder<Glob> b = ImmutableList.builder();
-    for (String glob : globs) { b.add(Glob.fromString(glob)); }
-    return b.build();
   }
 }

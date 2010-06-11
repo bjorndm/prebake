@@ -37,7 +37,7 @@ var options = {
     source: { type: 'optional', delegate: 'string' },
     verbose: { type: 'default', delegate: 'boolean', defaultValue: yieldFalse },
     error: {
-      type: 'default', 
+      type: 'default',
       delegate: { type: 'Array', delegate: ['i18n'] },
       defaultValue: yieldNone
     },

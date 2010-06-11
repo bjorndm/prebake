@@ -44,9 +44,8 @@ final class WorkingDir {
    */
   static ImmutableList<Path> matching(
       final Path workingDir, final Set<Path> exclusions,
-      ImmutableList<Glob> toMatch)
+      ImmutableGlobSet outputMatcher)
       throws IOException {
-    final GlobSet outputMatcher = ImmutableGlobSet.of(toMatch);
     // Get the prefix map so we only walk subtrees that are important.
     // E.g. for output globs
     //     [foo/lib/bar/*.lib, foo/lib/**.o, foo/lib/**.so, foo/bin/*.a]

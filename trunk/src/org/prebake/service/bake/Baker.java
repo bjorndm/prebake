@@ -15,8 +15,8 @@
 package org.prebake.service.bake;
 
 import org.prebake.core.ArtifactListener;
-import org.prebake.core.Glob;
 import org.prebake.core.Hash;
+import org.prebake.core.ImmutableGlobSet;
 import org.prebake.fs.FileVersioner;
 import org.prebake.fs.ArtifactAddresser;
 import org.prebake.fs.FilePerms;
@@ -186,7 +186,7 @@ public final class Baker {
             long t0 = logs.highLevelLog.getClock().nanoTime();
 
             try {
-              inputs = sortedFilesMatching(files, product.inputs);
+              inputs = sortedFilesMatching(files, product.getInputs());
               workDir = createWorkingDirectory(product.name);
               try {
                 ImmutableList.Builder<Path> paths = ImmutableList.builder();
@@ -201,7 +201,8 @@ public final class Baker {
                   // TODO: can't pass if there are problems moving files to the
                   // repo.
                   ImmutableList<Path> outputs = finisher.moveToRepo(
-                      product.name, workDir, workingDirInputs, product.outputs);
+                      product.name, workDir, workingDirInputs,
+                      product.getOutputs());
                   files.updateFiles(outputs);
                   synchronized (status) {
                     if (status.product.equals(product)
@@ -296,7 +297,7 @@ public final class Baker {
   }
 
   static ImmutableList<Path> sortedFilesMatching(
-      FileVersioner files, ImmutableList<Glob> globs) {
+      FileVersioner files, ImmutableGlobSet globs) {
     List<Path> matching = Lists.newArrayList(files.matching(globs));
     // Sort inputs to remove a source of nondeterminism
     Collections.sort(matching);
@@ -429,7 +430,7 @@ public final class Baker {
           return;
         }
         GlobUnion newInputs = newProduct != null
-            ? new GlobUnion(newProduct.name, newProduct.inputs) : null;
+            ? new GlobUnion(newProduct.name, newProduct.getInputs()) : null;
         if (inputs != null ? !inputs.equals(newInputs) : newInputs != null) {
           if (inputs != null) { files.unwatch(inputs, fileListener); }
           inputs = newInputs;

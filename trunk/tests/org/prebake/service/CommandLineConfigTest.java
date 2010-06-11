@@ -216,7 +216,8 @@ public class CommandLineConfigTest extends PbTestCase {
     assertEquals("[/foo/bar/project/Bakefile.js]", c.getPlanFiles().toString());
     c = assertConfig(
         new String[] { "--root=project", "project/Bakefile2.js" }, true);
-    assertEquals("[/foo/bar/project/Bakefile2.js]", c.getPlanFiles().toString());
+    assertEquals(
+        "[/foo/bar/project/Bakefile2.js]", c.getPlanFiles().toString());
     c = assertConfig(
         new String[] {
             "--root=project", "project/Bakefile2.js", "project/Bakefile.js" },
