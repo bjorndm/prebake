@@ -53,11 +53,12 @@ public final class Action implements JsonSerializable {
   public Action(
       String toolName, GlobSet inputs, GlobSet outputs,
       Map<String, ?> options) {
+    ImmutableMap<String, ?> optionsMap = ImmutableMap.copyOf(options);
+    assert ObjUtil.isDeeplyImmutable(optionsMap);
     this.toolName = toolName;
     this.inputs = ImmutableGlobSet.copyOf(inputs);
     this.outputs = ImmutableGlobSet.copyOf(outputs);
-    this.options = ImmutableMap.copyOf(options);
-    assert ObjUtil.isDeeplyImmutable(options);
+    this.options = optionsMap;
   }
 
   /** Property names in the YSON representation. */
