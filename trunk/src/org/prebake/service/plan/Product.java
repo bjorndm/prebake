@@ -38,6 +38,7 @@ import java.nio.file.Path;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 
 import javax.annotation.Nullable;
@@ -172,14 +173,13 @@ public final class Product implements JsonSerializable {
   public boolean equals(Object o) {
     if (!(o instanceof Product)) { return false; }
     Product that = (Product) o;
-    if (this.isIntermediate != that.isIntermediate) { return false; }
-    if (!this.name.equals(that.name)) { return false; }
-    if (this.help == null ? that.help != null : !this.help.equals(that.help)) {
-      return false;
-    }
-    return this.actions.equals(that.actions)
+    return this.isIntermediate == that.isIntermediate
+        && this.name.equals(that.name)
+        && Objects.equals(this.help, that.help)
+        && this.actions.equals(that.actions)
         && this.filesAndParams.equals(that.filesAndParams)
-        && this.bindings.equals(that.bindings);
+        && this.bindings.equals(that.bindings)
+        && Objects.equals(this.bake, that.bake);
   }
 
   @Override
@@ -187,7 +187,8 @@ public final class Product implements JsonSerializable {
     return name.hashCode() + 31 * (
         actions.hashCode() + 31 * (
             filesAndParams.hashCode() + 31 * (
-                isIntermediate ? 1 : 0)));
+                (isIntermediate ? 1 : 0) + 31 * (
+                    bake != null ? bake.hashCode() : 0))));
   }
 
   /** Property names in the YSON representation. */
@@ -221,6 +222,10 @@ public final class Product implements JsonSerializable {
       }
       sink.write("]");
     }
+    if (!bindings.isEmpty()) {
+      sink.write(",").writeValue(Field.bindings)
+          .write(":").writeValue(bindings);
+    }
     if (isIntermediate) {
       sink.write(",").writeValue(Field.intermediate)
           .write(":").writeValue(isIntermediate);
@@ -246,9 +251,7 @@ public final class Product implements JsonSerializable {
                     public boolean apply(String name) {
                       return YSON.isValidIdentifier(name);
                     }
-                    @Override public String toString() {
-                      return "a JavaScript identifier";
-                    }
+                    @Override public String toString() { return "a JS ident"; }
                   }))
           .optional(
               "values", YSONConverter.Factory.listConverter(STRING_CONV),
@@ -263,7 +266,7 @@ public final class Product implements JsonSerializable {
       if (fields == null) { return null; }
       String name = (String) fields.get("name");
       ImmutableSet.Builder<String> values = ImmutableSet.builder();
-      for (Object value : (ImmutableList<?>) fields.get("values")) {
+      for (Object value : (List<?>) fields.get("values")) {
         values.add((String) value);
       }
       return new GlobRelation.Param(name, values.build());
@@ -352,7 +355,7 @@ public final class Product implements JsonSerializable {
         {
           ImmutableMap.Builder<String, String> b = ImmutableMap.builder();
           for (Map.Entry<?, ?> e
-               : ((ImmutableMap<?, ?>) fields.get(Field.bindings)).entrySet()) {
+               : ((Map<?, ?>) fields.get(Field.bindings)).entrySet()) {
             b.put((String) e.getKey(), (String) e.getValue());
           }
           bindings = b.build();
