@@ -16,10 +16,7 @@ package org.prebake.service.plan;
 
 import org.prebake.core.GlobRelation;
 import org.prebake.core.GlobSet;
-import org.prebake.util.PbTestCase;
 
-import java.io.IOException;
-import java.nio.file.Path;
 import java.util.Collections;
 import java.util.List;
 import java.util.Random;
@@ -31,16 +28,9 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 
-import org.junit.Before;
 import org.junit.Test;
 
-public class PlanGrapherTest extends PbTestCase {
-  private Path source;
-
-  @Before
-  public void setUp() throws IOException {
-    source = this.fileSystemFromAsciiArt("/", "foo").getPath("/foo");
-  }
+public class PlanGrapherTest extends PlanGraphTestCase {
 
   @Test public final void testPlanGraph() {
     PlanGrapher grapher = new PlanGrapher();
@@ -57,7 +47,7 @@ public class PlanGrapherTest extends PbTestCase {
 
     {
       PlanGraph pg = grapher.snapshot();
-      assertEquals("[bar, baz, boo, far, foo]", pg.nodes.toString());
+      assertEquals("[bar, baz, boo, far, foo]", pg.nodes.keySet().toString());
       assertEquals(
           "{bar=[foo], baz=[bar], boo=[bar], far=[baz, boo, foo]}",
           pg.edges.toString());
@@ -70,7 +60,8 @@ public class PlanGrapherTest extends PbTestCase {
 
     {
       PlanGraph pg = grapher.snapshot();
-      assertEquals("[bar, baz, boo, far, faz, foo]", pg.nodes.toString());
+      assertEquals(
+          "[bar, baz, boo, far, faz, foo]", pg.nodes.keySet().toString());
       assertEquals(
           "{bar=[foo], baz=[foo], boo=[bar], far=[baz, boo, faz, foo]}",
           pg.edges.toString());
@@ -83,7 +74,7 @@ public class PlanGrapherTest extends PbTestCase {
     //      C - D
     //    /       \
     //  B           F - H - I
-    PlanGraph g = PlanGraph.builder("A", "B", "C", "D", "E", "F", "G", "H", "I")
+    PlanGraph g = builder("A", "B", "C", "D", "E", "F", "G", "H", "I")
         .edge("A", "C")
         .edge("B", "C")
         .edge("C", "D")
@@ -119,7 +110,7 @@ public class PlanGrapherTest extends PbTestCase {
 
   @Test
   public final void testRecipeMakingLoopWithDependencyLeaf() throws Exception {
-    PlanGraph g = PlanGraph.builder("A", "B", "C", "D")
+    PlanGraph g = builder("A", "B", "C", "D")
         .edge("A", "B")  // D - B = A
         .edge("B", "A")  //       \
         .edge("B", "C")  //         C
@@ -137,7 +128,7 @@ public class PlanGrapherTest extends PbTestCase {
   @Test
   public final void testRecipeMakingLoopWithoutDependencyLeaf()
       throws Exception {
-    PlanGraph g = PlanGraph.builder("A", "B", "C")
+    PlanGraph g = builder("A", "B", "C")
         .edge("A", "B")  // B = A
         .edge("B", "A")  //   \
         .edge("B", "C")  //     C
@@ -158,7 +149,7 @@ public class PlanGrapherTest extends PbTestCase {
     //  B - D - E - G
     //    /       \
     //  C           H
-    PlanGraph g = PlanGraph.builder("A", "B", "C", "D", "E", "F", "G", "H")
+    PlanGraph g = builder("A", "B", "C", "D", "E", "F", "G", "H")
         .edge("A", "D")
         .edge("B", "D")
         .edge("C", "D")
@@ -234,8 +225,6 @@ public class PlanGrapherTest extends PbTestCase {
         log.add(allSucceeded ? "OK" : "FAIL");
       }
     });
-    assertEquals(
-        Joiner.on('\n').join(golden),
-        Joiner.on('\n').join(log));
+    assertEquals(Joiner.on('\n').join(golden), Joiner.on('\n').join(log));
   }
 }

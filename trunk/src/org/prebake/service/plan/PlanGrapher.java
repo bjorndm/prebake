@@ -20,6 +20,7 @@ import org.prebake.core.ImmutableGlobSet;
 
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -49,7 +50,7 @@ import com.google.common.collect.Sets;
 @ParametersAreNonnullByDefault
 public final class PlanGrapher {
   /** The end points per product. */
-  private final Map<String, EndPoints> nodes = Maps.newHashMap();
+  private final Map<String, ProdEndPoints> nodes = Maps.newHashMap();
   /** Glob sets needed to compute the intersection graph of end-points. */
   private final Multiset<ImmutableGlobSet> endPoints = HashMultiset.create();
   /** True if there is an edge in the intersection graph of end-points. */
@@ -65,27 +66,25 @@ public final class PlanGrapher {
   };
 
   public PlanGraph snapshot() {
-    String[] productNames;
-    EndPoints[] prodEndPoints;
+    ProdEndPoints[] prodEndPoints;
+    Product[] products;
     synchronized (this) {
       processProducts();
-      productNames = nodes.keySet().toArray(NO_STRING);
-      Arrays.sort(productNames);
-      int n = productNames.length;
-      prodEndPoints = new EndPoints[n];
-      for (int i = n; --i >= 0;) {
-        prodEndPoints[i] = nodes.get(productNames[i]);
-      }
+      prodEndPoints = nodes.values().toArray(NO_PROD_END_POINTS);
+      Arrays.sort(prodEndPoints, CMP_BY_NAME);
+      int n = prodEndPoints.length;
+      products = new Product[n];
+      for (int i = n; --i >= 0;) { products[i] = prodEndPoints[i].p; }
     }
-    int n = productNames.length;
-    PlanGraph.Builder b = PlanGraph.builder(productNames);
+    int n = products.length;
+    PlanGraph.Builder b = PlanGraph.builder(products);
     for (int i = 0; i < n; ++i) {
-      String p = productNames[i];
+      String p = products[i].name;
       ImmutableGlobSet sources = prodEndPoints[i].sources;
       for (int j = 0; j < n; ++j) {
         ImmutableGlobSet targets = prodEndPoints[j].targets;
         if (Boolean.TRUE.equals(edges.get(new EndPoints(sources, targets)))) {
-          b.edge(productNames[j], p);
+          b.edge(products[j].name, p);
         }
       }
     }
@@ -113,9 +112,13 @@ public final class PlanGrapher {
     for (Product p : prods) {
       ImmutableGlobSet sources = p.getInputs();
       ImmutableGlobSet targets = p.getOutputs();
-      EndPoints newNode = new EndPoints(sources, targets);
-      EndPoints oldNode = nodes.get(p.name);
-      if (newNode.equals(oldNode)) { continue; }
+      ProdEndPoints newNode = new ProdEndPoints(sources, targets);
+      ProdEndPoints oldNode = nodes.get(p.name);
+      if (newNode.equals(oldNode)) {
+        oldNode.p = p;
+        continue;
+      }
+      newNode.p = p;
       nodes.put(p.name, newNode);
       if (oldNode != null) {
         oldGlobs.add(oldNode.sources);
@@ -156,7 +159,7 @@ public final class PlanGrapher {
     }
   }
 
-  private static final class EndPoints {
+  private static class EndPoints {
     final ImmutableGlobSet sources;
     final ImmutableGlobSet targets;
 
@@ -166,14 +169,14 @@ public final class PlanGrapher {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public final boolean equals(Object o) {
       if (!(o instanceof EndPoints)) { return false; }
       EndPoints that = (EndPoints) o;
       return this.sources.equals(that.sources)
           && this.targets.equals(that.targets);
     }
 
-    @Override public int hashCode() {
+    @Override public final int hashCode() {
       return sources.hashCode() + 31 * targets.hashCode();
     }
     @Override public String toString() {
@@ -181,6 +184,20 @@ public final class PlanGrapher {
     }
   }
 
+  private static final class ProdEndPoints extends EndPoints {
+    Product p;
+    ProdEndPoints(ImmutableGlobSet sources, ImmutableGlobSet targets) {
+      super(sources, targets);
+    }
+  }
+
   private static final ImmutableGlobSet[] NO_GLOBS = new ImmutableGlobSet[0];
-  private static final String[] NO_STRING = new String[0];
+  private static final ProdEndPoints[] NO_PROD_END_POINTS
+      = new ProdEndPoints[0];
+  private static final Comparator<ProdEndPoints> CMP_BY_NAME
+      = new Comparator<ProdEndPoints>() {
+    public int compare(ProdEndPoints a, ProdEndPoints b) {
+      return a.p.name.compareTo(b.p.name);
+    }
+  };
 }

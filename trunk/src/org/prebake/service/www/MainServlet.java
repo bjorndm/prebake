@@ -329,7 +329,7 @@ public final class MainServlet extends HttpServlet {
           .write(":")
           .write("{");
       needComma = false;
-      for (String productName : pg.nodes) {
+      for (String productName : pg.nodes.keySet()) {
         if (needComma) { sink.write(","); }
         sink.writeValue(productName)
             .write(":")
