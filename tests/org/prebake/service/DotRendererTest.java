@@ -15,8 +15,7 @@
 package org.prebake.service;
 
 import org.prebake.service.plan.PlanGraph;
-import org.prebake.util.PbTestCase;
-
+import org.prebake.service.plan.PlanGraphTestCase;
 import java.io.IOException;
 import java.util.Collections;
 
@@ -25,9 +24,10 @@ import com.google.common.collect.ImmutableSet;
 
 import org.junit.Test;
 
-public class DotRendererTest extends PbTestCase {
+public class DotRendererTest extends PlanGraphTestCase {
+
   @Test public final void testRender() throws IOException {
-    PlanGraph g = PlanGraph.builder("foo", "bar", "baz")
+    PlanGraph g = builder("foo", "bar", "baz")
         .edge("bar", "foo")
         .edge("baz", "bar")
         .edge("foo", "baz")
@@ -49,7 +49,7 @@ public class DotRendererTest extends PbTestCase {
   }
 
   @Test public final void testNonDisjointRoots1() throws IOException {
-    PlanGraph g = PlanGraph.builder("foo", "bar", "baz")
+    PlanGraph g = builder("foo", "bar", "baz")
         .edge("bar", "foo")
         .edge("baz", "bar")
         .edge("foo", "baz")
@@ -71,7 +71,7 @@ public class DotRendererTest extends PbTestCase {
   }
 
   @Test public final void testNonDisjointRoots2() throws IOException {
-    PlanGraph g = PlanGraph.builder("foo", "bar", "baz", "oink")
+    PlanGraph g = builder("foo", "bar", "baz", "oink")
         .edge("bar", "foo")
         .edge("baz", "bar")
         .edge("foo", "baz")
@@ -96,7 +96,7 @@ public class DotRendererTest extends PbTestCase {
   }
 
   @Test public final void testPartialGraph() throws IOException {
-    PlanGraph g = PlanGraph.builder("foo", "bar", "baz", "oink", "oinkoink")
+    PlanGraph g = builder("foo", "bar", "baz", "oink", "oinkoink")
         .edge("bar", "foo")
         .edge("baz", "bar")
         .edge("foo", "baz")
@@ -119,7 +119,7 @@ public class DotRendererTest extends PbTestCase {
   }
 
   @Test public final void testSelfEdge() throws IOException {
-    PlanGraph g = PlanGraph.builder("a", "b", "c")
+    PlanGraph g = builder("a", "b", "c")
         .edge("b", "a")
         .edge("b", "b")
         .build();

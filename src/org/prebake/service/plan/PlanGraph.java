@@ -23,6 +23,7 @@ import javax.annotation.ParametersAreNonnullByDefault;
 import com.google.common.base.Function;
 import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableMultimap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
@@ -39,7 +40,7 @@ import com.google.common.collect.Sets;
  */
 @ParametersAreNonnullByDefault
 public final class PlanGraph {
-  public final ImmutableSet<String> nodes;
+  public final ImmutableMap<String, Product> nodes;
   /**
    * Contains the name of each product that the key product depends upon
    * non-transitively.
@@ -47,20 +48,21 @@ public final class PlanGraph {
   public final ImmutableMultimap<String, String> edges;
 
   private PlanGraph(
-      ImmutableSet<String> nodes, ImmutableMultimap<String, String> edges) {
+      ImmutableMap<String, Product> nodes,
+      ImmutableMultimap<String, String> edges) {
     this.nodes = nodes;
     this.edges = edges;
   }
 
   public static class Builder {
-    private final ImmutableSet<String> nodes;
+    private final ImmutableMap<String, Product> nodes;
     private final ImmutableMultimap.Builder<String, String> edges
         = ImmutableMultimap.builder();
 
-    private Builder(ImmutableSet<String> nodes) { this.nodes = nodes; }
+    private Builder(ImmutableMap<String, Product> nodes) { this.nodes = nodes; }
 
     public Builder edge(String prerequisite, String node) {
-      assert nodes.contains(node) && nodes.contains(prerequisite);
+      assert nodes.containsKey(node) && nodes.containsKey(prerequisite);
       edges.put(node, prerequisite);
       return this;
     }
@@ -70,8 +72,10 @@ public final class PlanGraph {
     }
   }
 
-  public static Builder builder(String... nodes) {
-    return new Builder(ImmutableSet.of(nodes));
+  public static Builder builder(Product... nodes) {
+    ImmutableMap.Builder<String, Product> products = ImmutableMap.builder();
+    for (Product p : nodes) { products.put(p.name, p); }
+    return new Builder(products.build());
   }
 
   public Walker walker(Function<String, ?> action) {
@@ -96,7 +100,7 @@ public final class PlanGraph {
   }
 
   /**
-   * @param prods
+   * @param prods the required products.
    */
   public Recipe makeRecipe(final Set<String> prods)
       throws DependencyCycleException, MissingProductsException {
@@ -104,7 +108,7 @@ public final class PlanGraph {
     // parameters to create the ones that are needed.
     {
       Set<String> prodsNeeded = Sets.newHashSet(prods);
-      prodsNeeded.removeAll(nodes);
+      prodsNeeded.removeAll(nodes.keySet());
       if (!prodsNeeded.isEmpty()) {
         throw new MissingProductsException(
             "Undefined products " + Joiner.on(", ").join(prodsNeeded));
