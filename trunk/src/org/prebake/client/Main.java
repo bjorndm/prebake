@@ -29,6 +29,7 @@ import java.net.Socket;
 import java.nio.file.FileSystems;
 import java.nio.file.Path;
 import java.util.Collection;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import javax.annotation.ParametersAreNonnullByDefault;
@@ -43,6 +44,7 @@ import javax.annotation.ParametersAreNonnullByDefault;
 public final class Main {
 
   public static void main(String... argv) {
+    long t0 = System.nanoTime();
     Logger logger = Logger.getLogger(Main.class.getName());
     CommandLineArgs args = new CommandLineArgs(argv);
     // TODO: should we use the global logger here since that's the one with the
@@ -116,6 +118,8 @@ public final class Main {
       ex.printStackTrace();
       result = -1;
     }
+    logger.log(
+        Level.INFO, "Build took {0}.", prettyTime(System.nanoTime() - t0));
     System.exit(result);
   }
 
@@ -128,4 +132,29 @@ public final class Main {
       + "    -v          verbose\n"
       + "    -vv         extra verbose\n"
       + "    --logLevel  see java.util.logging.Level for value names");
+
+  private static final long NANOSECS_PER_SEC = 1000 * 1000 * 1000;
+  /** 94,000,000,000 ns => "1 minute, 34 seconds" */
+  private static CharSequence prettyTime(long nanos) {
+    StringBuilder sb = new StringBuilder();
+    long seconds = nanos / NANOSECS_PER_SEC;
+    long minutes = seconds / 60;
+    seconds -= minutes * 60;
+    if (minutes != 0) {
+      if (minutes == 1) {
+        sb.append("1 minute");
+      } else {
+        sb.append(minutes).append(" minutes");
+      }
+    }
+    if (seconds != 0 || sb.length() == 0) {
+      if (sb.length() != 0) { sb.append(", "); }
+      if (seconds == 1) {
+        sb.append("1 second");
+      } else {
+        sb.append(seconds).append(" seconds");
+      }
+    }
+    return sb;
+  }
 }
