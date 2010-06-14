@@ -117,7 +117,8 @@ public class PlanGrapherTest extends PbTestCase {
         "A", "B", "C", "D", "E", "F", "FAIL");
   }
 
-  public void testRecipeMakingLoopWithDependencyLeaf() throws Exception {
+  @Test
+  public final void testRecipeMakingLoopWithDependencyLeaf() throws Exception {
     PlanGraph g = PlanGraph.builder("A", "B", "C", "D")
         .edge("A", "B")  // D - B = A
         .edge("B", "A")  //       \
@@ -133,7 +134,9 @@ public class PlanGrapherTest extends PbTestCase {
     fail("Loop");
   }
 
-  public void testRecipeMakingLoopWithoutDependencyLeaf() throws Exception {
+  @Test
+  public final void testRecipeMakingLoopWithoutDependencyLeaf()
+      throws Exception {
     PlanGraph g = PlanGraph.builder("A", "B", "C")
         .edge("A", "B")  // B = A
         .edge("B", "A")  //   \
@@ -148,7 +151,8 @@ public class PlanGrapherTest extends PbTestCase {
     fail("Loop");
   }
 
-  public void testRecipeMakingConcurrent() throws Exception  {
+  @Test
+  public final void testRecipeMakingConcurrent() throws Exception {
     //  A           F
     //    \       /
     //  B - D - E - G
@@ -197,7 +201,6 @@ public class PlanGrapherTest extends PbTestCase {
       prods.add("signalled");
 
       String prodsStr = prods.toString();
-//    System.err.println(prodsStr);
       assertEquals(prodsStr, 10, prods.size());
       assertTrue(prodsStr, prods.indexOf("A") < prods.indexOf("D"));
       assertTrue(prodsStr, prods.indexOf("B") < prods.indexOf("D"));
