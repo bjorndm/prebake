@@ -2,8 +2,8 @@
  xmlns="http://www.w3.org/1999/xhtml"
  xmlns:gxp="http://google.com/2001/gxp">
 <gxp:import class="org.prebake.service.plan.Product"/>
-<gxp:import class="java.util.Map"/>
-<gxp:param name="products" type="Map{String, Product}"/>
+<gxp:import class="java.util.Collection"/>
+<gxp:param name="products" type="Collection{Product}"/>
 <html>
   <head>
     <title>Plans</title>
@@ -63,7 +63,7 @@
            defer="defer"/>
         </div>
         <h2>Products</h2>
-        <gxp:loop var="product" type="Product" iterable="products.values()">
+        <gxp:loop var="product" type="Product" iterable="products">
           <div>
             <gxp:attr name="id"
              >detail:<gxp:eval expr="product.name"/></gxp:attr>

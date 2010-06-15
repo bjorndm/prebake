@@ -14,6 +14,7 @@
 
 package org.prebake.channel;
 
+import org.prebake.core.BoundName;
 import org.prebake.core.DidYouMean;
 import org.prebake.js.JsonSerializable;
 import org.prebake.js.JsonSink;
@@ -130,14 +131,22 @@ public abstract class Command implements JsonSerializable {
     return sb.toString();
   }
 
-  private static Set<String> toProducts(List<?> json) throws IOException {
-    Set<String> products = Sets.newLinkedHashSet();
+  private static Set<BoundName> toProducts(List<?> json) throws IOException {
+    Set<BoundName> products = Sets.newLinkedHashSet();
     for (Object o : json) {
       if (o == null) { throw new IOException("Null product"); }
       if (!(o instanceof String)) {
         throw new IOException(o + " is not a string");
       }
-      products.add((String) o);
+      try {
+        products.add(BoundName.fromString((String) o));
+      } catch (IllegalArgumentException ex) {
+        if (ex.getCause() instanceof IOException) {
+          throw (IOException) ex.getCause();
+        } else {
+          throw new IOException(ex.getMessage(), ex);
+        }
+      }
     }
     return products;
   }
@@ -171,9 +180,9 @@ public abstract class Command implements JsonSerializable {
   }
 
   public static final class BakeCommand extends Command {
-    public final Set<String> products;
+    public final Set<BoundName> products;
 
-    public BakeCommand(Set<String> products) {
+    public BakeCommand(Set<BoundName> products) {
       super(Verb.bake);
       this.products = ImmutableSet.copyOf(products);
     }
@@ -212,9 +221,9 @@ public abstract class Command implements JsonSerializable {
   }
 
   public static final class GraphCommand extends Command {
-    public final Set<String> products;
+    public final Set<BoundName> products;
 
-    public GraphCommand(Set<String> products) {
+    public GraphCommand(Set<BoundName> products) {
       super(Verb.graph);
       this.products = ImmutableSet.copyOf(products);
     }
@@ -238,9 +247,9 @@ public abstract class Command implements JsonSerializable {
   }
 
   public static final class PlanCommand extends Command {
-    public final Set<String> products;
+    public final Set<BoundName> products;
 
-    public PlanCommand(Set<String> products) {
+    public PlanCommand(Set<BoundName> products) {
       super(Verb.plan);
       this.products = ImmutableSet.copyOf(products);
     }

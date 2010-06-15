@@ -14,6 +14,7 @@
 
 package org.prebake.service.plan;
 
+import org.prebake.core.BoundName;
 import org.prebake.core.Documentation;
 import org.prebake.core.Glob;
 import org.prebake.core.GlobRelation;
@@ -52,13 +53,13 @@ import javax.annotation.ParametersAreNonnullByDefault;
  */
 @ParametersAreNonnullByDefault
 public final class Product implements JsonSerializable {
-  public final String name;
+  public final BoundName name;
   public final Documentation help;
   public final GlobRelation filesAndParams;
   public final ImmutableList<Action> actions;
   public final boolean isIntermediate;
   public final MobileFunction bake;
-  public final ImmutableMap<String, String> bindings;
+  /** The plan file which defined this product was defined. */
   public final Path source;
 
   /**
@@ -80,18 +81,10 @@ public final class Product implements JsonSerializable {
    *    others, and reinterpret results.
    */
   public Product(
-      String name, @Nullable Documentation help, GlobRelation filesAndParams,
+      BoundName name, @Nullable Documentation help,
+      GlobRelation filesAndParams,
       List<? extends Action> actions, boolean isIntermediate,
       @Nullable MobileFunction bake, Path source) {
-    this(name, help, filesAndParams, actions, isIntermediate, bake,
-         ImmutableMap.<String, String>of(), source);
-  }
-
-  public Product(
-      String name, @Nullable Documentation help, GlobRelation filesAndParams,
-      List<? extends Action> actions, boolean isIntermediate,
-      @Nullable MobileFunction bake, Map<String, String> bindings,
-      Path source) {
     assert name != null;
     assert filesAndParams != null;
     assert actions != null;
@@ -102,7 +95,6 @@ public final class Product implements JsonSerializable {
     this.actions = ImmutableList.copyOf(actions);
     this.isIntermediate = isIntermediate;
     this.bake = bake;
-    this.bindings = ImmutableMap.copyOf(bindings);
     this.source = source;
   }
 
@@ -110,15 +102,14 @@ public final class Product implements JsonSerializable {
 
   public ImmutableGlobSet getOutputs() { return filesAndParams.outputs; }
 
-  Product withName(String newName) {
+  Product withName(BoundName newName) {
     return new Product(
-        newName, help, filesAndParams, actions, isIntermediate, bake, bindings,
-        source);
+        newName, help, filesAndParams, actions, isIntermediate, bake, source);
   }
 
   public Product withoutNonBuildableInfo() {
     return new Product(
-        name, null, filesAndParams, actions, false, bake, bindings, source);
+        name, null, filesAndParams, actions, false, bake, source);
   }
 
   /**
@@ -129,8 +120,7 @@ public final class Product implements JsonSerializable {
   public Product withJsonOnly() {
     if (bake == null) { return this; }
     return new Product(
-        name, help, filesAndParams, actions, isIntermediate, null, bindings,
-        source);
+        name, help, filesAndParams, actions, isIntermediate, null, source);
   }
 
   /**
@@ -142,7 +132,7 @@ public final class Product implements JsonSerializable {
     ImmutableMap<String, String> bindings;
     {
       ImmutableMap.Builder<String, String> b = ImmutableMap.builder();
-      b.putAll(this.bindings);
+      b.putAll(this.name.bindings);
       // Will fail if this.bindings and parameterValues have overlapping keys.
       b.putAll(parameterValues);
       bindings = b.build();
@@ -154,8 +144,8 @@ public final class Product implements JsonSerializable {
       newActions.add(a.withParameterValues(bindings));
     }
     return new Product(
-        name, help, newFilesAndParams, newActions.build(), isIntermediate, bake,
-        bindings, source);
+        name.withBindings(bindings), help, newFilesAndParams,
+        newActions.build(), isIntermediate, bake, source);
   }
 
   /**
@@ -178,7 +168,6 @@ public final class Product implements JsonSerializable {
         && Objects.equals(this.help, that.help)
         && this.actions.equals(that.actions)
         && this.filesAndParams.equals(that.filesAndParams)
-        && this.bindings.equals(that.bindings)
         && Objects.equals(this.bake, that.bake);
   }
 
@@ -199,7 +188,6 @@ public final class Product implements JsonSerializable {
     actions,
     intermediate,
     bake,
-    bindings,
     parameters,
     ;
   }
@@ -221,10 +209,6 @@ public final class Product implements JsonSerializable {
         p.toJson(sink);
       }
       sink.write("]");
-    }
-    if (!bindings.isEmpty()) {
-      sink.write(",").writeValue(Field.bindings)
-          .write(":").writeValue(bindings);
     }
     if (isIntermediate) {
       sink.write(",").writeValue(Field.intermediate)
@@ -293,16 +277,12 @@ public final class Product implements JsonSerializable {
               Field.bake.name(),
               YSONConverter.Factory.withType(MobileFunction.class), null)
           .optional(
-              Field.bindings.name(),
-              YSONConverter.Factory.mapConverter(STRING_CONV, STRING_CONV),
-              ImmutableMap.<String, String>of())
-          .optional(
               Field.parameters.name(),
               YSONConverter.Factory.listConverter(PARAM_CONV),
               ImmutableList.<GlobRelation.Param>of())
           .build();
   public static YSONConverter<Product> converter(
-      final String name, final Path source) {
+      final BoundName name, final Path source) {
     return new YSONConverter<Product>() {
       public @Nullable Product convert(
           @Nullable Object ysonValue, MessageQueue problems) {
@@ -351,19 +331,10 @@ public final class Product implements JsonSerializable {
         }
         GlobRelation filesAndParams = new GlobRelation(inputs, outputs, params);
         MobileFunction bake = (MobileFunction) fields.get(Field.bake);
-        Map<String, String> bindings;
-        {
-          ImmutableMap.Builder<String, String> b = ImmutableMap.builder();
-          for (Map.Entry<?, ?> e
-               : ((Map<?, ?>) fields.get(Field.bindings)).entrySet()) {
-            b.put((String) e.getKey(), (String) e.getValue());
-          }
-          bindings = b.build();
-        }
         return new Product(
             name, (Documentation) fields.get(Field.help), filesAndParams,
             actions, Boolean.TRUE.equals(fields.get(Field.intermediate)), bake,
-            bindings, source);
+            source);
       }
       public String exampleText() { return MAP_CONV.exampleText(); }
     };

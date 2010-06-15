@@ -15,6 +15,7 @@
 package org.prebake.service.plan;
 
 import org.prebake.core.ArtifactListener;
+import org.prebake.core.BoundName;
 import org.prebake.core.Hash;
 import org.prebake.core.MessageQueue;
 import org.prebake.fs.ArtifactAddresser;
@@ -34,7 +35,6 @@ import org.prebake.service.tools.ToolProvider;
 import org.prebake.service.tools.ToolSignature;
 
 import com.google.common.base.Charsets;
-import com.google.common.base.Predicate;
 import com.google.common.base.Supplier;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
@@ -62,8 +62,6 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import java.util.regex.Pattern;
-
 import javax.annotation.Nonnull;
 import javax.annotation.ParametersAreNonnullByDefault;
 
@@ -76,9 +74,9 @@ import javax.annotation.ParametersAreNonnullByDefault;
 @ParametersAreNonnullByDefault
 public final class Planner implements Closeable {
   /** Synchronized after plan parts. */
-  private final Multimap<String, Product> productsByName = Multimaps
+  private final Multimap<BoundName, Product> productsByName = Multimaps
       .synchronizedMultimap(Multimaps.newMultimap(
-          Maps.<String, Collection<Product>>newLinkedHashMap(),
+          Maps.<BoundName, Collection<Product>>newLinkedHashMap(),
           new ListSupplier<Product>()));
 
   private final ImmutableMap<Path, PlanPart> planParts;
@@ -147,9 +145,9 @@ public final class Planner implements Closeable {
    * The output will not include any products that are masked -- that are named
    * in two or more plan files that run to completion.
    */
-  public Map<String, Product> getProducts() {
+  public Map<BoundName, Product> getProducts() {
     Logger logger = logs.logger;
-    Map<String, Product> allProducts = Maps.newHashMap();
+    Map<BoundName, Product> allProducts = Maps.newHashMap();
     for (Future<ImmutableList<Product>> pp : getProductLists()) {
       try {
         Iterable<Product> products = pp.get();
@@ -173,17 +171,18 @@ public final class Planner implements Closeable {
         break;
       }
     }
-    Iterator<Map.Entry<String, Product>> it = allProducts.entrySet().iterator();
+    Iterator<Map.Entry<BoundName, Product>> it
+        = allProducts.entrySet().iterator();
     while (it.hasNext()) {
-      Map.Entry<String, Product> e = it.next();
+      Map.Entry<BoundName, Product> e = it.next();
       if (e.getValue() == null) { it.remove(); }
     }
     // Now, hide nondeterminism from clients by producing a reliable key order.
-    ImmutableMap.Builder<String, Product> b = ImmutableMap.builder();
-    String[] keys = allProducts.keySet().toArray(
-        new String[allProducts.size()]);
+    ImmutableMap.Builder<BoundName, Product> b = ImmutableMap.builder();
+    BoundName[] keys = allProducts.keySet().toArray(
+        new BoundName[allProducts.size()]);
     Arrays.sort(keys);
-    for (String key : keys) { b.put(key, allProducts.get(key)); }
+    for (BoundName key : keys) { b.put(key, allProducts.get(key)); }
     return b.build();
   }
 
@@ -384,15 +383,17 @@ public final class Planner implements Closeable {
         .withActual("tools", toolDef).build());
   }
 
+  private static final BoundName TMP_IDENT = BoundName.fromString(
+      "tmp");
   private ImmutableList<Product> unpack(PlanPart pp, Object scriptOutput) {
     MessageQueue mq = new MessageQueue();
-    Map<String, Product> productMap = YSONConverter.Factory.mapConverter(
-        YSONConverter.Factory.require(
-            YSONConverter.Factory.withType(String.class),
-            new ProductNamePredicate()),
-        // Use a temporary name, and then rename later
-        Product.converter("tmp", pp.planFile))
-        .convert(scriptOutput, mq);
+    Map<BoundName, Product> productMap
+        = YSONConverter.Factory.mapConverter(
+            YSONConverter.Factory.withType(
+                BoundName.class, "a bound name"),
+            // Use a temporary name, and then rename later
+            Product.converter(TMP_IDENT, pp.planFile))
+            .convert(scriptOutput, mq);
     if (mq.hasErrors()) {
       Logger logger = logs.logger;
       for (String msg : mq.getMessages()) {
@@ -401,7 +402,7 @@ public final class Planner implements Closeable {
       return null;
     }
     ImmutableList.Builder<Product> b = ImmutableList.builder();
-    for (Map.Entry<String, Product> e : productMap.entrySet()) {
+    for (Map.Entry<BoundName, Product> e : productMap.entrySet()) {
       b.add(e.getValue().withName(e.getKey()));
     }
     return b.build();
@@ -439,7 +440,7 @@ public final class Planner implements Closeable {
               switch (prods.size()) {
                 case 0:
                   // No more products with this name left.
-                  listener.artifactDestroyed(p.name);
+                  listener.artifactDestroyed(p.name.ident);
                   break;
                 case 1:
                   // Previously the product was masked, but no longer.
@@ -477,29 +478,6 @@ public final class Planner implements Closeable {
     PlannerResult(long t0, ImmutableList<Product> products) {
       this.t0 = t0;
       this.products = products;
-    }
-  }
-
-  // TODO: does this duplicate code in YSON.java?
-  private static final String IDENTIFIER_NAME_CHAR = (
-      "$_\\p{Lu}\\p{Ll}\\p{Lt}\\p{Lm}\\p{Lo}\\p{Nl}\\p{Nd}\\p{Mn}\\p{Mc}\\p{Pc}"
-      );
-
-  private static final Pattern PRODUCT_NAME = Pattern.compile(
-      "^[.]*[" + IDENTIFIER_NAME_CHAR + "-][." + IDENTIFIER_NAME_CHAR + "-]*$");
-
-  /**
-   * A valid product name is one or more JS identifier characters or dashes
-   * interspersed with dots.
-   */
-  private static final class ProductNamePredicate implements Predicate<String> {
-    public boolean apply(String prodName) {
-      return PRODUCT_NAME.matcher(prodName).matches();
-    }
-
-    @Override public String toString() {
-      return "a product name of one or more JS name characters or dashes"
-          + " with dots";
     }
   }
 }

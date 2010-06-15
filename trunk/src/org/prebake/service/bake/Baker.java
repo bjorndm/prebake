@@ -15,6 +15,7 @@
 package org.prebake.service.bake;
 
 import org.prebake.core.ArtifactListener;
+import org.prebake.core.BoundName;
 import org.prebake.core.Hash;
 import org.prebake.core.ImmutableGlobSet;
 import org.prebake.fs.FileVersioner;
@@ -79,23 +80,26 @@ public final class Baker {
   private final ImmutableMap<String, ?> commonJsEnv;
   private final Logs logs;
   private final ScheduledExecutorService execer;
-  private final ConcurrentHashMap<String, ProductStatus> productStatuses
-      = new ConcurrentHashMap<String, ProductStatus>();
+  private final ConcurrentHashMap<BoundName, ProductStatus> productStatuses
+      = new ConcurrentHashMap<BoundName, ProductStatus>();
   private final ConcurrentHashMap<String, ProductStatusChain> toolDeps
       = new ConcurrentHashMap<String, ProductStatusChain>();
   /**
    * For each name of an up-to-date product, the names of products that depend
    * on it.
    */
-  private final Multimap<String, String> productDeps = Multimaps.newSetMultimap(
-      Maps.<String, Collection<String>>newHashMap(),
-      new Supplier<Set<String>>() {
-        public Set<String> get() { return Sets.newHashSet(); }
-      });
+  private final Multimap<BoundName, BoundName> productDeps
+      = Multimaps.newSetMultimap(
+          Maps.<BoundName, Collection<BoundName>>newHashMap(),
+          new Supplier<Set<BoundName>>() {
+            public Set<BoundName> get() { return Sets.newHashSet(); }
+          });
   private ToolProvider toolbox;
   private final ArtifactAddresser<ProductStatus> addresser
       = new ArtifactAddresser<ProductStatus>() {
-    public String addressFor(ProductStatus artifact) { return artifact.name; }
+    public String addressFor(ProductStatus artifact) {
+      return artifact.name.ident;
+    }
     public ProductStatus lookup(String address) {
       return productStatuses.get(address);
     }
@@ -147,7 +151,7 @@ public final class Baker {
    *     false if it cannot be brought up-to-date.
    */
   public Future<Boolean> bake(
-      final String productName, final ImmutableList<String> prereqs) {
+      final BoundName productName, final ImmutableList<BoundName> prereqs) {
     assert toolbox != null;
     final ProductStatus status = productStatuses.get(productName);
     if (status == null) {
@@ -162,7 +166,7 @@ public final class Baker {
         Future<Boolean> f = execer.submit(new Callable<Boolean>() {
           public Boolean call() {
             String artifactDescriptor = ArtifactDescriptors.forProduct(
-                product.name);
+                product.name.ident);
             try {
               logs.logHydra.artifactProcessingStarted(
                   artifactDescriptor,
@@ -211,7 +215,7 @@ public final class Baker {
                             hashes.build())) {
                       passed = true;
                       synchronized (productDeps) {
-                        for (String prereq : prereqs) {
+                        for (BoundName prereq : prereqs) {
                           productDeps.put(prereq, product.name);
                         }
                       }
@@ -254,16 +258,17 @@ public final class Baker {
     }
   }
 
-  public Set<String> getUpToDateProducts() {
-    ImmutableSet.Builder<String> upToDate = ImmutableSet.builder();
+  public Set<BoundName> getUpToDateProducts() {
+    ImmutableSet.Builder<BoundName> upToDate = ImmutableSet.builder();
     for (ProductStatus status : ImmutableSet.copyOf(productStatuses.values())) {
       if (status.isUpToDate()) { upToDate.add(status.name); }
     }
     return upToDate.build();
   }
 
-  private Path createWorkingDirectory(String productName) throws IOException {
-    Path path = os.getTempDir().resolve("prebake-" + productName);
+  private Path createWorkingDirectory(BoundName productName) throws IOException {
+    Path path = os.getTempDir().resolve(
+        "prebake-" + ArtifactDescriptors.forProduct(productName.ident));
     if (path.exists()) { cleanWorkingDirectory(path); }
     path.createDirectory(FilePerms.perms(0700, true));
     return path;
@@ -365,7 +370,8 @@ public final class Baker {
   public final ArtifactListener<Product> prodListener
       = new ArtifactListener<Product>() {
     public void artifactDestroyed(String productName) {
-      ProductStatus status = productStatuses.remove(productName);
+      ProductStatus status = productStatuses.remove(
+          BoundName.fromString(productName));
       if (status != null) { status.setProduct(null); }
     }
 
@@ -402,8 +408,10 @@ public final class Baker {
   private final ArtifactListener<GlobUnion> fileListener
       = new ArtifactListener<GlobUnion>() {
     public void artifactChanged(GlobUnion union) { check(union.name); }
-    public void artifactDestroyed(String productName) { check(productName); }
-    private void check(String productName) {
+    public void artifactDestroyed(String productName) {
+      check(BoundName.fromString(productName));
+    }
+    private void check(BoundName productName) {
       ProductStatus status = productStatuses.get(productName);
       if (status != null) { status.setBuildFuture(null); }
     }
@@ -411,7 +419,7 @@ public final class Baker {
 
   @ParametersAreNonnullByDefault
   private final class ProductStatus implements NonFileArtifact<Long> {
-    final String name;
+    final BoundName name;
     private Product product;
     /** Iff the product is built, non-null. */
     private Future<Boolean> buildFuture;
@@ -419,7 +427,7 @@ public final class Baker {
     private ImmutableSet<String> tools;
     private boolean upToDate;
 
-    ProductStatus(String name) { this.name = name; }
+    ProductStatus(BoundName name) { this.name = name; }
 
     void setProduct(@Nullable Product newProduct) {
       if (newProduct != null) {
@@ -508,14 +516,14 @@ public final class Baker {
         this.upToDate = false;
       }
       logs.highLevelLog.productStatusChanged(
-          logs.highLevelLog.getClock().nanoTime(), name, false);
+          logs.highLevelLog.getClock().nanoTime(), name.ident, false);
       // We need to invalidate products that depend on this product.
       // The file versioner does not do this transitive work for us.
-      Collection<String> postReqs;
+      Collection<BoundName> postReqs;
       synchronized (productDeps) {
         postReqs = productDeps.removeAll(name);
       }
-      for (String postReq : postReqs) {
+      for (BoundName postReq : postReqs) {
         ProductStatus dep = productStatuses.get(postReq);
         // TODO: do we need to remove any path -> artifact address in the
         // file versioner.
@@ -525,7 +533,7 @@ public final class Baker {
 
     public void validate(Long t0) {
       synchronized (this) { this.upToDate = true; }
-      logs.highLevelLog.productStatusChanged(t0, name, true);
+      logs.highLevelLog.productStatusChanged(t0, name.ident, true);
     }
 
     synchronized boolean isUpToDate() { return upToDate; }
@@ -551,7 +559,8 @@ public final class Baker {
   }
 
   boolean unittestBackdoorProductStatus(String productName) {
-    ProductStatus status = productStatuses.get(productName);
+    ProductStatus status = productStatuses.get(
+        BoundName.fromString(productName));
     if (status == null) { throw new IllegalArgumentException(productName); }
     Future<Boolean> bf;
     synchronized (status) { bf = status.buildFuture; }

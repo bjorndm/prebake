@@ -14,6 +14,7 @@
 
 package org.prebake.service;
 
+import org.prebake.core.BoundName;
 import org.prebake.service.plan.PlanGraph;
 import org.prebake.service.plan.PlanGraphTestCase;
 import java.io.IOException;
@@ -25,15 +26,23 @@ import com.google.common.collect.ImmutableSet;
 import org.junit.Test;
 
 public class DotRendererTest extends PlanGraphTestCase {
+  private static final BoundName FOO = BoundName.fromString("foo"),
+     BAR = BoundName.fromString("bar"),
+     BAZ = BoundName.fromString("baz"),
+     OINK = BoundName.fromString("oink"),
+     OINKOINK = BoundName.fromString("oinkoink"),
+     A = BoundName.fromString("a"),
+     B = BoundName.fromString("b"),
+     C = BoundName.fromString("c");
 
   @Test public final void testRender() throws IOException {
-    PlanGraph g = builder("foo", "bar", "baz")
-        .edge("bar", "foo")
-        .edge("baz", "bar")
-        .edge("foo", "baz")
+    PlanGraph g = builder(FOO, BAR, BAZ)
+        .edge(BAR, FOO)
+        .edge(BAZ, BAR)
+        .edge(FOO, BAZ)
         .build();
     StringBuilder sb = new StringBuilder();
-    DotRenderer.render(g, Collections.singleton("foo"), sb);
+    DotRenderer.render(g, Collections.singleton(FOO), sb);
     assertEquals(
         Joiner.on('\n').join(
             "digraph {",
@@ -49,13 +58,13 @@ public class DotRendererTest extends PlanGraphTestCase {
   }
 
   @Test public final void testNonDisjointRoots1() throws IOException {
-    PlanGraph g = builder("foo", "bar", "baz")
-        .edge("bar", "foo")
-        .edge("baz", "bar")
-        .edge("foo", "baz")
+    PlanGraph g = builder(FOO, BAR, BAZ)
+        .edge(BAR, FOO)
+        .edge(BAZ, BAR)
+        .edge(FOO, BAZ)
         .build();
     StringBuilder sb = new StringBuilder();
-    DotRenderer.render(g, ImmutableSet.of("foo", "baz"), sb);
+    DotRenderer.render(g, ImmutableSet.of(FOO, BAZ), sb);
     assertEquals(
         Joiner.on('\n').join(
             "digraph {",
@@ -71,14 +80,14 @@ public class DotRendererTest extends PlanGraphTestCase {
   }
 
   @Test public final void testNonDisjointRoots2() throws IOException {
-    PlanGraph g = builder("foo", "bar", "baz", "oink")
-        .edge("bar", "foo")
-        .edge("baz", "bar")
-        .edge("foo", "baz")
-        .edge("oink", "baz")
+    PlanGraph g = builder(FOO, BAR, BAZ, OINK)
+        .edge(BAR, FOO)
+        .edge(BAZ, BAR)
+        .edge(FOO, BAZ)
+        .edge(OINK, BAZ)
         .build();
     StringBuilder sb = new StringBuilder();
-    DotRenderer.render(g, ImmutableSet.of("oink", "baz"), sb);
+    DotRenderer.render(g, ImmutableSet.of(OINK, BAZ), sb);
     assertEquals(
         Joiner.on('\n').join(
             "digraph {",
@@ -96,14 +105,14 @@ public class DotRendererTest extends PlanGraphTestCase {
   }
 
   @Test public final void testPartialGraph() throws IOException {
-    PlanGraph g = builder("foo", "bar", "baz", "oink", "oinkoink")
-        .edge("bar", "foo")
-        .edge("baz", "bar")
-        .edge("foo", "baz")
-        .edge("oink", "oinkoink")
+    PlanGraph g = builder(FOO, BAR, BAZ, OINK, OINKOINK)
+        .edge(BAR, FOO)
+        .edge(BAZ, BAR)
+        .edge(FOO, BAZ)
+        .edge(OINK, OINKOINK)
         .build();
     StringBuilder sb = new StringBuilder();
-    DotRenderer.render(g, ImmutableSet.of("baz"), sb);
+    DotRenderer.render(g, ImmutableSet.of(BAZ), sb);
     assertEquals(
         Joiner.on('\n').join(
             "digraph {",
@@ -119,12 +128,12 @@ public class DotRendererTest extends PlanGraphTestCase {
   }
 
   @Test public final void testSelfEdge() throws IOException {
-    PlanGraph g = builder("a", "b", "c")
-        .edge("b", "a")
-        .edge("b", "b")
+    PlanGraph g = builder(A, B, C)
+        .edge(B, A)
+        .edge(B, B)
         .build();
     StringBuilder sb = new StringBuilder();
-    DotRenderer.render(g, ImmutableSet.of("a"), sb);
+    DotRenderer.render(g, ImmutableSet.of(A), sb);
     assertEquals(
         Joiner.on('\n').join(
             "digraph {",

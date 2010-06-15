@@ -3,11 +3,12 @@
  xmlns:gxp="http://google.com/2001/gxp">
 <gxp:import class="org.prebake.service.tools.ToolSignature"/>
 <gxp:import class="org.prebake.service.plan.Product"/>
-<gxp:import class="java.util.Set"/>
+<gxp:import class="java.util.Collection"/>
 <gxp:import class="java.util.Map"/>
+<gxp:import class="java.util.Set"/>
 <gxp:param name="toolNames" type="Set{String}"/>
 <gxp:param name="tools" type="Map{String, ToolSignature}"/>
-<gxp:param name="products" type="Map{String, Product}"/>
+<gxp:param name="products" type="Collection{Product}"/>
 <html>
   <head>
     <title>Prebake Home</title>
@@ -38,7 +39,7 @@
         </gxp:loop>
 
         <h2 id="products"><a href="plan/index.html">Products</a></h2>
-        <gxp:loop var="product" type="Product" iterable="products.values()">
+        <gxp:loop var="product" type="Product" iterable="products">
           <h3><a>
             <gxp:attr name="href"
              >product/<gxp:eval expr="product.name"/></gxp:attr>

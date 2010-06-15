@@ -15,6 +15,7 @@
 package org.prebake.service.bake;
 
 import org.prebake.channel.FileNames;
+import org.prebake.core.BoundName;
 import org.prebake.core.ImmutableGlobSet;
 import org.prebake.fs.FileVersioner;
 
@@ -49,7 +50,7 @@ final class Finisher {
   }
 
   ImmutableList<Path> moveToRepo(
-      String productName, Path workingDir, final Set<Path> workingDirInputs,
+      BoundName productName, Path workingDir, final Set<Path> workingDirInputs,
       ImmutableGlobSet toCopyBack)
       throws IOException {
     // TODO: respect the ignorable pattern for outPaths.

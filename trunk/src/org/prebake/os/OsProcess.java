@@ -166,6 +166,7 @@ public abstract class OsProcess {
       p = this.p;
       if (p == null) { return result; }
     }
+
     int result = p.waitFor();
     synchronized (this) {
       this.result = result;

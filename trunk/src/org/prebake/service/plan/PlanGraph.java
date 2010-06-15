@@ -14,6 +14,8 @@
 
 package org.prebake.service.plan;
 
+import org.prebake.core.BoundName;
+
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -40,30 +42,33 @@ import com.google.common.collect.Sets;
  */
 @ParametersAreNonnullByDefault
 public final class PlanGraph {
-  public final ImmutableMap<String, Product> nodes;
+  public final ImmutableMap<BoundName, Product> nodes;
   /**
    * Contains the name of each product that the key product depends upon
    * non-transitively.
    */
-  public final ImmutableMultimap<String, String> edges;
+  public final ImmutableMultimap<BoundName, BoundName> edges;
 
   private PlanGraph(
-      ImmutableMap<String, Product> nodes,
-      ImmutableMultimap<String, String> edges) {
+      ImmutableMap<BoundName, Product> nodes,
+      ImmutableMultimap<BoundName, BoundName> edges) {
     this.nodes = nodes;
     this.edges = edges;
   }
 
   public static class Builder {
-    private final ImmutableMap<String, Product> nodes;
-    private final ImmutableMultimap.Builder<String, String> edges
+    private final ImmutableMap<BoundName, Product> nodes;
+    private final ImmutableMultimap.Builder<BoundName, BoundName> edges
         = ImmutableMultimap.builder();
 
-    private Builder(ImmutableMap<String, Product> nodes) { this.nodes = nodes; }
+    private Builder(ImmutableMap<BoundName, Product> nodes) {
+      this.nodes = nodes;
+    }
 
-    public Builder edge(String prerequisite, String node) {
-      assert nodes.containsKey(node) && nodes.containsKey(prerequisite);
-      edges.put(node, prerequisite);
+    public Builder edge(BoundName prerequisite, BoundName postrequisite) {
+      assert nodes.containsKey(postrequisite)
+          && nodes.containsKey(prerequisite);
+      edges.put(postrequisite, prerequisite);
       return this;
     }
 
@@ -73,41 +78,41 @@ public final class PlanGraph {
   }
 
   public static Builder builder(Product... nodes) {
-    ImmutableMap.Builder<String, Product> products = ImmutableMap.builder();
+    ImmutableMap.Builder<BoundName, Product> products = ImmutableMap.builder();
     for (Product p : nodes) { products.put(p.name, p); }
     return new Builder(products.build());
   }
 
-  public Walker walker(Function<String, ?> action) {
+  public Walker walker(Function<BoundName, ?> action) {
     return new Walker(this, action);
   }
 
   public static final class Walker {
     final PlanGraph g;
-    final Function<String, ?> action;
-    final Set<String> visited = Sets.newHashSet();
+    final Function<BoundName, ?> action;
+    final Set<BoundName> visited = Sets.newHashSet();
 
-    private Walker(PlanGraph g, Function<String, ?> action) {
+    private Walker(PlanGraph g, Function<BoundName, ?> action) {
       this.g = g;
       this.action = action;
     }
 
-    public void walk(String node) {
+    public void walk(BoundName node) {
       if (!visited.add(node)) { return; }
       action.apply(node);
-      for (String desc : g.edges.get(node)) { walk(desc); }
+      for (BoundName desc : g.edges.get(node)) { walk(desc); }
     }
   }
 
   /**
    * @param prods the required products.
    */
-  public Recipe makeRecipe(final Set<String> prods)
+  public Recipe makeRecipe(final Set<BoundName> prods)
       throws DependencyCycleException, MissingProductsException {
     // TODO: make sure all products are concrete, and back-propagate any
     // parameters to create the ones that are needed.
     {
-      Set<String> prodsNeeded = Sets.newHashSet(prods);
+      Set<BoundName> prodsNeeded = Sets.newHashSet(prods);
       prodsNeeded.removeAll(nodes.keySet());
       if (!prodsNeeded.isEmpty()) {
         throw new MissingProductsException(
@@ -115,21 +120,22 @@ public final class PlanGraph {
       }
     }
 
-    final Multimap<String, String> postReqGraph;
+    final Multimap<BoundName, BoundName> postReqGraph;
     {
-      ImmutableMultimap.Builder<String, String> b = ImmutableMultimap.builder();
-      for (Map.Entry<String, String> e : edges.entries()) {
+      ImmutableMultimap.Builder<BoundName, BoundName> b
+          = ImmutableMultimap.builder();
+      for (Map.Entry<BoundName, BoundName> e : edges.entries()) {
         b.put(e.getValue(), e.getKey());
       }
       postReqGraph = b.build();
     }
 
     // Figure out all ingredients needed.
-    final Set<String> allProducts;
+    final Set<BoundName> allProducts;
     {
-      final ImmutableSet.Builder<String> b = ImmutableSet.builder();
+      final ImmutableSet.Builder<BoundName> b = ImmutableSet.builder();
       Walker w = walker(new ProductNameAppender(b));
-      for (String prod : prods) { w.walk(prod); }
+      for (BoundName prod : prods) { w.walk(prod); }
       allProducts = b.build();
     }
 
@@ -137,18 +143,18 @@ public final class PlanGraph {
     // starting points.
     class IngredientProcesser {
       // Maps product names to the ingredient instance for that product.
-      final Map<String, Ingredient> ingredients = Maps.newHashMap();
+      final Map<BoundName, Ingredient> ingredients = Maps.newHashMap();
       /**
        * The products we're processing so we can detect and report dependency
        * cycles.
        */
-      final Set<String> processing = Sets.newLinkedHashSet();
+      final Set<BoundName> processing = Sets.newLinkedHashSet();
 
-      Ingredient process(String product) throws DependencyCycleException {
+      Ingredient process(BoundName product) throws DependencyCycleException {
         Ingredient ingredient = ingredients.get(product);
         if (ingredient != null) { return ingredient; }
         if (processing.contains(product)) {
-          List<String> cycle = Lists.newArrayList(processing);
+          List<BoundName> cycle = Lists.newArrayList(processing);
           int index = cycle.indexOf(product);
           cycle.subList(0, index).clear();
           cycle.add(product);
@@ -157,7 +163,7 @@ public final class PlanGraph {
         }
         processing.add(product);
         ImmutableList.Builder<Ingredient> postReqs = ImmutableList.builder();
-        for (String postReq : postReqGraph.get(product)) {
+        for (BoundName postReq : postReqGraph.get(product)) {
           if (!allProducts.contains(postReq)) { continue; }
           Ingredient postReqIngredient = process(postReq);
           postReqs.add(postReqIngredient);
@@ -174,7 +180,7 @@ public final class PlanGraph {
     // The products that have no prerequisites.  We start with these.
     final ImmutableList.Builder<Ingredient> startingPoints
         = ImmutableList.builder();
-    for (String prod : allProducts) {
+    for (BoundName prod : allProducts) {
       // Ingredient will not appear in any postrequisite lists if it has no
       // prerequisites.
       if (edges.get(prod).isEmpty()) {
@@ -185,7 +191,7 @@ public final class PlanGraph {
       // Flush out any products that would be missing due to dependency cycles
       // that cause the graph to be unreachable from a zero prerequisite
       // product.
-      for (String prod : allProducts) { w.process(prod); }
+      for (BoundName prod : allProducts) { w.process(prod); }
     }
     return new Recipe(startingPoints.build());
   }
@@ -200,10 +206,10 @@ public final class PlanGraph {
   }
 
   private static final class ProductNameAppender
-      implements Function<String, Void> {
-    private final ImmutableSet.Builder<String> b;
-    ProductNameAppender(ImmutableSet.Builder<String> b) { this.b = b; }
-    public Void apply(String productName) {
+      implements Function<BoundName, Void> {
+    private final ImmutableSet.Builder<BoundName> b;
+    ProductNameAppender(ImmutableSet.Builder<BoundName> b) { this.b = b; }
+    public Void apply(BoundName productName) {
       b.add(productName);
       return null;
     }

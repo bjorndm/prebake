@@ -15,6 +15,7 @@
 package org.prebake.service.www;
 
 import org.prebake.channel.FileNames;
+import org.prebake.core.BoundName;
 import org.prebake.core.Hash;
 import org.prebake.core.PreformattedStaticHtml;
 import org.prebake.js.JsonSink;
@@ -307,7 +308,7 @@ public final class MainServlet extends HttpServlet {
     Writer w = resp.getWriter();
     try {
       JsonSink sink = new JsonSink(w);
-      Set<String> upToDate = pb.getUpToDateProducts();
+      Set<BoundName> upToDate = pb.getUpToDateProducts();
       PlanGraph pg = pb.getPlanGraph();
       sink.write("{")
           .writeValue("products")
@@ -329,7 +330,7 @@ public final class MainServlet extends HttpServlet {
           .write(":")
           .write("{");
       needComma = false;
-      for (String productName : pg.nodes.keySet()) {
+      for (BoundName productName : pg.nodes.keySet()) {
         if (needComma) { sink.write(","); }
         sink.writeValue(productName)
             .write(":")
@@ -355,7 +356,8 @@ public final class MainServlet extends HttpServlet {
     resp.setContentType("text/html; charset=UTF-8");
     Writer w = resp.getWriter();
     PlanIndexPage.write(
-        w, GxpContext.builder(Locale.ENGLISH).build(), pb.getProducts());
+        w, GxpContext.builder(Locale.ENGLISH).build(),
+        pb.getProducts().values());
     w.close();
   }
 
@@ -433,10 +435,10 @@ public final class MainServlet extends HttpServlet {
   private void serveIndex(Response resp) throws IOException {
     resp.setContentType("text/html; charset=UTF-8");
     Writer w = resp.getWriter();
-    Map<String, Product> products = pb.getProducts();
+    Map<BoundName, Product> products = pb.getProducts();
     IndexPage.write(
         w, GxpContext.builder(Locale.ENGLISH).build(),
-        pb.getToolNames(), pb.getTools(), products);
+        pb.getToolNames(), pb.getTools(), products.values());
     w.close();
   }
 

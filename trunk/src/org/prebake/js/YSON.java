@@ -279,15 +279,27 @@ public final class YSON {
       "double", "import", "public",
       "null", "false", "true");
 
+  private static final String NAME_START_CHARS
+      = "$_\\p{Lu}\\p{Ll}\\p{Lt}\\p{Lm}\\p{Lo}\\p{Nl}";
+  private static final String NAME_PART_CHARS
+      = NAME_START_CHARS + "\\p{Nd}\\p{Mn}\\p{Mc}\\p{Pc}";
+
   /**
    * From <a href="http://interglacial.com/javascript_spec/a-7.html#a-7.6">
    * section 7.6</a> of the EcmaScript 5 spec.
    */
   private static final Pattern IDENTIFIER_NAME = Pattern.compile(
       ""
-      + "[$_\\p{Lu}\\p{Ll}\\p{Lt}\\p{Lm}\\p{Lo}\\p{Nl}]"
-      + "[$_\\p{Lu}\\p{Ll}\\p{Lt}\\p{Lm}\\p{Lo}\\p{Nl}"
-      + "\\p{Nd}\\p{Mn}\\p{Mc}\\p{Pc}]*");
+      + "[" + NAME_START_CHARS + "][" + NAME_PART_CHARS + "]*");
+
+  /**
+   * From <a href="http://interglacial.com/javascript_spec/a-7.html#a-7.6">
+   * section 7.6</a> of the EcmaScript 5 spec.
+   */
+  private static final Pattern DOTTED_IDENTIFIER_NAME = Pattern.compile(
+      ""
+      + "[" + NAME_START_CHARS + "][" + NAME_PART_CHARS + "]*"
+      + "(?:\\.[" + NAME_START_CHARS + "][" + NAME_PART_CHARS + "]*)*");
 
   /**
    * True iff s is a valid JavaScript identifier.
@@ -307,6 +319,17 @@ public final class YSON {
    */
   public static boolean isValidIdentifierName(String s) {
     return IDENTIFIER_NAME.matcher(s).matches()
+        && Normalizer.isNormalized(s, Normalizer.Form.NFC);
+  }
+
+  /**
+   * True iff s is a valid series of JavaScript identifiers or keywords with
+   * dots between.
+   * See <a href="http://interglacial.com/javascript_spec/a-7.html#a-7.6">
+   * section 7.6</a> for the definition of a JS identifier name.
+   */
+  public static boolean isValidDottedIdentifierName(String s) {
+    return DOTTED_IDENTIFIER_NAME.matcher(s).matches()
         && Normalizer.isNormalized(s, Normalizer.Form.NFC);
   }
 

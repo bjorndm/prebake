@@ -15,6 +15,7 @@
 package org.prebake.fs;
 
 import org.prebake.core.ArtifactListener;
+import org.prebake.core.BoundName;
 import org.prebake.core.Glob;
 import org.prebake.core.Hash;
 import org.prebake.util.PbTestCase;
@@ -22,6 +23,7 @@ import org.prebake.util.StubFileSystemProvider;
 
 import com.google.common.base.Joiner;
 import com.google.common.base.Predicates;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Maps;
 import com.google.common.io.Files;
 import com.sleepycat.je.Environment;
@@ -277,23 +279,21 @@ public class DbFileVersionerTest extends PbTestCase {
     assertFalse(docsp.valid);
   }
 
+  private static GlobUnion globUnion(String ident, String... globs) {
+    ImmutableList.Builder<Glob> globList = ImmutableList.builder();
+    for (String glob : globs) { globList.add(Glob.fromString(glob)); }
+    return new GlobUnion(BoundName.fromString(ident), globList.build());
+  }
+
   @Test public final void testWatcher() throws IOException {
-    GlobUnion fooTxt = new GlobUnion(
-        "foo.txt", Arrays.asList(Glob.fromString("foo/**.txt")));
-    GlobUnion barTxt = new GlobUnion(
-        "bar.txt", Arrays.asList(Glob.fromString("bar/**.txt")));
-    GlobUnion fooHtml = new GlobUnion(
-        "foo.html", Arrays.asList(Glob.fromString("foo/**.html")));
-    GlobUnion barHtml = new GlobUnion(
-        "bar.html", Arrays.asList(Glob.fromString("bar/**.html")));
-    GlobUnion foo = new GlobUnion(
-        "foo", Arrays.asList(Glob.fromString("foo/**")));
-    GlobUnion bar = new GlobUnion(
-        "bar", Arrays.asList(Glob.fromString("bar/**")));
-    GlobUnion txt = new GlobUnion(
-        ".txt", Arrays.asList(Glob.fromString("**.txt")));
-    GlobUnion html = new GlobUnion(
-        ".html", Arrays.asList(Glob.fromString("**.html")));
+    GlobUnion fooTxt = globUnion("foo.txt", "foo/**.txt");
+    GlobUnion barTxt = globUnion("bar.txt", "bar/**.txt");
+    GlobUnion fooHtml = globUnion("foo.html", "foo/**.html");
+    GlobUnion barHtml = globUnion("bar.html", "bar/**.html");
+    GlobUnion foo = globUnion("foo", "foo/**");
+    GlobUnion bar = globUnion("bar", "bar/**");
+    GlobUnion txt = globUnion("all.txt", "**.txt");
+    GlobUnion html = globUnion("all.html", "**.html");
 
     ArtifactListener<GlobUnion> listener = new ArtifactListener<GlobUnion>() {
       Logger logger = getLogger(Level.INFO);
@@ -344,13 +344,13 @@ public class DbFileVersionerTest extends PbTestCase {
             // foo{a,b}.txt changed
             "INFO: changed foo.txt",
             "INFO: changed foo",
-            "INFO: changed .txt",
+            "INFO: changed all.txt",
             // bar{a,b}.txt changed
             "INFO: changed bar.txt",
             "INFO: changed bar",
             // foo{a,b}.html changed
             "INFO: changed foo.html",
-            "INFO: changed .html",
+            "INFO: changed all.html",
             // bar{a,b}.html changed
             "INFO: changed bar.html"),
             Joiner.on('\n').join(getLog()));
@@ -364,7 +364,7 @@ public class DbFileVersionerTest extends PbTestCase {
         Joiner.on('\n').join(
             "INFO: changed foo.html",
             "INFO: changed foo",
-            "INFO: changed .html"),
+            "INFO: changed all.html"),
         Joiner.on('\n').join(getLog()));
     getLog().clear();
 
@@ -397,8 +397,8 @@ public class DbFileVersionerTest extends PbTestCase {
         Joiner.on('\n').join(
             "INFO: changed bar.html",
             "INFO: changed bar",
-            "INFO: changed .html",
-            "INFO: changed .html"),
+            "INFO: changed all.html",
+            "INFO: changed all.html"),
         Joiner.on('\n').join(getLog()));
     getLog().clear();
 
@@ -410,7 +410,7 @@ public class DbFileVersionerTest extends PbTestCase {
         Joiner.on('\n').join(
             "INFO: changed bar.html",
             "INFO: changed bar",
-            "INFO: changed .html"),
+            "INFO: changed all.html"),
         Joiner.on('\n').join(getLog()));
     getLog().clear();
 

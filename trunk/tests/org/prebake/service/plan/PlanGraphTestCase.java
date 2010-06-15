@@ -14,6 +14,7 @@
 
 package org.prebake.service.plan;
 
+import org.prebake.core.BoundName;
 import org.prebake.core.Glob;
 import org.prebake.core.GlobRelation;
 import org.prebake.core.ImmutableGlobSet;
@@ -41,8 +42,7 @@ public abstract class PlanGraphTestCase extends PbTestCase {
     source = null;
   }
 
-
-  protected PlanGraph.Builder builder(String... concreteProductNames) {
+  protected PlanGraph.Builder builder(BoundName... concreteProductNames) {
     int n = concreteProductNames.length;
     GlobRelation emptyGlobRel = new GlobRelation(
         ImmutableGlobSet.of(ImmutableList.<Glob>of()),
@@ -50,8 +50,8 @@ public abstract class PlanGraphTestCase extends PbTestCase {
     Product[] products = new Product[n];
     for (int i = n; --i >= 0;) {
       products[i] = new Product(
-          concreteProductNames[i], null, emptyGlobRel,
-          ImmutableList.<Action>of(), false, null, source);
+          concreteProductNames[i], null,
+          emptyGlobRel, ImmutableList.<Action>of(), false, null, source);
     }
     return PlanGraph.builder(products);
   }

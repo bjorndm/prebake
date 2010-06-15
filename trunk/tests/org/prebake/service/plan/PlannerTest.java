@@ -15,6 +15,7 @@
 package org.prebake.service.plan;
 
 import org.prebake.core.ArtifactListener;
+import org.prebake.core.BoundName;
 import org.prebake.core.Documentation;
 import org.prebake.core.GlobRelation;
 import org.prebake.core.GlobSet;
@@ -427,8 +428,7 @@ public class PlannerTest extends PbTestCase {
         .withTools(tool("gcc"))
         .withPlanFiles("Bakefile.js")
         .expectLog(
-            "WARNING: \"b#d\" is not a product name of one or more JS name"
-            + " characters or dashes with dots",
+            "WARNING: Expected a bound name but was \"b#d\"",
             "SEVERE: Failed to update plan Bakefile.js")
         .run();
   }
@@ -501,7 +501,7 @@ public class PlannerTest extends PbTestCase {
     }
 
     public Tester expectProducts(Product... prods) {
-      for (Product p : prods) { goldenProds.put(p.name, p); }
+      for (Product p : prods) { goldenProds.put(p.name.ident, p); }
       return this;
     }
 
@@ -512,7 +512,8 @@ public class PlannerTest extends PbTestCase {
     public Tester expectProduct(
         String name, GlobSet inputs, GlobSet outputs, Action... actions) {
       return expectProducts(new Product(
-          name, null, new GlobRelation(inputs, outputs), Arrays.asList(actions),
+          BoundName.fromString(name), null,
+          new GlobRelation(inputs, outputs), Arrays.asList(actions),
           false, null, fs.getPath("/cwd")));
     }
 
@@ -543,7 +544,7 @@ public class PlannerTest extends PbTestCase {
     }
 
     public Tester run() {
-      Map<String, Product> products = planner.getProducts();
+      Map<BoundName, Product> products = planner.getProducts();
       assertEquals(goldenProds.toString(), products.toString());
       assertEquals(
           Joiner.on('\n').join(goldenLog), Joiner.on('\n').join(getLog()));
