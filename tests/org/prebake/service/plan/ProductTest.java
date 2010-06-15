@@ -14,6 +14,7 @@
 
 package org.prebake.service.plan;
 
+import org.prebake.core.BoundName;
 import org.prebake.core.GlobRelation;
 import org.prebake.core.MessageQueue;
 import org.prebake.js.JsonSink;
@@ -63,7 +64,7 @@ public class ProductTest extends PbTestCase {
          + "}"
          ).replace('\'', '"'),
         new Product(
-            "foo",
+            BoundName.fromString("foo"),
             null,
             new GlobRelation(
                 globs("src/**.c", "src/**.h"),
@@ -88,7 +89,7 @@ public class ProductTest extends PbTestCase {
   @Test public final void testSimpleParsedForm() throws IOException {
     assertParsesTo(
         new Product(
-            "foo",
+            BoundName.fromString("foo"),
             null,
             new GlobRelation(
                 globs("src/**.c", "src/**.h"),
@@ -113,7 +114,7 @@ public class ProductTest extends PbTestCase {
   @Test public final void testAbstractProduct() throws IOException {
     Product p = assertParsesTo(
         new Product(
-            "foo",
+            BoundName.fromString("foo"),
             null,
             new GlobRelation(
                 globs("src/*(x)/**.c", "src/**.h"),
@@ -142,6 +143,7 @@ public class ProductTest extends PbTestCase {
          + "  ]"
          + "}"
         ).replace('\'', '"'));
+    assertEquals("foo", p.name.ident);
     assertFalse(p.isConcrete());
     Product p2 = p.withParameterValues(ImmutableMap.of("x", "bar"));
     assertSerializesTo(
@@ -154,10 +156,10 @@ public class ProductTest extends PbTestCase {
            + "'inputs':['src/bar/**.c','src/**.h'],"
            + "'outputs':['obj/bar/**.o'],"
            + "'options':{'foo':'bar'}}"
-         + "],"
-         + "'bindings':{'x':'bar'}"
+         + "]"
          + "}").replace('\'', '"'),
         p2);
+    assertEquals("foo[\"x\":\"bar\"]", p2.name.ident);
     assertTrue(p2.isConcrete());
   }
 

@@ -14,6 +14,7 @@
 
 package org.prebake.service.plan;
 
+import org.prebake.core.BoundName;
 import org.prebake.core.GlobRelation;
 import org.prebake.core.GlobSet;
 
@@ -68,56 +69,66 @@ public class PlanGrapherTest extends PlanGraphTestCase {
     }
   }
 
+  private static final BoundName A = BoundName.fromString("A");
+  private static final BoundName B = BoundName.fromString("B");
+  private static final BoundName C = BoundName.fromString("C");
+  private static final BoundName D = BoundName.fromString("D");
+  private static final BoundName E = BoundName.fromString("E");
+  private static final BoundName F = BoundName.fromString("F");
+  private static final BoundName G = BoundName.fromString("G");
+  private static final BoundName H = BoundName.fromString("H");
+  private static final BoundName I = BoundName.fromString("I");
+
   @Test public final void testRecipe() throws Exception {
     //  A           E     G
     //    \       /
     //      C - D
     //    /       \
     //  B           F - H - I
-    PlanGraph g = builder("A", "B", "C", "D", "E", "F", "G", "H", "I")
-        .edge("A", "C")
-        .edge("B", "C")
-        .edge("C", "D")
-        .edge("D", "E")
-        .edge("D", "F")
-        .edge("F", "H")
-        .edge("H", "I")
+    PlanGraph g = builder(A, B, C, D, E, F, G, H, I)
+        .edge(A, C)
+        .edge(B, C)
+        .edge(C, D)
+        .edge(D, E)
+        .edge(D, F)
+        .edge(F, H)
+        .edge(H, I)
         .build();
     assertCookLog(
-        g.makeRecipe(ImmutableSet.of("E", "F", "C")), ImmutableSet.<String>of(),
+        g.makeRecipe(ImmutableSet.of(E, F, C)), ImmutableSet.<BoundName>of(),
         "A", "B", "C", "D", "E", "F", "OK");
     assertCookLog(
-        g.makeRecipe(ImmutableSet.of("F", "C")),
-        ImmutableSet.<String>of(),
+        g.makeRecipe(ImmutableSet.of(F, C)),
+        ImmutableSet.<BoundName>of(),
         "A", "B", "C", "D", "F", "OK");
     assertCookLog(
-        g.makeRecipe(ImmutableSet.of("F", "C", "G")),
-        ImmutableSet.<String>of(),
+        g.makeRecipe(ImmutableSet.of(F, C, G)),
+        ImmutableSet.<BoundName>of(),
         "A", "B", "C", "D", "F", "G", "OK");
     assertCookLog(
-        g.makeRecipe(ImmutableSet.of("G", "F", "C")),
-        ImmutableSet.<String>of(),
+        g.makeRecipe(ImmutableSet.of(G, F, C)),
+        ImmutableSet.<BoundName>of(),
         "G", "A", "B", "C", "D", "F", "OK");
     assertCookLog(
-        g.makeRecipe(ImmutableSet.of("E", "F")),
-        ImmutableSet.<String>of("D"),
+        g.makeRecipe(ImmutableSet.of(E, F)),
+        ImmutableSet.of(D),
         "A", "B", "C", "D", "FAIL");
     assertCookLog(
-        g.makeRecipe(ImmutableSet.of("E", "H")),
-        ImmutableSet.<String>of("F"),
+        g.makeRecipe(ImmutableSet.of(E, H)),
+        ImmutableSet.of(F),
         "A", "B", "C", "D", "E", "F", "FAIL");
   }
 
   @Test
   public final void testRecipeMakingLoopWithDependencyLeaf() throws Exception {
-    PlanGraph g = builder("A", "B", "C", "D")
-        .edge("A", "B")  // D - B = A
-        .edge("B", "A")  //       \
-        .edge("B", "C")  //         C
-        .edge("D", "B")
+    PlanGraph g = builder(A, B, C, D)
+        .edge(A, B)  // D - B = A
+        .edge(B, A)  //       \
+        .edge(B, C)  //         C
+        .edge(D, B)
         .build();
     try {
-      g.makeRecipe(ImmutableSet.of("C"));
+      g.makeRecipe(ImmutableSet.of(C));
     } catch (PlanGraph.DependencyCycleException ex) {
       assertEquals("Cycle in product dependencies : B, A, B", ex.getMessage());
       return;
@@ -128,13 +139,13 @@ public class PlanGrapherTest extends PlanGraphTestCase {
   @Test
   public final void testRecipeMakingLoopWithoutDependencyLeaf()
       throws Exception {
-    PlanGraph g = builder("A", "B", "C")
-        .edge("A", "B")  // B = A
-        .edge("B", "A")  //   \
-        .edge("B", "C")  //     C
+    PlanGraph g = builder(A, B, C)
+        .edge(A, B)  // B = A
+        .edge(B, A)  //   \
+        .edge(B, C)  //     C
         .build();
     try {
-      g.makeRecipe(ImmutableSet.of("C"));
+      g.makeRecipe(ImmutableSet.of(C));
     } catch (PlanGraph.DependencyCycleException ex) {
       assertEquals("Cycle in product dependencies : B, A, B", ex.getMessage());
       return;
@@ -149,26 +160,26 @@ public class PlanGrapherTest extends PlanGraphTestCase {
     //  B - D - E - G
     //    /       \
     //  C           H
-    PlanGraph g = builder("A", "B", "C", "D", "E", "F", "G", "H")
-        .edge("A", "D")
-        .edge("B", "D")
-        .edge("C", "D")
-        .edge("D", "E")
-        .edge("E", "F")
-        .edge("E", "G")
-        .edge("E", "H")
+    PlanGraph g = builder(A, B, C, D, E, F, G, H)
+        .edge(A, D)
+        .edge(B, D)
+        .edge(C, D)
+        .edge(D, E)
+        .edge(E, F)
+        .edge(E, G)
+        .edge(E, H)
         .build();
     Random rnd = new Random();
     for (int run = 100; --run >= 0;) {
-      Recipe r = g.makeRecipe(ImmutableSet.of("F", "G", "H"));
+      Recipe r = g.makeRecipe(ImmutableSet.of(F, G, H));
       class Task {
-        final String prod;
+        final BoundName prod;
         final Function<Boolean, ?> whenDone;
-        Task(String prod, Function<Boolean, ?> whenDone) {
+        Task(BoundName prod, Function<Boolean, ?> whenDone) {
           this.prod = prod;
           this.whenDone = whenDone;
         }
-        @Override public String toString() { return prod; }
+        @Override public String toString() { return prod.ident; }
       }
       final List<Task> tasks = Lists.newArrayList();
       final List<String> prods = Lists.newArrayList();
@@ -185,7 +196,7 @@ public class PlanGrapherTest extends PlanGraphTestCase {
       while (true) {
         Task t = tasks.remove(rnd.nextInt(tasks.size()));
         if (t == null) { break; }
-        prods.add(t.prod);
+        prods.add(t.prod.ident);
         t.whenDone.apply(true);
       }
       assertTrue(Joiner.on('\n').join(tasks), tasks.isEmpty());
@@ -207,18 +218,19 @@ public class PlanGrapherTest extends PlanGraphTestCase {
 
   private Product product(String name, GlobSet inputs, GlobSet outputs) {
     return new Product(
-        name, null, new GlobRelation(inputs, outputs),
+        BoundName.fromString(name), null,
+        new GlobRelation(inputs, outputs),
         Collections.singletonList(new Action(
             "tool", inputs, outputs, ImmutableMap.<String, Object>of())),
         false, null, source);
   }
 
   private void assertCookLog(
-      Recipe r, final Set<String> burnt, String... golden) {
+      Recipe r, final Set<BoundName> burnt, String... golden) {
     final List<String> log = Lists.newArrayList();
     r.cook(new Recipe.Chef() {
       public void cook(Ingredient ingredient, Function<Boolean, ?> whenDone) {
-        log.add(ingredient.product);
+        log.add(ingredient.product.ident);
         whenDone.apply(!burnt.contains(ingredient.product));
       }
       public void done(boolean allSucceeded) {

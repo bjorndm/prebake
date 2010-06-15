@@ -15,6 +15,7 @@
 package org.prebake.service.plan;
 
 import org.prebake.core.ArtifactListener;
+import org.prebake.core.BoundName;
 import org.prebake.core.Glob;
 import org.prebake.core.ImmutableGlobSet;
 
@@ -50,19 +51,21 @@ import com.google.common.collect.Sets;
 @ParametersAreNonnullByDefault
 public final class PlanGrapher {
   /** The end points per product. */
-  private final Map<String, ProdEndPoints> nodes = Maps.newHashMap();
+  private final Map<BoundName, ProdEndPoints> nodes = Maps.newHashMap();
   /** Glob sets needed to compute the intersection graph of end-points. */
   private final Multiset<ImmutableGlobSet> endPoints = HashMultiset.create();
   /** True if there is an edge in the intersection graph of end-points. */
   private final Map<EndPoints, Boolean> edges = Maps.newHashMap();
   /** Products that have not been incorporated into the other collections. */
-  private final Map<String, Product> unprocessed
-      = Collections.synchronizedMap(Maps.<String, Product>newHashMap());
+  private final Map<BoundName, Product> unprocessed
+      = Collections.synchronizedMap(Maps.<BoundName, Product>newHashMap());
 
   final ArtifactListener<Product> productListener
       = new ArtifactListener<Product>() {
     public void artifactChanged(Product p) { unprocessed.put(p.name, p); }
-    public void artifactDestroyed(String name) { unprocessed.put(name, null); }
+    public void artifactDestroyed(String name) {
+      unprocessed.put(BoundName.fromString(name), null);
+    }
   };
 
   public PlanGraph snapshot() {
@@ -79,7 +82,7 @@ public final class PlanGrapher {
     int n = products.length;
     PlanGraph.Builder b = PlanGraph.builder(products);
     for (int i = 0; i < n; ++i) {
-      String p = products[i].name;
+      BoundName p = products[i].name;
       ImmutableGlobSet sources = prodEndPoints[i].sources;
       for (int j = 0; j < n; ++j) {
         ImmutableGlobSet targets = prodEndPoints[j].targets;
@@ -96,9 +99,9 @@ public final class PlanGrapher {
     // glob intersection checks which are the expensive parts, and the number
     // of globs is strictly greater than the number of products.
     List<Product> prods = Lists.newArrayList();
-    List<String> removed = Lists.newArrayList();
+    List<BoundName> removed = Lists.newArrayList();
     synchronized (unprocessed) {
-      for (Map.Entry<String, Product> e : unprocessed.entrySet()) {
+      for (Map.Entry<BoundName, Product> e : unprocessed.entrySet()) {
         Product p = e.getValue();
         if (p != null) {
           prods.add(p);
@@ -127,7 +130,7 @@ public final class PlanGrapher {
       endPoints.add(newNode.sources);
       endPoints.add(newNode.targets);
     }
-    for (String name : removed) {
+    for (BoundName name : removed) {
       EndPoints oldNode = nodes.get(name);
       if (oldNode != null) {
         oldGlobs.add(oldNode.sources);

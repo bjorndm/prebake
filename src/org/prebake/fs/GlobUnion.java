@@ -14,6 +14,7 @@
 
 package org.prebake.fs;
 
+import org.prebake.core.BoundName;
 import org.prebake.core.Glob;
 
 import com.google.common.collect.ImmutableList;
@@ -28,11 +29,11 @@ import javax.annotation.ParametersAreNonnullByDefault;
  */
 @ParametersAreNonnullByDefault
 public final class GlobUnion {
-  public final String name;
+  public final BoundName name;
   public final ImmutableList<Glob> globs;
   private final int hashCode;
 
-  public GlobUnion(String name, Iterable<Glob> globs) {
+  public GlobUnion(BoundName name, Iterable<Glob> globs) {
     this.name = name;
     this.globs = ImmutableList.copyOf(globs);
     this.hashCode = globs.hashCode() + 31 * name.hashCode();

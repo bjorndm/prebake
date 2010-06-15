@@ -14,6 +14,7 @@
 
 package org.prebake.service;
 
+import org.prebake.core.BoundName;
 import org.prebake.service.plan.PlanGraph;
 
 import com.google.common.base.Function;
@@ -36,16 +37,16 @@ import javax.annotation.ParametersAreNonnullByDefault;
 @ParametersAreNonnullByDefault
 final class DotRenderer {
   static void render(
-      final PlanGraph g, final Set<String> prods, final Appendable out)
+      final PlanGraph g, final Set<BoundName> prods, final Appendable out)
       throws IOException {
-    final List<String> roots = Lists.newArrayList(prods);
+    final List<BoundName> roots = Lists.newArrayList(prods);
     // Eliminate any products that are dependencies of others.
     {
-      final Set<String> notRoots = Sets.newHashSet();
-      for (final String prod : prods) {
+      final Set<BoundName> notRoots = Sets.newHashSet();
+      for (final BoundName prod : prods) {
         if (notRoots.contains(prod)) { break; }
-        g.walker(new Function<String, Void>() {
-          public Void apply(String node) {
+        g.walker(new Function<BoundName, Void>() {
+          public Void apply(BoundName node) {
             if (!node.equals(prod) && prods.contains(node)) {
               notRoots.add(node);
             }
@@ -56,19 +57,19 @@ final class DotRenderer {
       roots.removeAll(notRoots);
     }
     out.append("digraph {\n");
-    for (String root : roots) {
+    for (BoundName root : roots) {
       try {
-        g.walker(new Function<String, Void>() {
-          public Void apply(String node) {
+        g.walker(new Function<BoundName, Void>() {
+          public Void apply(BoundName node) {
             try {
               out.append("  ");
-              writeDotId(node);
+              writeDotId(node.ident);
               out.append(";\n");
-              for (String dep : g.edges.get(node)) {
+              for (BoundName dep : g.edges.get(node)) {
                 out.append("  ");
-                writeDotId(dep);
+                writeDotId(dep.ident);
                 out.append(" -> ");
-                writeDotId(node);
+                writeDotId(node.ident);
                 out.append(";\n");
               }
               // TODO: display intersection of inputs and outputs at edge

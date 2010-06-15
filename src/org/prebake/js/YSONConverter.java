@@ -65,6 +65,19 @@ public interface YSONConverter<T> {
      * @param <T> the type the output converts to.
      */
     public static <T> YSONConverter<T> withType(final Class<T> type) {
+      return withType(type, "an instance of " + type.getSimpleName());
+    }
+    /**
+     * Converts literals to the given type.
+     * If the given type has a static {@code T valueOf(String)} or
+     * {@code T fromString(String)} method, then it will be called to convert
+     * string literals to T.
+     * @param expected human readable noun phrase describing the expected value
+     *     for use in error messages.
+     * @param <T> the type the output converts to.
+     */
+    public static <T> YSONConverter<T> withType(
+        final Class<T> type, final String expected) {
       final Function<String, T> fromString;
       Method strConverter;
       try {
@@ -113,8 +126,7 @@ public interface YSONConverter<T> {
             if (result != null) { return result; }
           }
           problems.error(
-              "Expected an instance of " + type.getSimpleName()
-              + " but was " + toErrorString(ysonValue));
+              "Expected " + expected + " but was " + toErrorString(ysonValue));
           return null;
         }
         public String exampleText() {

@@ -14,6 +14,8 @@
 
 package org.prebake.service.plan;
 
+import org.prebake.core.BoundName;
+
 import javax.annotation.ParametersAreNonnullByDefault;
 
 import com.google.common.collect.ImmutableList;
@@ -26,7 +28,7 @@ import com.google.common.collect.ImmutableList;
 @ParametersAreNonnullByDefault
 public final class Ingredient {
   /** The name of the product that must be built to prepare this ingredient. */
-  public final String product;
+  public final BoundName product;
   /**
    * The ingredients whose preReq count can be decremented once this
    * ingredient is prepared.
@@ -36,10 +38,10 @@ public final class Ingredient {
    * The names of ingredients that must be prepared before this ingredient can
    * be prepared.
    */
-  public final ImmutableList<String> preRequisites;
+  public final ImmutableList<BoundName> preRequisites;
 
   public Ingredient(
-      String product, ImmutableList<String> preReqs,
+      BoundName product, ImmutableList<BoundName> preReqs,
       ImmutableList<Ingredient> postReqs) {
     this.product = product;
     this.preRequisites = preReqs;

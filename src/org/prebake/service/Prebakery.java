@@ -17,6 +17,7 @@ package org.prebake.service;
 import org.prebake.channel.Command;
 import org.prebake.channel.Commands;
 import org.prebake.channel.FileNames;
+import org.prebake.core.BoundName;
 import org.prebake.core.Documentation;
 import org.prebake.fs.DbFileVersioner;
 import org.prebake.fs.DirectoryHooks;
@@ -227,21 +228,21 @@ public abstract class Prebakery implements Closeable {
   }
 
   /** Snapshot of products. */
-  public Map<String, Product> getProducts() {
+  public Map<BoundName, Product> getProducts() {
     Planner planner;
     synchronized (this) { planner = this.planner; }
-    Map<String, Product> products = null;
+    Map<BoundName, Product> products = null;
     if (planner != null) { products = planner.getProducts(); }
-    return products != null ? products : ImmutableMap.<String, Product>of();
+    return products != null ? products : ImmutableMap.<BoundName, Product>of();
   }
 
   /** Snapshot of the names of up-to-date products. */
-  public Set<String> getUpToDateProducts() {
+  public Set<BoundName> getUpToDateProducts() {
     Baker baker;
     synchronized (this) { baker = this.baker; }
-    Set<String> products = null;
+    Set<BoundName> products = null;
     if (baker != null) { products = baker.getUpToDateProducts(); }
-    return products != null ? products : ImmutableSet.<String>of();
+    return products != null ? products : ImmutableSet.<BoundName>of();
   }
 
   public HighLevelLog getHighLevelLog() { return logs.highLevelLog; }
@@ -433,7 +434,8 @@ public abstract class Prebakery implements Closeable {
                 logger.addHandler(ccl);
                 try {
                   planner.getProducts();
-                  Set<String> products = ((Command.BakeCommand) cmd).products;
+                  Command.BakeCommand bakecmd = (Command.BakeCommand) cmd;
+                  Set<BoundName> products = bakecmd.products;
                   doBake(
                       products, planner.getPlanGraph().makeRecipe(products),
                       ccl);
@@ -551,13 +553,13 @@ public abstract class Prebakery implements Closeable {
   }
 
   private void doBake(
-      final Set<String> products, Recipe recipe,
+      final Set<BoundName> products, Recipe recipe,
       final ClientChannel outChannel) {
     recipe.cook(new Recipe.Chef() {
-      List<String> ok = Collections.synchronizedList(
-          Lists.<String>newArrayList());
-      List<String> failed = Collections.synchronizedList(
-          Lists.<String>newArrayList());
+      List<BoundName> ok = Collections.synchronizedList(
+          Lists.<BoundName>newArrayList());
+      List<BoundName> failed = Collections.synchronizedList(
+          Lists.<BoundName>newArrayList());
 
       public void cook(
           final Ingredient ingredient, final Function<Boolean, ?> whenDone) {
@@ -565,7 +567,7 @@ public abstract class Prebakery implements Closeable {
           public void run() {
             Logger logger = logs.logger;
             logger.log(Level.INFO, "Cooking {0}", ingredient.product);
-            String prod = ingredient.product;
+            BoundName prod = ingredient.product;
             boolean status = false;
             try {
               status = baker.bake(prod, ingredient.preRequisites).get();

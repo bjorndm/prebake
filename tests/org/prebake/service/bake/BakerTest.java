@@ -14,6 +14,7 @@
 
 package org.prebake.service.bake;
 
+import org.prebake.core.BoundName;
 import org.prebake.core.Documentation;
 import org.prebake.core.GlobRelation;
 import org.prebake.fs.StubFileVersioner;
@@ -565,7 +566,8 @@ public class BakerTest extends PbTestCase {
        .withTool(tool("cp"), "/cwd/tools/cp.js")
        .withTool(tool("munge"), "/cwd/tools/munge.js")
        .withProduct(new Product(
-           "p", null, new GlobRelation(globs("i/**"), globs("o/**", "p/j/g")),
+           BoundName.fromString("p"),
+           null, new GlobRelation(globs("i/**"), globs("o/**", "p/j/g")),
            ImmutableList.of(
                action("cp", "o/j/*", "p/j/*"),  // Run later
                action("munge", "i/**", "o/**")),  // Run
@@ -736,6 +738,16 @@ public class BakerTest extends PbTestCase {
 
     Tester build(String productName, String... prereqs)
         throws ExecutionException, InterruptedException {
+      int n = prereqs.length;
+      BoundName[] prereqArr = new BoundName[n];
+      for (int i = 0; i < n; ++i) {
+        prereqArr[i] = BoundName.fromString(prereqs[i]);
+      }
+      return build(BoundName.fromString(productName), prereqArr);
+    }
+
+    Tester build(BoundName productName, BoundName... prereqs)
+        throws ExecutionException, InterruptedException {
       Boolean result = baker.bake(productName, ImmutableList.of(prereqs)).get();
       assertEquals(successExpectation, result);
       return this;
@@ -813,7 +825,8 @@ public class BakerTest extends PbTestCase {
 
   private Product product(String name, Action action) {
     return new Product(
-        name, null, new GlobRelation(action.inputs, action.outputs),
+        BoundName.fromString(name), null,
+        new GlobRelation(action.inputs, action.outputs),
         Collections.singletonList(action), false, null,
         tester.fs.getPath("plans/" + name + ".js"));
   }

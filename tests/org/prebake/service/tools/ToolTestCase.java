@@ -14,6 +14,7 @@
 
 package org.prebake.service.tools;
 
+import org.prebake.core.BoundName;
 import org.prebake.core.Glob;
 import org.prebake.core.GlobRelation;
 import org.prebake.core.ImmutableGlobSet;
@@ -164,7 +165,8 @@ public abstract class ToolTestCase extends PbTestCase {
       Action a = new Action(
           toolName, inputGlobSet, outputGlobSet, options);
       Product p = new Product(
-          "p", null, new GlobRelation(inputGlobSet, outputGlobSet),
+          BoundName.fromString("p"), null,
+          new GlobRelation(inputGlobSet, outputGlobSet),
           Collections.singletonList(a), false, null,
           fs.getPath("/root/plan.js"));
       Object os = JsOperatingSystemEnv.makeJsInterface(

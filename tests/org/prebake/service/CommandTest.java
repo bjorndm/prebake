@@ -15,6 +15,7 @@
 package org.prebake.service;
 
 import org.prebake.channel.Command;
+import org.prebake.core.BoundName;
 import org.prebake.js.JsonSource;
 import org.prebake.util.StubFileSystemProvider;
 
@@ -57,7 +58,7 @@ public class CommandTest {
 
   @Test public final void testBakeCommand() throws IOException {
     Command.BakeCommand c = new Command.BakeCommand(ImmutableSet.of(
-        "foo", "bar"));
+        BoundName.fromString("foo"), BoundName.fromString("bar")));
     assertEquals("[\"bake\",{},\"foo\",\"bar\"]", c.toString());
     reparse(c);
   }
@@ -72,7 +73,7 @@ public class CommandTest {
 
   @Test public final void testGraphCommand() throws IOException {
     Command.GraphCommand c = new Command.GraphCommand(ImmutableSet.of(
-        "foo", "bar"));
+        BoundName.fromString("foo"), BoundName.fromString("bar")));
     assertEquals("[\"graph\",{},\"foo\",\"bar\"]", c.toString());
     reparse(c);
   }
@@ -86,7 +87,7 @@ public class CommandTest {
 
   @Test public final void testPlanCommand() throws IOException {
     Command.PlanCommand c = new Command.PlanCommand(ImmutableSet.of(
-        "bar", "foo"));
+        BoundName.fromString("bar"), BoundName.fromString("foo")));
     assertEquals("[\"plan\",{},\"bar\",\"foo\"]", c.toString());
     reparse(c);
   }
