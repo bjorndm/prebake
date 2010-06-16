@@ -62,8 +62,8 @@ public final class Product implements JsonSerializable {
   /** The plan file which defined this product was defined. */
   public final Path source;
   /**
-   * Null or, if this is concrete and parameterized, the abstract product from
-   * which it was derived.
+   * Null or, if this is concrete and parameterized and was derived from an
+   * abstract product, the abstract product from which it was derived.
    */
   public final @Nullable Product template;
 
@@ -170,8 +170,13 @@ public final class Product implements JsonSerializable {
    */
   public boolean isConcrete() { return filesAndParams.parameters.isEmpty(); }
 
-  @Override
-  public String toString() {
+  /**
+   * True iff this is {@link #isConcrete concrete} but was
+   * {@link #withParameterValues derived} from an abstract product.
+   */
+  public boolean isDerived() { return template != null; }
+
+  @Override public String toString() {
     return JsonSerializable.StringUtil.toString(this);
   }
 
