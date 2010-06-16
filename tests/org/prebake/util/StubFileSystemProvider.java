@@ -448,7 +448,7 @@ class MemPath extends Path {
     if (!(target instanceof MemPath)) {
       throw new IOException(target.toString());
     }
-    Set<CopyOption> opts = ImmutableSet.of(options);
+    Set<CopyOption> opts = ImmutableSet.copyOf(options);
     Node a = fs.lookup(this);
     Node b = fs.lookup((MemPath) target);
     if (a == b) { return target; }
@@ -472,7 +472,8 @@ class MemPath extends Path {
 
   @Override
   public SeekableByteChannel newByteChannel(OpenOption... options) {
-    return newByteChannel(ImmutableSet.of(options), new FileAttribute<?>[0]);
+    return newByteChannel(
+        ImmutableSet.copyOf(options), new FileAttribute<?>[0]);
   }
 
   @Override

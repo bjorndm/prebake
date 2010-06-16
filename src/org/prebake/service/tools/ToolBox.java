@@ -265,7 +265,7 @@ public class ToolBox implements ToolProvider {
   public final Set<String> getToolNames() {
     String[] toolNames = tools.keySet().toArray(new String[0]);
     Arrays.sort(toolNames);
-    return ImmutableSet.of(toolNames);
+    return ImmutableSet.copyOf(toolNames);
   }
 
   private static final Set<String> FREE_VARS_OK = ImmutableSet.<String>builder()
