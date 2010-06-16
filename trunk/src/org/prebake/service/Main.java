@@ -30,7 +30,7 @@ import com.google.common.base.Charsets;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.io.ByteStreams;
 import com.google.common.io.Closeables;
-import com.google.common.util.concurrent.Executors;
+import com.google.common.util.concurrent.MoreExecutors;
 import com.sleepycat.je.Environment;
 import com.sleepycat.je.EnvironmentConfig;
 
@@ -100,7 +100,7 @@ public final class Main {
         System.exit(-1);
       }
     }
-    ScheduledExecutorService execer = Executors
+    ScheduledExecutorService execer = MoreExecutors
         .getExitingScheduledExecutorService(
             new ScheduledThreadPoolExecutor(16));
     OperatingSystem os = new RealOperatingSystem(fs, execer);

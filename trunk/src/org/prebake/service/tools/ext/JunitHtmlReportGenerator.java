@@ -111,7 +111,7 @@ final class JunitHtmlReportGenerator {
       });
       String[] resultTypeArr = resultTypeSet.toArray(NO_STRINGS);
       Arrays.sort(resultTypeArr);
-      resultTypes = ImmutableList.of(resultTypeArr);
+      resultTypes = ImmutableList.copyOf(resultTypeArr);
     }
     Map<String, Integer> summary = Maps.newHashMap();
     ImmutableList.Builder<Html> table = ImmutableList.builder();

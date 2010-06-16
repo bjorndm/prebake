@@ -748,7 +748,8 @@ public class BakerTest extends PbTestCase {
 
     Tester build(BoundName productName, BoundName... prereqs)
         throws ExecutionException, InterruptedException {
-      Boolean result = baker.bake(productName, ImmutableList.of(prereqs)).get();
+      Boolean result = baker.bake(
+          productName, ImmutableList.copyOf(prereqs)).get();
       assertEquals(successExpectation, result);
       return this;
     }

@@ -24,7 +24,7 @@ import com.google.common.collect.ImmutableList;
 public final class MoreAsserts {
   public static void assertContainsInOrder(
       String[] actual, String... required) {
-    assertContainsInOrder(ImmutableList.of(actual), required);
+    assertContainsInOrder(ImmutableList.copyOf(actual), required);
   }
 
   public static void assertContainsInOrder(
