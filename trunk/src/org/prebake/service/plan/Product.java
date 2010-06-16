@@ -61,6 +61,11 @@ public final class Product implements JsonSerializable {
   public final MobileFunction bake;
   /** The plan file which defined this product was defined. */
   public final Path source;
+  /**
+   * Null or, if this is concrete and parameterized, the abstract product from
+   * which it was derived.
+   */
+  public final @Nullable Product template;
 
   /**
    * @param name a unique name that identifies this product.  This is the name
@@ -82,9 +87,16 @@ public final class Product implements JsonSerializable {
    */
   public Product(
       BoundName name, @Nullable Documentation help,
-      GlobRelation filesAndParams,
-      List<? extends Action> actions, boolean isIntermediate,
-      @Nullable MobileFunction bake, Path source) {
+      GlobRelation filesAndParams, List<? extends Action> actions,
+      boolean isIntermediate, @Nullable MobileFunction bake, Path source) {
+    this(name, help, filesAndParams, actions, isIntermediate, bake, source, null);
+  }
+
+  private Product(
+      BoundName name, @Nullable Documentation help,
+      GlobRelation filesAndParams, List<? extends Action> actions,
+      boolean isIntermediate, @Nullable MobileFunction bake, Path source,
+      @Nullable Product template) {
     assert name != null;
     assert filesAndParams != null;
     assert actions != null;
@@ -96,6 +108,7 @@ public final class Product implements JsonSerializable {
     this.isIntermediate = isIntermediate;
     this.bake = bake;
     this.source = source;
+    this.template = template;
   }
 
   public ImmutableGlobSet getInputs() { return filesAndParams.inputs; }
@@ -104,12 +117,13 @@ public final class Product implements JsonSerializable {
 
   Product withName(BoundName newName) {
     return new Product(
-        newName, help, filesAndParams, actions, isIntermediate, bake, source);
+        newName, help, filesAndParams, actions, isIntermediate, bake, source,
+        template);
   }
 
   public Product withoutNonBuildableInfo() {
     return new Product(
-        name, null, filesAndParams, actions, false, bake, source);
+        name, null, filesAndParams, actions, false, bake, source, template);
   }
 
   /**
@@ -120,7 +134,8 @@ public final class Product implements JsonSerializable {
   public Product withJsonOnly() {
     if (bake == null) { return this; }
     return new Product(
-        name, help, filesAndParams, actions, isIntermediate, null, source);
+        name, help, filesAndParams, actions, isIntermediate, null, source,
+        template);
   }
 
   /**
@@ -145,7 +160,8 @@ public final class Product implements JsonSerializable {
     }
     return new Product(
         name.withBindings(bindings), help, newFilesAndParams,
-        newActions.build(), isIntermediate, bake, source);
+        newActions.build(), isIntermediate, bake, source,
+        this.template == null ? this : this.template);
   }
 
   /**
