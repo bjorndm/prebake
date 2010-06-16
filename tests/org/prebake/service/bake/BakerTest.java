@@ -50,6 +50,7 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.logging.Level;
@@ -393,8 +394,7 @@ public class BakerTest extends PbTestCase {
         "        a \"a\"",
         "      o/")
        .withTool(tool("cp"), "/cwd/tools/cp.js")
-       .withProduct(product(
-           "p", action("cp", ImmutableList.of("i/*"), ImmutableList.of("o/*"))))
+       .withProduct(product("p", action("cp", "i/*", "o/*")))
        .expectSuccess(true)
        .build("p")
        .runPendingTasks()
@@ -445,8 +445,7 @@ public class BakerTest extends PbTestCase {
         "        a \"a\"",
         "      o/")
        .withTool(tool("cp"), "/cwd/tools/cp.js")
-       .withProduct(product(
-           "p", action("cp", ImmutableList.of("i/*"), ImmutableList.of("o/*"))))
+       .withProduct(product("p", action("cp", "i/*", "o/*")))
        .expectSuccess(true)
        .build("p")
        .runPendingTasks()
@@ -500,8 +499,7 @@ public class BakerTest extends PbTestCase {
         "        b \"b\"",
         "      o/")
        .withTool(tool("cp"), "/cwd/tools/cp.js")
-       .withProduct(product(
-           "p", action("cp", ImmutableList.of("i/*"), ImmutableList.of("o/*"))))
+       .withProduct(product("p", action("cp", "i/*", "o/*")))
        .expectSuccess(true)
        .build("p")
        .runPendingTasks()
@@ -620,8 +618,7 @@ public class BakerTest extends PbTestCase {
         "    root/",
         "      a \"a\"")
         .withTool(tool("fail"), "/cwd/tools/fail.js")
-        .withProduct(product(
-            "p", action("fail", ImmutableList.of("a"), ImmutableList.of("b"))))
+        .withProduct(product("p", action("fail", "a", "b")))
         .expectSuccess(false)
         .build("p")
         .runPendingTasks()
@@ -648,8 +645,7 @@ public class BakerTest extends PbTestCase {
         "      a \"foo\"",
         "  tmpdir/")
         .withTool(tool("bad"), "/cwd/tools/bad.js")
-        .withProduct(product(
-            "p", action("bad", ImmutableList.of("a"), ImmutableList.of("b"))))
+        .withProduct(product("p", action("bad", "a", "b")))
         .expectSuccess(false)
         .build("p")
         .runPendingTasks()
@@ -667,6 +663,42 @@ public class BakerTest extends PbTestCase {
             "    p.product.log");
   }
 
+  @Test public final void testDerivedProductGarbageCollected()
+      throws Exception {
+    tester.withFileSystem(
+        "/",
+        "  cwd/",
+        "    tools/",
+        "      cp.js " + COPY_TOOL_JS,
+        "    root/",
+        "      foo/",
+        "        bar \"bar\"",
+        "  tmpdir/")
+        .withTool(tool("cp"), "/cwd/tools/cp.js")
+        .withProduct(product("p", action("cp", "*(x)/bar", "*(x).out/bar"))
+            .withParameterValues(ImmutableMap.of("x", "foo")))
+        .expectSuccess(true)
+        .build("p[\"x\":\"foo\"]")
+        .runPendingTasks()
+        .assertProductStatus("p[\"x\":\"foo\"]", true)
+        .assertFileTree(
+            "/",
+            "  cwd/",
+            "    tools/",
+            "      cp.js \"...\"",
+            "    root/",
+            "      foo/",
+            "        bar \"bar\"",
+            "      foo.out/",
+            "        bar \"bar\"",
+            "  tmpdir/",
+            "  logs/",
+            "    p+5b.22+x+22.3a.22+foo+22.5d+.product.log")
+        .writeFile("root/foo/bar", "baz")
+        .assertNoSuchProduct("p[\"x\":\"foo\"]");
+  }
+
+  // TODO: a derived product is invalidated when its template is changed.
   // TODO: output globs that overlap inputs
   // TODO: changed output is updated
   // TODO: changing an input invalidates a product and any products
@@ -770,6 +802,16 @@ public class BakerTest extends PbTestCase {
       assertEquals(
           productName + " status", upToDate,
           baker.unittestBackdoorProductStatus(productName));
+      return this;
+    }
+
+    Tester assertNoSuchProduct(String productName) {
+      try {
+        baker.unittestBackdoorProductStatus(productName);
+        fail("Product exists " + productName);
+      } catch (NoSuchElementException ex) {
+        // OK
+      }
       return this;
     }
 

@@ -44,6 +44,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
@@ -56,6 +57,7 @@ import java.util.logging.Logger;
 import javax.annotation.Nullable;
 import javax.annotation.ParametersAreNonnullByDefault;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Supplier;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
@@ -215,8 +217,14 @@ public final class Baker {
                             hashes.build())) {
                       passed = true;
                       synchronized (productDeps) {
+                        // Make sure we know to invalidate this product when
+                        // any of the products that had to be built before it
+                        // are invalidated, or when its template is invalidated.
                         for (BoundName prereq : prereqs) {
                           productDeps.put(prereq, product.name);
+                        }
+                        if (product.template != null) {
+                          productDeps.put(product.template.name, product.name);
                         }
                       }
                     }
@@ -400,7 +408,7 @@ public final class Baker {
     private void invalidate(String toolName) {
       for (ProductStatusChain statuses = toolDeps.get(toolName);
            statuses != null; statuses = statuses.next) {
-        statuses.ps.setBuildFuture(null);
+        statuses.ps.invalidate();
       }
     }
   };
@@ -413,7 +421,7 @@ public final class Baker {
     }
     private void check(BoundName productName) {
       ProductStatus status = productStatuses.get(productName);
-      if (status != null) { status.setBuildFuture(null); }
+      if (status != null) { status.invalidate(); }
     }
   };
 
@@ -502,9 +510,7 @@ public final class Baker {
 
     synchronized void setBuildFuture(@Nullable Future<Boolean> newBuildFuture) {
       if (buildFuture == newBuildFuture) { return; }
-      if (buildFuture != null) {
-        buildFuture.cancel(true);
-      }
+      if (buildFuture != null) { buildFuture.cancel(true); }
       buildFuture = newBuildFuture;
     }
 
@@ -514,6 +520,15 @@ public final class Baker {
       synchronized (this) {
         setBuildFuture(null);
         this.upToDate = false;
+        // We don't want to keep derived products around forever
+        // when they become invalid.
+        if (product.isDerived()) {
+          productStatuses.remove(product.name, this);
+          execer.submit(new Runnable() {
+            // Dodge a concurrent modification exception on listener dispatch.
+            public void run() { setProduct(null); }
+          });
+        }
       }
       logs.highLevelLog.productStatusChanged(
           logs.highLevelLog.getClock().nanoTime(), name.ident, false);
@@ -558,10 +573,11 @@ public final class Baker {
     }
   }
 
+  @VisibleForTesting
   boolean unittestBackdoorProductStatus(String productName) {
     ProductStatus status = productStatuses.get(
         BoundName.fromString(productName));
-    if (status == null) { throw new IllegalArgumentException(productName); }
+    if (status == null) { throw new NoSuchElementException(productName); }
     Future<Boolean> bf;
     synchronized (status) { bf = status.buildFuture; }
     if (bf != null && bf.isDone()) {
