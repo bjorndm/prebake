@@ -52,12 +52,15 @@ public final class GlobRelation {
   public static final class Param implements JsonSerializable {
     public final String name;
     public final @Nullable ImmutableSet<String> allowedValues;
+    public final @Nullable String defaultValue;
 
     public Param(
-        String name, @Nullable Iterable<? extends String> allowedValues) {
+        String name, @Nullable Iterable<? extends String> allowedValues,
+        @Nullable String defaultValue) {
       this.name = name;
       this.allowedValues = allowedValues != null
           ? ImmutableSet.copyOf(allowedValues) : null;
+      this.defaultValue = defaultValue;
     }
 
     @Override public boolean equals(Object o) {
@@ -108,7 +111,7 @@ public final class GlobRelation {
       b.put(p.name, p);
     }
     for (String unspecified : free) {
-      b.put(unspecified, new Param(unspecified, null));
+      b.put(unspecified, new Param(unspecified, null, null));
     }
     this.parameters = b.build();
   }

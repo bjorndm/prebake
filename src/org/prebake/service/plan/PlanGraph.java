@@ -15,6 +15,8 @@
 package org.prebake.service.plan;
 
 import org.prebake.core.BoundName;
+import org.prebake.core.Glob;
+import org.prebake.core.GlobRelation;
 
 import java.util.List;
 import java.util.Map;
@@ -22,6 +24,7 @@ import java.util.Set;
 
 import javax.annotation.ParametersAreNonnullByDefault;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
 import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableList;
@@ -108,23 +111,52 @@ public final class PlanGraph {
    * @param prods the required products.
    */
   public Recipe makeRecipe(final Set<BoundName> prods)
-      throws DependencyCycleException, MissingProductsException {
-    // TODO: make sure all products are concrete, and back-propagate any
-    // parameters to create the ones that are needed.
+      throws DependencyCycleException, MissingProductException {
+    return new RecipeMaker(this).makeRecipe(prods);
+  }
+}
+
+final class RecipeMaker {
+  final Map<BoundName, Product> nodes;
+  final PlanGraph pg;
+
+  RecipeMaker(PlanGraph pg) {
+    this.nodes = Maps.newLinkedHashMap(pg.nodes);
+    this.pg = pg;
+  }
+  /**
+   * @param prods the required products.
+   */
+  public Recipe makeRecipe(final Set<BoundName> prods)
+      throws DependencyCycleException, MissingProductException {
     {
-      Set<BoundName> prodsNeeded = Sets.newHashSet(prods);
-      prodsNeeded.removeAll(nodes.keySet());
+      Set<BoundName> prodsNeeded = Sets.newLinkedHashSet();
+      for (BoundName prod : prods) {
+        Product p = nodes.get(prod);
+        if (p != null) {
+          if (p.isConcrete()) { continue; }
+        } else if (!prod.bindings.isEmpty()) {
+          BoundName baseName = BoundName.fromString(prod.getRawIdent());
+          Product template = nodes.get(baseName);
+          if (template != null && !template.isConcrete()) {
+            nodes.put(prod, template.withParameterValues(prod.bindings));
+            continue;
+          }
+          prodsNeeded.add(prod);
+        }
+      }
       if (!prodsNeeded.isEmpty()) {
-        throw new MissingProductsException(
+        throw new MissingProductException(
             "Undefined products " + Joiner.on(", ").join(prodsNeeded));
       }
     }
 
+    // Invert edges.
     final Multimap<BoundName, BoundName> postReqGraph;
     {
       ImmutableMultimap.Builder<BoundName, BoundName> b
           = ImmutableMultimap.builder();
-      for (Map.Entry<BoundName, BoundName> e : edges.entries()) {
+      for (Map.Entry<BoundName, BoundName> e : pg.edges.entries()) {
         b.put(e.getValue(), e.getKey());
       }
       postReqGraph = b.build();
@@ -134,7 +166,7 @@ public final class PlanGraph {
     final Set<BoundName> allProducts;
     {
       final ImmutableSet.Builder<BoundName> b = ImmutableSet.builder();
-      Walker w = walker(new ProductNameAppender(b));
+      PlanGraph.Walker w = pg.walker(new ProductNameAppender(b));
       for (BoundName prod : prods) { w.walk(prod); }
       allProducts = b.build();
     }
@@ -150,29 +182,52 @@ public final class PlanGraph {
        */
       final Set<BoundName> processing = Sets.newLinkedHashSet();
 
-      Ingredient process(BoundName product) throws DependencyCycleException {
-        Ingredient ingredient = ingredients.get(product);
+      Ingredient process(BoundName prodName)
+           throws DependencyCycleException, MissingProductException {
+        Ingredient ingredient = ingredients.get(prodName);
+        // Reuse if already processed.
         if (ingredient != null) { return ingredient; }
-        if (processing.contains(product)) {
+        // Check cycles.
+        if (processing.contains(prodName)) {
           List<BoundName> cycle = Lists.newArrayList(processing);
-          int index = cycle.indexOf(product);
+          int index = cycle.indexOf(prodName);
           cycle.subList(0, index).clear();
-          cycle.add(product);
+          cycle.add(prodName);
           throw new DependencyCycleException(
               "Cycle in product dependencies : " + Joiner.on(", ").join(cycle));
         }
-        processing.add(product);
+        processing.add(prodName);
+        Product prod = nodes.get(prodName);
         ImmutableList.Builder<Ingredient> postReqs = ImmutableList.builder();
-        for (BoundName postReq : postReqGraph.get(product)) {
-          if (!allProducts.contains(postReq)) { continue; }
-          Ingredient postReqIngredient = process(postReq);
+        for (BoundName postReqName : postReqGraph.get(prodName)) {
+          if (!allProducts.contains(postReqName)) { continue; }
+          Product postReq = nodes.get(postReqName);
+          if (!postReq.isConcrete()) {
+            Product derived = backPropagate(prod, postReq);
+            Product existing = nodes.get(derived.name);
+            if (existing == null) {
+              postReq = derived;
+              nodes.put(derived.name, derived);
+            } else if (existing.isConcrete()) {
+              // Template specialization, or the derived product has multiple
+              // postRequisites in this recipe.
+              postReq = existing;
+            } else {
+              throw new MissingProductException(
+                  "Cannot derive concrete " + derived.name + " required by "
+                  + prodName + " because there is an existing abstract product"
+                  + " with that name.");
+            }
+            postReqName = postReq.name;
+          }
+          Ingredient postReqIngredient = process(postReqName);
           postReqs.add(postReqIngredient);
         }
-        processing.remove(product);
+        processing.remove(prodName);
         ingredient = new Ingredient(
-            product, ImmutableList.copyOf(edges.get(product)),
+            prodName, ImmutableList.copyOf(pg.edges.get(prodName)),
             postReqs.build());
-        ingredients.put(product, ingredient);
+        ingredients.put(prodName, ingredient);
         return ingredient;
       }
     }
@@ -183,7 +238,7 @@ public final class PlanGraph {
     for (BoundName prod : allProducts) {
       // Ingredient will not appear in any postrequisite lists if it has no
       // prerequisites.
-      if (edges.get(prod).isEmpty()) {
+      if (pg.edges.get(prod).isEmpty()) {
         startingPoints.add(w.process(prod));
       }
     }
@@ -196,13 +251,55 @@ public final class PlanGraph {
     return new Recipe(startingPoints.build());
   }
 
-  /** Thrown when a product is transitively its own prerequisite. */
-  public static class DependencyCycleException extends Exception {
-    public DependencyCycleException(String msg) { super(msg); }
-  }
-
-  public static class MissingProductsException extends Exception {
-    public MissingProductsException(String msg) { super(msg); }
+  /**
+   * Matches a postrequisite inputs against an abstract prerequisites outputs
+   * to come up with a parameter set to derive a concrete parameterized
+   * prerequiste.
+   *
+   * @param postReq concrete.
+   * @param preReqTemplate abstract.
+   * @return concrete product derived from preReqTemplate.
+   */
+  @VisibleForTesting
+  static Product backPropagate(Product postReq, Product preReqTemplate)
+      throws MissingProductException {
+    Map<String, String> bindings = Maps.newLinkedHashMap(
+        preReqTemplate.name.bindings);
+    for (Glob input : postReq.filesAndParams.inputs) {
+      for (Glob output : preReqTemplate.filesAndParams.outputs) {
+        Glob inter = Glob.intersection(input, output);
+        if (inter != null) {
+          if (!output.match(inter.toString(), bindings)) {
+            throw new MissingProductException(
+                "Can't derive concrete version of " + preReqTemplate
+                + " to satisfy " + postReq + " since " + inter + " matching "
+                + input + " and " + output + " clashes with bindings "
+                + bindings);
+          }
+        }
+      }
+    }
+    // Make sure that the bindings contains all parameters so that we don't
+    // create distinct products for foo["x":"y"] and foo["x":"y", "z":""]
+    List<String> missingParams = null;
+    for (GlobRelation.Param p
+         : preReqTemplate.filesAndParams.parameters.values()) {
+      if (!bindings.containsKey(p.name)) {
+        if (p.defaultValue != null) {
+          bindings.put(p.name, p.defaultValue);
+        } else {
+          if (missingParams == null) { missingParams = Lists.newArrayList(); }
+          missingParams.add(p.name);
+        }
+      }
+    }
+    if (missingParams != null) {
+      throw new MissingProductException(
+          "Can't derive parameter" + (missingParams.size() == 1 ? " " : "s ")
+          + missingParams + " for concrete version of "
+          + preReqTemplate + " to satisfy " + postReq + ". Got " + bindings);
+    }
+    return preReqTemplate.withParameterValues(bindings);
   }
 
   private static final class ProductNameAppender
