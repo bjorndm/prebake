@@ -30,10 +30,8 @@ import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableMultimap;
-import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.google.common.collect.Multimap;
 import com.google.common.collect.Sets;
 
 /**
@@ -151,40 +149,21 @@ final class RecipeMaker {
       }
     }
 
-    // Invert edges.
-    final Multimap<BoundName, BoundName> postReqGraph;
-    {
-      ImmutableMultimap.Builder<BoundName, BoundName> b
-          = ImmutableMultimap.builder();
-      for (Map.Entry<BoundName, BoundName> e : pg.edges.entries()) {
-        b.put(e.getValue(), e.getKey());
-      }
-      postReqGraph = b.build();
-    }
-
-    // Figure out all ingredients needed.
-    final Set<BoundName> allProducts;
-    {
-      final ImmutableSet.Builder<BoundName> b = ImmutableSet.builder();
-      PlanGraph.Walker w = pg.walker(new ProductNameAppender(b));
-      for (BoundName prod : prods) { w.walk(prod); }
-      allProducts = b.build();
-    }
-
     // Now create a recipe from the subgraph, while keeping track of the
     // starting points.
     class IngredientProcesser {
       // Maps product names to the ingredient instance for that product.
-      final Map<BoundName, Ingredient> ingredients = Maps.newHashMap();
+      final Map<BoundName, IngredientBuilder> ingredients = Maps.newHashMap();
       /**
        * The products we're processing so we can detect and report dependency
        * cycles.
        */
       final Set<BoundName> processing = Sets.newLinkedHashSet();
-
-      Ingredient process(BoundName prodName)
+      /** The products that have no prerequisites.  We start with these. */
+      final List<IngredientBuilder> startingPoints = Lists.newArrayList();
+      IngredientBuilder process(BoundName prodName)
            throws DependencyCycleException, MissingProductException {
-        Ingredient ingredient = ingredients.get(prodName);
+        IngredientBuilder ingredient = ingredients.get(prodName);
         // Reuse if already processed.
         if (ingredient != null) { return ingredient; }
         // Check cycles.
@@ -198,55 +177,50 @@ final class RecipeMaker {
         }
         processing.add(prodName);
         Product prod = nodes.get(prodName);
-        ImmutableList.Builder<Ingredient> postReqs = ImmutableList.builder();
-        for (BoundName postReqName : postReqGraph.get(prodName)) {
-          if (!allProducts.contains(postReqName)) { continue; }
-          Product postReq = nodes.get(postReqName);
-          if (!postReq.isConcrete()) {
-            Product derived = backPropagate(prod, postReq);
+        ingredient = new IngredientBuilder(prodName);
+        if (!processPreReqs(prod, ingredient)) {
+          startingPoints.add(ingredient);
+        }
+        processing.remove(prodName);
+        ingredients.put(prodName, ingredient);
+        return ingredient;
+      }
+
+      private boolean processPreReqs(Product prod, IngredientBuilder ingredient)
+          throws DependencyCycleException, MissingProductException {
+        boolean hadPreReqs = false;
+        for (BoundName preReqName : pg.edges.get(prod.name)) {
+          hadPreReqs = true;
+          Product preReq = nodes.get(preReqName);
+          if (!preReq.isConcrete()) {
+            Product derived = backPropagate(prod, preReq);
             Product existing = nodes.get(derived.name);
             if (existing == null) {
-              postReq = derived;
+              preReq = derived;
               nodes.put(derived.name, derived);
             } else if (existing.isConcrete()) {
               // Template specialization, or the derived product has multiple
               // postRequisites in this recipe.
-              postReq = existing;
+              preReq = existing;
             } else {
               throw new MissingProductException(
                   "Cannot derive concrete " + derived.name + " required by "
-                  + prodName + " because there is an existing abstract product"
+                  + prod.name + " because there is an existing abstract product"
                   + " with that name.");
             }
-            postReqName = postReq.name;
+            preReqName = preReq.name;
           }
-          Ingredient postReqIngredient = process(postReqName);
-          postReqs.add(postReqIngredient);
+          ingredient.addPreRequisite(process(preReqName));
         }
-        processing.remove(prodName);
-        ingredient = new Ingredient(
-            prodName, ImmutableList.copyOf(pg.edges.get(prodName)),
-            postReqs.build());
-        ingredients.put(prodName, ingredient);
-        return ingredient;
+        if (prod.template == null) { return hadPreReqs; }
+        return hadPreReqs | processPreReqs(prod.template, ingredient);
       }
     }
     IngredientProcesser w = new IngredientProcesser();
-    // The products that have no prerequisites.  We start with these.
-    final ImmutableList.Builder<Ingredient> startingPoints
-        = ImmutableList.builder();
-    for (BoundName prod : allProducts) {
-      // Ingredient will not appear in any postrequisite lists if it has no
-      // prerequisites.
-      if (pg.edges.get(prod).isEmpty()) {
-        startingPoints.add(w.process(prod));
-      }
-    }
-    if (!w.ingredients.keySet().containsAll(prods)) {
-      // Flush out any products that would be missing due to dependency cycles
-      // that cause the graph to be unreachable from a zero prerequisite
-      // product.
-      for (BoundName prod : allProducts) { w.process(prod); }
+    for (BoundName prod : prods) { w.process(prod); }
+    ImmutableList.Builder<Ingredient> startingPoints = ImmutableList.builder();
+    for (IngredientBuilder startingPoint : w.startingPoints) {
+      startingPoints.add(startingPoint.build());
     }
     return new Recipe(startingPoints.build());
   }
@@ -271,10 +245,10 @@ final class RecipeMaker {
         if (inter != null) {
           if (!output.match(inter.toString(), bindings)) {
             throw new MissingProductException(
-                "Can't derive concrete version of " + preReqTemplate
-                + " to satisfy " + postReq + " since " + inter + " matching "
-                + input + " and " + output + " clashes with bindings "
-                + bindings);
+                "Can't derive concrete version of " + preReqTemplate.name
+                + " to satisfy " + postReq.name + " since " + inter
+                + " matching " + input + " and " + output
+                + " clashes with bindings " + bindings);
           }
         }
       }
@@ -297,18 +271,33 @@ final class RecipeMaker {
       throw new MissingProductException(
           "Can't derive parameter" + (missingParams.size() == 1 ? " " : "s ")
           + missingParams + " for concrete version of "
-          + preReqTemplate + " to satisfy " + postReq + ". Got " + bindings);
+          + preReqTemplate.name + " to satisfy " + postReq.name + "."
+          + "  Got " + bindings + ".");
     }
     return preReqTemplate.withParameterValues(bindings);
   }
+}
 
-  private static final class ProductNameAppender
-      implements Function<BoundName, Void> {
-    private final ImmutableSet.Builder<BoundName> b;
-    ProductNameAppender(ImmutableSet.Builder<BoundName> b) { this.b = b; }
-    public Void apply(BoundName productName) {
-      b.add(productName);
-      return null;
+final class IngredientBuilder {
+  final BoundName product;
+  private final List<IngredientBuilder> postReqs = Lists.newArrayList();
+  private final ImmutableList.Builder<BoundName> preReqs
+      = ImmutableList.builder();
+  private Ingredient ingredient;
+
+  IngredientBuilder(BoundName product) { this.product = product; }
+
+  Ingredient build() {
+    if (ingredient == null) {
+      ImmutableList.Builder<Ingredient> postReqs = ImmutableList.builder();
+      for (IngredientBuilder b : this.postReqs) { postReqs.add(b.build()); }
+      ingredient = new Ingredient(product, preReqs.build(), postReqs.build());
     }
+    return ingredient;
+  }
+
+  void addPreRequisite(IngredientBuilder preReq) {
+    preReqs.add(preReq.product);
+    preReq.postReqs.add(this);
   }
 }

@@ -17,7 +17,12 @@ package org.prebake.service.plan;
 import org.prebake.core.BoundName;
 import org.prebake.core.GlobRelation;
 import org.prebake.core.GlobSet;
+import org.prebake.core.MessageQueue;
+import org.prebake.js.JsonSource;
+import org.prebake.service.plan.Recipe.Chef;
 
+import java.io.IOException;
+import java.io.StringReader;
 import java.util.Collections;
 import java.util.List;
 import java.util.Random;
@@ -216,6 +221,277 @@ public class PlanGrapherTest extends PlanGraphTestCase {
     }
   }
 
+  @Test public final void testAbstractInput() throws Exception {
+    Product abstractP = parseProduct(
+        "p",
+        "{",
+        "  'actions': [{",
+        "    'tool':    'gcc',",
+        "    'inputs':  ['{src,gen}/**.c', 'headers/*(arch)/arch.h'],",
+        "    'outputs': ['lib/*(arch)/**.o']",
+        "  }],",
+        "  'parameters': [{ 'name': 'arch' }]",
+        "}");
+    Product prereq = parseProduct(
+        "prereq",
+        "{",
+        "  'actions': [{",
+        "    'tool':    'sporkc',",
+        "    'inputs':  ['src/**.spork'],",
+        "    'outputs': ['gen/**.c']",
+        "  }]",
+        "}");
+    PlanGraph pg = PlanGraph.builder(abstractP, prereq)
+        .edge(prereq.name, abstractP.name)
+        .build();
+    Recipe r = pg.makeRecipe(ImmutableSet.of(
+        BoundName.fromString("p[\"arch\":\"x86\"]")));
+    assertRecipe(
+        r,
+        "Ingredient : prereq",
+        "  Enables  : p[\"arch\":\"x86\"]",
+        "Ingredient : p[\"arch\":\"x86\"]",
+        "  Requires : prereq",
+        "SUCCESS");
+  }
+
+  @Test public final void testAbstractIntermediate() throws Exception {
+    Product p = parseProduct(
+        "p",
+        "{",
+        "  'actions': [{",
+        "    'tool':    'gcc',",
+        "    'inputs':  ['obj/x86/**.o'],",
+        "    'outputs': ['lib/x86.lib']",
+        "  }]",
+        "}");
+    Product abstractPrereq = parseProduct(
+        "prereq",
+        "{",
+        "  'actions': [{",
+        "    'tool':    'gcc',",
+        "    'inputs':  ['src/**.{c,h}'],",
+        "    'outputs': ['obj/*(arch)/**.o']",
+        "  }],",
+        "  'parameters': [{ 'name': 'arch' }]",
+        "}");
+    PlanGraph pg = PlanGraph.builder(p, abstractPrereq)
+        .edge(abstractPrereq.name, p.name)
+        .build();
+    Recipe r = pg.makeRecipe(ImmutableSet.of(BoundName.fromString("p")));
+    assertRecipe(
+        r,
+        "Ingredient : prereq[\"arch\":\"x86\"]",
+        "  Enables  : p",
+        "Ingredient : p",
+        "  Requires : prereq[\"arch\":\"x86\"]",
+        "SUCCESS");
+  }
+
+  @Test
+  public final void testAbstractIntermediateMissingParam() throws Exception {
+    Product p = parseProduct(
+        "p",
+        "{",
+        "  'actions': [{",
+        "    'tool':    'gcc',",
+        "    'inputs':  ['obj/x86/**.o'],",
+        "    'outputs': ['lib/x86.lib']",
+        "  }]",
+        "}");
+    Product abstractPrereq = parseProduct(
+        "prereq",
+        "{",
+        "  'actions': [{",
+        "    'tool':    'gcc',",
+        "    'inputs':  ['src/**.{c,h}'],",
+        "    'outputs': [",
+        "      'obj/*(arch)/**.o',",
+        //          *(bar) is not satisfied by any input in p
+        "      'foo/*(bar)/**.baz'",
+        "    ]",
+        "  }],",
+        "  'parameters': [{ 'name': 'arch' }, { 'name': 'bar' }]",
+        "}");
+    PlanGraph pg = PlanGraph.builder(p, abstractPrereq)
+        .edge(abstractPrereq.name, p.name)
+        .build();
+    try {
+      pg.makeRecipe(ImmutableSet.of(BoundName.fromString("p")));
+    } catch (MissingProductException ex) {
+      assertEquals(
+          ""
+          + "Can't derive parameter [bar] for concrete version of prereq to"
+          + " satisfy p.  Got {arch=x86}.",
+          ex.getMessage());
+      return;
+    }
+    fail("Expected MissingProductException");
+  }
+
+  @Test
+  public final void testAbstractIntermediateDefaultParam() throws Exception {
+    Product p = parseProduct(
+        "p",
+        "{",
+        "  'actions': [{",
+        "    'tool':    'gcc',",
+        "    'inputs':  ['obj/x86/**.o'],",
+        "    'outputs': ['lib/x86.lib']",
+        "  }]",
+        "}");
+    Product abstractPrereq = parseProduct(
+        "prereq",
+        "{",
+        "  'actions': [{",
+        "    'tool':    'gcc',",
+        "    'inputs':  ['src/**.{c,h}'],",
+        "    'outputs': [",
+        "      'obj/*(arch)/**.o',",
+        //          *(bar) is not satisfied by any input in p
+        "      'foo/*(bar)/**.baz'",
+        "    ]",
+        "  }],",
+        "  'parameters': [",
+        "    { 'name': 'arch' },",
+        // But it is satisfied by a default value.
+        "    { 'name': 'bar', 'default': 'BAR' }",
+        "  ]",
+        "}");
+    PlanGraph pg = PlanGraph.builder(p, abstractPrereq)
+        .edge(abstractPrereq.name, p.name)
+        .build();
+    Recipe r = pg.makeRecipe(ImmutableSet.of(BoundName.fromString("p")));
+    assertRecipe(
+        r,
+        "Ingredient : prereq[\"arch\":\"x86\",\"bar\":\"BAR\"]",
+        "  Enables  : p",
+        "Ingredient : p",
+        "  Requires : prereq[\"arch\":\"x86\",\"bar\":\"BAR\"]",
+        "SUCCESS");
+  }
+
+  @Test
+  public final void testAbstractWithConflictingParameters() throws Exception {
+    Product p = parseProduct(
+        "p",
+        "{",
+        "  'actions': [{",
+        "    'tool':    'gcc',",
+        // Require two different bindings for arch.
+        "    'inputs':  ['obj/x86/**.o', 'obj/arm/**.o'],",
+        "    'outputs': ['lib/x86.lib', 'lib/arm.lib']",
+        "  }]",
+        "}");
+    Product abstractPrereq = parseProduct(
+        "prereq",
+        "{",
+        "  'actions': [{",
+        "    'tool':    'gcc',",
+        "    'inputs':  ['src/**.{c,h}'],",
+        "    'outputs': ['obj/*(arch)/**.o']",
+        "  }],",
+        "  'parameters': [{ 'name': 'arch' }]",
+        "}");
+    PlanGraph pg = PlanGraph.builder(p, abstractPrereq)
+        .edge(abstractPrereq.name, p.name)
+        .build();
+    try {
+      pg.makeRecipe(ImmutableSet.of(BoundName.fromString("p")));
+    } catch (MissingProductException ex) {
+      assertEquals(
+          ""
+          + "Can't derive concrete version of prereq to satisfy p since"
+          + " obj/arm/**.o matching obj/arm/**.o and obj/*(arch)/**(arch).o"
+          + " clashes with bindings {arch=x86}",
+          ex.getMessage());
+      return;
+    }
+    fail("Expected MissingProductException");
+  }
+
+  @Test public final void testTemplateSpecialization() throws Exception {
+    Product p1 = parseProduct(
+        "p1",
+        "{",
+        "  'actions': [{",
+        "    'tool':    'gcc',",
+        "    'inputs':  ['obj/arm/**.o'],",
+        "    'outputs': ['lib/arm.lib']",
+        "  }]",
+        "}");
+    Product p2 = parseProduct(
+        "p2",
+        "{",
+        "  'actions': [{",
+        "    'tool':    'gcc',",
+        "    'inputs':  ['obj/x86/**.o'],",
+        "    'outputs': ['lib/x86.lib']",
+        "  }]",
+        "}");
+    Product abstractPrereq = parseProduct(
+        "prereq",
+        "{",
+        "  'actions': [{",
+        "    'tool':    'gcc',",
+        "    'inputs':  ['src/**.{c,h}'],",
+        "    'outputs': ['obj/*(arch)/**.o']",
+        "  }],",
+        "  'parameters': [{ 'name': 'arch' }]",
+        "}");
+    Product specializedPrereq = parseProduct(
+        "prereq[\"arch\":\"arm\"]",
+        "{",
+        "  'actions': [{",
+        "    'tool':    'gcc',",
+        "    'inputs':  ['src/**.{c,h}'],",
+        "    'outputs': ['obj/arm/**.o']",
+        "  }]",
+        "}");
+    PlanGraph pg = PlanGraph.builder(p1, p2, abstractPrereq, specializedPrereq)
+        .edge(abstractPrereq.name, p1.name)
+        .edge(abstractPrereq.name, p2.name)
+        .edge(specializedPrereq.name, p1.name)
+        .build();
+    Recipe r1 = pg.makeRecipe(ImmutableSet.of(BoundName.fromString("p1")));
+    assertRecipe(
+        r1,
+        "Ingredient : prereq[\"arch\":\"arm\"]",
+        "  Enables  : p1",
+        "Ingredient : p1",
+        "  Requires : prereq[\"arch\":\"arm\"]",
+        "SUCCESS");
+    Recipe r2 = pg.makeRecipe(ImmutableSet.of(BoundName.fromString("p2")));
+    assertRecipe(
+        r2,
+        "Ingredient : prereq[\"arch\":\"x86\"]",
+        "  Enables  : p2",
+        "Ingredient : p2",
+        "  Requires : prereq[\"arch\":\"x86\"]",
+        "SUCCESS");
+  }
+
+  private void assertRecipe(Recipe r, String... golden) {
+    final List<String> log = Lists.newArrayList();
+    r.cook(new Chef() {
+      public void cook(Ingredient ingredient, Function<Boolean, ?> whenDone) {
+        log.add("Ingredient : " + ingredient.product);
+        for (BoundName preReqName : ingredient.preRequisites) {
+          log.add("  Requires : " + preReqName);
+        }
+        for (Ingredient postReq : ingredient.postRequisites) {
+          log.add("  Enables  : " + postReq.product);
+        }
+        whenDone.apply(true);
+      }
+
+      public void done(boolean allSucceeded) {
+        log.add(allSucceeded ? "SUCCESS" : "FAILURE");
+      }
+    });
+    assertEquals(Joiner.on('\n').join(golden), Joiner.on('\n').join(log));
+  }
+
   private Product product(String name, GlobSet inputs, GlobSet outputs) {
     return new Product(
         BoundName.fromString(name), null,
@@ -238,5 +514,20 @@ public class PlanGrapherTest extends PlanGraphTestCase {
       }
     });
     assertEquals(Joiner.on('\n').join(golden), Joiner.on('\n').join(log));
+  }
+
+  private Product parseProduct(String name, String... json) throws IOException {
+    JsonSource src = new JsonSource(new StringReader(
+        Joiner.on('\n').join(json).replace('\'', '"')));
+    Object obj = src.nextValue();
+    assertTrue(src.isEmpty());
+    MessageQueue mq = new MessageQueue();
+    Product p = Product.converter(BoundName.fromString(name), source)
+        .convert(obj, mq);
+    if (mq.hasErrors()) {
+      for (String msg : mq.getMessages()) { System.err.println(msg); }
+      fail();
+    }
+    return p;
   }
 }
