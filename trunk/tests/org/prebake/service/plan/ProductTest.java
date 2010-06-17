@@ -120,7 +120,7 @@ public class ProductTest extends PbTestCase {
                 globs("src/*(x)/**.c", "src/**.h"),
                 globs("obj/*(x)/**.o"),
                 ImmutableList.of(new GlobRelation.Param(
-                    "x", ImmutableSet.of("foo", "bar", "baz")))),
+                    "x", ImmutableSet.of("foo", "bar", "baz"), null))),
             ImmutableList.of(
                 new Action(
                     "gcc",

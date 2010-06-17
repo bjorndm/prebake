@@ -698,6 +698,8 @@ public class BakerTest extends PbTestCase {
         .assertNoSuchProduct("p[\"x\":\"foo\"]");
   }
 
+  // TODO: a derived product is invalidated when a file it would match is added.
+  // And this doesn't invalidate other products derived from the same template.
   // TODO: a derived product is invalidated when its template is changed.
   // TODO: output globs that overlap inputs
   // TODO: changed output is updated

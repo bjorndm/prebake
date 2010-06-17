@@ -261,6 +261,7 @@ public final class Product implements JsonSerializable {
           .optional(
               "values", YSONConverter.Factory.listConverter(STRING_CONV),
               ImmutableList.<String>of())
+          .optional("default", STRING_CONV, null)
           .build();
 
   private static final YSONConverter<GlobRelation.Param> PARAM_CONV
@@ -274,7 +275,8 @@ public final class Product implements JsonSerializable {
       for (Object value : (List<?>) fields.get("values")) {
         values.add((String) value);
       }
-      return new GlobRelation.Param(name, values.build());
+      String defaultValue = (String) fields.get("default");
+      return new GlobRelation.Param(name, values.build(), defaultValue);
     }
 
     public String exampleText() { return PARAM_FIELDS_CONV.exampleText(); }

@@ -129,7 +129,7 @@ public class PlanGrapherTest extends PlanGraphTestCase {
         .build();
     try {
       g.makeRecipe(ImmutableSet.of(C));
-    } catch (PlanGraph.DependencyCycleException ex) {
+    } catch (DependencyCycleException ex) {
       assertEquals("Cycle in product dependencies : B, A, B", ex.getMessage());
       return;
     }
@@ -146,7 +146,7 @@ public class PlanGrapherTest extends PlanGraphTestCase {
         .build();
     try {
       g.makeRecipe(ImmutableSet.of(C));
-    } catch (PlanGraph.DependencyCycleException ex) {
+    } catch (DependencyCycleException ex) {
       assertEquals("Cycle in product dependencies : B, A, B", ex.getMessage());
       return;
     }

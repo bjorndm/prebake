@@ -25,7 +25,9 @@ import org.prebake.fs.FilePerms;
 import org.prebake.fs.FileVersioner;
 import org.prebake.os.OperatingSystem;
 import org.prebake.service.bake.Baker;
+import org.prebake.service.plan.DependencyCycleException;
 import org.prebake.service.plan.Ingredient;
+import org.prebake.service.plan.MissingProductException;
 import org.prebake.service.plan.PlanGraph;
 import org.prebake.service.plan.Planner;
 import org.prebake.service.plan.Product;
@@ -443,14 +445,13 @@ public abstract class Prebakery implements Closeable {
                   // now the recipe callback's responsibility
                   closeChannel = false;
                   ccl = null;
-                } catch (PlanGraph.DependencyCycleException ex) {
+                } catch (DependencyCycleException ex) {
                   logger.log(Level.WARNING, "{0}", ex.getMessage());
-                } catch (PlanGraph.MissingProductsException ex) {
+                } catch (MissingProductException ex) {
                   logger.log(Level.WARNING, "{0}", ex.getMessage());
                 }
                 break;
               case files_changed:
-                // TODO: maybe send these via hooks.getUpdates()
                 files.updateFiles(((Command.FilesChangedCommand) cmd).paths);
                 break;
               case graph:
@@ -485,9 +486,9 @@ public abstract class Prebakery implements Closeable {
                       }
                     }
                   });
-                } catch (PlanGraph.DependencyCycleException ex) {
+                } catch (DependencyCycleException ex) {
                   logger.log(Level.WARNING, "{0}", ex.getMessage());
-                } catch (PlanGraph.MissingProductsException ex) {
+                } catch (MissingProductException ex) {
                   logger.log(Level.WARNING, "{0}", ex.getMessage());
                 }
                 break;
