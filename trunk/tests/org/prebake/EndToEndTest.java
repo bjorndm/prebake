@@ -119,6 +119,58 @@ public class EndToEndTest extends PbTestCase {
             "  tmpdir/");
   }
 
+  @Test public final void testParameterizedProduct() throws Exception {
+    // Normally, you would not use parameterized rules with cp, but this is
+    // for a test.
+    tester.withFileSystem(fileSystemFromAsciiArt(
+        "/cwd",
+        Joiner.on('\n').join(
+            "/",
+            "  cwd/",
+            "    root/",
+            "      src/",
+            "        a.foo \"A\"",
+            "        b.foo \"B\"",
+            "        c.foo \"C\"",
+            "        d.foo \"D\"",
+            "      plan.js \"({p:tools.cp('src/*(x).foo', 'out/*(x).bar')})\"",
+            "  tools/",
+            "  tmpdir/")))
+        .start()
+        .withClientWorkingDir("root")
+        .sendCommand("sync")
+        .assertResult(0)
+        .sendCommand("bake", "p[\"x\":\"c\"]")
+        .assertResult(0)
+        .sendCommand("shutdown")
+        .assertResult(0)
+        .waitForShutdown()
+        .assertLog(
+            "INFO:Plan file /cwd/root/plan.js is up to date",
+            "INFO:Cooking p[\"x\":\"c\"]",
+            "INFO:Starting bake of product p[\"x\":\"c\"]",
+            "INFO:Running cp with [src/c.foo, out/c.bar]",
+            "INFO:Copied 1 file",
+            "INFO:Cooked p[\"x\":\"c\"]")
+        .assertFileSystem(
+            "/",
+            "  cwd/",
+            "    root/",
+            "      src/",
+            "        a.foo \"A\"",
+            "        b.foo \"B\"",
+            "        c.foo \"C\"",
+            "        d.foo \"D\"",
+            "      plan.js \"...\"",
+            "      .prebake/",
+            "        logs/",
+            "        cmdline \"...\"",
+            "      out/",
+            "        c.bar \"C\"",
+            "  tools/",
+            "  tmpdir/");
+  }
+
   private class Tester {
     /** Directory used for DB files. */
     private File tempDir;

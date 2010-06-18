@@ -143,6 +143,33 @@ public final class Baker {
     this.finisher = new Finisher(files, umask, logs.logger);
   }
 
+  private ProductStatus deriveProductStatus(BoundName productName) {
+    ProductStatus status = productStatuses.get(productName);
+    if (status == null && !productName.bindings.isEmpty()) {
+      // Derive the product if possible.
+      // TODO: maybe share this with similar code in the PlanGraph.
+      BoundName templateName = BoundName.fromString(productName.getRawIdent());
+      ProductStatus template = productStatuses.get(templateName);
+      if (template != null) {
+        Product templateProduct = template.getProduct();
+        if (templateProduct != null) {
+          ProductStatus derived = new ProductStatus(productName);
+          // Register a derived product status.
+          // When invalidated, the derived product will be removed by code in
+          // ProductStatus.invalidate() so derived products only live as long
+          // as they are being built or are up-to-date.
+          status = productStatuses.putIfAbsent(productName, derived);
+          if (status == null) {
+            derived.setProduct(
+                templateProduct.withParameterValues(productName.bindings));
+            status = derived;
+          }
+        }
+      }
+    }
+    return status;
+  }
+
   /**
    * Returns a promise to bring the named product up-to-date.
    * @param prereqs the products that this product depends on.  We use these
@@ -155,7 +182,7 @@ public final class Baker {
   public Future<Boolean> bake(
       final BoundName productName, final ImmutableList<BoundName> prereqs) {
     assert toolbox != null;
-    final ProductStatus status = productStatuses.get(productName);
+    final ProductStatus status = deriveProductStatus(productName);
     if (status == null) {
       logs.logger.log(Level.WARNING, "Unrecognized product {0}", productName);
       ValueFuture<Boolean> vf = ValueFuture.create();
