@@ -37,8 +37,8 @@ function prelim(action, opt_config) {
 }
 
 ({
-  help: ('Dumps a listing of its input files to the exact file'
-         + ' matched by the input.'),
+  help: ('Dumps a listing of its input files to stdout or to the ' +
+	 'fully qualified output file if one is specified.'),
   check: prelim,
   fire: function fire(inputs, product, action, os) {
     var config = {};
@@ -46,7 +46,7 @@ function prelim(action, opt_config) {
     var outFile = config.outFile;
     var p;
     if (inputs.length === 0) {
-      p = os.exec('echo');
+      p = os.exec('echo');  // ls behaves differently with 0 inputs.
     } else {
       p = os.exec.apply({}, ['ls'].concat(inputs));
     }
