@@ -21,6 +21,7 @@ import org.prebake.js.CommonEnvironment;
 import org.prebake.js.JsonSink;
 import org.prebake.js.JsonSource;
 
+import com.google.caja.lexer.escaping.UriUtil;
 import com.google.common.base.Charsets;
 import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableList;
@@ -108,23 +109,29 @@ public abstract class PbTestCase extends Assert {
     return logger;
   }
 
-  public ImmutableMap<String, ?> getCommonJsEnv(boolean dosPrefs) {
+  public ImmutableMap<String, ?> getCommonJsEnv(boolean dosPrefs)
+      throws IOException {
     if (dosPrefs) {
-      return CommonEnvironment.makeEnvironment(ImmutableMap.of(
-          "file.separator", "\\",
-          "os.arch", "i386",
-          "os.name", "generic-windows",
-          "os.version", "7"));
+      return CommonEnvironment.makeEnvironment(
+          fileSystemFromAsciiArt("C:", "C:\\").getRootDirectories().iterator()
+              .next(),
+          ImmutableMap.of(
+              "file.separator", "\\",
+              "os.arch", "i386",
+              "os.name", "generic-windows",
+              "os.version", "7"));
     } else {
-      return CommonEnvironment.makeEnvironment(ImmutableMap.of(
-          "file.separator", "/",
-          "os.arch", "i386",
-          "os.name", "generic-posix",
-          "os.version", "1"));
+      return CommonEnvironment.makeEnvironment(
+          fileSystemFromAsciiArt("/", "/").getPath("/"),
+          ImmutableMap.of(
+              "file.separator", "/",
+              "os.arch", "i386",
+              "os.name", "generic-posix",
+              "os.version", "1"));
     }
   }
 
-  public ImmutableMap<String, ?> getCommonJsEnv() {
+  public ImmutableMap<String, ?> getCommonJsEnv() throws IOException {
     return getCommonJsEnv(false);
   }
 
@@ -242,11 +249,16 @@ public abstract class PbTestCase extends Assert {
    */
   protected FileSystem fileSystemFromAsciiArt(String cwd, String... asciiArt)
       throws IOException {
+    String sep = cwd.contains("/") ? "/" : "\\";
+    char sepChar = sep.charAt(0);
+    int sepIndex = cwd.indexOf(sep);
+    String root = cwd.substring(0, sepIndex < 0 ? cwd.length() : sepIndex);
     FileSystem fs = new StubFileSystemProvider("mfs").getFileSystem(
-        URI.create("mfs:///#" + cwd));
+        URI.create("mfs:///?sep=" + UriUtil.encode(sep) + "&root="
+                   + UriUtil.encode(root) + "#" + UriUtil.encode(cwd)));
     List<Integer> indentStack = Lists.newArrayList(-1);
     List<Path> paths = Lists.newArrayList();
-    paths.add(fs.getPath("/"));
+    paths.add(fs.getPath(root));
     String asciiArtStr = Joiner.on('\n').join(asciiArt);
     assert asciiArtStr.indexOf('\t') < 0;
     for (String line : asciiArtStr.split("[\r\n]+")) {
@@ -270,7 +282,7 @@ public abstract class PbTestCase extends Assert {
         if (ch == ' ' || ch == '(' || ch == '"') {
           fileName = line.substring(indent, pos);
           break;
-        } else if (ch == '/') {
+        } else if (ch == sepChar) {
           fileName = line.substring(indent, pos);
           isDir = true;
           ++pos;
@@ -322,7 +334,7 @@ public abstract class PbTestCase extends Assert {
       if ("".equals(fileName)) {
         if (isDir && indentStack.size() == 1) {
           if (perms != null) {
-            fs.getPath("/").getFileAttributeView(PosixFileAttributeView.class)
+            fs.getPath(root).getFileAttributeView(PosixFileAttributeView.class)
                 .setPermissions(FilePerms.permSet(permBits, true));
           }
           continue;

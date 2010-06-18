@@ -203,7 +203,7 @@ public class EndToEndTest extends PbTestCase {
       return this;
     }
 
-    Tester start() {
+    Tester start() throws IOException {
       Logger logger = getLogger(Level.INFO);
       final Config config = new Config() {
         public Path getClientRoot() { return fs.getPath("/cwd/root"); }

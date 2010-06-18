@@ -18,6 +18,7 @@ import org.prebake.core.Glob;
 import org.prebake.core.GlobSet;
 import org.prebake.core.ImmutableGlobSet;
 import org.prebake.core.MutableGlobSet;
+import org.prebake.fs.FsUtil;
 
 import java.io.IOException;
 import java.nio.file.Path;
@@ -67,11 +68,9 @@ final class WorkingDir {
           return delta < 0 ? -1 : delta != 0 ? 1 : a.compareTo(b);
         }
       });
-      String separator = workingDir.getFileSystem().getSeparator();
+      Path root = workingDir.getRoot();
       for (String prefix : byPrefix.keySet()) {
-        if (!"/".equals(separator)) {  // Normalize / in glob to \ on Windows.
-          prefix = prefix.replace("/", separator);
-        }
+        prefix = FsUtil.denormalizePath(root, prefix);
         String pathPrefix = workingDir.resolve(prefix).toString();
         groupedByDir.put(
             pathPrefix, ImmutableList.copyOf(byPrefix.get(prefix)));

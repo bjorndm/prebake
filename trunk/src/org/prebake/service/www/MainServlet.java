@@ -18,6 +18,7 @@ import org.prebake.channel.FileNames;
 import org.prebake.core.BoundName;
 import org.prebake.core.Hash;
 import org.prebake.core.PreformattedStaticHtml;
+import org.prebake.fs.FsUtil;
 import org.prebake.js.JsonSink;
 import org.prebake.service.ArtifactDescriptors;
 import org.prebake.service.Prebakery;
@@ -268,8 +269,7 @@ public final class MainServlet extends HttpServlet {
       return;
     }
     Path clientRoot = pb.getConfig().getClientRoot();
-    String sep = clientRoot.getFileSystem().getSeparator();
-    if (!"/".equals(sep)) { subPath = subPath.replace("/", sep); }
+    subPath = FsUtil.denormalizePath(clientRoot.getRoot(), subPath);
     Path requestedPath = clientRoot.resolve(subPath).normalize();
     if (!requestedPath.startsWith(clientRoot)) {
       resp.sendError(404);

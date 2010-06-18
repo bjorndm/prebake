@@ -14,6 +14,8 @@
 
 package org.prebake.js;
 
+import org.prebake.fs.FsUtil;
+
 import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
 import com.google.common.base.Throwables;
@@ -371,9 +373,8 @@ public final class RhinoExecutor implements Executor {
       Path modulePath;  // The path to load
       {
         String relPath = args[0].toString();
-        String pathSep = base.getFileSystem().getSeparator();
         // URI separator should always work.
-        if (!"/".equals(pathSep)) { relPath = relPath.replace("/", pathSep); }
+        relPath = FsUtil.denormalizePath(base.getRoot(), relPath);
         modulePath = base.getParent().resolve(relPath).normalize();
       }
       try {
