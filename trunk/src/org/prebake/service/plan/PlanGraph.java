@@ -220,7 +220,7 @@ final class RecipeMaker {
     for (BoundName prod : prods) { w.process(prod); }
     ImmutableList.Builder<Ingredient> startingPoints = ImmutableList.builder();
     for (IngredientBuilder startingPoint : w.startingPoints) {
-      startingPoints.add(startingPoint.build());
+      startingPoints.add(startingPoint.build(w.ingredients));
     }
     return new Recipe(startingPoints.build());
   }
@@ -280,24 +280,31 @@ final class RecipeMaker {
 
 final class IngredientBuilder {
   final BoundName product;
-  private final List<IngredientBuilder> postReqs = Lists.newArrayList();
+  private final Set<BoundName> postReqs = Sets.newLinkedHashSet();
   private final ImmutableList.Builder<BoundName> preReqs
       = ImmutableList.builder();
   private Ingredient ingredient;
+  private boolean building;
 
   IngredientBuilder(BoundName product) { this.product = product; }
 
-  Ingredient build() {
+  Ingredient build(Map<BoundName, IngredientBuilder> ingredients) {
     if (ingredient == null) {
+      if (building) { throw new IllegalStateException(); }
+      building = true;
       ImmutableList.Builder<Ingredient> postReqs = ImmutableList.builder();
-      for (IngredientBuilder b : this.postReqs) { postReqs.add(b.build()); }
+      for (BoundName postReq : this.postReqs) {
+        postReqs.add(ingredients.get(postReq).build(ingredients));
+      }
       ingredient = new Ingredient(product, preReqs.build(), postReqs.build());
+      building = false;
     }
     return ingredient;
   }
 
   void addPreRequisite(IngredientBuilder preReq) {
-    preReqs.add(preReq.product);
-    preReq.postReqs.add(this);
+    if (preReq.postReqs.add(this.product)) {
+      this.preReqs.add(preReq.product);
+    }
   }
 }
