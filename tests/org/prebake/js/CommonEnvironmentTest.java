@@ -16,6 +16,7 @@ package org.prebake.js;
 
 import org.prebake.util.PbTestCase;
 
+import java.io.IOException;
 import java.util.logging.Level;
 
 import javax.annotation.Nullable;
@@ -27,19 +28,22 @@ import com.google.common.collect.Lists;
 import org.junit.Test;
 
 public class CommonEnvironmentTest extends PbTestCase {
-  @Test public final void testIntersect() {
+  @Test public final void testIntersect() throws Exception {
     assertJsProduces("glob.intersect('foo/*/*.bar', '**/baz/*.bar')", true);
     assertJsProduces("glob.intersect('foo/*/*.bar', '**/baz/*.boo')", false);
     assertJsProduces("glob.intersect(['foo/*/*.bar'], '**/baz/*.bar')", true);
     assertJsProduces("glob.intersect(['foo/*/*.bar'], '**/baz/*.boo')", false);
   }
 
-  @Test public final void testXform() {
+  @Test public final void testXformPosix() throws Exception {
     assertJsProduces(
         Joiner.on('\n').join(
             "var xf = glob.xformer('src/**.c', 'lib/**.o');",
             "[xf('src/foo/bar.c'), xf('src/baz.c'), xf('src/foo/bar.h')]"),
         Lists.newArrayList("lib/foo/bar.o", "lib/baz.o", null), false);
+  }
+
+  @Test public final void testXformDos() throws Exception {
     assertJsProduces(
         Joiner.on('\n').join(
             "var xf = glob.xformer('src/**.c', 'lib/**.o');",
@@ -47,7 +51,7 @@ public class CommonEnvironmentTest extends PbTestCase {
         Lists.newArrayList("lib\\foo\\bar.o", "lib\\baz.o", null), true);
   }
 
-  @Test public final void testPrefix() {
+  @Test public final void testPrefix() throws Exception {
     assertJsProduces("glob.prefix('lib/**.class')", "lib/");
     assertJsProduces(
         "glob.prefix('lib/org/**.class', 'lib/com/**.class')", "lib/");
@@ -59,7 +63,7 @@ public class CommonEnvironmentTest extends PbTestCase {
         "glob.prefix(['www/org/**.css', 'www/org/**.js'])", "www\\org\\", true);
   }
 
-  @Test public final void testMatcher() {
+  @Test public final void testMatcher() throws Exception {
     assertJsProduces("glob.matcher('foo/**')('foo/bar')", true);
     assertJsProduces("glob.matcher('foo/**')('baz/bar')", false);
     assertJsProduces("glob.matcher('foo/**', 'baz/*')('baz/bar')", true);
@@ -67,7 +71,7 @@ public class CommonEnvironmentTest extends PbTestCase {
     assertJsProduces("glob.matcher('foo/**', 'baz/*')('baz/boo/far')", false);
   }
 
-  @Test public final void testRootOf() {
+  @Test public final void testRootOf() throws Exception {
     assertJsProduces("glob.rootOf('foo///*/*.bar', 'foo///**.bar')", "foo");
     assertJsProduces("glob.rootOf('foo/*/*.bar', 'foo///**.bar')", null);
     assertJsProduces("glob.rootOf('src///org/prebake')", "src");
@@ -75,17 +79,19 @@ public class CommonEnvironmentTest extends PbTestCase {
     assertJsProduces("glob.rootOf('bar/baz///boo/*')", "bar\\baz", true);
   }
 
-  @Test public final void testSys() {
+  @Test public final void testSys() throws Exception {
     assertJsProduces("sys.os.arch", "i386");
     assertJsProduces("sys.os.name", "generic-posix");
   }
 
-  private void assertJsProduces(String js, @Nullable Object result) {
+  private void assertJsProduces(String js, @Nullable Object result)
+      throws IOException {
     assertJsProduces(js, result, false);
   }
 
   private void assertJsProduces(
-      String js, @Nullable Object result, boolean dosPrefs) {
+      String js, @Nullable Object result, boolean dosPrefs)
+      throws IOException {
     Executor.Output<?> out = Executor.Factory.createJsExecutor().run(
         Object.class, getLogger(Level.INFO), null,
         Executor.Input.builder(js, getName())

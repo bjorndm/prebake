@@ -17,7 +17,9 @@ package org.prebake.js;
 import org.prebake.core.Documentation;
 import org.prebake.core.Glob;
 import org.prebake.core.MessageQueue;
+import org.prebake.fs.FsUtil;
 
+import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
@@ -109,31 +111,18 @@ public final class CommonEnvironment {
    *     tool files to have access to the {@code os.*} properties.
    */
   public static final ImmutableMap<String, Object> makeEnvironment(
-      Map<String, String> properties) {
-    final String sep = properties.get("file.separator");
-    MembranableFunction globIntersect = new MembranableFunction() {
-      public Documentation getHelp() {
-        return new Documentation(
-            "intersect(globs_a, globs_b)",
-            INTERSECT_HELP, null);
-      }
-      public int getArity() { return 2; }
-      public String getName() { return "intersect"; }
+      final Path root, Map<String, String> properties) {
+    MembranableFunction globIntersect = new SimpleMembranableFunction(
+        INTERSECT_HELP, "intersect", "glob", "globs_a", "globs_b") {
       public Object apply(Object[] args) {
         return Glob.overlaps(
             parseGlobs(args[0]), parseGlobs(args[1]));
       }
     };
 
-    MembranableFunction globXformer = new MembranableFunction() {
-      public int getArity() { return 2; }
-      public Documentation getHelp() {
-        return new Documentation(
-            "xform(input_globs, output_globs) -> function (input_path)"
-            + " -> output_path",
-            XFORMER_HELP, null);
-      }
-      public String getName() { return "xformer"; }
+    MembranableFunction globXformer = new SimpleMembranableFunction(
+        XFORMER_HELP, "xformer", "function (input_path) -> output_path",
+        "input_globs", "output_globs") {
       public Object apply(Object[] args) {
         final List<Glob> inputGlobs = parseGlobs(args[0]);
         final List<Glob> outputGlobs = parseGlobs(args[1]);
@@ -145,32 +134,18 @@ public final class CommonEnvironment {
         ImmutableList.Builder<Function<String, String>> b
             = ImmutableList.builder();
         for (int i = 0, n = inputGlobs.size(); i < n; ++i) {
-          b.add(Glob.transform(
-              inputGlobs.get(i), outputGlobs.get(i)));
+          b.add(Glob.transform(inputGlobs.get(i), outputGlobs.get(i)));
         }
         final List<Function<String, String>> fns = b.build();
-        return new MembranableFunction() {
-          public int getArity() { return 1; }
-          public Documentation getHelp() {
-            return new Documentation(
-                "glob xfromer",
-                "Transforms " + inputGlobs
-                + " to " + outputGlobs,
-                null);
-          }
-          public String getName() { return null; }
+        return new SimpleMembranableFunction(
+              "Transforms " + inputGlobs + " to " + outputGlobs,
+              "xform", "output_path", "input_path") {
           public Object apply(Object[] args) {
-            String inputPath = (String) args[0];
-            if (!"/".equals(sep)) {  // Convert paths from native
-              inputPath = inputPath.replace(sep, "/");
-            }
+            String inputPath = FsUtil.normalizePath(root, (String) args[0]);
             for (Function<String, String> fn : fns) {
               String outputPath = fn.apply(inputPath);
               if (outputPath != null) {
-                if (!"/".equals(sep)) {  // Convert DOS paths to native
-                  outputPath = outputPath.replace("/", sep);
-                }
-                return outputPath;
+                return FsUtil.denormalizePath(root, outputPath);
               }
             }
             return null;
@@ -179,17 +154,8 @@ public final class CommonEnvironment {
       }
     };
 
-    MembranableFunction globMatcher = new MembranableFunction() {
-      public int getArity() { return 1; }  // One or more globs.
-
-      public Documentation getHelp() {
-        return new Documentation(
-            getName() + "(globs) -> function (path) -> boolean", MATCHER_HELP,
-            "Mike Samuel <mikesamuel@gmail.com>");
-      }
-
-      public String getName() { return "matcher"; }
-
+    MembranableFunction globMatcher = new SimpleMembranableFunction(
+        MATCHER_HELP, "matcher", "function (path) -> boolean", "globs") {
       public MembranableFunction apply(Object[] args) {
         MessageQueue mq = new MessageQueue();
         final List<Glob> globs = Glob.CONV.convert(
@@ -199,15 +165,9 @@ public final class CommonEnvironment {
               Joiner.on('\n').join(mq.getMessages()));
         }
         final Pattern p = Glob.toRegex(globs);
-        return new MembranableFunction() {
-          public int getArity() { return 1; }
-          public Documentation getHelp() {
-            return new Documentation(
-                "match(path) -> boolean",
-                "True iff the given path matches at least one of " + globs,
-                "Mike Samuel <mikesamuel@gmail.com>");
-          }
-          public String getName() { return "match"; }
+        return new SimpleMembranableFunction(
+            "True iff the given path matches at least one of " + globs,
+            "match", "boolean", "path") {
           public Object apply(Object[] args) {
             return args.length >= 1 && args[0] instanceof String
                 && p.matcher((String) args[0]).matches();
@@ -216,17 +176,8 @@ public final class CommonEnvironment {
       }
     };
 
-    MembranableFunction globPrefix = new MembranableFunction() {
-      public int getArity() { return 1; }  // One or more globs.
-
-      public Documentation getHelp() {
-        return new Documentation(
-            getName() + "(globs) -> path", PREFIX_HELP,
-            "Mike Samuel <mikesamuel@gmail.com>");
-      }
-
-      public String getName() { return "prefix"; }
-
+    MembranableFunction globPrefix = new SimpleMembranableFunction(
+        PREFIX_HELP, "prefix", "path", "globs") {
       public String apply(Object[] args) {
         MessageQueue mq = new MessageQueue();
         List<Glob> globs = Glob.CONV.convert(
@@ -235,23 +186,12 @@ public final class CommonEnvironment {
           throw new IllegalArgumentException(
               Joiner.on('\n').join(mq.getMessages()));
         }
-        String prefix = Glob.commonPrefix(globs);
-        if (!"/".equals(sep)) { prefix = prefix.replace("/", sep); }
-        return prefix;
+        return FsUtil.denormalizePath(root, Glob.commonPrefix(globs));
       }
     };
 
-    MembranableFunction globRootOf = new MembranableFunction() {
-      public int getArity() { return 1; }  // One or more globs.
-
-      public Documentation getHelp() {
-        return new Documentation(
-            getName() + "(globs) -> path", ROOT_OF_HELP,
-            "Mike Samuel <mikesamuel@gmail.com>");
-      }
-
-      public String getName() { return "rootOf"; }
-
+    MembranableFunction globRootOf = new SimpleMembranableFunction(
+        ROOT_OF_HELP, "rootOf", "path", "globs") {
       public String apply(Object[] args) {
         MessageQueue mq = new MessageQueue();
         List<Glob> globs = Glob.CONV.convert(
@@ -262,12 +202,11 @@ public final class CommonEnvironment {
         }
         Iterator<Glob> it = globs.iterator();
         if (!it.hasNext()) { return null; }
-        String root = it.next().getTreeRoot();
+        String treeRoot = it.next().getTreeRoot();
         while (it.hasNext()) {
-          if (!it.next().getTreeRoot().equals(root)) { return null; }
+          if (!it.next().getTreeRoot().equals(treeRoot)) { return null; }
         }
-        if (!"/".equals(sep)) { root = root.replace("/", sep); }
-        return root;
+        return FsUtil.denormalizePath(root, treeRoot);
       }
     };
 

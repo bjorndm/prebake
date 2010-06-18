@@ -475,7 +475,7 @@ public class PlannerTest extends PbTestCase {
       return this;
     }
 
-    public Tester withPlanFiles(String... planFiles) {
+    public Tester withPlanFiles(String... planFiles) throws IOException {
       ImmutableList.Builder<Path> b = ImmutableList.builder();
       for (String planFile : planFiles) {
         b.add(fs.getPath(planFile));

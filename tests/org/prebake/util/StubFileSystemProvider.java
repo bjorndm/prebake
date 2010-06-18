@@ -72,13 +72,14 @@ import java.util.Set;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import javax.annotation.Nullable;
 
 public class StubFileSystemProvider extends FileSystemProvider {
-  final Map<String, MemFileSystem> cwdToFs = Collections.synchronizedMap(
-      Maps.<String, MemFileSystem>newHashMap());
+  final Map<URI, MemFileSystem> uriToFs = Collections.synchronizedMap(
+      Maps.<URI, MemFileSystem>newHashMap());
   final String scheme;
 
   public StubFileSystemProvider(String scheme) { this.scheme = scheme; }
@@ -102,11 +103,20 @@ public class StubFileSystemProvider extends FileSystemProvider {
   public MemFileSystem newFileSystem(URI uri, Map<String, ?> env) {
     String cwd = uri.getFragment();
     assert cwd != null;
-    synchronized (cwdToFs) {
-      MemFileSystem fs = cwdToFs.get(cwd);
+    String sep = "/";
+    String root = "";
+    String params = uri.getQuery();
+    if (params != null) {
+      Matcher m = Pattern.compile("(?:^|&)sep=([^&]+)").matcher(params);
+      if (m.find()) { sep = m.group(1); }
+      m = Pattern.compile("(?:^|&)root=([^&]+)").matcher(params);
+      if (m.find()) { root = m.group(1); }
+    }
+    synchronized (uriToFs) {
+      MemFileSystem fs = uriToFs.get(uri);
       if (fs == null) {
-        fs = new MemFileSystem(this, cwd);
-        cwdToFs.put(cwd, fs);
+        fs = new MemFileSystem(this, cwd, sep, root);
+        uriToFs.put(uri, fs);
       }
       return fs;
     }
@@ -121,7 +131,8 @@ class MemPath extends Path {
   MemPath(MemFileSystem fs, String path) {
     String sep = fs.getSeparator();
     this.fs = fs;
-    this.isAbs = path.startsWith(sep);
+    this.isAbs = !"".equals(path) && (
+        path.equals(fs.rootName) || path.startsWith(fs.rootAndSep));
     String[] parts = path.split(Pattern.quote(sep) + "+");
     if (isAbs && parts.length != 0) {
       String[] newParts = new String[parts.length - 1];
@@ -312,20 +323,22 @@ class MemPath extends Path {
   @Override
   public String toString() {
     int n = parts.length;
-    String sep = fs.getSeparator();
     switch (n) {
-      case 0: return isAbs ? sep : "";
-      case 1: return isAbs ? sep + parts[0] : parts[0];
+      case 0:
+        if (!isAbs) { return ""; }
+        return fs.rootName.length() == 0 ? fs.rootAndSep : fs.rootName;
+      case 1: return isAbs ? fs.rootAndSep + parts[0] : parts[0];
       default:
         StringBuilder sb = new StringBuilder();
-      if (isAbs) { sb.append(sep); }
-      if (n != 0) {
-        sb.append(parts[0]);
-        for (int i = 1; i < n; ++i) {
-          sb.append(sep).append(parts[i]);
+        if (isAbs) { sb.append(fs.rootAndSep); }
+        if (n != 0) {
+          sb.append(parts[0]);
+          String sep = fs.getSeparator();
+          for (int i = 1; i < n; ++i) {
+            sb.append(sep).append(parts[i]);
+          }
         }
-      }
-      return sb.toString();
+        return sb.toString();
     }
   }
 
@@ -422,7 +435,7 @@ class MemPath extends Path {
 
   @Override
   public boolean isHidden() {
-    return getName().toString().startsWith(".");
+    return getName().toString().startsWith(".");  // TODO: POSIX only
   }
 
   @Override
@@ -500,6 +513,7 @@ class MemPath extends Path {
 
   @Override
   public MemPath normalize() {
+    // TODO: case fold for DOS.
     List<String> norm = Lists.newArrayList();
     for (String part : parts) {
       if (".".equals(part)) { continue; }
@@ -513,12 +527,17 @@ class MemPath extends Path {
       }
       norm.add(part);
     }
+    if (isAbs
+        && ((norm.size() == 1 && "".equals(norm.get(0))) || norm.isEmpty())) {
+      return new MemPath(
+          fs, "".equals(fs.rootName) ? fs.rootAndSep : fs.rootName);
+    }
     StringBuilder sb = new StringBuilder();
-    if (isAbs) { sb.append('/'); }
+    if (isAbs) { sb.append(fs.rootAndSep); }
     String sep = "";
     for (String p : norm) {
       sb.append(sep).append(p);
-      sep = "/";
+      sep = fs.getSeparator();
     }
     return new MemPath(fs, sb.toString());
   }
@@ -639,12 +658,20 @@ class MemPath extends Path {
 }
 
 class MemFileSystem extends FileSystem {
-  private Node root = new Node("", null, true);
   private final StubFileSystemProvider p;
   private final MemPath cwd;
+  private final String sep;
+  private Node root;
 
-  MemFileSystem(StubFileSystemProvider p, String cwd) {
+  final String rootName;
+  final String rootAndSep;
+
+  MemFileSystem(StubFileSystemProvider p, String cwd, String sep, String root) {
     this.p = p;
+    this.sep = sep;
+    this.rootName = root;
+    this.rootAndSep = root + sep;
+    this.root = new Node(root, null, true);
     this.cwd = getPath(cwd);
     try {
       __mkdir(this.cwd);
@@ -699,7 +726,9 @@ class MemFileSystem extends FileSystem {
     p = __toRealPath(p);
     Node n = root;
     for (Path part : p) {
-      Node child = n.getChild(part.toString());
+      String partStr = ((MemPath) part).toString();
+      if ("".equals(partStr)) { continue; }
+      Node child = n.getChild(partStr);
       if (child == null) { return null; }
       n = child;
     }
@@ -725,10 +754,11 @@ class MemFileSystem extends FileSystem {
   MemPath __toRealPath(MemPath p) {
     assert p.fs == this;
     if (p.isAbs) { return p.normalize(); }
-    return new MemPath(this, cwd + "/" + p).normalize();
+    return new MemPath(this, cwd + sep + p).normalize();
   }
 
   URI __toUri(MemPath p) {
+    // TODO: strip root and convert separators.
     return URI.create("file://" + __toRealPath(p));
   }
 
@@ -738,9 +768,7 @@ class MemFileSystem extends FileSystem {
   }
 
   @Override
-  public String getSeparator() {
-    return "/";
-  }
+  public String getSeparator() { return sep; }
 
   @Override
   public boolean isOpen() {
@@ -877,16 +905,16 @@ class MemFileSystem extends FileSystem {
         final Iterator<String> it = ImmutableList.copyOf(
             node.getChildren().keySet()).iterator();
         return new Iterator<Path>() {
-          Path pending = null;
+          MemPath pending = null;
 
           public boolean hasNext() {
             fetch();
             return pending != null;
           }
 
-          public Path next() {
+          public MemPath next() {
             fetch();
-            Path p = pending;
+            MemPath p = pending;
             if (p == null) { throw new NoSuchElementException(); }
             pending = null;
             return p;
@@ -902,7 +930,7 @@ class MemFileSystem extends FileSystem {
                 if ("".equals(name)) { continue; }
                 Node child = node.getChild(name);
                 if (child != null) {
-                  Path childPath = p.resolve(name);
+                  MemPath childPath = p.resolve(name);
                   try {
                     if (filter == null || filter.accept(childPath)) {
                       pending = childPath;
@@ -938,15 +966,17 @@ class MemFileSystem extends FileSystem {
     String syntax = syntaxAndPattern.substring(0, colon);
     String pattern = syntaxAndPattern.substring(colon + 1);
     if ("glob".equals(syntax)) {
-      boolean isAbs = pattern.startsWith("/");
+      boolean isAbs = !"".equals(pattern)
+          && (pattern.equals(root.getName())
+              || pattern.startsWith(root.getName() + sep));
       pattern = pattern.replaceAll("[.\\\\\\[\\]\\(\\)\\{\\}\\+]", "\\\\$0")
           .replaceAll("\\*\\*", ".*")
-          .replaceAll("\\*", "[^/]*")
+          .replaceAll("\\*", "[^\\" + sep + "]*")
           .replaceAll("\\?", ".");
       if (isAbs) {
         pattern = "(?:" + pattern + ")$";
       } else {
-        pattern = "(?:(?:^|/)" + pattern + ")$";
+        pattern = "(?:(?:^|\\" + sep + ")" + pattern + ")$";
       }
     }
     final Pattern p = Pattern.compile(pattern);
@@ -960,7 +990,8 @@ class MemFileSystem extends FileSystem {
   @Override
   public Iterable<Path> getRootDirectories() {
     if (null == root) { return Collections.<Path>emptyList(); }
-    return Collections.<Path>singletonList(getPath("/"));
+    return Collections.<Path>singletonList(
+        getPath("".equals(this.rootName) ? this.rootAndSep : this.rootName));
   }
 
   @Override
@@ -1198,14 +1229,15 @@ final class Node {
     }
   }
 
-  @Override
-  public String toString() {
+  @Override public String toString() { return toString("/"); }
+
+  String toString(String sep) {
     if (parent == null) { return name; }
-    return parent + "/" + name;
+    return parent.toString(sep) + sep + name;
   }
 
   Path toPath(MemFileSystem fs) {
-    return fs.getPath("/" + toString());
+    return fs.getPath(fs.rootAndSep + toString(fs.getSeparator()));
   }
 
   boolean isDir() { return children != null; }

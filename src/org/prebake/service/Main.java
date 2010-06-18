@@ -85,8 +85,6 @@ public final class Main {
     }
 
     FileSystem fs = FileSystems.getDefault();
-    ImmutableMap<String, ?> env = CommonEnvironment.makeEnvironment(
-        getSystemPropertyMap());
     Config config;
     {
       MessageQueue mq = new MessageQueue();
@@ -100,6 +98,8 @@ public final class Main {
         System.exit(-1);
       }
     }
+    ImmutableMap<String, ?> env = CommonEnvironment.makeEnvironment(
+        config.getClientRoot().getRoot(), getSystemPropertyMap());
     ScheduledExecutorService execer = MoreExecutors
         .getExitingScheduledExecutorService(
             new ScheduledThreadPoolExecutor(16));
