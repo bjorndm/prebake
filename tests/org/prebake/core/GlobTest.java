@@ -378,7 +378,7 @@ public class GlobTest extends PbTestCase {
     assertSubst("foo", "*(a)/foo", "a=");
     assertSubst("foo/*.txt", "*(a)/foo/*.txt", "a=");
     assertSubst("boo/foo/*.txt", "*(a)/foo/*.txt", "a=boo");
-    assertSubst("*/foo/bar.txt", "*/foo/*(a).txt", "a=bar");
+    assertSubst("*/include/x86.h", "*/include/*(os.arch).h", "os.arch=x86");
   }
 
   private void assertRegexMatches(List<String> globStrs, String... golden) {

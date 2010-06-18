@@ -89,7 +89,9 @@ public final class Product implements JsonSerializable {
       BoundName name, @Nullable Documentation help,
       GlobRelation filesAndParams, List<? extends Action> actions,
       boolean isIntermediate, @Nullable MobileFunction bake, Path source) {
-    this(name, help, filesAndParams, actions, isIntermediate, bake, source, null);
+    this(
+        name, help, filesAndParams, actions, isIntermediate, bake, source,
+        null);
   }
 
   private Product(
@@ -254,7 +256,7 @@ public final class Product implements JsonSerializable {
                   STRING_CONV,
                   new Predicate<String>() {
                     public boolean apply(String name) {
-                      return YSON.isValidIdentifier(name);
+                      return YSON.isValidDottedIdentifierName(name);
                     }
                     @Override public String toString() { return "a JS ident"; }
                   }))

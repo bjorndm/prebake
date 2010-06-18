@@ -144,7 +144,7 @@ public final class Glob implements Comparable<Glob>, JsonSerializable {
           if (i + 1 < n && s.charAt(i + 1) == '(') {
             int end = s.indexOf(')', i + 2);
             String hole = holes[h] = s.substring(i + 2, end);
-            if (!YSON.isValidIdentifierName(hole)) { badGlob(s); }
+            if (!YSON.isValidDottedIdentifierName(hole)) { badGlob(s); }
             i = end;
           }
           ++h;
