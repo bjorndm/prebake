@@ -86,8 +86,7 @@ public final class GlobRelation {
     public final ImmutableGlobSet inputs;
     public final ImmutableGlobSet outputs;
     public final ImmutableMap<String, String> parameterBindings;
-    Solution(GlobSet inputs, GlobSet outputs,
-        Map<String, String> bindings) {
+    Solution(GlobSet inputs, GlobSet outputs, Map<String, String> bindings) {
       this.inputs = ImmutableGlobSet.copyOf(inputs);
       this.outputs = ImmutableGlobSet.copyOf(outputs);
       this.parameterBindings = ImmutableMap.copyOf(bindings);

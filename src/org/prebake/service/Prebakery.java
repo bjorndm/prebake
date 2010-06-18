@@ -301,7 +301,9 @@ public abstract class Prebakery implements Closeable {
     } finally {
       if (!setupSucceeded) { close(); }
     }
-    logger.log(Level.INFO, "Started");
+    if (setupSucceeded) {
+      logger.log(Level.INFO, "Started");
+    }
   }
 
   /**
