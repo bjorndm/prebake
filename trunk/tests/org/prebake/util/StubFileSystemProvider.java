@@ -759,7 +759,8 @@ class MemFileSystem extends FileSystem {
 
   URI __toUri(MemPath p) {
     // TODO: strip root and convert separators.
-    return URI.create("file://" + __toRealPath(p));
+    // Attach fragment for cwd, and attach root and sep query parameters.
+    return URI.create("mfs://" + __toRealPath(p));
   }
 
   @Override
