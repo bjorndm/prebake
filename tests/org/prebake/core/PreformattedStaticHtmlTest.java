@@ -17,8 +17,6 @@ package org.prebake.core;
 import org.prebake.util.PbTestCase;
 
 import com.google.common.base.Joiner;
-import com.google.common.collect.ImmutableList;
-
 import org.junit.Test;
 
 public class PreformattedStaticHtmlTest extends PbTestCase {
@@ -217,36 +215,5 @@ public class PreformattedStaticHtmlTest extends PbTestCase {
             "<pre>Foo\nBar\r\nBaz\u2028Boo\u2029Far\u0085Faz\r</pre>")
             .plainText());
 
-  }
-
-  @Test public final void testRomanNumerals() {
-    ImmutableList.Builder<String> romanNumerals = ImmutableList.builder();
-    for (int i = 0; i <= 30; ++i) {
-      romanNumerals.add(PreformattedStaticHtml.toRomanNumeral(i));
-    }
-    assertEquals(
-        ImmutableList.of(
-            "",
-            "I", "II", "III", "IV", "V",
-            "VI", "VII", "VIII", "IX", "X",
-            "XI", "XII", "XIII", "XIV", "XV",
-            "XVI", "XVII", "XVIII", "XIX", "XX",
-            "XXI", "XXII", "XXIII", "XXIV", "XXV",
-            "XXVI", "XXVII", "XXVIII", "XXIX", "XXX"
-            ),
-        romanNumerals.build());
-    assertEquals("XLVIII", PreformattedStaticHtml.toRomanNumeral(48));
-    // Apparently this is more correct than IL.
-    assertEquals("XLIX", PreformattedStaticHtml.toRomanNumeral(49));
-    assertEquals("L", PreformattedStaticHtml.toRomanNumeral(50));
-    assertEquals("LI", PreformattedStaticHtml.toRomanNumeral(51));
-    assertEquals("XCVIII", PreformattedStaticHtml.toRomanNumeral(98));
-    assertEquals("XCIX", PreformattedStaticHtml.toRomanNumeral(99));
-    assertEquals("C", PreformattedStaticHtml.toRomanNumeral(100));
-    assertEquals("CI", PreformattedStaticHtml.toRomanNumeral(101));
-    assertEquals("CMXCVIII", PreformattedStaticHtml.toRomanNumeral(998));
-    assertEquals("CMXCIX", PreformattedStaticHtml.toRomanNumeral(999));
-    assertEquals("M", PreformattedStaticHtml.toRomanNumeral(1000));
-    assertEquals("MI", PreformattedStaticHtml.toRomanNumeral(1001));
   }
 }

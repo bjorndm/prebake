@@ -94,10 +94,8 @@ public final class Main {
 
       @Override
       protected void launch(String... argv) throws IOException {
-        // TODO: prepend the JVM and jar file onto argv.
-        // Maybe get the prebake_home directory from a system variable.
-        // Make sure this is propagated in the bin file, or see whether there
-        // is a way to find the URL of the JAR containing this class.
+        // TODO: properly specify the system environment needed.  Especially the
+        // path used to find tools, and the classpath.
         new ProcessBuilder(argv).inheritIO().start();
       }
 
