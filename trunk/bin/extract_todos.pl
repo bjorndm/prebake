@@ -22,6 +22,7 @@ foreach my $sourceFile (sort(@ARGV)) {
   die "Bad source file $sourceFile" unless -f $sourceFile;
 }
 
+# Encodes plain text as HTML.
 sub html($) {
   my $s = $_[0];
   $s =~ s/&/&amp;/g;
@@ -32,16 +33,14 @@ sub html($) {
   return $s;
 }
 
+# Encodes plain text as a URI by percent escaping.
 sub uri($) {
   my $s = $_[0];
-  $s =~ s/%/%25/g;
-  $s =~ s/\?/%3f/g;
-  $s =~ s/#/%23/g;
-  $s =~ s/&/%26/g;
+  $s =~ s/[\x00-\x1f\x7f%#&+=?]/sprintf("%%%02x", ord($&))/ge;
   return $s;
 }
 
-sub basename($) {
+sub dirname($) {
   my $path = $_[0];
   $path =~ s/\/[^\/]*$//;
   return $path;
@@ -51,26 +50,40 @@ sub mkdirs($) {
   my $dir = $_[0];
   if ($dir) {
     if (! -e $dir) {
-      mkdirs(basename($dir));
+      mkdirs(dirname($dir));
       mkdir($dir);
     }
   }
 }
 
+# Buffer that aggregates HTML content for the index.html page.
 my $summaryBody = '';
 
+# A ring buffer that stores lines from the source file currently being read.
+# We want to show a task in the middle of some contextual lines, and so we
+# gather a bunch of lines and then check whether the middle line is a task.
 my @ringBuffer = ('', '', '', '', '');
+# Index of oldest line in ring buffer which is the next to be replaced.
 my $ringBufferIdx = 0;
 my $ringBufferLen = scalar(@ringBuffer);
+# Middle of the ring buffer.
 my $ringBufferHalf = int($ringBufferLen / 2);
+# Collects chunks of HTML describing tasks for the current source file.
 my @tasks;
+# Total number of tasks over all source files.
 my $nTasks = 0;
 
+# Given n, returns the n-th oldest line in the ring buffer.
 sub line($) {
   return $ringBuffer[($ringBufferIdx + $_[0]) % $ringBufferLen];
 }
 
-sub checkForTaskAndIncrement($) {
+# Increments the ring buffer index, and looks in the middle for a task updating
+# the various variables above if one is found.
+sub advanceRingBufferAndCheckForTask($) {
+  $ringBufferIdx = ($ringBufferIdx + 1) % $ringBufferLen;
+  # Now line(0) is the next line to be replaced which is the first line in order.
+
   my $sourceFile = $_[0];
   # If there is a task in the middle of the ring buffer, gather all the lines
   # into a snippet and export it.
@@ -100,7 +113,6 @@ sub checkForTaskAndIncrement($) {
         . "\">$lineNum : <nobr>" . html($tail) . "</nobr></a></li>";
     ++$nTasks;
   }
-  $ringBufferIdx = ($ringBufferIdx + 1) % $ringBufferLen;
 }
 
 foreach my $sourceFile (sort(@ARGV)) {
@@ -110,17 +122,19 @@ foreach my $sourceFile (sort(@ARGV)) {
   open(IN, "<$sourceFile") or die "$!: $sourceFile";
   while (<IN>) {
     $ringBuffer[$ringBufferIdx] = $_;
-    checkForTaskAndIncrement($sourceFile);
+    advanceRingBufferAndCheckForTask($sourceFile);
   }
   close(IN);
+  # Identify any tasks in the last few lines of the file.
   for (my $i = $ringBufferLen - $ringBufferHalf; --$i >= 0;) {
     $ringBuffer[$ringBufferIdx] = '';
-    checkForTaskAndIncrement($sourceFile);
+    advanceRingBufferAndCheckForTask($sourceFile);
   }
 
+  # Only output a report file for source files with tasks.
   if (@tasks) {
     my $outFile = "$outDir/$sourceFile-tasks.html";
-    mkdirs(basename($outFile));
+    mkdirs(dirname($outFile));
     open(OUT, ">$outFile") or die "$!: $outFile";
     print OUT qq'<html>
 <head>
@@ -146,6 +160,7 @@ foreach my $sourceFile (sort(@ARGV)) {
   }
 }
 
+# Generate a summary with links to the report files above.
 my $reportFile = "$outDir/index.html";
 open(OUT, ">$reportFile") or die "$!: $reportFile";
 print OUT qq'<html>
@@ -157,3 +172,5 @@ print OUT qq'<html>
 $summaryBody
 </ul></body></html>';
 close(OUT);
+
+print "Found $nTasks task" . ($nTasks == 1 ? '' : 's') . ".\n";
