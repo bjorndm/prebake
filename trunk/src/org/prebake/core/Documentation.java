@@ -90,8 +90,8 @@ public final class Documentation implements JsonSerializable {
   public Documentation(
       @Nullable String summaryHtml, String detailHtml,
       @Nullable String contactEmail) {
-    // TODO: coerce HTML to balanced preformatted static HTML with normalized
-    // entities.  The balanced tag part is critical for summaryHtml.
+    // Coercing HTML to balanced preformatted static HTML makes sure that the
+    // summary HTML has balanced tags even when just a prefix of the details.
     this.summaryHtml = PreformattedStaticHtml.of(summaryHtml != null
         ? summaryHtml : summaryOf(detailHtml));
     this.detailHtml = PreformattedStaticHtml.of(detailHtml);
