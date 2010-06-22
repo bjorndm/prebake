@@ -616,8 +616,6 @@ public final class RhinoExecutor implements Executor {
 
   private static String functionSource(Context context, Function f) {
     if (f instanceof BoundFunction) {
-      // TODO: patch BoundFunction so its toSource and toString return a call
-      // to bind.
       class DebinderImpl implements Debinder {
         Callable fn;
         Object thiz;

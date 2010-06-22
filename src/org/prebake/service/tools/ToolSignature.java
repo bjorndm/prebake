@@ -19,6 +19,7 @@ import org.prebake.core.MessageQueue;
 import org.prebake.js.JsonSerializable;
 import org.prebake.js.JsonSink;
 import org.prebake.js.MobileFunction;
+import org.prebake.js.YSON;
 import org.prebake.js.YSONConverter;
 
 import java.io.IOException;
@@ -94,9 +95,14 @@ public final class ToolSignature implements JsonSerializable {
           @Nullable Object ysonValue, MessageQueue problems) {
         Map<ToolDefProperty, ?> map = MAP_CONV.convert(ysonValue, problems);
         if (map != null) {
-          return new ToolSignature(
-              name, (MobileFunction) map.get(ToolDefProperty.check),
-              (Documentation) map.get(ToolDefProperty.help), deterministic);
+          MobileFunction check = (MobileFunction) map.get(
+              ToolDefProperty.check);
+          Documentation help = (Documentation) map.get(ToolDefProperty.help);
+          if (check != null) {
+            check = check.withNameHint(
+                "_tool_" + YSON.stripNonNameChars(name) + "$check");
+          }
+          return new ToolSignature(name, check, help, deterministic);
         }
         return null;
       }

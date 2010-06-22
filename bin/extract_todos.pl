@@ -68,6 +68,8 @@ my $ringBufferIdx = 0;
 my $ringBufferLen = scalar(@ringBuffer);
 # Middle of the ring buffer.
 my $ringBufferHalf = int($ringBufferLen / 2);
+# Line number of the most recent line in the ring buffer.
+my $lineNum = 0;
 # Collects chunks of HTML describing tasks for the current source file.
 my @tasks;
 # Total number of tasks over all source files.
@@ -82,6 +84,7 @@ sub line($) {
 # the various variables above if one is found.
 sub advanceRingBufferAndCheckForTask($) {
   $ringBufferIdx = ($ringBufferIdx + 1) % $ringBufferLen;
+  $lineNum += 1;
   # Now line(0) is the next line to be replaced which is the first line in order.
 
   my $sourceFile = $_[0];
@@ -91,32 +94,39 @@ sub advanceRingBufferAndCheckForTask($) {
   if ($line =~ /\bTODO\b/) {
     my $tail = $line;
     $tail =~ s/^.*?\bTODO\b//;
-    $tail =~ s/^(.{60}).{3}/$1.../;
+    $tail =~ s/^(.{60}).{3,}/$1.../;
     my $snippet = '';
+    my $priority = '';
     for (my $i = 0; $i < $ringBufferLen; $i++) {
-      if ($i == $ringBufferHalf) { $snippet .= '<b>'; }
-      $snippet .= html(line($i));
+      my $line = line($i);
+      if ($i == $ringBufferHalf) { 
+        $snippet .= '<b>';
+        $priority = qq' class="\L$1\E"' if $line =~ /\b(high|low|medium)\b/i;
+      }
+      $snippet .= html($line);
       if ($i == $ringBufferHalf) { $snippet .= '</b>'; }
     }
     my $detailsUrl = html(uri($sourceFile) . "-tasks.html");
     my $taskIdx = scalar(@tasks);
-    my $lineNum = ($. - $ringBufferHalf);
+    my $midLineNum = ($lineNum - $ringBufferHalf);
     if ($#tasks < 0) {
       $summaryBody .= "<li><h2><a href=\"$detailsUrl\">"
           . html($sourceFile) . "</a></h2><ol>\n";
     }
     push(@tasks,
-         "Line $lineNum\n"
+         "Line $midLineNum\n"
          . "<pre class=\"prettyprint\" id=\"task-$taskIdx\">" . $snippet
          . "</pre>");
-    $summaryBody .= "<li><a href=\"$detailsUrl#task-$taskIdx"
-        . "\">$lineNum : <nobr>" . html($tail) . "</nobr></a></li>";
+    $summaryBody .= "<li$priority><a href=\"$detailsUrl#task-$taskIdx"
+        . "\">$midLineNum : <nobr>" . html($tail) . "</nobr></a></li>";
     ++$nTasks;
   }
 }
 
 foreach my $sourceFile (sort(@ARGV)) {
   for (my $i = $#ringBuffer; $i >= 0; --$i) { $ringBuffer[$i] = ''; }
+  $ringBufferIdx = 0;
+  $lineNum = 0;
   @tasks = ();
 
   open(IN, "<$sourceFile") or die "$!: $sourceFile";
@@ -166,6 +176,7 @@ open(OUT, ">$reportFile") or die "$!: $reportFile";
 print OUT qq'<html>
 <head>
   <title>Tasks</title>
+  <style>.high { font-weight: bold }</style>
 </head>
 <body><h1>$nTasks task' . ($nTasks == 1 ? '' : 's') . qq'</h1>
 <ul>

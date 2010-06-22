@@ -41,8 +41,6 @@ final class Finisher {
   private final int umask;
   private final Logger logger;
 
-  // TODO: take into account the ignore pattern here
-
   Finisher(FileVersioner files, int umask, Logger logger) {
     this.files = files;
     this.umask = umask;
@@ -53,7 +51,7 @@ final class Finisher {
       BoundName productName, Path workingDir, final Set<Path> workingDirInputs,
       ImmutableGlobSet toCopyBack)
       throws IOException {
-    // TODO: respect the ignorable pattern for outPaths.
+    // TODO: HIGH: respect the ignorable pattern for outPaths.
 
     // Compute the list of files under the working directory that match a
     // product's output globs.
@@ -90,9 +88,9 @@ final class Finisher {
         Path obsoleteDest = archiveDir.resolve(p);
         logger.log(Level.FINE, "Archived {0}", obsoleteDest);
         Baker.mkdirs(obsoleteDest.getParent(), umask);
+        Path clientFile = clientRoot.resolve(p);
         try {
-          clientRoot.resolve(p).moveTo(
-              obsoleteDest, StandardCopyOption.REPLACE_EXISTING);
+          clientFile.moveTo(obsoleteDest, StandardCopyOption.REPLACE_EXISTING);
         } catch (IOException ex) {
           // Junk can accumulate under the archive dir.
           // Specifically, a directory could be archived, and then all attempts
@@ -101,6 +99,7 @@ final class Finisher {
           r.setParameters(new Object[] { obsoleteDest });
           r.setThrown(ex);
           logger.log(r);
+          clientFile.deleteIfExists();
         }
       }
       logger.log(

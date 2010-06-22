@@ -356,6 +356,10 @@ public final class Product implements JsonSerializable {
         }
         GlobRelation filesAndParams = new GlobRelation(inputs, outputs, params);
         MobileFunction bake = (MobileFunction) fields.get(Field.bake);
+        if (bake != null) {
+          bake = bake.withNameHint(
+              "_" + YSON.stripNonNameChars(source + "_" + name) + "$bake");
+        }
         return new Product(
             name, (Documentation) fields.get(Field.help), filesAndParams,
             actions, Boolean.TRUE.equals(fields.get(Field.intermediate)), bake,

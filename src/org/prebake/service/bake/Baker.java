@@ -139,7 +139,7 @@ public final class Baker {
     if (toolbox == null) { throw new IllegalArgumentException(); }
     if (this.toolbox != null) { throw new IllegalStateException(); }
     this.toolbox = toolbox;
-    this.oven = new Oven(os, files, commonJsEnv, toolbox, logs.logger);
+    this.oven = new Oven(os, files, commonJsEnv, toolbox, execer, logs.logger);
     this.finisher = new Finisher(files, umask, logs.logger);
   }
 
@@ -185,9 +185,7 @@ public final class Baker {
     final ProductStatus status = deriveProductStatus(productName);
     if (status == null) {
       logs.logger.log(Level.WARNING, "Unrecognized product {0}", productName);
-      ValueFuture<Boolean> vf = ValueFuture.create();
-      vf.set(Boolean.FALSE);
-      return vf;
+      return FAILURE_FUTURE;
     }
     synchronized (status) {
       if (status.getBuildFuture() == null) {
@@ -289,9 +287,13 @@ public final class Baker {
         });
         status.setBuildFuture(f);
       }
-      return status.getBuildFuture();
+      Future<Boolean> bf = status.getBuildFuture();
+      return bf != null ? bf : FAILURE_FUTURE;
     }
   }
+
+  private static final Future<Boolean> FAILURE_FUTURE = ValueFuture.create();
+  static { ((ValueFuture<Boolean>) FAILURE_FUTURE).set(Boolean.FALSE); }
 
   public Set<BoundName> getUpToDateProducts() {
     ImmutableSet.Builder<BoundName> upToDate = ImmutableSet.builder();

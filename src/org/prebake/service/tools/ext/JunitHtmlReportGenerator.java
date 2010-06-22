@@ -32,6 +32,8 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import javax.annotation.Nullable;
+
+import com.google.caja.lexer.escaping.Escaping;
 import com.google.common.base.Charsets;
 import com.google.common.base.Function;
 import com.google.common.base.Joiner;
@@ -76,8 +78,6 @@ import com.google.common.io.Resources;
  * @author Mike Samuel <mikesamuel@gmail.com>
  */
 final class JunitHtmlReportGenerator {
-  // TODO: move property name string literals into constants shared with
-  // JUnitRunner.
   static void generateHtmlReport(Map<String, ?> jsonReport, Path reportDir)
       throws IOException {
     // Group tests by packages so we can let users examine the results by
@@ -89,7 +89,7 @@ final class JunitHtmlReportGenerator {
       ImmutableList.Builder<Map<?, ?>> b = ImmutableList.builder();
       // We can't trust the jsonReport to have the same structure as the method
       // above, since a filter could arbitrarily change it.
-      Object tests = jsonReport.get("tests");
+      Object tests = jsonReport.get(ReportKey.TESTS);
       if (tests instanceof Iterable<?>) {
         for (Object testVal : (Iterable<?>) tests) {
           if (!(testVal instanceof Map<?, ?>)) {
@@ -97,13 +97,14 @@ final class JunitHtmlReportGenerator {
           }
           Map<?, ?> test = (Map<?, ?>) testVal;
           b.add(test);
-          String result = getIfOfType(test, "result", String.class);
+          String result = getIfOfType(test, ReportKey.RESULT, String.class);
           resultTypeSet.add(result);
         }
       }
       byPackage = groupBy(b.build(), new Function<Map<?, ?>, String>() {
         public String apply(Map<?, ?> test) {
-          String className = getIfOfType(test, "class_name", String.class);
+          String className = getIfOfType(
+              test, ReportKey.CLASS_NAME, String.class);
           if (className == null) { return null; }
           int lastDot = className.lastIndexOf('.');
           return (lastDot >= 0) ? className.substring(0, lastDot) : "";
@@ -156,7 +157,8 @@ final class JunitHtmlReportGenerator {
     ImmutableMultimap<String, Map<?, ?>> byClass = groupBy(
         tests, new Function<Map<?, ?>, String>() {
           public String apply(Map<?, ?> test) {
-            String className = getIfOfType(test, "class_name", String.class);
+            String className = getIfOfType(
+                test, ReportKey.CLASS_NAME, String.class);
             int lastDot = className.lastIndexOf('.');
             return lastDot >= 0 ? className.substring(lastDot + 1) : className;
           }
@@ -193,9 +195,11 @@ final class JunitHtmlReportGenerator {
         tests, new Function<Map<?, ?>, String>() {
           int counter = 0;
           public String apply(Map<?, ?> test) {
-            String methodName = getIfOfType(test, "method_name", String.class);
+            String methodName = getIfOfType(
+                test, ReportKey.METHOD_NAME, String.class);
             if (methodName != null) { return methodName; }
-            String testName = getIfOfType(test, "test_name", String.class);
+            String testName = getIfOfType(
+                test, ReportKey.TEST_NAME, String.class);
             if (testName != null) { return testName; }
             return "#" + (counter++);
           }
@@ -219,7 +223,7 @@ final class JunitHtmlReportGenerator {
         table.add(htmlLink(
             className + "/" + testName + "_" + testIndex + ".html", testName))
             .add(htmlSpan("summary", summaryToHtml(itemSummary, resultTypes)));
-        Object cause = test.get("failure_message");
+        Object cause = test.get(ReportKey.FAILURE_MESSAGE);
         table.add(htmlFromString(
             cause instanceof String ? (String) cause : ""));
       }
@@ -236,13 +240,13 @@ final class JunitHtmlReportGenerator {
       Map<?, ?> test, Path reportDir, List<String> resultTypes)
       throws IOException {
     String testId = testName + "_" + testIndex;
-    String result = getIfOfType(test, "result", String.class);
+    String result = getIfOfType(test, ReportKey.RESULT, String.class);
     if (result == null) { result = "unknown"; }
     Map<String, Integer> summary = Collections.singletonMap(result, 1);
     ImmutableList.Builder<Html> table = ImmutableList.builder();
     String displayName;
     {
-      displayName = getIfOfType(test, "test_name", String.class);
+      displayName = getIfOfType(test, ReportKey.TEST_NAME, String.class);
       if (displayName != null && !"".equals(displayName)) {
         table.add(htmlFromString("Name")).add(htmlFromString(displayName));
       } else {
@@ -250,13 +254,15 @@ final class JunitHtmlReportGenerator {
       }
     }
     {
-      String failureMsg = getIfOfType(test, "failure_message", String.class);
+      String failureMsg = getIfOfType(
+          test, ReportKey.FAILURE_MESSAGE, String.class);
       if (failureMsg != null && !"".equals(failureMsg)) {
         table.add(htmlFromString("Cause")).add(htmlFromString(failureMsg));
       }
     }
     {
-      String failureTrace = getIfOfType(test, "failure_trace", String.class);
+      String failureTrace = getIfOfType(
+          test, ReportKey.FAILURE_TRACE, String.class);
       if (failureTrace != null && !"".equals(failureTrace)) {
         // TODO: highlight comparison sections, and add spans around
         // filtered stack trace portions.
@@ -264,7 +270,7 @@ final class JunitHtmlReportGenerator {
       }
     }
     {
-      String output = getIfOfType(test, "out", String.class);
+      String output = getIfOfType(test, ReportKey.OUT, String.class);
       if (output != null && !"".equals(output)) {
         table.add(htmlFromString("Output")).add(htmlFromString(output));
       }
@@ -391,7 +397,7 @@ final class JunitHtmlReportGenerator {
       total += count;
     }
     if (!first) { parts.add(sawNonzero ? nonzeroSep : sep); }
-    parts.add(summaryPairToHtml("total", total));
+    parts.add(summaryPairToHtml(ReportKey.TOTAL, total));
     return htmlConcat(parts.build());
   }
 
@@ -416,23 +422,7 @@ final class JunitHtmlReportGenerator {
 
   static void appendHtml(Appendable out, String plainText)
       throws IOException {
-    // TODO: replace this with a library function
-    int pos = 0;
-    int n = plainText.length();
-    for (int i = 0; i < n; ++i) {
-      char ch = plainText.charAt(i);
-      switch (ch) {
-        case '<': case '>': case '&': case '"': break;
-        default:
-          if (ch >= 0xa && ch <= 0x7f) { continue; }
-      }
-      out.append(plainText, pos, i)
-          .append("&#")
-          .append(Integer.toString(ch)) // TODO: handle supplementary codepoints
-          .append(";");
-      pos = i + 1;
-    }
-    out.append(plainText, pos, n);
+    Escaping.escapeXml(plainText, false, out);
   }
 
   private static <T> void bagPutAll(

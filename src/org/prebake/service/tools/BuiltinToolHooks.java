@@ -32,11 +32,11 @@ public final class BuiltinToolHooks {
     ImmutableList.Builder<String> classpath = ImmutableList.builder();
     for (String classpathPart
          : System.getProperty("java.class.path").split(File.pathSeparator)) {
+      if ("".equals(classpathPart)) { continue; }
       classpath.add(new File(classpathPart).getAbsolutePath().toString());
     }
     BY_TOOL = ImmutableMap.<String, ImmutableMap<String, ?>>of(
-        "junit", ImmutableMap.of(
-            "java_classpath", classpath.build()));
+        "junit", ImmutableMap.of("java_classpath", classpath.build()));
   }
 
   public static ImmutableMap<String, ?> extraEnvironmentFor(

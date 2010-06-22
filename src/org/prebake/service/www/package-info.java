@@ -57,8 +57,6 @@
  * TODO: interactive testbed for globs to test path transforms
  * TODO: interactive testbed for tools to see what command line they generate,
  *   and to get feedback on options
- * TODO: for demos, have a page that shows the plan graph and a scrolling log
- *   of file watcher changes.
  * </pre>
  */
 @javax.annotation.ParametersAreNonnullByDefault

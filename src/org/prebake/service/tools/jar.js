@@ -12,88 +12,100 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-({
-  help: 'Pack or unpack a java Archive.',
-  check: function (action) {
-    // TODO check d, cp options.
-  },
-  fire: function fire(inputs, product, action, os) {
-    var opts = action.options;
-    function opt(name, opt_defaultValue) {
-      if ({}.hasOwnProperty.call(opts, name)) {
-        return opts[name];
-      } else {
-        return opt_defaultValue;
-      }
+var options = {
+  type: 'Object',
+  properties: {
+    operation: { type: 'optional', delegate: ['c', 't', 'x'] },
+    manifest: { 
+      type: 'optional',
+      delegate: { type: 'Object', properties: {}, doesNotUnderstand: 'string' }
     }
-    var operation = opt('operation');
+  }
+};
+
+var schemaModule = load('/--baked-in--/tools/json-schema.js')({ load: load });
+
+function decodeOptions(optionsSchema, action, opt_config) {
+  // For this to be a mobile function we can't use schemaModule defined above.
+  var schemaModule = load('/--baked-in--/tools/json-schema.js')({ load: load });
+  var schemaOut = {};
+  var options = action.options || {};
+  if (schemaModule.schema(optionsSchema).check(
+          '_', options, schemaOut, console,
+          // Shows up in the error stack.
+          [action.tool + '.action.options'])) {
+    if (opt_config) {
+      schemaModule.mixin(schemaOut._, opt_config);
+    }
+    return true;
+  } else {
+    return false;
+  }
+}
+
+({
+  help: (
+      'Pack or unpack a java Archive.\n<pre class=\"prettyprint lang-js\">'
+      + schemaModule.example(schemaModule.schema(options)) + '</pre>'),
+  check: decodeOptions.bind({}, options),
+  fire: function fire(inputs, product, action, os) {
+    var config = {};
+    if (!decodeOptions(options, action, config)) { return os.failed; }
+    var operation = config.operation;
     var jarfile;
-    var jarcontent;
-    var jarsourcedir = opt('C');
-    var manifest = opt('manifest');
-    if ((operation === 'x' || !operation)
-        && inputs.length === 1 && /\.(jar|zip)$/.test(inputs[0].length)) {
+    var manifest = config.manifest;
+    if (operation === 'x'
+        || (!operation && inputs.length === 1
+            && /\.([jw]ar|zip)$/.test(inputs[0]))) {
       operation = 'x';
       jarfile = inputs[0];
-      if (jarsourcedir === undefined) {
-        jarsourcedir = glob.rootOf(action.outputs);
-      }
-      jarcontent = [];
+      // TODO: HIGH: channel outputs based on root paths.
+      // E.g. the output foo///**.bar means put all **.bar files under the foo
+      // directory.
     } else if (action.outputs.length === 1) {
-      switch (operation) {
-        case 'c': case 't': case undefined: break;
-        default: throw new Error('Invalid operation ' + operation);
+      if (operation === undefined) { operation = 'c'; }
+      try {
+        jarfile = glob.xformer('foo', action.outputs[0])('foo');
+      } catch (ex) {
+        throw new Error(
+            "Expected a fully specified archive, not " + action.outputs[0]
+            + ".  If you are trying to extract, specify the option"
+            + " { operation: 'x' }.");
       }
-      if (jarsourcedir === undefined) {
-        jarsourcedir = glob.rootOf(action.inputs);
-      }
-      jarfile = glob.xformer('foo', action.outputs[0])('foo');
-      var xform = glob.xformer(
-          jarsourcedir.replace(sys.io.file.separator, '/') + '/**', '**');
-      jarcontent = Array.map(inputs, xform);
     } else {
-      throw new Error('Cannot determine whether to jar orunjar');
+      throw new Error('Cannot determine whether to jar or unjar');
     }
 
-    var manifestBuf = [];
-    if (manifest) {
-      var hop = {}.hasOwnProperty;
-      for (var k in manifest) {
-        if (!hop.call(manifest, k)) { continue; }
-        manifestBuf.push(k + ': ' + manifest[k]);
-      }
-    }
-    var noManifest = manifestBuf.length === 0;
-    var letterFlags = (operation || 'c')
-        + (noManifest ? manifest === null ? 'M' : '' : 'm') + 'f';
-    var command = ['jar', letterFlags];
-    if (!noManifest) {
-      var manifestFile = os.tmpfile('mf');
-      // TODO: stop working with the jar commands's ridiculous manifest format.
-      // Why do properties files not work for specifying a properties file?
-      var manifestFileContent = manifestBuf.join('\n');
-      for (var brokenLines;
-           (brokenLines = manifestFileContent.replace(
-                /(^|[\r\n])(.{40})(?=.)/,
-                function (_, brk, line) {
-                  var pre = line.replace(/\s+$/, '');
-                  return brk + pre + '\n  ' + line.substring(pre.length);
-                })) !== manifestFileContent;
-           manifestFileContent = brokenLines) {
-      }
-      if (0 !== os.exec('echo', manifestFileContent)
-          .writeTo(manifestFile).run().waitFor()) {
-        return os.failed;
-      }
-      command.push(manifestFile);
-    }
-    command.push(jarfile);
-    if (jarsourcedir) {
-      for (var i = 0, n = jarcontent.length; i < n; ++i) {
-        command.push('-C', jarsourcedir, jarcontent[i]);
+    var command = ['$$jar', operation || 'c', jarfile];
+    if (operation === 'x') {
+      for (var i = 0, n = action.outputs.length; i < n; ++i) {
+        command.push(action.outputs[i]);
       }
     } else {
-      command = command.concat(jarcontent);
+      if (manifest) {
+        command.push(0);
+        var manifestStart = command.length;
+        var hop = {}.hasOwnProperty;
+        for (var k in manifest) {
+          if (!hop.call(manifest, k)) { continue; }
+          command.push(k, String(manifest[k]));
+        }
+        command[manifestStart - 1] = String(command.length - manifestStart);
+      } else {
+        command.push('-1');
+      }
+      for (var i = 0, n = action.inputs.length; i < n; ++i) {
+        var inputGlob = action.inputs[i];
+        var matching = Array.filter(inputs, glob.matcher(inputGlob));
+        if (matching.length) {
+          var sourceDir = glob.rootOf(inputGlob);
+          var xform = glob.xformer(sourceDir.replace(/\\/g, '/') + '/**', '**');
+          command.push(sourceDir, String(matching.length));
+          for (var j = 0, m = matching.length; j < m; ++j) {
+            command[command.length] = xform(matching[j]);
+          }
+        }
+      }
     }
     return os.exec.apply({}, command);
   }

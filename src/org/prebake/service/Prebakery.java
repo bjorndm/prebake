@@ -316,7 +316,7 @@ public abstract class Prebakery implements Closeable {
     Path dir = clientRoot.resolve(fs.getPath(FileNames.DIR));
     if (!dir.exists()) {
       dir.createDirectory(FilePerms.perms(config.getUmask(), true));
-      if ("/".equals(fs.getSeparator())) {
+      if (fs.supportedFileAttributeViews().contains("dos")) {
         DosFileAttributeView dosAttrs = dir.getFileAttributeView(
             DosFileAttributeView.class);
         if (dosAttrs != null) { dosAttrs.setHidden(true); }

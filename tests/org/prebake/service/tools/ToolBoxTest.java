@@ -104,7 +104,7 @@ public class ToolBoxTest extends PbTestCase {
             "/root/cwd/tools/foo.js", "({ help: 'foo2' })")
         .assertSigs(
             "{\"name\":\"bar\",\"help\":\"an example tool\","
-            + "\"check\":function(product) {\n}}",
+            + "\"check\":function _tool_bar$check(product) {\n}}",
             "{\"name\":\"foo\",\"help\":\"foo1\"}",
             "{\"name\":\"baz\"}");
   }
@@ -157,7 +157,8 @@ public class ToolBoxTest extends PbTestCase {
             ("{"
              + "\"name\":\"bar\","
                + "\"help\":\"an example tool\","
-               + "\"check\":function(product) {\n  console.log(\"OK\");\n}"
+               + "\"check\":function _tool_bar$check(product) {\n"
+                 + "  console.log(\"OK\");\n}"
              + "}"),
             "{\"name\":\"foo\",\"help\":\"foo1\"}");
   }
@@ -255,9 +256,9 @@ public class ToolBoxTest extends PbTestCase {
     }
   }
 
-  // TODO: test directories that initially don't exist, are created, deleted,
-  // recreated.
-  // TODO: make sure the fire function can refer to global variables and sigs
-  // still work.
-  // TODO: test tool listeners fired
+  // TODO: HIGH: test directories that initially don't exist, are created,
+  // deleted, recreated.
+  // TODO: HIGH: make sure the fire function can refer to global variables and
+  // sigs still work.
+  // TODO: HIGH: test tool listeners fired
 }

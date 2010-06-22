@@ -315,7 +315,7 @@ public class JunitHtmlReportGeneratorTest extends PbTestCase {
             "<td class=\"key\">Trace</td>",
             "<td class=\"value\">",
             "<span class=\"unfiltered\">",
-            "&#9;at boom\n&#9;at tick\n&#9;at tick",
+            "\tat boom\n\tat tick\n\tat tick",
             "</span>\n",
             "</td>",
             "<tr class=\"data_row odd Output\">",
@@ -440,7 +440,7 @@ public class JunitHtmlReportGeneratorTest extends PbTestCase {
     assertEquals(
         Joiner.on('\n').join(
             ("<span class=\"throwable\">"
-             + "org.junit.ComparisonFailure: expected:&#60;"
+             + "org.junit.ComparisonFailure: expected:&lt;"
              + "<span class=\"golden\">{&#34;name&#34;:&#34;"
              + "[cp&#34;,&#34;help&#34;:{&#34;summary&#34;:&#34;"
              + "Copies files to a directory tree.&#34;,&#34;detail&#34;:&#34;"
@@ -450,34 +450,34 @@ public class JunitHtmlReportGeneratorTest extends PbTestCase {
              + "\\n  tools.cp(\\&#34;doc/**.html\\&#34;,"
              + " \\&#34;www/**.html\\&#34;);&#34;,"
              + "&#34;contact&#34;:&#34;Mike Samuel"
-             + " &#60;mikesamuel@gmail.com&#62;&#34;}} ; "
+             + " &lt;mikesamuel@gmail.com&gt;&#34;}} ; "
              + "{&#34;name&#34;:&#34;]bar&#34;,&#34;help&#34;:&#34;an exam..."
-             + "</span>&#62; but was:&#60;<span class=\"actual\">"
+             + "</span>&gt; but was:&lt;<span class=\"actual\">"
              + "{&#34;name&#34;:&#34;[]bar&#34;,"
-             + "&#34;help&#34;:&#34;an exam...</span>&#62;"
+             + "&#34;help&#34;:&#34;an exam...</span>&gt;"
              + "</span>"),
             ("<span class=\"filtered\">"
-             + "&#9;at org.junit.Assert.assertEquals(Assert.java:123)"),
-            "&#9;at org.junit.Assert.assertEquals(Assert.java:145)</span>",
+             + "\tat org.junit.Assert.assertEquals(Assert.java:123)"),
+            "\tat org.junit.Assert.assertEquals(Assert.java:145)</span>",
             ("<span class=\"unfiltered\">"
-             + "&#9;at org.prebake.service.tools.ToolBoxTest$TestRunner"
+             + "\tat org.prebake.service.tools.ToolBoxTest$TestRunner"
              + ".assertSigs(ToolBoxTest.java:221)"),
-            ("&#9;at org.prebake.service.tools.ToolBoxTest.testBuiltin"
+            ("\tat org.prebake.service.tools.ToolBoxTest.testBuiltin"
              + "(ToolBoxTest.java:112)</span>"),
             ("<span class=\"filtered\">"
-             + "&#9;at sun.reflect.NativeMethodAccessorImpl.invoke0"
+             + "\tat sun.reflect.NativeMethodAccessorImpl.invoke0"
              + "(Native Method)"),
-            "&#9;at java.lang.reflect.Method.invoke(Method.java:613)",
-            ("&#9;at org.junit.runners.BlockJUnit4ClassRunner.runChild"
+            "\tat java.lang.reflect.Method.invoke(Method.java:613)",
+            ("\tat org.junit.runners.BlockJUnit4ClassRunner.runChild"
              + "(BlockJUnit4ClassRunner.java:50)"),
-            ("&#9;at org.junit.runners.ParentRunner$3.run"
+            ("\tat org.junit.runners.ParentRunner$3.run"
              + "(ParentRunner.java:193)"),
-            "&#9;at org.junit.runners.Suite.runChild(Suite.java:24)",
-            "&#9;at org.junit.runner.JUnitCore.run(JUnitCore.java:117)",
-            "&#9;at org.junit.runner.JUnitCore.runMain(JUnitCore.java:98)",
-            ("&#9;at org.prebake.service.tools.ext.JUnitRunner.run"
+            "\tat org.junit.runners.Suite.runChild(Suite.java:24)",
+            "\tat org.junit.runner.JUnitCore.run(JUnitCore.java:117)",
+            "\tat org.junit.runner.JUnitCore.runMain(JUnitCore.java:98)",
+            ("\tat org.prebake.service.tools.ext.JUnitRunner.run"
              + "(JUnitRunner.java:176)"),
-            ("&#9;at org.prebake.service.tools.ext.JUnitRunner.main"
+            ("\tat org.prebake.service.tools.ext.JUnitRunner.main"
              + "(JUnitRunner.java:90)</span>"),
             ""),
         html.toString());

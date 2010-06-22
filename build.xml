@@ -200,7 +200,8 @@
       <manifest>
         <attribute name="Main-Class" value="org.prebake.client.Main"/>
         <attribute name="Class-Path"
-         value="../third_party/guava-libraries/guava.jar"/>
+         value="../third_party/guava-libraries/guava.jar
+                ../third_party/rhino/js.jar"/>
       </manifest>
     </jar>
     <jar destfile="${jars}/service.jar">

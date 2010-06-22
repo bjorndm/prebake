@@ -15,6 +15,9 @@
 package org.prebake.js;
 
 import java.io.IOException;
+import java.text.Normalizer;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * A JavaScript function expression.
@@ -24,10 +27,6 @@ import java.io.IOException;
  */
 public final class MobileFunction implements JsonSerializable {
   private final String source;
-
-  // TODO: define a withNameHint method that sets the function self name if
-  // anonymous and use it to make lambdas show up better in stack traces.
-  // So tool.fire for tool with name "cp" -> tool_cp_fire
 
   public MobileFunction(String source) {
     assert source != null;
@@ -42,6 +41,17 @@ public final class MobileFunction implements JsonSerializable {
 
   @Override
   public String toString() { return source; }
+
+  private static final Pattern FUNCTION_NO_NAME = Pattern.compile(
+      "^(\\(?function\\s*)(\\()");
+  public MobileFunction withNameHint(String nameHint) {
+    nameHint = Normalizer.normalize(nameHint, Normalizer.Form.NFC);
+    assert YSON.isValidIdentifier(nameHint);
+    Matcher m = FUNCTION_NO_NAME.matcher(source);
+    if (!m.find()) { return this; }  // Source has a name or comments.
+    return new MobileFunction(
+        m.group(1) + " " + nameHint + source.substring(m.start(2)));
+  }
 
   @Override
   public boolean equals(Object o) {
