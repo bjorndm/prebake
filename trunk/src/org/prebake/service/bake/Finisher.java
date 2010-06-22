@@ -59,7 +59,7 @@ final class Finisher {
         workingDir, workingDirInputs, toCopyBack);
     // Compute the set of files that are already in the client directory.
     ImmutableList<Path> existingPaths = Baker.sortedFilesMatching(
-        files, toCopyBack, false);
+        files, toCopyBack);
 
     Set<Path> newPaths = Sets.newLinkedHashSet(outPaths);
     newPaths.removeAll(existingPaths);
