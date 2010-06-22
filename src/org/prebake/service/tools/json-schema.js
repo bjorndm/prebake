@@ -87,6 +87,16 @@ function schema(typeDescriptor) {
       case 'int32':
         return predicateSchema(
             typeDescriptor, function (x) { return x === x >> 0; });
+      case 'nil':
+        return {
+          check: function (key, value, out, console, stack) {
+            console.error(
+                'Expected nothing, not ' + JSON.stringify(value)
+                + ' for ' + stack);
+            return false;
+          },
+          example: function (outBuf) { outBuf.push('<nil>'); }
+        };
     }
   } else if (isArray(typeDescriptor)) {
     var optionMap = {};

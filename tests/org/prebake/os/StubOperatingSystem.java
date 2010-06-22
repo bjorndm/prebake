@@ -42,6 +42,7 @@ import com.google.common.io.ByteStreams;
  * A stub operating system that knows four commands:<table>
  *   <tr><td>cp<td>copy</tr>
  *   <tr><td>cat<td>concatenates inputs to the last argument</tr>
+ *   <tr><td>ls<td>list files</tr>
  *   <tr><td>munge<td>appends to each file the reverse of the previous</tr>
  *   <tr><td>bork<td>appends "Bork!" to the end of each argument</r>
  * </ul>
@@ -164,6 +165,27 @@ public final class StubOperatingSystem implements OperatingSystem {
                     } finally {
                       in.close();
                     }
+                  }
+                } finally {
+                  out.close();
+                }
+                return 0;
+              }
+            });
+      } else if (command.equals("ls")) {
+        return new StubProcess(
+            new Function<String, String>() {
+              public String apply(String from) { return ""; }
+            }, new Callable<Integer>() {
+              public Integer call() throws IOException {
+                OutputStream out = cwd.resolve(argv[argv.length - 1])
+                    .newOutputStream(
+                        StandardOpenOption.TRUNCATE_EXISTING,
+                        StandardOpenOption.CREATE);
+                try {
+                  for (int i = 0; i < argv.length - 1; ++i) {
+                    out.write(argv[i].getBytes(Charsets.UTF_8));
+                    out.write('\n');
                   }
                 } finally {
                   out.close();

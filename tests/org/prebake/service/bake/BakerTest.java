@@ -698,6 +698,55 @@ public class BakerTest extends PbTestCase {
         .assertNoSuchProduct("p[\"x\":\"foo\"]");
   }
 
+  public static final String LS_TOOL_JS = JsonSink.stringify(
+      ""
+      + "({ \n"
+      + "  fire: function fire(inputs, product, action, os) { \n"
+      + "    return os.exec(['ls'].concat(inputs).concat(action.outputs[0]));\n"
+      + "  } \n"
+      + "})");
+
+  @Test public void testInputOrder() throws Exception {
+    tester.withFileSystem(
+        "/",
+        "  cwd/",
+        "    tools/",
+        "      ls.js " + LS_TOOL_JS,
+        "    root/",
+        "      a+",
+        "      b-",
+        "      c+",
+        "      d-",
+        "  tmpdir/")
+        .withTool(tool("ls"), "/cwd/tools/ls.js")
+        .withProduct(product(
+            "p",
+            action(
+                "ls",
+                ImmutableList.of("*-", "*+"),
+                ImmutableList.of("list"))))
+        .expectSuccess(true)
+        .build("p")
+        .runPendingTasks()
+        .assertProductStatus("p", true)
+        .assertFileTree(
+            "/",
+            "  cwd/",
+            "    tools/",
+            "      ls.js \"...\"",
+            "    root/",
+            "      a+",
+            "      b-",
+            "      c+",
+            "      d-",
+            // Since the order of input globs above is *-, *+, we get that order
+            // below.
+            "      list \"b-\\nd-\\na+\\nc+\\n\"",
+            "  tmpdir/",
+            "  logs/",
+            "    p.product.log");
+  }
+
   // TODO: a derived product is invalidated when a file it would match is added.
   // And this doesn't invalidate other products derived from the same template.
   // TODO: a derived product is invalidated when its template is changed.
