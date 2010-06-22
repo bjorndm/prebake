@@ -41,37 +41,21 @@ function prelim(action, opt_config) {
   },
   fire: function fire(inputs, product, action, os) {
     var config = {};
-    if (!prelim(action, config)) {
-      return os.failed;
-    }
+    if (!prelim(action, config)) { return os.failed; }
     var xform = config.xform;
-    var processes = [];
-    // Infer outputs from inputs.
-    for (var i = 0, n = inputs.length; i < n; ++i) {
-      var input = inputs[i];
-      var output = xform(input);
-      // TODO: use a more efficient backdoor for builtins
-      // that avoids process overhead.
-      os.mkdirs(os.dirname(output));
-      processes.push(os.exec('cp', input, output).run());
-    }
-    return {
-      run: function () {
-        for (var i = 0, n = processes.length; i < n; ++i) {
-          processes[i].run();
-        }
-        return this;
-      },
-      waitFor: function () {
-        for (var i = 0, n = processes.length; i < n; ++i) {
-          if (processes[i].waitFor()) {
-            throw new Error('Could not copy ' + inputs[i]);
-          }
-        }
-        console.log('Copied ' + n + (n !== 1 ? ' files' : ' file'));
-        return 0;
+    var cmd = ['$$cp'];
+    if (inputs.length) {
+      // Use an InVmProcess to efficiently move many files.
+      for (var i = 0, n = inputs.length; i < n; ++i) {
+        var input = inputs[i];
+        var output = xform(input);
+        cmd.push(input, output);
+        os.mkdirs(os.dirname(output));
       }
-    };
+      return os.exec(cmd);
+    } else {
+      return os.passed;
+    }
   },
   check: prelim
 })

@@ -100,8 +100,7 @@ public class EndToEndTest extends PbTestCase {
             "INFO:Plan file /cwd/root/plan.js is up to date",
             "INFO:Cooking foo",
             "INFO:Starting bake of product foo",
-            "INFO:Running cp with [src/a.foo, out/a.bar]",
-            "INFO:Copied 1 file",
+            "INFO:Product up to date: foo",
             "INFO:Cooked foo")
         .assertFileSystem(
             "/",
@@ -149,8 +148,7 @@ public class EndToEndTest extends PbTestCase {
             "INFO:Plan file /cwd/root/plan.js is up to date",
             "INFO:Cooking p[\"x\":\"c\"]",
             "INFO:Starting bake of product p[\"x\":\"c\"]",
-            "INFO:Running cp with [src/c.foo, out/c.bar]",
-            "INFO:Copied 1 file",
+            "INFO:Product up to date: p[\"x\":\"c\"]",
             "INFO:Cooked p[\"x\":\"c\"]")
         .assertFileSystem(
             "/",

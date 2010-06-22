@@ -47,10 +47,19 @@ public interface InVmProcess {
 
   public static final class Lookup {
     private Lookup() { /* uninstantiable */ }
+    /**
+     * Looks up a process handler for the given process name.
+     * If the input starts with {@code "$$"} then the remainder is treated as
+     * a class name prefix for a {@code *Process} class in this package.  E.g.,
+     * <ul>
+     *   <li><tt>$$cp</tt> => <tt>org.prebake.service.tools.ext.CpProcess</tt>
+     *   <li><tt>$$jar</tt> => <tt>org.prebake.service.tools.ext.JarProcess</tt>
+     * </ul>
+     *
+     * @return null if cmd is not handled by an in-VM process.
+     */
     public static @Nullable InVmProcess forCommand(String cmd) {
       if (cmd.length() < 3 || !cmd.startsWith("$$")) { return null; }
-      // $$cp => org.prebake.service.tools.ext.CpProcess
-      // $$jar => org.prebake.service.tools.ext.JarProcess
       String className = Strings.toUpperCase(cmd.substring(2, 3))
           + cmd.substring(3) + "Process";
       String fullName = Lookup.class.getPackage().getName() + "." + className;

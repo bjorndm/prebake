@@ -16,7 +16,7 @@ var options = {
   type: 'Object',
   properties: {
     operation: { type: 'optional', delegate: ['c', 't', 'x'] },
-    manifest: { 
+    manifest: {
       type: 'optional',
       delegate: { type: 'Object', properties: {}, doesNotUnderstand: 'string' }
     }
@@ -107,6 +107,6 @@ function decodeOptions(optionsSchema, action, opt_config) {
         }
       }
     }
-    return os.exec.apply({}, command);
+    return os.exec(command);
   }
 });

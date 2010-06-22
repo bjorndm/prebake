@@ -151,7 +151,7 @@ function decodeOptions(optionsSchema, action, opt_config) {
         typeof testListener === 'function' ? '' + testListener : '',
         reportDir || '', reportTypes]
         .concat(testClasses);
-    var proc = os.exec.apply({}, command);
+    var proc = os.exec(command);
     // Wrap proc to reinterpret the process result using JunitRunner
     // conventions.
     var wrapperProc = {};

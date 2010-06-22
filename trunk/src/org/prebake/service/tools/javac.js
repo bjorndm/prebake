@@ -147,6 +147,6 @@ function decodeOptions(optionsSchema, action, opt_config) {
       }
     }
     command = command.concat(sources);
-    return os.exec.apply({}, command);
+    return os.exec(command);
   }
 });
