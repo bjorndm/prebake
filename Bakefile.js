@@ -96,24 +96,34 @@ var jars = [
   jars: {
     help: "Packages service and client into separate jars",
     actions: [
-        tools.jar(
-            "out/lib///**.class", "out/jars/client.jar",
-            {
-              manifest: {
-                "Main-Class": "org.prebake.client.Main",
-                "Class-Path": [
-                    "../../third_party/guava-libraries/guava.jar",
-                    "../../third_party/rhino/js.jar"].join(" ")
-              }
-            }),
-        tools.jar(
-            "out/lib///**.{class,js,css,txt}", "out/jars/service.jar",
-            {
-              manifest: {
-                "Main-Class": "org.prebake.service.Main",
-                "Class-Path": Array.map(
-                    jars, function (jar) { return "../" + jar; }).join(" ")
-              }
-            })]
+      tools.jar(
+          "out/lib///**.class", "out/jars/client.jar",
+          {
+            manifest: {
+              "Main-Class": "org.prebake.client.Main",
+              "Class-Path": [
+                  "../../third_party/guava-libraries/guava.jar",
+                  "../../third_party/rhino/js.jar"].join(" ")
+            }
+          }),
+      tools.jar(
+          "out/lib///**.{class,js,css,txt}", "out/jars/service.jar",
+          {
+            manifest: {
+              "Main-Class": "org.prebake.service.Main",
+              "Class-Path": Array.map(
+                  jars, function (jar) { return "../" + jar; }).join(" ")
+            }
+          })
+    ]
+  },
+  tasks: {
+    help: "Produces a task list by collecting uses of the word TODO in source.",
+    actions: [
+      tools.run(
+          ['bin/extract_todos.pl', 'src/**.{java,gxp,js,html,css}'],
+          'out/reports/tasks/**',
+          { args: ['out/reports/tasks', []] })
+    ]
   }
 })

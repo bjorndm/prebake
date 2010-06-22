@@ -32,7 +32,8 @@ import org.prebake.service.tools.ToolProvider;
 
 import java.io.IOException;
 import java.nio.file.Path;
-import java.util.Collections;
+import java.util.Arrays;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -42,7 +43,6 @@ import java.util.logging.Logger;
 import javax.annotation.Nonnull;
 
 import com.google.common.base.Charsets;
-import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
@@ -75,12 +75,9 @@ final class Oven {
   }
 
   @Nonnull Executor.Output<Boolean> executeActions(
-      final Path workingDir, Product p, List<Path> inputs,
+      final Path workingDir, Product p,
       final ImmutableList.Builder<Path> paths, final Hash.Builder hashes)
       throws IOException {
-    List<String> inputStrs = Lists.newArrayList();
-    for (Path input : inputs) { inputStrs.add(input.toString()); }
-    Collections.sort(inputStrs);
     Executor execer = Executor.Factory.createJsExecutor();
     final WorkingFileChecker checker = new WorkingFileChecker(
         files.getVersionRoot(), workingDir);
@@ -100,17 +97,17 @@ final class Oven {
             // Already vetted by Product parser.
             if (mq.hasErrors()) { throw new IllegalStateException(); }
             ImmutableGlobSet inputGlobSet = ImmutableGlobSet.of(inputGlobs);
-            ImmutableList.Builder<String> actionInputs
-                = ImmutableList.builder();
+            List<Path> inputs;
             try {
-              for (Path actionInput : WorkingDir.matching(
-                       workingDir, ImmutableSet.<Path>of(), inputGlobSet)) {
-                actionInputs.add(actionInput.toString());
-              }
+              inputs = Lists.newArrayList(WorkingDir.matching(
+                  workingDir, ImmutableSet.<Path>of(), inputGlobSet));
             } catch (IOException ex) {
-              Throwables.propagate(ex);
+              throw new RuntimeException(ex);
             }
-            return actionInputs.build();
+            sortByGlobs(inputs, inputGlobSet);
+            ImmutableList.Builder<String> b = ImmutableList.builder();
+            for (Path p : inputs) { b.add(p.toString()); }
+            return b.build();
           }
         });
     StringBuilder productJs = new StringBuilder();
@@ -225,5 +222,38 @@ final class Oven {
       }
     }
     return runResult;
+  }
+
+  private static final class TaggedPath {
+    final int index;
+    final Path p;
+    TaggedPath(int index, Path p) {
+      this.index = index;
+      this.p = p;
+    }
+  }
+  private static void sortByGlobs(List<Path> paths, ImmutableGlobSet globs) {
+    int n = paths.size();
+    Map<Glob, Integer> globByIndex = Maps.newIdentityHashMap();
+    int nGlobs = 0;
+    for (Glob g : globs) { globByIndex.put(g, nGlobs++); }
+    if (nGlobs < 2) { return; }
+    TaggedPath[] taggedPaths = new TaggedPath[n];
+    for (int i = 0; i < n; ++i) {
+      int index = nGlobs;
+      for (Glob g : globs.matching(paths.get(i))) {
+        int k = globByIndex.get(g);
+        if (k < index) { index = k; }
+      }
+      taggedPaths[i] = new TaggedPath(index, paths.get(i));
+    }
+    Arrays.sort(
+        taggedPaths,
+        new Comparator<TaggedPath>() {
+          public int compare(TaggedPath p, TaggedPath q) {
+            return p.index - q.index;
+          }
+        });
+    for (int i = n; --i >= 0;) { paths.set(i, taggedPaths[i].p); }
   }
 }

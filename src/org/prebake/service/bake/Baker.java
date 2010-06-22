@@ -16,7 +16,6 @@ package org.prebake.service.bake;
 
 import org.prebake.core.ArtifactListener;
 import org.prebake.core.BoundName;
-import org.prebake.core.Glob;
 import org.prebake.core.Hash;
 import org.prebake.core.ImmutableGlobSet;
 import org.prebake.fs.FileVersioner;
@@ -43,10 +42,8 @@ import java.nio.file.Path;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Comparator;
 import java.util.EnumSet;
 import java.util.List;
-import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.concurrent.Callable;
@@ -224,7 +221,7 @@ public final class Baker {
               // input globs so that tools can make similar ordering assumptions
               // about input ordering as the underlying command line tools they
               // wrap.
-              inputs = sortedFilesMatching(files, inputGlobs, true);
+              inputs = sortedFilesMatching(files, inputGlobs);
               workDir = createWorkingDirectory(product.name);
               try {
                 ImmutableList.Builder<Path> paths = ImmutableList.builder();
@@ -234,7 +231,7 @@ public final class Baker {
                 copyToWorkingDirectory(
                     inputs, workDir, workingDirInputs, paths, hashes);
                 Executor.Output<Boolean> result = oven.executeActions(
-                    workDir, product, inputs, paths, hashes);
+                    workDir, product, paths, hashes);
                 if (Boolean.TRUE.equals(result.result)) {
                   // TODO: can't pass if there are problems moving files to the
                   // repo.
@@ -346,48 +343,14 @@ public final class Baker {
   }
 
   static ImmutableList<Path> sortedFilesMatching(
-      FileVersioner files, ImmutableGlobSet globs, boolean maintainGlobOrder) {
+      FileVersioner files, ImmutableGlobSet globs) {
     List<Path> matching = files.matching(globs);
     int n = matching.size();
     Path[] pathArr = new Path[n];
     matching.toArray(pathArr);
     // Sort inputs to remove a source of nondeterminism.
     Arrays.sort(pathArr);
-    if (maintainGlobOrder) { sortByInputGlobs(pathArr, globs); }
     return ImmutableList.copyOf(pathArr);
-  }
-
-  private static final class TaggedPath {
-    final int index;
-    final Path p;
-    TaggedPath(int index, Path p) {
-      this.index = index;
-      this.p = p;
-    }
-  }
-  private static void sortByInputGlobs(Path[] paths, ImmutableGlobSet globset) {
-    int n = paths.length;
-    Map<Glob, Integer> globByIndex = Maps.newIdentityHashMap();
-    int nGlobs = 0;
-    for (Glob g : globset) { globByIndex.put(g, nGlobs++); }
-    if (nGlobs < 2) { return; }
-    TaggedPath[] taggedPaths = new TaggedPath[n];
-    for (int i = 0; i < n; ++i) {
-      int index = nGlobs;
-      for (Glob g : globset.matching(paths[i])) {
-        int k = globByIndex.get(g);
-        if (k < index) { index = k; }
-      }
-      taggedPaths[i] = new TaggedPath(index, paths[i]);
-    }
-    Arrays.sort(
-        taggedPaths,
-        new Comparator<TaggedPath>() {
-          public int compare(TaggedPath p, TaggedPath q) {
-            return p.index - q.index;
-          }
-        });
-    for (int i = n; --i >= 0;) { paths[i] = taggedPaths[i].p; }
   }
 
   private void cleanWorkingDirectory(Path workingDir) throws IOException {
