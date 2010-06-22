@@ -59,9 +59,6 @@ function decodeOptions(optionsSchema, action, opt_config) {
             && /\.([jw]ar|zip)$/.test(inputs[0]))) {
       operation = 'x';
       jarfile = inputs[0];
-      // TODO: HIGH: channel outputs based on root paths.
-      // E.g. the output foo///**.bar means put all **.bar files under the foo
-      // directory.
     } else if (action.outputs.length === 1) {
       if (operation === undefined) { operation = 'c'; }
       try {
@@ -78,6 +75,9 @@ function decodeOptions(optionsSchema, action, opt_config) {
 
     var command = ['$$jar', operation || 'c', jarfile];
     if (operation === 'x') {
+      // Channel outputs based on root paths.
+      // E.g. the output foo///**.bar means put all **.bar files under the foo
+      // directory.
       for (var i = 0, n = action.outputs.length; i < n; ++i) {
         command.push(action.outputs[i]);
       }
