@@ -25,7 +25,6 @@ public class CpTest extends ToolTestCase {
 
   @Test public final void testCpNothing() throws IOException {
     tester
-        .expectLog("cp.js:##:INFO: Copied 0 files")
         .expectLog("Exited with true")
         .run();
   }
@@ -35,13 +34,12 @@ public class CpTest extends ToolTestCase {
         .withInput(Glob.fromString("foo/bar/*.baz"))
         .withOutput(Glob.fromString("boo/*.far"))
         .withInputPath("foo/bar/x.baz", "foo/bar/y.baz")
-        .expectExec(1, "cp", "foo/bar/x.baz", "boo/x.far")
+        .expectExec(
+            1, "$$cp",
+            "foo/bar/x.baz", "boo/x.far",
+            "foo/bar/y.baz", "boo/y.far")
         .expectLog("Running process 1")
-        .expectExec(2, "cp", "foo/bar/y.baz", "boo/y.far")
-        .expectLog("Running process 2")
         .expectLog("Waiting for process 1")
-        .expectLog("Waiting for process 2")
-        .expectLog("cp.js:##:INFO: Copied 2 files")
         .expectLog("Exited with true")
         .run();
   }
@@ -66,11 +64,10 @@ public class CpTest extends ToolTestCase {
         .withOutput(Glob.fromString("boo/*.far"))
         .withOption("no_such_option", "bogus")
         .withInputPath("foo/bar/x.baz")
-        .expectExec(1, "cp", "foo/bar/x.baz", "boo/x.far")
+        .expectExec(1, "$$cp", "foo/bar/x.baz", "boo/x.far")
         .expectLog("Running process 1")
         .expectLog("Waiting for process 1")
         .expectLog("cp.js:##:WARNING: Unrecognized option no_such_option")
-        .expectLog("cp.js:##:INFO: Copied 1 file")
         .expectLog("Exited with true")
         .run();
   }

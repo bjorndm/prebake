@@ -121,6 +121,6 @@ function decodeOptions(optionsSchema, action, opt_config) {
     if (typeof opt.bottom === 'string') { command.push('-bottom', opt.bottom); }
     if (opt.visibility) { command.push('-' + opt.visibility); }
     command = command.concat(sources);
-    return os.exec.apply({}, command);
+    return os.exec(command);
   }
 });

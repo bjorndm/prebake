@@ -35,13 +35,16 @@ import java.io.InputStreamReader;
 import java.nio.file.FileSystem;
 import java.nio.file.Path;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
+import java.util.List;
 import java.util.logging.Level;
 
 import com.google.common.base.Charsets;
 import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Lists;
 
 import org.junit.After;
 import org.junit.Before;
@@ -175,6 +178,11 @@ public abstract class ToolTestCase extends PbTestCase {
             int processId;
             public ImmutableMap<String, Object> apply(Object[] argv) {
               final int procId = ++processId;
+              argv = flatten(argv);
+              String cmd = (String) argv[0];
+              if (cmd.startsWith("$$")) {
+                assertNotNull(InVmProcess.Lookup.forCommand(cmd));
+              }
               log.add(
                   "Executed " +  procId + " : "
                   + JsonSink.stringify(Arrays.asList(argv)));
@@ -294,5 +302,17 @@ public abstract class ToolTestCase extends PbTestCase {
     }
 
     boolean wasRun() { return wasRun; }
+  }
+
+  private static Object[] flatten(Object... arr) {
+    List<Object> flat = Lists.newArrayList();
+    for (Object o : arr) {
+      if (o instanceof Collection<?>) {
+        flat.addAll((Collection<?>) o);
+      } else {
+        flat.add(o);
+      }
+    }
+    return flat.toArray();
   }
 }

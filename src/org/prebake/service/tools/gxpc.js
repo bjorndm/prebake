@@ -138,6 +138,6 @@ function decodeOptions(optionsSchema, action, opt_config) {
       command.push('--error', opt.error[i]);
     }
     if (opt.warn) { command.push('--warn', opt.warn); }
-    return os.exec.apply({}, command.concat(inputs));
+    return os.exec(command.concat(inputs));
   }
 });

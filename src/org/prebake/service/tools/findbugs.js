@@ -113,7 +113,7 @@ function decodeOptions(optionsSchema, action, opt_config) {
     }
     command = command.concat(sources);
 
-    var proc = os.exec.apply({}, command);
+    var proc = os.exec(command);
     // Wrap proc to reinterpret the process result.
     var wrapperProc = {};
     schemaModule.mixin(proc, wrapperProc);
