@@ -93,6 +93,7 @@ sub advanceRingBufferAndCheckForTask($) {
   my $line = line($ringBufferHalf);
   if ($line =~ /\bTODO\b/) {
     my $tail = $line;
+    $tail =~ s/[\r\n]+$//;
     $tail =~ s/^.*?\bTODO\b//;
     $tail =~ s/^(.{60}).{3,}/$1.../;
     my $snippet = '';
@@ -113,12 +114,17 @@ sub advanceRingBufferAndCheckForTask($) {
       $summaryBody .= "<li><h2><a href=\"$detailsUrl\">"
           . html($sourceFile) . "</a></h2><ol>\n";
     }
+    # Do some simple heuristics to handle the case where the snippet starts in
+    # a comment.
+    if ($snippet =~ m|^[^/\'\"]*\*+\/|) {
+      $snippet = qq'<span style="display:none">/*</span>$snippet';
+    }
     push(@tasks,
          "Line $midLineNum\n"
          . "<pre class=\"prettyprint\" id=\"task-$taskIdx\">" . $snippet
          . "</pre>");
     $summaryBody .= "<li$priority><a href=\"$detailsUrl#task-$taskIdx"
-        . "\">$midLineNum : <nobr>" . html($tail) . "</nobr></a></li>";
+        . "\">$midLineNum : <nobr>" . html($tail) . "</nobr></a></li>\n";
     ++$nTasks;
   }
 }
@@ -166,7 +172,7 @@ foreach my $sourceFile (sort(@ARGV)) {
   <script>prettyPrint()</script>
 </ol></body></html>';
     close(OUT);
-    $summaryBody .= "</ol>\n";
+    $summaryBody .= "</ol>\n";  # closes list opened in advance...
   }
 }
 
