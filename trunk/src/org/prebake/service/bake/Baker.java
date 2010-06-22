@@ -546,8 +546,10 @@ public final class Baker {
     synchronized Future<Boolean> getBuildFuture() { return buildFuture; }
 
     public void invalidate() {
+      boolean wasUpToDate;
       synchronized (this) {
         setBuildFuture(null);
+        wasUpToDate = this.upToDate;
         this.upToDate = false;
         // We don't want to keep derived products around forever
         // when they become invalid.
@@ -559,8 +561,10 @@ public final class Baker {
           });
         }
       }
-      logs.highLevelLog.productStatusChanged(
-          logs.highLevelLog.getClock().nanoTime(), name.ident, false);
+      if (wasUpToDate) {
+        logs.highLevelLog.productStatusChanged(
+            logs.highLevelLog.getClock().nanoTime(), name.ident, false);
+      }
       // We need to invalidate products that depend on this product.
       // The file versioner does not do this transitive work for us.
       Collection<BoundName> postReqs;
