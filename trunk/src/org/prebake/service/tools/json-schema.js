@@ -270,6 +270,11 @@ function objectSchema(props, dnu) {
         outBuf.push(JSON.stringify(key), ':');
         props[key].example(outBuf);
       }
+      if (dnu) {
+        if (sawOne) { outBuf.push(','); }
+        outBuf.push('*', ':');
+        dnu.example(outBuf);
+      }
       outBuf.push('}');
     }
   };
@@ -349,7 +354,7 @@ function renderExample(schema) {
   var out = [];
   var pendingSpace = false;
   var blankLine = false;
-  var startWord = /^\w/, endWord = /\w$/;
+  var startWord = /^\w/, endWordOrColon = /[\w:]$/;
   var bracketStack = [];
   var blen = 0;
   for (var i = 0, k = -1, n = tokens.length; i < n; ++i) {
@@ -387,7 +392,7 @@ function renderExample(schema) {
       for (var j = blen; --j >= 0;) { out[++k] = '  '; }
     }
     out[++k] = tok;
-    pendingSpace = endWord.test(tok);
+    pendingSpace = endWordOrColon.test(tok);
     blankLine = blankLineAfter;
   }
   return out.join('');
