@@ -105,7 +105,7 @@ function decodeOptions(optionsSchema, action, opt_config) {
   fire: function fire(inputs, product, action, os) {
     var config = {};
     if (!decodeOptions(options, action, config)) { return os.failed; }
-    if (inputs.length === 0) {return os.passed; }
+    if (inputs.length === 0) { return os.passed; }
     var extraClasspath = [];
     var sources = [];
     for (var i = 0, n = inputs.length; i < n; ++i) {
