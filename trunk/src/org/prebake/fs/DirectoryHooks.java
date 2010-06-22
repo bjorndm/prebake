@@ -59,7 +59,7 @@ public class DirectoryHooks implements Closeable {
   // Mac : FileSystemEvents http://developer.apple.com/mac/articles/cocoa/filesystemevents.html
   // Windows : http://msdn.microsoft.com/en-us/library/aa365261(VS.85).aspx
 
-  // TODO: handle symbolic links.  First figure out what the watch service
+  // TODO: HIGH: handle symbolic links.  First figure out what the watch service
   // does with them, then maybe keep a db with symbolic link targets in
   // FileHashes.
 

@@ -59,9 +59,30 @@ import org.junit.runner.notification.RunListener;
  * See {@code junit.js} in the parent package.
  *
  * <h2>JSON Report Structure</h2>
- * TODO: documentation here
+ * <pre>
+ * {
+ *   tests: [
+ *     {
+ *       class_name: ...,                                      : string
+ *       method_name: ...,                                     : string
+ *       test_name: ...,                                       : string
+ *       annotations: [{ class_name: ..., text: ... }, ...],
+ *       failure_message: ...,                                 : string
+ *       failure_trace: ...,                                   : string
+ *       out: ...,                                             : string
+ *       result: ...                                           : string
+ *     }, ...
+ *   ],
+ *   summary: {
+ *     successes: ...,                                         : number
+ *     failures: ...,                                          : number
+ *     ignored: ...                                            : number
+ *   }
+ * }
+ * </pre>
  *
  * @author Mike Samuel <mikesamuel@gmail.com>
+ * @see ReportKey
  */
 public final class JUnitRunner {
 
@@ -246,29 +267,7 @@ public final class JUnitRunner {
         : ResultCode.FAILED_TO_WRITE_REPORTS;
   }
 
-  /**
-   * Produce a structure like:<pre>
-   * {
-   *   tests: [
-   *     {
-   *       class_name: ...,
-   *       method_name: ...,
-   *       test_name: ...,
-   *       annotations: [{ class_name: ..., text: ... }, ...],
-   *       failure_message: ...,
-   *       failure_trace: ...,
-   *       out: ...,
-   *       result: ...
-   *     }, ...
-   *   ],
-   *   summary: {
-   *     successes: ...,
-   *     failures: ...,
-   *     ignored: ...
-   *   }
-   * }
-   * </pre>
-   */
+  /** Produce a structure like that documented in the class comment. */
   private static ImmutableMap<String, ?> jsonReport(List<TestState> tests) {
     EnumMap<TestResult, Integer> summary = new EnumMap<TestResult, Integer>(
         TestResult.class);
@@ -277,44 +276,44 @@ public final class JUnitRunner {
         = ImmutableList.builder();
     for (TestState t : tests) {
       ImmutableMap.Builder<String, Object> b = ImmutableMap.builder();
-      b.put("class_name", t.key.className);
-      b.put("method_name", t.key.methodName);
-      b.put("test_name", t.key.testName);
+      b.put(ReportKey.CLASS_NAME, t.key.className);
+      b.put(ReportKey.METHOD_NAME, t.key.methodName);
+      b.put(ReportKey.TEST_NAME, t.key.testName);
       if (!t.annotations.isEmpty()) {
         ImmutableList.Builder<Object> annotations = ImmutableList.builder();
         for (Annotation a : t.annotations) {
           annotations.add(ImmutableMap.of(
-              "class_name", a.annotationType().getName(),
-              "text", a.toString()));
+              ReportKey.CLASS_NAME, a.annotationType().getName(),
+              ReportKey.TEXT, a.toString()));
         }
-        b.put("annotations", annotations.build());
+        b.put(ReportKey.ANNOTATIONS, annotations.build());
       }
       if (t.message != null) {
-        b.put("failure_message", t.message);
+        b.put(ReportKey.FAILURE_MESSAGE, t.message);
       }
       if (t.trace != null) {
-        b.put("failure_trace", t.trace);
+        b.put(ReportKey.FAILURE_TRACE, t.trace);
       }
       if (t.out.size() > 0) {
-        b.put("out", new String(t.out.toByteArray(), Charsets.UTF_8));
+        b.put(ReportKey.OUT, new String(t.out.toByteArray(), Charsets.UTF_8));
       }
-      b.put("result", t.result.name());
+      b.put(ReportKey.RESULT, t.result.name());
       summary.put(t.result, summary.get(t.result) + 1);
       testJson.add(b.build());
     }
     ImmutableMap.Builder<String, Integer> summaryJson = ImmutableMap.builder();
-    summaryJson.put("total", tests.size());
+    summaryJson.put(ReportKey.TOTAL, tests.size());
     for (Map.Entry<TestResult, Integer> count : summary.entrySet()) {
       summaryJson.put(count.getKey().name(), count.getValue());
     }
     return ImmutableMap.of(
-        "tests", testJson.build(),
-        "summary", summaryJson.build());
+        ReportKey.TESTS, testJson.build(),
+        ReportKey.SUMMARY, summaryJson.build());
   }
 
   private static boolean writeSummary(
       Map<String, ?> jsonReport, PrintStream out) {
-    Object summary = jsonReport.get("summary");
+    Object summary = jsonReport.get(ReportKey.SUMMARY);
     if (!(summary instanceof Map<?, ?>)) {
       System.err.println("Bad summary");
       return false;
@@ -331,7 +330,7 @@ public final class JUnitRunner {
         continue;
       }
       int n = ((Number) value).intValue();
-      if ("total".equals(key)) {
+      if (ReportKey.TOTAL.equals(key)) {
         total = n;
       } else {
         count += n;
@@ -351,7 +350,7 @@ public final class JUnitRunner {
   private static Map<String, ?> applyReportFilter(
       @Nullable MobileFunction testReportFilter, Map<String, ?> jsonReport) {
     if (testReportFilter != null) {
-      // TODO: Run the test report filter over the JSON form.
+      // TODO: HIGH: Run the test report filter over the JSON form.
       // It can do things like look for annotations, and raise or lower the
       // severity of failures, or regroup tests.
     }

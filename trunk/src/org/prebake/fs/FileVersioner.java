@@ -192,6 +192,7 @@ public abstract class FileVersioner {
   protected abstract RecordLoop makeRecordLoop();
   protected abstract DerivativesLoop makeDerivativesLoop();
 
+  // TODO: HIGH: move updates onto execer
   /** Called when the system is notified that the given files have changed. */
   public void updateFiles(Collection<Path> toUpdate) {
     int n = toUpdate.size();
@@ -374,8 +375,6 @@ public abstract class FileVersioner {
   }
 
   protected abstract ArtifactUpdateLoop makeArtifactUpdateLoop();
-
-  // TODO: move updates onto execer
 
   public static final Hash NO_FILE_HASH = Hash.builder().build();
   /**

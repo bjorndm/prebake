@@ -15,6 +15,7 @@
 package org.prebake.service;
 
 import org.prebake.fs.FileAndHash;
+import org.prebake.fs.FsUtil;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -46,14 +47,7 @@ public class BuiltinResourceLoader {
     if (!p.startsWith(root)) { return null; }  // Can be serviced by others.
     // /--baked-in--/foo/bar.js -> foo/bar.js
     Path relPath = root.relativize(p);
-    String relUriStr = relPath.toString();
-    String sep = p.getFileSystem().getSeparator();
-    // TODO: Fix all the places where we do this to also convert a leading
-    // "/" to clientRoot.getRoot(), and expose fromNormPath and toNormPath in
-    // CommonJsEnv.
-    if (!"/".equals(sep)) {
-      relUriStr = relUriStr.replace(sep, "/");
-    }
+    String relUriStr = FsUtil.normalizePath(p.getRoot(), relPath.toString());
     if (relUriStr.indexOf('?') >= 0 || relUriStr.indexOf('#') >= 0
         || relUriStr.indexOf(':') >= 0) {
       throw new FileNotFoundException(p.toString());

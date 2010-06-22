@@ -18,12 +18,19 @@ import org.prebake.js.SimpleMembranableFunction;
 import org.prebake.js.SimpleMembranableMethod;
 import org.prebake.os.OperatingSystem;
 import org.prebake.os.OsProcess;
+import org.prebake.service.tools.InVmProcess;
 
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.nio.file.Path;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -31,6 +38,7 @@ import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.MapMaker;
+import com.google.common.util.concurrent.Futures;
 
 /**
  * A function exposed to JavaScript which allows it to spawn an external
@@ -42,12 +50,13 @@ final class ExecFn extends SimpleMembranableFunction {
   final OperatingSystem os;
   final Path workingDir;
   final WorkingFileChecker checker;
+  final ExecutorService execer;
   final Logger logger;
   final List<OsProcess> runningProcesses = Lists.newArrayList();
 
   ExecFn(
       OperatingSystem os, Path workingDir, WorkingFileChecker checker,
-      Logger logger) {
+      ExecutorService execer, Logger logger) {
     super(
         ""
         + "Returns a command line process that you can pipeTo(), readFrom(),"
@@ -57,6 +66,7 @@ final class ExecFn extends SimpleMembranableFunction {
     this.os = os;
     this.workingDir = workingDir;
     this.checker = checker;
+    this.execer = execer;
     this.logger = logger;
   }
 
@@ -68,7 +78,7 @@ final class ExecFn extends SimpleMembranableFunction {
     if (!argvIt.hasNext()) {
       throw new IllegalArgumentException("No command specified");
     }
-    String cmd = argvIt.next();
+    final String cmd = argvIt.next();
     List<String> argv = Lists.newArrayList();
     while (argvIt.hasNext()) {
       try {
@@ -79,8 +89,85 @@ final class ExecFn extends SimpleMembranableFunction {
         throw ex;
       }
     }
-    OsProcess p = os.run(
-        workingDir, cmd, argv.toArray(new String[argv.size()]));
+    String[] argvArr = argv.toArray(new String[argv.size()]);
+    final InVmProcess ivp = InVmProcess.Lookup.forCommand(cmd);
+    OsProcess p;
+    if (ivp == null) {
+      p = os.run(workingDir, cmd, argvArr);
+    } else {
+      p = new OsProcess(os, workingDir, cmd, argvArr) {
+        private Future<Byte> f;
+        private Path cwd;
+        private String[] argv;
+        private boolean combined;
+
+        @Override protected void combineStdoutAndStderr() { combined = true; }
+
+        @Override protected boolean hasStartedRunning() { return f != null; }
+
+        @Override
+        protected void preemptivelyKill() {
+          if (f != null) { f.cancel(true); }
+          f = Futures.immediateFuture((byte) -1);
+        }
+
+        @Override
+        protected void setWorkdirAndCommand(
+            Path cwd, String cmd, String... argv) {
+          this.cwd = cwd;
+          this.argv = argv;
+        }
+
+        @Override
+        protected Process startRunning(boolean inheritOutput,
+            boolean closeInput, Path outFile, boolean truncateOutput,
+            Path inFile, ImmutableMap<String, String> environment,
+            boolean inheritEnvironment) throws IOException {
+          if (f == null) {  // Not preemptively killed.
+            f = execer.submit(new Callable<Byte>() {
+              public Byte call() throws Exception {
+                return ivp.run(cwd, argv);
+              }
+            });
+          }
+          return new Process() {
+            @Override
+            public void destroy() {
+              if (f != null && !f.isDone()) { f.cancel(true); }
+            }
+
+            @Override
+            public int exitValue() {
+              if (!f.isDone()) { throw new IllegalStateException(); }
+              try {
+                return waitFor();
+              } catch (InterruptedException ex) {
+                logger.log(Level.WARNING, "Aborted " + cmd, ex);
+                return -1;
+              }
+            }
+
+            InputStream in = new NullInputStream();
+            InputStream err = combined ? in : new NullInputStream();
+            OutputStream out = new NullOutputStream();
+
+            @Override public InputStream getErrorStream() { return err; }
+            @Override public InputStream getInputStream() { return in; }
+            @Override public OutputStream getOutputStream() { return out; }
+
+            @Override
+            public int waitFor() throws InterruptedException {
+              try {
+                return f.get();
+              } catch (ExecutionException ex) {
+                logger.log(Level.WARNING, "Failed to execute " + cmd, ex);
+              }
+              return -1;
+            }
+          };
+        }
+      };
+    }
     return makeJsProcessObj(p);
   }
 
@@ -252,4 +339,19 @@ final class ExecFn extends SimpleMembranableFunction {
     }
     return hadOpenProcesses;
   }
+}
+
+class NullInputStream extends InputStream {
+  @Override public int read() throws IOException { return -1; }
+  @Override public int available() { return 0; }
+  @Override public int read(byte[] buf, int pos, int len) { return -1; }
+}
+
+class NullOutputStream extends OutputStream {
+  boolean closed;
+  @Override
+  public void write(int b) throws IOException {
+    if (closed) { throw new IOException(); }
+  }
+  @Override public void close() { this.closed = true; }
 }

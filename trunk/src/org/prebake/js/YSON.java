@@ -32,6 +32,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import javax.annotation.Nonnull;
@@ -301,6 +302,9 @@ public final class YSON {
       + "[" + NAME_START_CHARS + "][" + NAME_PART_CHARS + "]*"
       + "(?:\\.[" + NAME_START_CHARS + "][" + NAME_PART_CHARS + "]*)*");
 
+  private static final Pattern NON_NAME_CHARS = Pattern.compile(
+      "[^" + NAME_PART_CHARS + "]+");
+
   /**
    * True iff s is a valid JavaScript identifier.
    * See <a href="http://interglacial.com/javascript_spec/a-7.html#a-7.6">
@@ -331,6 +335,25 @@ public final class YSON {
   public static boolean isValidDottedIdentifierName(String s) {
     return DOTTED_IDENTIFIER_NAME.matcher(s).matches()
         && Normalizer.isNormalized(s, Normalizer.Form.NFC);
+  }
+
+  /**
+   * Strips runs of non identifier name chars from the given string replacing
+   * them with underscores.
+   * @return a string containing only identifier name characters.  If the output
+   *     additionally does not start with a number, is non empty, does not match
+   *     a keyword, and is in normal form C, then it is a valid identifier.
+   */
+  public static String stripNonNameChars(String s) {
+    Matcher m = NON_NAME_CHARS.matcher(s);
+    if (!m.find()) { return s; }
+    StringBuilder sb = new StringBuilder(s.length());
+    int pos = 0;
+    do {
+      sb.append(s, pos, m.start()).append('_');
+      pos = m.end();
+    } while (m.find());
+    return sb.append(s, pos, s.length()).toString();
   }
 
   private static String abbrev(String s) {

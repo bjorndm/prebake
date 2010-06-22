@@ -78,8 +78,6 @@ import java.util.regex.Pattern;
 import javax.annotation.Nullable;
 
 public class StubFileSystemProvider extends FileSystemProvider {
-  final Map<URI, MemFileSystem> uriToFs = Collections.synchronizedMap(
-      Maps.<URI, MemFileSystem>newHashMap());
   final String scheme;
 
   public StubFileSystemProvider(String scheme) { this.scheme = scheme; }
@@ -112,14 +110,7 @@ public class StubFileSystemProvider extends FileSystemProvider {
       m = Pattern.compile("(?:^|&)root=([^&]+)").matcher(params);
       if (m.find()) { root = m.group(1); }
     }
-    synchronized (uriToFs) {
-      MemFileSystem fs = uriToFs.get(uri);
-      if (fs == null) {
-        fs = new MemFileSystem(this, cwd, sep, root);
-        uriToFs.put(uri, fs);
-      }
-      return fs;
-    }
+    return new MemFileSystem(this, cwd, sep, root);
   }
 }
 

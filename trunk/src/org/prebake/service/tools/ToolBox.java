@@ -227,9 +227,9 @@ public class ToolBox implements ToolProvider {
 
   protected Iterable<String> getBuiltinToolNames() throws IOException {
     List<String> builtins = Lists.newArrayList();
-    // TODO: walk over classpath instead and assemble tools from META/META.MF so
-    // that tools written in java can integrate by including their own builtin
-    // tools as resources.
+    // TODO: HIGH: walk over classpath instead and assemble tools from
+    // META/META.MF so that tools written in java can integrate by including
+    // their own built in tools as resources.
     InputStream builtinFiles = ToolBox.class.getResourceAsStream("tools.txt");
     if (builtinFiles == null) { throw new FileNotFoundException("tools.txt"); }
     BufferedReader in = new BufferedReader(new InputStreamReader(

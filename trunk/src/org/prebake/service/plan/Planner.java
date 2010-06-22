@@ -21,6 +21,7 @@ import org.prebake.core.MessageQueue;
 import org.prebake.fs.ArtifactAddresser;
 import org.prebake.fs.FileAndHash;
 import org.prebake.fs.FileVersioner;
+import org.prebake.fs.FsUtil;
 import org.prebake.fs.NonFileArtifact;
 import org.prebake.js.Executor;
 import org.prebake.js.JsonSink;
@@ -306,7 +307,7 @@ public final class Planner implements Closeable {
             return derivePlan();
           } finally {
             logs.logHydra.artifactProcessingEnded(artifactDescriptor);
-            // TODO: why is the log file not written?
+            // TODO: HIGH: why is the log file not written?
           }
         }
 
@@ -417,10 +418,9 @@ public final class Planner implements Closeable {
 
     PlanPart(Path planFile) {
       this.planFile = planFile;
-      String normPath = files.getVersionRoot().relativize(planFile).toString();
-      String sep = planFile.getFileSystem().getSeparator();
-      if (!"/".equals(sep)) { normPath = normPath.replace(sep, "/"); }
-      this.normPath = normPath;
+      this.normPath = FsUtil.normalizePath(
+          planFile.getRoot(),
+          files.getVersionRoot().relativize(planFile).toString());
     }
 
     public void invalidate() {

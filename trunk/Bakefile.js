@@ -101,7 +101,9 @@ var jars = [
             {
               manifest: {
                 "Main-Class": "org.prebake.client.Main",
-                "Class-Path": "../../third_party/guava-libraries/guava.jar"
+                "Class-Path": [
+                    "../../third_party/guava-libraries/guava.jar",
+                    "../../third_party/rhino/js.jar"].join(" ")
               }
             }),
         tools.jar(

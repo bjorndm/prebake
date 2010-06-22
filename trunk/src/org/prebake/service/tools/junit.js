@@ -147,8 +147,7 @@ function decodeOptions(optionsSchema, action, opt_config) {
     var command = [
         'java', '-classpath', classpath,
         'org.prebake.service.tools.ext.JUnitRunner',
-        // testListener must be a mobile function if it came from externally.
-        // TODO: make sure a bound mobile function can be serialized this way.
+        // testListener must be a mobile function if it came from a plan file.
         typeof testListener === 'function' ? '' + testListener : '',
         reportDir || '', reportTypes]
         .concat(testClasses);

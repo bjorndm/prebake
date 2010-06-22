@@ -36,6 +36,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ExecutorService;
 import java.util.logging.Logger;
 
 import javax.annotation.Nonnull;
@@ -59,15 +60,17 @@ final class Oven {
   private final FileVersioner files;
   private final ImmutableMap<String, ?> commonJsEnv;
   private final ToolProvider toolbox;
+  private final ExecutorService execService;
   private final Logger logger;
 
   Oven(OperatingSystem os, FileVersioner files,
        ImmutableMap<String, ?> commonJsEnv, ToolProvider toolbox,
-       Logger logger) {
+       ExecutorService execService, Logger logger) {
     this.os = os;
     this.commonJsEnv = commonJsEnv;
     this.files = files;
     this.toolbox = toolbox;
+    this.execService = execService;
     this.logger = logger;
   }
 
@@ -81,7 +84,7 @@ final class Oven {
     Executor execer = Executor.Factory.createJsExecutor();
     final WorkingFileChecker checker = new WorkingFileChecker(
         files.getVersionRoot(), workingDir);
-    ExecFn execFn = new ExecFn(os, workingDir, checker, logger);
+    ExecFn execFn = new ExecFn(os, workingDir, checker, execService, logger);
     ImmutableMap.Builder<String, Object> actuals = ImmutableMap.builder();
     actuals.putAll(commonJsEnv);
     actuals.put("os", JsOperatingSystemEnv.makeJsInterface(workingDir, execFn));
@@ -190,6 +193,8 @@ final class Oven {
         productJs.toString(), "product-" + p.name)
         // TODO: use the product plan file as the base dir so that loads in the
         // product's bake function happen relative to the plan file.
+        // This requires us to take the source path into account when deciding
+        // whether a product has changed since last build.
         .withBase(workingDir)
         .withActuals(actuals.build())
         .build();

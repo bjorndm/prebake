@@ -56,7 +56,7 @@ public abstract class OsProcess {
   private ImmutableMap.Builder<String, String> environment
       = ImmutableMap.builder();
 
-  // TODO: figure out how to get the error and output to the logger.
+  // TODO: HIGH: figure out how to get the error and output to the logger.
 
   protected OsProcess(
       OperatingSystem os, Path cwd, String command, String... argv) {
