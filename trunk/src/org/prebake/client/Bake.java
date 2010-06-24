@@ -27,7 +27,6 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.io.CharStreams;
 
-import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -35,6 +34,7 @@ import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.io.Reader;
 import java.io.StringReader;
+import java.nio.file.FileSystem;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.Arrays;
@@ -42,6 +42,7 @@ import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import javax.annotation.Nullable;
 import javax.annotation.ParametersAreNonnullByDefault;
 
 /**
@@ -119,19 +120,23 @@ public abstract class Bake {
     while (true) {
       Path portFile = prebakeDir.resolve(FileNames.PORT);
       logger.log(Level.FINER, "Reading port file {0}", portFile);
-      String portStr = read(portFile);
       int port;
       try {
-        port = Integer.parseInt(portStr);
-        if ((port & ~0x0ffff) != 0) {
+        String portStr = read(portFile);
+        try {
+          port = Integer.parseInt(portStr);
+          if ((port & ~0x0ffff) != 0) {
+            logger.log(
+                Level.SEVERE, "Bad port number {0}", portStr);
+            port = -1;
+          }
+        } catch (NumberFormatException ex) {
           logger.log(
-              Level.SEVERE, "Bad port number {0}", portStr);
+              Level.SEVERE, "Malformed port {0} in {1}",
+              new Object[] { portStr, portFile });
           port = -1;
         }
-      } catch (NumberFormatException ex) {
-        logger.log(
-            Level.SEVERE, "Malformed port {0} in {1}",
-            new Object[] { portStr, portFile });
+      } catch (IOException ex) {
         port = -1;
       }
       try {
@@ -167,6 +172,8 @@ public abstract class Bake {
         }
         ImmutableList.Builder<String> argv = ImmutableList.builder();
         boolean wroteClassName = false;
+        String classpath = null;
+        FileSystem fs = prebakeDir.getFileSystem();
         for (Object o : args) {
           if (!(o instanceof String)) {
             throw new IOException("Malformed argv: " + content);
@@ -175,20 +182,16 @@ public abstract class Bake {
           if (arg.startsWith("-D")) {
             if (arg.startsWith("-Djava.class.path=")) {
               int eq = arg.indexOf('=');
-              String classpath = arg.substring(eq + 1);
-              boolean singleJar = classpath.endsWith(".jar")
-                  && classpath.contains(File.separator);
-              argv.add(singleJar ? "-jar" : "-classpath");
-              argv.add(classpath);
+              classpath = arg.substring(eq + 1);
               continue;
             }
           } else if (!wroteClassName) {
-            argv.add("org.prebake.service.Main");
+            emitClassPathAndClass(fs, classpath, argv);
             wroteClassName = true;
           }
           argv.add(arg);
         }
-        if (!wroteClassName) { argv.add("org.prebake.service.Main"); }
+        if (!wroteClassName) { emitClassPathAndClass(fs, classpath, argv); }
         launch(argv.build());
         started = true;
       }
@@ -199,6 +202,19 @@ public abstract class Bake {
         throw new IOException("Failed to connect");
       }
     }
+  }
+
+  private void emitClassPathAndClass(
+      FileSystem fs, @Nullable String classpath,
+      ImmutableList.Builder<String> argv) {
+    if (classpath != null) {
+      boolean singleJar = classpath.endsWith(".jar")
+          && !classpath.contains("\\".equals(fs.getSeparator()) ? ";" : ":");
+      argv.add(singleJar ? "-jar" : "-classpath");
+      argv.add(classpath);
+      if (singleJar) { return; }  // Class specified in jar manifest.
+    }
+    argv.add("org.prebake.service.Main");
   }
 
   @VisibleForTesting

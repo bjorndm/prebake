@@ -17,7 +17,6 @@ package org.prebake.client;
 import org.prebake.channel.Commands;
 import org.prebake.util.CommandLineArgs;
 
-import com.google.caja.util.Strings;
 import com.google.common.base.Joiner;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -33,6 +32,7 @@ import java.nio.file.FileSystems;
 import java.nio.file.Path;
 import java.util.Collection;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -106,7 +106,7 @@ public final class Main {
             // See PATH environment variable channeling in CommandLineArgs
             int eq = arg.indexOf('=');
             env.put(
-                Strings.toUpperCase(arg.substring(0, eq)),
+                arg.substring(6, eq).toUpperCase(Locale.ROOT),
                 arg.substring(eq + 1));
           } else {
             cmd.add(arg);

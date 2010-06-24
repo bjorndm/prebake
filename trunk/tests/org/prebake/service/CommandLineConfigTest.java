@@ -29,7 +29,7 @@ import java.util.regex.Pattern;
 
 public class CommandLineConfigTest extends PbTestCase {
   private static final Map<String, String> PROPS = ImmutableMap.of(
-      "java.io.tmpdir", "tmp",
+      "java.io.tmpdir", "tmp",  // relative
       "java.class.path", "/jars/foo.jar",
       "java.library.path", "/lib");
   private static final Map<String, String> ENV = ImmutableMap.of(
@@ -38,14 +38,12 @@ public class CommandLineConfigTest extends PbTestCase {
       ""
       + "\"-Djava.class.path=/jars/foo.jar\","
       + "\"-Djava.library.path=/lib\","
-      + "\"-Djava.io.tmpdir=tmp\","
+      + "\"-Djava.io.tmpdir=/foo/bar/tmp\","  // absolute
       + "\"-Denv.path=/bin\"");
 
   @Test public final void testClientRoot() throws IOException {
+    assertConfig(new String[0], false, "Please specify --root");
     Config c;
-    c = assertConfig(new String[0], false, "Please specify --root");
-    assertEquals(
-        "[" + BOILERPLATE + "]", CommandLineConfig.toArgv(c, PROPS, ENV));
     c = assertConfig(
         new String[] { "--root=/" }, false,
         "Plan file /Bakefile.js is not a file");

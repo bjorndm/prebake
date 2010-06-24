@@ -130,7 +130,7 @@ public interface YSONConverter<T> {
           return null;
         }
         public String exampleText() {
-          return "<" + type.getSimpleName().toLowerCase(Locale.ENGLISH) + ">";
+          return "<" + type.getSimpleName().toLowerCase(Locale.ROOT) + ">";
         }
       };
     }
