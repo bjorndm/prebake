@@ -268,7 +268,7 @@ public class EndToEndTest extends PbTestCase {
         }
 
         @Override
-        protected void launch(List<String> argv) {
+        protected void launch(Path prebakeDir, List<String> argv) {
           throw new UnsupportedOperationException("NOT NEEDED FOR THIS TEST");
         }
 

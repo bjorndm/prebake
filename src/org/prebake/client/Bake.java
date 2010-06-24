@@ -59,7 +59,8 @@ public abstract class Bake {
   /** Connect to localhost on the given port. */
   protected abstract Connection connect(int port) throws IOException;
   /** Launch a JVM with the following arguments. */
-  protected abstract void launch(List<String> argv) throws IOException;
+  protected abstract void launch(Path prebakeDir, List<String> argv)
+      throws IOException;
   /** Pause the current thread for the given number of milliseconds. */
   protected abstract void sleep(int millis) throws InterruptedException;
 
@@ -192,7 +193,7 @@ public abstract class Bake {
           argv.add(arg);
         }
         if (!wroteClassName) { emitClassPathAndClass(fs, classpath, argv); }
-        launch(argv.build());
+        launch(prebakeDir, argv.build());
         started = true;
       }
       logger.fine("Waiting");

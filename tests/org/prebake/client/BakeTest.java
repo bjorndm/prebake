@@ -251,7 +251,8 @@ public class BakeTest extends PbTestCase {
       }
 
       @Override
-      protected void launch(List<String> argv) throws IOException {
+      protected void launch(Path prebakeDir, List<String> argv)
+          throws IOException {
         Expectation exp = expectations.remove(0);
         assertEquals("launch", exp.type);
         assertEquals(

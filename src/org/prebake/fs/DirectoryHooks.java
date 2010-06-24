@@ -99,6 +99,10 @@ public class DirectoryHooks implements Closeable {
     }
   }
 
+  public synchronized void waitForStart() {
+    // start synchronizes on this.
+  }
+
   public void close() {
     Thread watcher;
     synchronized (this) {
