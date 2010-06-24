@@ -15,12 +15,14 @@
 package org.prebake.client;
 
 import org.prebake.channel.Commands;
+import org.prebake.channel.FileNames;
 import org.prebake.util.CommandLineArgs;
 
 import com.google.common.base.Joiner;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
+import java.io.File;
 import java.io.FilterInputStream;
 import java.io.FilterOutputStream;
 import java.io.IOException;
@@ -96,7 +98,8 @@ public final class Main {
       }
 
       @Override
-      protected void launch(List<String> argv) throws IOException {
+      protected void launch(Path prebakeDir, List<String> argv)
+          throws IOException {
         Map<String, String> env = Maps.newLinkedHashMap();
         boolean doneWithPreJavaFlags = false;
         List<String> cmd = Lists.newArrayListWithCapacity(argv.size() + 1);
@@ -113,11 +116,14 @@ public final class Main {
           }
           if (!arg.startsWith("-")) { doneWithPreJavaFlags = true; }
         }
+        File logFile = new File(
+            prebakeDir.resolve(FileNames.LOGS).resolve("main.log").toUri());
         logger.log(
-            Level.FINE, "Execing {0} with env {1}", new Object[] { cmd, env });
+            Level.INFO, "Execing {0} with env {1} > {2}",
+            new Object[] { cmd, env, logFile });
         ProcessBuilder pb = new ProcessBuilder(cmd.toArray(new String[0]));
         pb.environment().putAll(env);
-        pb.inheritIO().start();
+        pb.redirectOutput(logFile).redirectErrorStream(true).start();
       }
 
       @Override

@@ -97,6 +97,7 @@ public abstract class Prebakery implements Closeable {
   private FileVersioner files;
   private Runnable onClose;
   private Predicate<Path> toWatch;
+  private DirectoryHooks hooks;
   private Consumer<Path> pathConsumer;
   private Consumer<Commands> commandConsumer;
   private ToolBox tools;
@@ -143,6 +144,10 @@ public abstract class Prebakery implements Closeable {
       if (pathConsumer != null) {
         pathConsumer.close();
         pathConsumer = null;
+      }
+      if (hooks != null) {
+        hooks.close();
+        hooks = null;
       }
       // Close stores next
       if (planner != null) {
@@ -398,7 +403,7 @@ public abstract class Prebakery implements Closeable {
   }
 
   private void setupFileSystemWatcher() {
-    DirectoryHooks hooks = new DirectoryHooks(config.getClientRoot(), toWatch);
+    hooks = new DirectoryHooks(config.getClientRoot(), toWatch);
     pathConsumer = new Consumer<Path>(hooks.getUpdates()) {
       @Override
       protected void consume(BlockingQueue<? extends Path> q, Path x) {
@@ -450,6 +455,12 @@ public abstract class Prebakery implements Closeable {
                 // to observing clients.
                 ccl = new ClientChannel(w);
                 logger.addHandler(ccl);
+                try {
+                  sync();
+                } catch (InterruptedException ex) {
+                  logs.logger.log(Level.WARNING, "Sync failed {0}", cmd);
+                  break;
+                }
                 try {
                   planner.getProducts();
                   Command.BakeCommand bakecmd = (Command.BakeCommand) cmd;
@@ -511,10 +522,9 @@ public abstract class Prebakery implements Closeable {
               case shutdown: Prebakery.this.close(); break;
               case sync:
                 try {
-                  pathConsumer.waitUntilEmpty();
+                  sync();
                 } catch (InterruptedException ex) {
-                  logger.log(
-                      Level.WARNING, "Sync command interrupted {0}", cmd);
+                  logs.logger.log(Level.WARNING, "Sync failed {0}", cmd);
                   return;
                 }
                 break;
@@ -567,6 +577,11 @@ public abstract class Prebakery implements Closeable {
       }
     };
     commandConsumer.start();
+  }
+
+  private void sync() throws InterruptedException {
+    hooks.waitForStart();
+    pathConsumer.waitUntilEmpty();
   }
 
   private void doBake(
