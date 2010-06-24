@@ -121,7 +121,7 @@ var jars = [
     help: "Produces a task list by collecting uses of the word TODO in source.",
     actions: [
       tools.run(
-          ['bin/extract_todos.pl', 'src/**.{java,gxp,js,html,css}'],
+          ['bin/extract_todos.pl', '{src,tests}/**.{java,gxp,js,html,css}'],
           'out/reports/tasks/**',
           { args: ['out/reports/tasks', []] })
     ]

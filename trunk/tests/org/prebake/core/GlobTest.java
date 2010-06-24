@@ -222,6 +222,9 @@ public class GlobTest extends PbTestCase {
         "[**/*.foo, **/*.bar]", "" + Glob.CONV.convert("**/*.{foo,bar}", mq));
     assertTrue(mq.getMessages().isEmpty());
     assertEquals(
+        // The order here is important since glob order is significant in tool
+        // rules.  All The a's should appear before all the b's since that seems
+        // to match user expectations.
         "[a0, a1, a, b0, b1, b, c0, c1, c]",
         "" + Glob.CONV.convert("{a,b,c}{0,1,}", mq));
     assertTrue(mq.getMessages().isEmpty());

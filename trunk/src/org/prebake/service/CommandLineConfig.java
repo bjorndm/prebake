@@ -19,6 +19,7 @@ import org.prebake.core.MessageQueue;
 import org.prebake.js.JsonSink;
 import org.prebake.util.CommandLineArgs;
 
+import com.google.common.base.Joiner;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
@@ -33,6 +34,7 @@ import java.nio.file.Path;
 import java.nio.file.attribute.Attributes;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
@@ -295,10 +297,29 @@ final class CommandLineConfig implements Config {
     }
   }
 
-  public static String toArgv(Config config) {
-    // TODO: include critical environment variables
-    // like PATH, CWD, and CLASSPATH
+  public static String toArgv(
+      Config config, Map<?, ?> properties, Map<?, ?> env) {
+    // Below we make sure paths are absolute to make the command line
+    // independent of the working dir.
+    FileSystem fs = config.getClientRoot().getFileSystem();
     List<String> argv = Lists.newArrayList();
+    // Include critical environment variables like search paths.
+    // Used to load builtin tool definitions.
+    argv.add("-Djava.class.path=" + absSearchPath(
+        fs, get(properties, "java.class.path")));
+    // Used to load native code.
+    argv.add(
+        "-Djava.library.path=" + absSearchPath(
+        fs, get(properties, "java.library.path")));
+    // Where product directories created.
+    String tmpDir = get(properties, "java.io.tmpdir");
+    if (tmpDir.length() != 0) {
+      tmpDir = fs.getPath(tmpDir).toAbsolutePath().toString();
+      argv.add("-Djava.io.tmpdir=" + tmpDir);
+    }
+    // Search path for commands passed to os.exec.
+    argv.add("-Denv.path=" + get(env, "PATH"));
+
     Path root = config.getClientRoot();
     if (root != null) {
       argv.add(FlagName.ROOT.flag);
@@ -352,6 +373,21 @@ final class CommandLineConfig implements Config {
     return sb.toString();
   }
 
+  private static String get(Map<?, ?> m, String k) {
+    Object v = m.get(k);
+    return v != null ? (String) v : "";
+  }
+
+  private static String absSearchPath(FileSystem fs, String searchPath) {
+    ImmutableList.Builder<String> b = ImmutableList.builder();
+    String sep = pathSeparatorFor(fs);
+    for (String pathElement : searchPath.split(sep)) {
+      if ("".equals(pathElement)) { continue; }
+      b.add(fs.getPath(pathElement).toAbsolutePath().toString());
+    }
+    return Joiner.on(sep).join(b.build());
+  }
+
   public @Nullable Path getClientRoot() { return clientRoot; }
 
   public @Nullable Pattern getIgnorePattern() { return ignorePattern; }
@@ -374,6 +410,10 @@ final class CommandLineConfig implements Config {
   }
 
   public String getPathSeparator() {
+    return pathSeparatorFor(fs);
+  }
+
+  private static String pathSeparatorFor(FileSystem fs) {
     return "\\".equals(fs.getSeparator()) ? ";" : ":";
   }
 }

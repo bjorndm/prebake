@@ -23,9 +23,11 @@ import org.prebake.service.Prebakery;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Charsets;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.io.CharStreams;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -53,8 +55,11 @@ public abstract class Bake {
 
   public Bake(Logger logger) { this.logger = logger; }
 
+  /** Connect to localhost on the given port. */
   protected abstract Connection connect(int port) throws IOException;
-  protected abstract void launch(String... argv) throws IOException;
+  /** Launch a JVM with the following arguments. */
+  protected abstract void launch(List<String> argv) throws IOException;
+  /** Pause the current thread for the given number of milliseconds. */
   protected abstract void sleep(int millis) throws InterruptedException;
 
   @VisibleForTesting
@@ -157,15 +162,34 @@ public abstract class Bake {
           ioex.initCause(ex);
           throw ioex;
         }
-        String[] argv = new String[args.size()];
-        for (int i = argv.length; --i >= 0;) {
-          Object o = args.get(i);
+        if (!src.isEmpty()) {
+          throw new IOException("Unpexpected command line " + src.next());
+        }
+        ImmutableList.Builder<String> argv = ImmutableList.builder();
+        boolean wroteClassName = false;
+        for (Object o : args) {
           if (!(o instanceof String)) {
             throw new IOException("Malformed argv: " + content);
           }
-          argv[i] = (String) o;
+          String arg = (String) o;
+          if (arg.startsWith("-D")) {
+            if (arg.startsWith("-Djava.class.path=")) {
+              int eq = arg.indexOf('=');
+              String classpath = arg.substring(eq + 1);
+              boolean singleJar = classpath.endsWith(".jar")
+                  && classpath.contains(File.separator);
+              argv.add(singleJar ? "-jar" : "-classpath");
+              argv.add(classpath);
+              continue;
+            }
+          } else if (!wroteClassName) {
+            argv.add("org.prebake.service.Main");
+            wroteClassName = true;
+          }
+          argv.add(arg);
         }
-        launch(argv);
+        if (!wroteClassName) { argv.add("org.prebake.service.Main"); }
+        launch(argv.build());
         started = true;
       }
       logger.fine("Waiting");

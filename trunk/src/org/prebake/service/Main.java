@@ -51,6 +51,7 @@ import java.nio.file.FileSystem;
 import java.nio.file.FileSystems;
 import java.nio.file.Path;
 import java.security.SecureRandom;
+import java.util.Collections;
 import java.util.Map;
 import java.util.TimeZone;
 import java.util.concurrent.BlockingQueue;
@@ -182,6 +183,16 @@ public final class Main {
         EnvironmentConfig envConfig = new EnvironmentConfig();
         envConfig.setAllowCreate(true);
         return new Environment(new File(dir.toUri()), envConfig);
+      }
+
+      @Override
+      protected Map<?, ?> getSysProps() {
+        return Collections.unmodifiableMap(System.getProperties());
+      }
+
+      @Override
+      protected Map<String, String> getSysEnv() {
+        return Collections.unmodifiableMap(new ProcessBuilder().environment());
       }
     };
 

@@ -59,7 +59,8 @@ public final class FileAndHash {
 
   public Path getPath() { return p; }
   public String getContentAsString(Charset encoding) {
-    // TODO: do the usual first few bytes check.
+    // TODO: take a null encoding where it is not known and examine
+    // the content prefix to figure out the charset.
     return new String(content, encoding);
   }
   public @Nullable Hash getHash() { return hash; }

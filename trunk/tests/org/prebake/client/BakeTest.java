@@ -19,6 +19,7 @@ import org.prebake.util.PbTestCase;
 import org.prebake.util.StubFileSystemProvider;
 
 import com.google.common.base.Charsets;
+import com.google.common.base.Joiner;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 
@@ -35,7 +36,6 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.file.FileSystem;
 import java.nio.file.Path;
-import java.util.Arrays;
 import java.util.List;
 import java.util.logging.Logger;
 
@@ -80,10 +80,12 @@ public class BakeTest extends PbTestCase {
         .withFile("/foo/bar/.prebake/port", "123a")
         .withFile("/foo/bar/.prebake/token", "S3cR37")
         .withFile("/foo/bar/.prebake/cmdline",
-                  "[\"prebakery\",\"--root=/foo/bar\"]")
+                  "[\"-Djava.class.path=classes\",\"--root=/foo/bar\"]")
         .withArgv("bake", "this", "that")
         .withResponse("OK\0")
-        .expectLaunch("prebakery", "--root=/foo/bar")
+        .expectLaunch(
+            "-classpath", "classes", "org.prebake.service.Main",
+            "--root=/foo/bar")
         .expectSleep(500, false)
         .withFile("/foo/bar/.prebake/port", "789")
         .expectConnect(789, false)
@@ -136,13 +138,15 @@ public class BakeTest extends PbTestCase {
         .withFile("/foo/bar/.prebake/port", "1234")
         .withFile("/foo/bar/.prebake/token", "S3cR37")
         .withFile("/foo/bar/.prebake/cmdline",
-                  "[\"prebakery\",\"--root=/foo/bar\"]")
+                  "[\"-Djava.library.path=lib\",\"--root=/foo/bar\"]")
         .withArgv("bake", "this", "that")
         .withResponse("OK\0")
         // Client fails to connect at old port.
         .expectConnect(1234, true)
         // Tries to launch a prebakery.
-        .expectLaunch("prebakery", "--root=/foo/bar")
+        .expectLaunch(
+            "-Djava.library.path=lib",
+            "org.prebake.service.Main", "--root=/foo/bar")
         // Waits for it to start up.
         .expectSleep(500, false)
         // The prebakery starts and writes out a new port and token.
@@ -164,12 +168,11 @@ public class BakeTest extends PbTestCase {
         .withCwd("/foo/bar/baz/boo")
         .withFile("/foo/bar/.prebake/port", "1234")
         .withFile("/foo/bar/.prebake/token", "S3cR37")
-        .withFile("/foo/bar/.prebake/cmdline",
-                  "[\"prebakery\",\"--root=/foo/bar\"]")
+        .withFile("/foo/bar/.prebake/cmdline", "[\"-Djava.io.tmpdir=/tmp\"]")
         .withArgv("bake", "this", "that")
         .withResponse("OK\0")
         .expectConnect(1234, true)
-        .expectLaunch("prebakery", "--root=/foo/bar")
+        .expectLaunch("-Djava.io.tmpdir=/tmp", "org.prebake.service.Main")
         // Keeps trying to connect to the old port waiting a bit between tries.
         .expectSleep(500, false)
         .expectConnect(1234, true)
@@ -179,7 +182,6 @@ public class BakeTest extends PbTestCase {
         // Finally prebakery starts up and writes out a new port file and token.
         .withFile("/foo/bar/.prebake/port", "789")
         .withFile("/foo/bar/.prebake/token", "70K3n")
-        // Client connects successfully to the new port.
         .expectConnect(789, false)
         .issue()
         .expectResult(0)
@@ -249,10 +251,12 @@ public class BakeTest extends PbTestCase {
       }
 
       @Override
-      protected void launch(String... argv) throws IOException {
+      protected void launch(List<String> argv) throws IOException {
         Expectation exp = expectations.remove(0);
         assertEquals("launch", exp.type);
-        assertEquals(Arrays.asList((String[]) exp.value), Arrays.asList(argv));
+        assertEquals(
+            Joiner.on('\n').join((String[]) exp.value),
+            Joiner.on('\n').join(argv));
         exp.runAll();
       }
 
