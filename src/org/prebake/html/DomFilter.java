@@ -207,7 +207,7 @@ public final class DomFilter {
                 bulletMaker = new Function<Integer, String>() {
                   public String apply(Integer i) {
                     return TextUtil.toRomanNumeral(i + 1)
-                        .toLowerCase(Locale.ENGLISH);
+                        .toLowerCase(Locale.ROOT);
                   }
                 };
                 break;

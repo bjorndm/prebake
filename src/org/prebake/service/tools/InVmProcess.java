@@ -35,7 +35,7 @@ import com.google.caja.util.Strings;
  *     normally or abnormally.  Specifically, the run method might be
  *     interrupted at any time by a
  *     {@link java.util.concurrent.CancellationException},
- *     {@link java.util.InterruptedException} or due to resource exhaustion.
+ *     {@link InterruptedException} or due to resource exhaustion.
  *   <li>Do not access state owned by other threads.
  *   <li>Do not access the file system except through the file system object
  *   reachable from the {@code cwd} parameter to {@link InVmProcess#run}.

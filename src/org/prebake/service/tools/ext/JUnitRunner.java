@@ -111,7 +111,7 @@ public final class JUnitRunner {
         ? new MobileFunction(argv[0]) : null;
     Path reportOutputDir = FileSystems.getDefault().getPath(argv[1]);
     Set<String> reportTypes = Sets.newHashSet(
-        argv[2].toLowerCase(Locale.ENGLISH).split(","));
+        argv[2].toLowerCase(Locale.ROOT).split(","));
     String[] testClassNames = new String[argv.length - 3];
     ClassNameFinder classNameFinder = new ClassNameFinder();
     ResultCode okResult = ResultCode.ALL_TESTS_PASSED;
