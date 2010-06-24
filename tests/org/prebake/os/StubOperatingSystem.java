@@ -44,7 +44,7 @@ import com.google.common.io.ByteStreams;
  *   <tr><td>cat<td>concatenates inputs to the last argument</tr>
  *   <tr><td>ls<td>list files</tr>
  *   <tr><td>munge<td>appends to each file the reverse of the previous</tr>
- *   <tr><td>bork<td>appends "Bork!" to the end of each argument</r>
+ *   <tr><td>bork<td>appends "Bork!" to the end of each argument</tr>
  * </ul>
  */
 public final class StubOperatingSystem implements OperatingSystem {

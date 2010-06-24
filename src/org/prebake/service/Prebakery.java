@@ -273,6 +273,18 @@ public abstract class Prebakery implements Closeable {
   protected abstract @Nonnull Environment createDbEnv(Path dir)
       throws IOException;
 
+  /**
+   * Returns the system property map so that the service can tell clients how
+   * to restart it if it closes.
+   */
+  protected abstract Map<?, ?> getSysProps();
+
+  /**
+   * Returns the system environment map so that the service can tell clients how
+   * to restart it if it closes.
+   */
+  protected abstract Map<String, String> getSysEnv();
+
   public synchronized void start(@Nullable Runnable onClose) {
     Logger logger = logs.logger;
     if (this.onClose != null) { throw new IllegalStateException(); }
@@ -332,7 +344,9 @@ public abstract class Prebakery implements Closeable {
     if (!cmdlineFile.exists()) {
       cmdlineFile.createFile(FilePerms.perms(config.getUmask(), false));
     }
-    write(cmdlineFile, CommandLineConfig.toArgv(config));
+    write(
+        cmdlineFile,
+        CommandLineConfig.toArgv(config, getSysProps(), getSysEnv()));
     int port = 0;
     if (portFile.exists()) {
       try {

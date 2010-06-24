@@ -17,7 +17,10 @@ package org.prebake.client;
 import org.prebake.channel.Commands;
 import org.prebake.util.CommandLineArgs;
 
+import com.google.caja.util.Strings;
 import com.google.common.base.Joiner;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 
 import java.io.FilterInputStream;
 import java.io.FilterOutputStream;
@@ -29,6 +32,8 @@ import java.net.Socket;
 import java.nio.file.FileSystems;
 import java.nio.file.Path;
 import java.util.Collection;
+import java.util.List;
+import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -45,10 +50,8 @@ public final class Main {
 
   public static void main(String... argv) {
     long t0 = System.nanoTime();
-    Logger logger = Logger.getLogger(Main.class.getName());
+    final Logger logger = Logger.getLogger(Main.class.getName());
     CommandLineArgs args = new CommandLineArgs(argv);
-    // TODO: should we use the global logger here since that's the one with the
-    // handlers?
     if (!CommandLineArgs.setUpLogger(args, logger)) {
       System.out.println(USAGE);
       System.exit(0);
@@ -93,10 +96,28 @@ public final class Main {
       }
 
       @Override
-      protected void launch(String... argv) throws IOException {
-        // TODO: properly specify the system environment needed.  Especially the
-        // path used to find tools, and the classpath.
-        new ProcessBuilder(argv).inheritIO().start();
+      protected void launch(List<String> argv) throws IOException {
+        Map<String, String> env = Maps.newLinkedHashMap();
+        boolean doneWithPreJavaFlags = false;
+        List<String> cmd = Lists.newArrayListWithCapacity(argv.size() + 1);
+        cmd.add("java");
+        for (String arg : argv) {
+          if (!doneWithPreJavaFlags && arg.startsWith("-Denv.")) {
+            // See PATH environment variable channeling in CommandLineArgs
+            int eq = arg.indexOf('=');
+            env.put(
+                Strings.toUpperCase(arg.substring(0, eq)),
+                arg.substring(eq + 1));
+          } else {
+            cmd.add(arg);
+          }
+          if (!arg.startsWith("-")) { doneWithPreJavaFlags = true; }
+        }
+        logger.log(
+            Level.FINE, "Execing {0} with env {1}", new Object[] { cmd, env });
+        ProcessBuilder pb = new ProcessBuilder(cmd.toArray(new String[0]));
+        pb.environment().putAll(env);
+        pb.inheritIO().start();
       }
 
       @Override

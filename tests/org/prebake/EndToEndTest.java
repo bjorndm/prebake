@@ -40,6 +40,7 @@ import java.io.StringReader;
 import java.nio.file.FileSystem;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
@@ -53,6 +54,7 @@ import com.google.common.base.Charsets;
 import com.google.common.base.Joiner;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.io.Closeables;
 import com.google.common.io.Files;
@@ -266,7 +268,7 @@ public class EndToEndTest extends PbTestCase {
         }
 
         @Override
-        protected void launch(String... argv) {
+        protected void launch(List<String> argv) {
           throw new UnsupportedOperationException("NOT NEEDED FOR THIS TEST");
         }
 
@@ -302,6 +304,16 @@ public class EndToEndTest extends PbTestCase {
             protected int openChannel(int portHint, BlockingQueue<Commands> q) {
               commandQueue = q;
               return portHint == 0 ? 1234 : portHint;
+            }
+
+            @Override
+            protected Map<String, String> getSysEnv() {
+              return ImmutableMap.of();
+            }
+
+            @Override
+            protected Map<?, ?> getSysProps() {
+              return ImmutableMap.of();
             }
           };
 

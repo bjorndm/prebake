@@ -18,62 +18,82 @@ import org.prebake.core.MessageQueue;
 import org.prebake.util.CommandLineArgs;
 import org.prebake.util.PbTestCase;
 import com.google.common.base.Joiner;
+import com.google.common.collect.ImmutableMap;
 
 import org.junit.Test;
 
 import java.io.IOException;
 import java.nio.file.FileSystem;
+import java.util.Map;
 import java.util.regex.Pattern;
 
 public class CommandLineConfigTest extends PbTestCase {
+  private static final Map<String, String> PROPS = ImmutableMap.of(
+      "java.io.tmpdir", "tmp",
+      "java.class.path", "/jars/foo.jar",
+      "java.library.path", "/lib");
+  private static final Map<String, String> ENV = ImmutableMap.of(
+      "PATH", "/bin");
+  private static final String BOILERPLATE = (
+      ""
+      + "\"-Djava.class.path=/jars/foo.jar\","
+      + "\"-Djava.library.path=/lib\","
+      + "\"-Djava.io.tmpdir=tmp\","
+      + "\"-Denv.path=/bin\"");
+
   @Test public final void testClientRoot() throws IOException {
     Config c;
     c = assertConfig(new String[0], false, "Please specify --root");
-    assertEquals("[]", CommandLineConfig.toArgv(c));
+    assertEquals(
+        "[" + BOILERPLATE + "]", CommandLineConfig.toArgv(c, PROPS, ENV));
     c = assertConfig(
         new String[] { "--root=/" }, false,
         "Plan file /Bakefile.js is not a file");
     assertEquals(
-        "[\"--root\",\"/\",\"/Bakefile.js\"]",
-        CommandLineConfig.toArgv(c));
+        "[" + BOILERPLATE + ",\"--root\",\"/\",\"/Bakefile.js\"]",
+        CommandLineConfig.toArgv(c, PROPS, ENV));
     c = assertConfig(
         new String[] { "--root", "/" }, false,
         "Plan file /Bakefile.js is not a file");
     assertEquals(
-        "[\"--root\",\"/\",\"/Bakefile.js\"]",
-        CommandLineConfig.toArgv(c));
+        "[" + BOILERPLATE + ",\"--root\",\"/\",\"/Bakefile.js\"]",
+        CommandLineConfig.toArgv(c, PROPS, ENV));
     c = assertConfig(
         new String[] { "--root", "/foo" }, false,
         "Plan file /foo/Bakefile.js is not a file");
     assertEquals(
-        "[\"--root\",\"/foo\",\"/foo/Bakefile.js\"]",
-        CommandLineConfig.toArgv(c));
+        "[" + BOILERPLATE + ",\"--root\",\"/foo\",\"/foo/Bakefile.js\"]",
+        CommandLineConfig.toArgv(c, PROPS, ENV));
     c = assertConfig(new String[] { "--root", "/foo/bar/project" }, true);
     assertEquals(
-        "[\"--root\",\"/foo/bar/project\",\"/foo/bar/project/Bakefile.js\"]",
-        CommandLineConfig.toArgv(c));
+        "[" + BOILERPLATE + ","
+        + "\"--root\",\"/foo/bar/project\",\"/foo/bar/project/Bakefile.js\"]",
+        CommandLineConfig.toArgv(c, PROPS, ENV));
     c = assertConfig(
         new String[] { "--root", "/foo/bar/project", "project/Bakefile.js" },
         true);
     assertEquals("/foo/bar/project", c.getClientRoot().toString());
     assertEquals("[/foo/bar/project/Bakefile.js]", c.getPlanFiles().toString());
     assertEquals(
-        "[\"--root\",\"/foo/bar/project\",\"/foo/bar/project/Bakefile.js\"]",
-        CommandLineConfig.toArgv(c));
+        "[" + BOILERPLATE + ","
+        + "\"--root\",\"/foo/bar/project\",\"/foo/bar/project/Bakefile.js\"]",
+        CommandLineConfig.toArgv(c, PROPS, ENV));
     c = assertConfig(
         new String[] { "--root", "/foo/bar/project", "project/Bakefilee.js" },
         false,
         "Plan file /foo/bar/project/Bakefilee.js is not a file");
     assertEquals(
-        "[\"--root\",\"/foo/bar/project\",\"/foo/bar/project/Bakefilee.js\"]",
-        CommandLineConfig.toArgv(c));
+        "[" + BOILERPLATE + ","
+        + "\"--root\",\"/foo/bar/project\",\"/foo/bar/project/Bakefilee.js\"]",
+        CommandLineConfig.toArgv(c, PROPS, ENV));
     c = assertConfig(
         new String[] { "--root", "/foo/bar/project", "--root=/foo" },
         false, "Dupe arg --root");
     assertEquals("/foo/bar/project", c.getClientRoot().toString());
     assertEquals(
-        "[\"--root\",\"/foo/bar/project\",\"/foo/bar/project/Bakefile.js\"]",
-        CommandLineConfig.toArgv(c));
+        "[" + BOILERPLATE + ","
+        + "\"--root\",\"/foo/bar/project\",\"/foo/bar/project/Bakefile.js\"]",
+        CommandLineConfig.toArgv(c, PROPS, ENV));
   }
 
   @Test public final void testIgnorePattern() throws IOException {
@@ -89,10 +109,10 @@ public class CommandLineConfigTest extends PbTestCase {
     assertEquals(Pattern.DOTALL, c.getIgnorePattern().flags());
     assertEquals(
         ""
-        + "[\"--root\",\"/foo/bar/project\","
+        + "[" + BOILERPLATE + ",\"--root\",\"/foo/bar/project\","
         + "\"--ignore\",\"^.*~$\","
         + "\"/foo/bar/project/Bakefile.js\"]",
-        CommandLineConfig.toArgv(c));
+        CommandLineConfig.toArgv(c, PROPS, ENV));
     c = assertConfig(
         new String[] { "--root=project", "--ignore=^.*~$", "--ignore=\\.bak$" },
         false, "Dupe arg --ignore");
@@ -105,17 +125,17 @@ public class CommandLineConfigTest extends PbTestCase {
     assertEquals(0640, c.getUmask());
     assertEquals(
         ""
-        + "[\"--root\",\"/foo/bar/project\","
+        + "[" + BOILERPLATE + ",\"--root\",\"/foo/bar/project\","
         + "\"/foo/bar/project/Bakefile.js\"]",
-        CommandLineConfig.toArgv(c));
+        CommandLineConfig.toArgv(c, PROPS, ENV));
     c = assertConfig(new String[] { "--root=project", "--umask=750" }, true);
     assertEquals(0750, c.getUmask());
     assertEquals(
         ""
-        + "[\"--root\",\"/foo/bar/project\","
+        + "[" + BOILERPLATE + ",\"--root\",\"/foo/bar/project\","
         + "\"--umask\",\"750\","
         + "\"/foo/bar/project/Bakefile.js\"]",
-        CommandLineConfig.toArgv(c));
+        CommandLineConfig.toArgv(c, PROPS, ENV));
     c = assertConfig(
         new String[] { "--root=project", "--umask=750", "--umask=640" },
         false, "Dupe arg --umask");
@@ -142,18 +162,18 @@ public class CommandLineConfigTest extends PbTestCase {
     assertEquals(-1, c.getWwwPort());
     assertEquals(
         ""
-        + "[\"--root\",\"/foo/bar/project\","
+        + "[" + BOILERPLATE + ",\"--root\",\"/foo/bar/project\","
         + "\"/foo/bar/project/Bakefile.js\"]",
-        CommandLineConfig.toArgv(c));
+        CommandLineConfig.toArgv(c, PROPS, ENV));
     c = assertConfig(
         new String[] { "--root=project", "--www-port=8080" }, true);
     assertEquals(8080, c.getWwwPort());
     assertEquals(
         ""
-        + "[\"--root\",\"/foo/bar/project\","
+        + "[" + BOILERPLATE + ",\"--root\",\"/foo/bar/project\","
         + "\"--www-port\",\"8080\","
         + "\"/foo/bar/project/Bakefile.js\"]",
-        CommandLineConfig.toArgv(c));
+        CommandLineConfig.toArgv(c, PROPS, ENV));
     c = assertConfig(
         new String[] { "--root=project", "--www-port=8080", "--www-port=8000" },
         false, "Dupe arg --www-port");
@@ -192,10 +212,10 @@ public class CommandLineConfigTest extends PbTestCase {
         "[/foo/bar/tools, /foo/bar/project/ptools]", "" + c.getToolDirs());
     assertEquals(
         ""
-        + "[\"--root\",\"/foo/bar/project\","
+        + "[" + BOILERPLATE + ",\"--root\",\"/foo/bar/project\","
         + "\"--tools\",\"/foo/bar/tools:/foo/bar/project/ptools\","
         + "\"/foo/bar/project/Bakefile.js\"]",
-        CommandLineConfig.toArgv(c));
+        CommandLineConfig.toArgv(c, PROPS, ENV));
     c = assertConfig(
         new String[] {
             "--root", "project",
@@ -227,10 +247,10 @@ public class CommandLineConfigTest extends PbTestCase {
         c.getPlanFiles().toString());
     assertEquals(
         ""
-        + "[\"--root\",\"/foo/bar/project\","
+        + "[" + BOILERPLATE + ",\"--root\",\"/foo/bar/project\","
         + "\"/foo/bar/project/Bakefile2.js\","
         + "\"/foo/bar/project/Bakefile.js\"]",
-        CommandLineConfig.toArgv(c));
+        CommandLineConfig.toArgv(c, PROPS, ENV));
     assertConfig(
         new String[] {
             "--root=project",
