@@ -64,7 +64,7 @@ public final class MainServlet extends HttpServlet {
   /**
    * The timezone to present dates in.
    * Since this servlet presents diagnostics for a single user's client we don't
-   * try and choose a timezone per user.
+   * bother trying to choose a timezone per user.
    */
   private final TimeZone tz;
 

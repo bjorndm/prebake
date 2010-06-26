@@ -59,14 +59,6 @@ public final class FilePerms {
    */
   public static @Nonnull FileAttribute<?>[] perms(
       int permBits, boolean isDirectory) {
-    /*
-    if (path != null && "\\".equals(path.getFileSystem().getSeparator())) {
-      String name = path.normalize().getName().toString();
-      if (name.startsWith(".") && !(".".equals(name) || "..".equals(name))) {
-        // TODO: how do we propagate the hidden bit to DOS?
-      }
-    }
-    */
     return new FileAttribute[] {
         PosixFilePermissions.asFileAttribute(permSet(permBits, isDirectory))
     };

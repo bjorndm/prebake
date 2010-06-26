@@ -114,7 +114,7 @@ public abstract class Bake {
     return Commands.valueOf(commands, null);
   }
 
-  private Connection connectOrSpawn(Path prebakeDir)
+  private Connection connect(Path prebakeDir, boolean maySpawn)
       throws IOException {
     int tries = 10;
     boolean started = false;
@@ -148,6 +148,7 @@ public abstract class Bake {
       } catch (IOException ex) {
         logger.log(Level.SEVERE, "Failed to connect to " + port, ex);
       }
+      if (!maySpawn) { return DeadConnection.instance(); }
       if (--tries < 0) {
         throw new IOException(
             "Timed out trying to connect to " + port + " per " + portFile);
@@ -221,7 +222,21 @@ public abstract class Bake {
   @VisibleForTesting
   public int issueCommands(Path prebakeDir, Commands commands, OutputStream out)
       throws IOException {
-    Connection conn = connectOrSpawn(prebakeDir);
+    boolean justShutdown = false;
+    // If the only thing the user wants to do is shutdown, then do not spawn
+    // a prebake service.
+    cmd_loop:
+    for (Command cmd : commands) {
+      switch (cmd.verb) {
+        case auth_www: break;
+        case shutdown: justShutdown = true; break;
+        default: justShutdown = false; break cmd_loop;
+      }
+    }
+
+    Connection conn = connect(prebakeDir, !justShutdown);
+
+    if (justShutdown && conn == DeadConnection.instance()) { return 0; }
 
     Path tokenFile = prebakeDir.resolve(FileNames.TOKEN);
     logger.log(Level.FINER, "Reading token file {0}", tokenFile);
@@ -303,4 +318,18 @@ public abstract class Bake {
   static final class IHateYouSoVeryVeryMuch extends Exception {
     private IHateYouSoVeryVeryMuch() { /* not public */ }
   }
+}
+
+final class DeadConnection implements Connection {
+  private static final DeadConnection instance = new DeadConnection();
+  public static DeadConnection instance() { return instance; }
+  private DeadConnection() { /* singleton */ }
+
+  public InputStream getInputStream() throws IOException {
+    throw new IOException();
+  }
+  public OutputStream getOutputStream() throws IOException {
+    throw new IOException();
+  }
+  public void close() throws IOException { /* noop */ }
 }

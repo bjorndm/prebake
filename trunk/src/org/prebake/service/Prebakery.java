@@ -580,6 +580,12 @@ public abstract class Prebakery implements Closeable {
   }
 
   private void sync() throws InterruptedException {
+    DirectoryHooks hooks;
+    Consumer<Path> pathConsumer;
+    synchronized (this) {
+      hooks = this.hooks;
+      pathConsumer = this.pathConsumer;
+    }
     hooks.waitForStart();
     pathConsumer.waitUntilEmpty();
   }

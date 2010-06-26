@@ -98,7 +98,7 @@ function decodeOptions(optionsSchema, action, opt_config) {
     }
     if (decoded.source === undefined) {
       var gxpGlobs = [];
-      for (var i = 0; i < n; ++i) {
+      for (var i = 0, n = action.inputs.length; i < n; ++i) {
         if (/\.gxp$/.test(action.inputs[i])) {
           gxpGlobs.push(action.inputs[i]);
         }

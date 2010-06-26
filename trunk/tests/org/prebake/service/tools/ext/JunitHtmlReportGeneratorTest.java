@@ -15,6 +15,7 @@
 package org.prebake.service.tools.ext;
 
 import org.prebake.js.JsonSource;
+import org.prebake.util.FsDebug;
 import org.prebake.util.PbTestCase;
 
 import java.io.IOException;
@@ -29,6 +30,7 @@ import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -40,11 +42,25 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.io.CharStreams;
 
+import org.junit.After;
 import org.junit.Test;
 
 public class JunitHtmlReportGeneratorTest extends PbTestCase {
+  FileSystem fs;
+
+  @After public final void tearDown() throws IOException {
+    if (fs != null) {
+      assert fs instanceof FsDebug : fs.getClass().getName();
+      Set<String> maxFilesOpen = ((FsDebug) fs).maxFilesOpenedAtOnce();
+      // Allow one active file-handle per layer in the report tree.
+      if (maxFilesOpen.size() > 3) { fail(Joiner.on('\n').join(maxFilesOpen)); }
+      fs.close();
+      fs = null;
+    }
+  }
+
   @Test public final void testReportGeneration() throws IOException {
-    FileSystem fs = fileSystemFromAsciiArt(
+    fs = fileSystemFromAsciiArt(
         "/cwd",
         Joiner.on('\n').join(
             "/",
