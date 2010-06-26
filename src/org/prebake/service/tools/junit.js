@@ -82,7 +82,7 @@ function decodeOptions(optionsSchema, action, opt_config) {
     var testListener = opt.listener;
     var classpath = opt.classpath;
     var junitRunnerClasspath = opt.runner_classpath
-        || java_classpath.slice();
+        || java_classpath.slice();  // See BuiltinToolHooks
     var extraClasspath = [];
     var testClasses = [];
     var testClassFilter = glob.matcher(opt.test_class_filter);

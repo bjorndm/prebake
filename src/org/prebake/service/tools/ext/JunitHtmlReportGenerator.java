@@ -14,6 +14,7 @@
 
 package org.prebake.service.tools.ext;
 
+import org.prebake.fs.FilePerms;
 import org.prebake.js.JsonSink;
 
 import java.io.IOException;
@@ -122,9 +123,7 @@ final class JunitHtmlReportGenerator {
     // As we descend into the test tree, each recursive call updates summary
     // info.
     Path outFile = reportDir.resolve("index.html");
-    if (outFile.getParent().notExists()) {
-      outFile.getParent().createDirectory();
-    }
+    mkdirs(outFile.getParent());
     String[] packageNames = byPackage.keySet().toArray(NO_STRINGS);
     Arrays.sort(packageNames);
     for (String packageName : packageNames) {
@@ -166,9 +165,7 @@ final class JunitHtmlReportGenerator {
     Map<String, Integer> summary = Maps.newHashMap();
     ImmutableList.Builder<Html> table = ImmutableList.builder();
     Path outFile = reportDir.resolve(packageName + ".html");
-    if (outFile.getParent().notExists()) {
-      outFile.getParent().createDirectory();
-    }
+    mkdirs(outFile.getParent());
     String[] classNames = byClass.keySet().toArray(NO_STRINGS);
     Arrays.sort(classNames);
     for (String className : classNames) {
@@ -207,9 +204,7 @@ final class JunitHtmlReportGenerator {
     ImmutableList.Builder<Html> table = ImmutableList.builder();
     Map<String, Integer> summary = Maps.newHashMap();
     Path outFile = reportDir.resolve(className + ".html");
-    if (outFile.getParent().notExists()) {
-      outFile.getParent().createDirectory();
-    }
+    mkdirs(outFile.getParent());
     String[] testNames = byTestName.keySet().toArray(NO_STRINGS);
     Arrays.sort(testNames);
     for (String testName : testNames) {
@@ -264,8 +259,6 @@ final class JunitHtmlReportGenerator {
       String failureTrace = getIfOfType(
           test, ReportKey.FAILURE_TRACE, String.class);
       if (failureTrace != null && !"".equals(failureTrace)) {
-        // TODO: highlight comparison sections, and add spans around
-        // filtered stack trace portions.
         table.add(htmlFromString("Trace")).add(htmlFromTrace(failureTrace));
       }
     }
@@ -276,9 +269,7 @@ final class JunitHtmlReportGenerator {
       }
     }
     Path outFile = reportDir.resolve(testId + ".html");
-    if (outFile.getParent().notExists()) {
-      outFile.getParent().createDirectory();
-    }
+    mkdirs(outFile.getParent());
     writeReport(
         outFile, "test " + displayName, KEY_VAL, table.build(), summary,
         // Wrap test in a list for consistency.
@@ -305,6 +296,7 @@ final class JunitHtmlReportGenerator {
       throws IOException {
     int depth = navBar.length;
     String baseDir = nParent(depth - 1);
+    mkdirs(outFile.getParent());
     Writer out = new OutputStreamWriter(outFile.newOutputStream(
         StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING),
         Charsets.UTF_8);
@@ -329,20 +321,19 @@ final class JunitHtmlReportGenerator {
       out.append("</head><body class=\"tree_level_")
           .append(Integer.toString(depth))
           .append("\">");
-      { // The title/navigation bar
-        out.append("<h1>");
-        for (int i = 0; i < depth - 1; ++i) {
-          out.append("<a class=\"nav_anc\" href=\"")
-              .append(nParent(depth - i - 1))
-              .append(navBar[i])
-              .append(".html\">");
-          appendHtml(out, navBar[i]);
-          out.append("</a><span class=\"nav_sep\">|</span>");
-        }
-        out.append("<span class=\"nav_top\">");
-        appendHtml(out, navBar[depth - 1]);
-        out.append("</span></h1>");
+      // The title/navigation bar
+      out.append("<h1>");
+      for (int i = 0; i < depth - 1; ++i) {
+        out.append("<a class=\"nav_anc\" href=\"")
+            .append(nParent(depth - i - 1))
+            .append(navBar[i])
+            .append(".html\">");
+        appendHtml(out, navBar[i]);
+        out.append("</a><span class=\"nav_sep\">|</span>");
       }
+      out.append("<span class=\"nav_top\">");
+      appendHtml(out, navBar[depth - 1]);
+      out.append("</span></h1>");
       out.append("<span class=\"page_summary\">");  // The summary
       summaryToHtml(summary, resultTypes).appendTo(out);
       out.append("</span>");
@@ -478,9 +469,9 @@ final class JunitHtmlReportGenerator {
 
   // TODO: could this logic move out of java and CSS if I just styled lines like
   // "\tat (classname)" with classes for each package prefix and the full class
-  // name?
-  // and added CSS like
+  // name, and added CSS like
   //    .stack_trace.org_junit_Asserts { color: #888 }
+  // ?
   private static final Pattern STACK_TRACE_FILTER_SUFFIX = Pattern.compile(
       ""
       + "^\tat (?:"
@@ -598,4 +589,12 @@ final class JunitHtmlReportGenerator {
   }
 
   private static final String[] NO_STRINGS = new String[0];
+
+  private static void mkdirs(Path d) throws IOException {
+    if (d.notExists()) {
+      Path p = d.getParent();
+      if (p != null) { mkdirs(p); }
+      d.createDirectory(FilePerms.perms(0700, true));
+    }
+  }
 }

@@ -21,8 +21,13 @@
  * <p>This module provides a single recursive operator:
  * {@code schema(typeDescriptor)} that returns a struct like
  * <code>({
- *  example: function (outBuf),
+ *  example: function (outBuf:Array<string>),
  *  check: function (key, value, out, console, stack) -> boolean })</code>
+ * where {@code example} pushes HTML onto the outBuf, and where key the name of
+ * a property that a properly coerced version of value should be assigned to in
+ * out if it validates properly.  The console has an interface described below,
+ * and stack is an Array onto which part information should be pushed to help
+ * the end developer debug their tool options.
  *
  * <p>A typeDescriptor is one of:<ul>
  *   <li>A {@code typeof} string or the special value
@@ -95,7 +100,7 @@ function schema(typeDescriptor) {
                 + ' for ' + stack);
             return false;
           },
-          example: function (outBuf) { outBuf.push('<nil>'); }
+          example: function (outBuf) { outBuf.push('&lt;nil&gt;'); }
         };
     }
   } else if (isArray(typeDescriptor)) {
@@ -367,6 +372,7 @@ function renderExample(schema) {
   var startWord = /^\w/, endWordOrColon = /[\w:]$/;
   var bracketStack = [];
   var blen = 0;
+  var lineLen = 0;
   for (var i = 0, k = -1, n = tokens.length; i < n; ++i) {
     var blankLineAfter = false;
     var tok = tokens[i];
@@ -388,6 +394,10 @@ function renderExample(schema) {
         case ')': case ']':
           if (blen) { --blen; }
           break;
+        case '|':
+          // Wrap long sets.
+          if (lineLen >= 72) { blankLine = true; }
+          break;
         case '}':
           if (blen) { --blen; }
           blankLine = true;
@@ -400,8 +410,10 @@ function renderExample(schema) {
     if (blankLine && k) {
       out[++k] = '\n';
       for (var j = blen; --j >= 0;) { out[++k] = '  '; }
+      lineLen = blen;
     }
-    out[++k] = tok;
+    out[++k] = String(tok);
+    lineLen += tok.length;
     pendingSpace = endWordOrColon.test(tok);
     blankLine = blankLineAfter;
   }

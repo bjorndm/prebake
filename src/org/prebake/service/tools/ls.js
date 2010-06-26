@@ -16,7 +16,7 @@ function prelim(action, opt_config) {
   for (var k in action.options) {
     console.warn('Unrecognized option ' + k);
   }
-  var outFile;
+  var outFile = undefined;
   // If no output is specified, can still be piped out.
   if (action.outputs.length) {
     try {

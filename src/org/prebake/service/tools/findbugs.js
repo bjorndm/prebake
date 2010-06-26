@@ -73,8 +73,8 @@ function decodeOptions(optionsSchema, action, opt_config) {
         // TODO: custom XSL stylesheets
       }
     }
-    var outputFile;
-    var outputTypeFlag;
+    var outputFile = null;
+    var outputTypeFlag = 'html';
     for (var i = 0, n = action.outputs.length; i < n; ++i) {
       var output = action.outputs[i];
       var dot = output.lastIndexOf('.');

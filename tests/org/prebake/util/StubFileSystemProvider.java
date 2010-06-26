@@ -648,11 +648,14 @@ class MemPath extends Path {
   }
 }
 
-class MemFileSystem extends FileSystem {
+final class MemFileSystem extends FileSystem implements FsDebug {
   private final StubFileSystemProvider p;
   private final MemPath cwd;
   private final String sep;
   private Node root;
+  private final Set<String> openFiles = Collections.synchronizedSet(
+      Sets.<String>newLinkedHashSet());
+  private ImmutableSet<String> openAtOnce = ImmutableSet.of();
 
   final String rootName;
   final String rootAndSep;
@@ -777,6 +780,21 @@ class MemFileSystem extends FileSystem {
     return new StubWatchService(this);
   }
 
+  private void notifyFileClosed(String name) {
+    openFiles.remove(name);
+  }
+
+  private void notifyFileOpened(String name) {
+    openFiles.add(name);
+    if (openAtOnce.size() < openFiles.size()) {
+      openAtOnce = ImmutableSet.copyOf(openFiles);
+      // Make tests fail if we are not quickly closing files.
+      if (openAtOnce.size() > 32) { throw new AssertionError(); }
+    }
+  }
+
+  public ImmutableSet<String> maxFilesOpenedAtOnce() { return openAtOnce; }
+
   InputStream __read(final MemPath p, OpenOption... opts) throws IOException {
     final EnumSet<StandardOpenOption> options = EnumSet.noneOf(
         StandardOpenOption.class);
@@ -790,6 +808,8 @@ class MemFileSystem extends FileSystem {
     final Node node = lookup(p);
     if (node == null) { throw new FileNotFoundException(p.toString()); }
     if (node.isDir()) { throw new IOException(); }
+    final String name = p.toString();
+    notifyFileOpened(name);
     synchronized (node) {
       if (!node.forRead()) { throw new IOException("file clash"); }
       return new FilterInputStream(
@@ -801,6 +821,7 @@ class MemFileSystem extends FileSystem {
             if (closed) { return; }
             closed = true;
           }
+          notifyFileClosed(name);
           node.releaseRead();
           super.close();
           if (options.contains(StandardOpenOption.DELETE_ON_CLOSE)) {
@@ -836,11 +857,13 @@ class MemFileSystem extends FileSystem {
       throw new IOException(p.toString());
     }
     final Node node = n;
+    final String name = p.toString();
     synchronized (node) {
       if (!node.forWrite()) { throw new IOException("file clash"); }
       if (options.contains(StandardOpenOption.TRUNCATE_EXISTING)) {
         node.content.reset();
       }
+      notifyFileOpened(name);
       return new FilterOutputStream(node.content) {
         boolean closed = false;
         @Override
@@ -849,6 +872,7 @@ class MemFileSystem extends FileSystem {
             if (closed) { return; }
             closed = true;
           }
+          notifyFileClosed(name);
           node.releaseWrite();
           super.close();
           if (options.contains(StandardOpenOption.DELETE_ON_CLOSE)) {
