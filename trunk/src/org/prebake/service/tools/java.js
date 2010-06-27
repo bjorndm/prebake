@@ -15,7 +15,7 @@
 var options = {
   type: 'Object',
   properties: {
-    class: { type: 'optional', delegate: 'string' },
+    className: { type: 'optional', delegate: 'string' },
     classpath: {
       type: 'optional',
       delegate: {
@@ -53,7 +53,7 @@ var options = {
       delegate: { type: 'Object', properties: {}, doesNotUnderstand: 'string' }
     },
     vm: { type: 'optional', delegate: ['server', 'client'] },
-    data: { type: 'optional', delegate: [32, 64] },
+    data: { type: 'optional', delegate: ['32', '64'] },
     args: {
       type: 'default',
       delegate: {
@@ -87,14 +87,14 @@ function decodeOptions(optionsSchema, action, opt_config) {
 }
 
 ({
-  help: 'Starts a java VM\n<pre class=\"prettyprint lang-js\">'
-      + schemaModule.example(schemaModule.schema(options)) + '</pre>',
+  help: ('Starts a java VM\n<pre class=\"prettyprint lang-js\">'
+         + schemaModule.example(schemaModule.schema(options)) + '</pre>'),
   check: decodeOptions.bind({}, options),
   fire: function fire(inputs, product, action, os) {
     var config = {};
     if (!decodeOptions(options, action, config)) { return os.failed; }
     var extraClasspath = [];
-    var className = config.class;
+    var className = config.className;
     var sources = [];
     for (var i = 0, n = inputs.length; i < n; ++i) {
       var input = inputs[i];
@@ -143,14 +143,20 @@ function decodeOptions(optionsSchema, action, opt_config) {
     }
     if (config.vm) { command.push('-' + config.vm); }
     if (config.data) { command.push('-d' + config.data); }
-    if (!className) {
+    if (className) {
       command.push('-classpath', classpath.join(sys.io.path.separator));
-    } else if (classpath.length === 1 && /.jar$/.test(classpath[0])) {
+    } else if (classpath.length >= 1 && /.jar$/.test(classpath[0])) {
       command.push('-jar', classpath[0]);
+    } else {
+      console.error(
+          'Missing class name.'
+          + '  Make sure the first input is a jar with the Main-Class property'
+          + ' in its manifest or use the className option.');
+      return os.failed;
     }
     switch (config.asserts) {
       case true: command.push('-ea'); break;
-      case false: break;
+      case false: case undefined: break;
       default:
         for (var i = 0, n = config.asserts.length; i < n; ++i) {
           var a = config.asserts[i];
@@ -163,6 +169,7 @@ function decodeOptions(optionsSchema, action, opt_config) {
         break;
     }
     if (config.systemAsserts) { command.push('-esa'); }
+    if (className) { command.push(className); }
     var args = config.args;
     for (var i = 0, n = args.length; i < n; ++i) {
       var arg = args[i];
