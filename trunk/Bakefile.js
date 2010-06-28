@@ -92,7 +92,7 @@ var jars = [
     actions: [tools.findbugs(["out/{test-lib,lib}///**.class"].concat(jars),
                              "out/reports/bugs///index.html",
                              { effort: "max", priority: "medium" }),
-              tools.jslint(['src/***.js'], ['out/reports/jslint///**'])]
+              tools.jslint(['src/**.js'], ['out/reports/jslint///**'])]
   },
   jars: {
     help: "Packages service and client into separate jars",

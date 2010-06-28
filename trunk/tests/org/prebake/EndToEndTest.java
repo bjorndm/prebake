@@ -171,6 +171,8 @@ public class EndToEndTest extends PbTestCase {
             "  tmpdir/");
   }
 
+  // TODO: test recovery from a syntactically malformed Bakefile.
+
   private class Tester {
     /** Directory used for DB files. */
     private File tempDir;
