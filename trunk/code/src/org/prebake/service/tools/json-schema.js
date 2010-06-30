@@ -72,8 +72,8 @@
  *
  * @author Mike Samuel <mikesamuel@gmail.com>
  * @provides schema, hop, defaultSchema, setSchema, arraySchema,
- *     objectSchema, unionSchema, predicateSchema, renderExample
- * @requires JSON
+ *     objectSchema, unionSchema, predicateSchema, renderExample,
+ *     xformer, str, isArray, mixin
  */
 
 "use strict";

@@ -1,0 +1,9 @@
+#!/bin/bash
+if [ -z "$JAVA" ] ; then
+  if [ -n "$JAVA_HOME" ] ; then
+    JAVA="$JAVA_HOME"/bin/java
+  else
+    JAVA=java
+  fi
+fi
+exec "$JAVA" -jar "$(dirname "$0")"/../jslint/jslint.jar "$@"
