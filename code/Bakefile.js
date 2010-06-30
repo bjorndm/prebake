@@ -98,6 +98,10 @@ var jars = [
     actions: [tools.jslint(['src/**.js'], ['out/reports/jslint///**'],
                            { builtin: ['console', 'glob', 'load', 'sys'] })]
   },
+  reports: {
+    actions: [],
+    inputs: ['out/reports/**']
+  },
   jars: {
     help: "Packages service and client into separate jars",
     actions: [

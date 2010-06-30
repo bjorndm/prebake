@@ -13,6 +13,10 @@
 // limitations under the License.
 
 (function () {
+  var toPath = function (sep, str) {
+    return str.split(sep).filter(function (x) { return !!x; });
+  }.bind({}, sys.io.path.separator);
+
   var options = {
     type: 'Object',
     properties: {
@@ -22,7 +26,7 @@
         delegate: {
           type: 'union',
           options: [
-            { type: 'string', xform: function (s) { return s.split(/[:;]/g); } },
+            { type: 'string', xform: toPath },
             { type: 'Array', delegate: 'string' }
           ]
         }
@@ -51,7 +55,8 @@
       systemProps: {
         type: 'optional',
         // TODO: disallow '=' in property keys.
-        delegate: { type: 'Object', properties: {}, doesNotUnderstand: 'string' }
+        delegate: { type: 'Object', properties: {},
+                    doesNotUnderstand: 'string' }
       },
       vm: { type: 'optional', delegate: ['server', 'client'] },
       data: { type: 'optional', delegate: ['32', '64'] },
@@ -74,7 +79,8 @@
 
   function decodeOptions(optionsSchema, action, opt_config) {
     // For this to be a mobile function we can't use schemaModule defined above.
-    var schemaModule = load('/--baked-in--/tools/json-schema.js')({ load: load });
+    var schemaModule = load('/--baked-in--/tools/json-schema.js')(
+        { load: load });
     var schemaOut = {};
     if (schemaModule.schema(optionsSchema).check(
             '_', action.options || {}, schemaOut, console,
@@ -150,9 +156,9 @@
         command.push('-jar', classpath[0]);
       } else {
         console.error(
-            'Missing class name.'
-            + '  Make sure the first input is a jar with the Main-Class property'
-            + ' in its manifest or use the className option.');
+            'Missing class name.  Make sure the first input is a jar with the'
+            + ' Main-Class property in its manifest or use the className'
+            + ' option.');
         return os.failed;
       }
       switch (config.asserts) {

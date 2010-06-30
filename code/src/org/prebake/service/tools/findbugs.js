@@ -13,6 +13,10 @@
 // limitations under the License.
 
 (function () {
+  var toPath = function (sep, str) {
+    return str.split(sep).filter(function (x) { return !!x; });
+  }.bind({}, sys.io.path.separator);
+
   var options = {
     type: 'Object',
     properties: {
@@ -25,7 +29,7 @@
         delegate: {
           type: 'union',
           options: [
-            { type: 'string', xform: function (s) { return s.split(/[:;]/g); } },
+            { type: 'string', xform: toPath },
             { type: 'Array', delegate: 'string' }
           ]
         },

@@ -222,64 +222,78 @@ public final class Baker {
               // about input ordering as the underlying command line tools they
               // wrap.
               inputs = sortedFilesMatching(files, inputGlobs);
-              workDir = createWorkingDirectory(product.name);
-              try {
-                ImmutableList.Builder<Path> paths = ImmutableList.builder();
-                Hash.Builder hashes = Hash.builder();
-
-                Set<Path> workingDirInputs = Sets.newLinkedHashSet();
-                copyToWorkingDirectory(
-                    inputs, workDir, workingDirInputs, paths, hashes);
-                Executor.Output<Boolean> result = oven.executeActions(
-                    workDir, product, paths, hashes);
-                if (Boolean.TRUE.equals(result.result)) {
-                  // TODO: can't pass if there are problems moving files to the
-                  // repo.
-                  ImmutableList<Path> outputs = finisher.moveToRepo(
-                      product.name, workDir, workingDirInputs,
-                      product.getOutputs());
-                  files.updateFiles(outputs);
-                  synchronized (status) {
-                    if (status.product.equals(product)
-                        && files.updateArtifact(
-                            addresser, status, t0, paths.build(),
-                            hashes.build())) {
-                      passed = true;
-                      synchronized (productDeps) {
-                        // Make sure we know to invalidate this product when
-                        // any of the products that had to be built before it
-                        // are invalidated, or when its template is invalidated.
-                        for (BoundName prereq : prereqs) {
-                          productDeps.put(prereq, product.name);
-                        }
-                        if (product.template != null) {
-                          productDeps.put(product.template.name, product.name);
-                        }
+              boolean toolsPassed = false;
+              ImmutableList.Builder<Path> paths = ImmutableList.builder();
+              Hash.Builder hashes = Hash.builder();
+              if (!(product.actions.isEmpty()
+                    && !product.filesAndParams.outputs.iterator().hasNext())) {
+                workDir = createWorkingDirectory(product.name);
+                try {
+                  Set<Path> workingDirInputs = Sets.newLinkedHashSet();
+                  copyToWorkingDirectory(
+                      inputs, workDir, workingDirInputs, paths, hashes);
+                  Executor.Output<Boolean> result = oven.executeActions(
+                      workDir, product, paths, hashes);
+                  if (Boolean.TRUE.equals(result.result)) {
+                    // TODO: can't pass if there are problems moving files to
+                    // the repo.
+                    ImmutableList<Path> outputs = finisher.moveToRepo(
+                        product.name, workDir, workingDirInputs,
+                        product.getOutputs());
+                    files.updateFiles(outputs);
+                    toolsPassed = true;
+                  } else {
+                    if (result.exit != null) {
+                      logger.log(
+                          Level.SEVERE,
+                          "Failed to build product " + product.name,
+                          result.exit);
+                    } else {
+                      logger.log(
+                          Level.WARNING, "Failed to build product {0} : {1}",
+                          new Object[] {
+                            product.name, JsonSink.stringify(result.result)
+                          });
+                    }
+                  }
+                } finally {
+                  cleanWorkingDirectory(workDir);
+                }
+              } else {
+                // Fast path for simple aggregating products.
+                for (Path clientInput : inputs) {
+                  paths.add(clientInput);
+                  hashes.withHash(Hash.builder().withFile(clientInput).build());
+                }
+                toolsPassed = true;
+              }
+              if (toolsPassed) {
+                synchronized (status) {
+                  if (status.product.equals(product)
+                      && files.updateArtifact(
+                          addresser, status, t0, paths.build(),
+                          hashes.build())) {
+                    passed = true;
+                    synchronized (productDeps) {
+                      // Make sure we know to invalidate this product when
+                      // any of the products that had to be built before it
+                      // are invalidated, or when its template is invalidated.
+                      for (BoundName prereq : prereqs) {
+                        productDeps.put(prereq, product.name);
+                      }
+                      if (product.template != null) {
+                        productDeps.put(product.template.name, product.name);
                       }
                     }
                   }
-                  if (passed) {
-                    logger.log(
-                        Level.INFO, "Product up to date: {0}", product.name);
-                  } else {
-                    logger.log(
-                        Level.WARNING, "Version skew for {0}", product.name);
-                  }
-                } else {
-                  if (result.exit != null) {
-                    logger.log(
-                        Level.SEVERE, "Failed to build product " + product.name,
-                        result.exit);
-                  } else {
-                    logger.log(
-                        Level.WARNING, "Failed to build product {0} : {1}",
-                        new Object[] {
-                          product.name, JsonSink.stringify(result.result)
-                        });
-                  }
                 }
-              } finally {
-                cleanWorkingDirectory(workDir);
+                if (toolsPassed) {
+                  logger.log(
+                      Level.INFO, "Product up to date: {0}", product.name);
+                } else {
+                  logger.log(
+                      Level.WARNING, "Version skew for {0}", product.name);
+                }
               }
             } catch (IOException ex) {
               logger.log(
@@ -307,7 +321,8 @@ public final class Baker {
     return upToDate.build();
   }
 
-  private Path createWorkingDirectory(BoundName productName) throws IOException {
+  private Path createWorkingDirectory(BoundName productName)
+      throws IOException {
     Path path = os.getTempDir().resolve(
         "prebake-" + ArtifactDescriptors.forProduct(productName.ident));
     if (path.exists()) { cleanWorkingDirectory(path); }

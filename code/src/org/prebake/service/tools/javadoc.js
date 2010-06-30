@@ -13,11 +13,16 @@
 // limitations under the License.
 
 (function () {
+  var toPath = function (sep, str) {
+    return str.split(sep).filter(function (x) { return !!x; });
+  }.bind({}, sys.io.path.separator);
+
   var options = {
     type: 'Object',
     properties: {
       d: { type: 'optional', delegate: 'string' },
-      link: { type: 'optional', delegate: { type: 'Array', delegate: 'string' } },
+      link: { type: 'optional',
+              delegate: { type: 'Array', delegate: 'string' } },
       header: { type: 'optional', delegate: 'string' },
       footer: { type: 'optional', delegate: 'string' },
       top: { type: 'optional', delegate: 'string' },
@@ -30,7 +35,7 @@
         delegate: {
           type: 'union',
           options: [
-            { type: 'string', xform: function (s) { return s.split(/[:;]/g); } },
+            { type: 'string', xform: toPath },
             { type: 'Array', delegate: 'string' }
           ]
         },
@@ -117,10 +122,18 @@
       if (sourcePath.length) {
         command.push('-sourcepath', sourcePath.join(pathSeparator));
       }
-      if (typeof opt.header === 'string') { command.push('-header', opt.header); }
-      if (typeof opt.footer === 'string') { command.push('-footer', opt.footer); }
-      if (typeof opt.top === 'string') { command.push('-top', opt.top); }
-      if (typeof opt.bottom === 'string') { command.push('-bottom', opt.bottom); }
+      if (typeof opt.header === 'string') {
+        command.push('-header', opt.header);
+      }
+      if (typeof opt.footer === 'string') {
+        command.push('-footer', opt.footer);
+      }
+      if (typeof opt.top === 'string') { 
+        command.push('-top', opt.top);
+      }
+      if (typeof opt.bottom === 'string') { 
+        command.push('-bottom', opt.bottom);
+      }
       if (opt.visibility) { command.push('-' + opt.visibility); }
       command = command.concat(sources);
       return os.exec(command);

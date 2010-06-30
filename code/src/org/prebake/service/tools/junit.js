@@ -17,6 +17,10 @@
  */
 
 (function () {
+  var toPath = function (sep, str) {
+    return str.split(sep).filter(function (x) { return !!x; });
+  }.bind({}, sys.io.path.separator);
+
   var options = {
     type: 'Object',
     properties: {
@@ -32,7 +36,7 @@
         delegate: {
           type: 'union',
           options: [
-            { type: 'string', xform: function (s) { return s.split(/[:;]/g); } },
+            { type: 'string', xform: toPath },
             { type: 'Array', delegate: 'string' }
           ]
         },
@@ -45,7 +49,7 @@
         delegate: {
           type: 'union',
           options: [
-            { type: 'string', xform: function (s) { return s.split(/[:;]/g); } },
+            { type: 'string', xform: toPath },
             { type: 'Array', delegate: 'string' }
           ]
         }
@@ -58,7 +62,8 @@
 
   function decodeOptions(optionsSchema, action, opt_config) {
     // For this to be a mobile function we can't use schemaModule defined above.
-    var schemaModule = load('/--baked-in--/tools/json-schema.js')({ load: load });
+    var schemaModule = load('/--baked-in--/tools/json-schema.js')(
+        { load: load });
     var schemaOut = {};
     var options = action.options || {};
     if (schemaModule.schema(optionsSchema).check(
@@ -136,8 +141,8 @@
             default: continue;
           }
           if (inferReportDir && reportDir === undefined) {
-            // The report directory is the one that contains the json output dump
-            // or index.html.
+            // The report directory is the one that contains the json output
+            // dump or index.html.
             var root = glob.rootOf(output);
             if (root) { reportDir = root; }
           }
