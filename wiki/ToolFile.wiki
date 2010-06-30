@@ -31,7 +31,7 @@ paths into the TmpWorkspace ; {{{action}}} is the frozen [YSON ΛSON] of the
 the [Product product] whose action is being evaluated.
 {{{os}}} is described below.
 
-=== {{{os}}} <font size=1>[http://code.google.com/p/prebake/source/browse/trunk/src/org/prebake/service/bake/JsOperatingSystemEnv.java (src)]</font> ===
+=== {{{os}}} <font size=1>[http://code.google.com/p/prebake/source/browse/trunk/code/src/org/prebake/service/bake/JsOperatingSystemEnv.java (src)]</font> ===
 The `os` parameter is a bundle of operating system operations.
 {{{
 os = {
@@ -46,7 +46,7 @@ os = {
 };
 }}}
 
-=== {{{os.exec}}} <font size=1>[http://code.google.com/p/prebake/source/browse/trunk/src/org/prebake/service/bake/ExecFn.java (src)]</font> ===
+=== {{{os.exec}}} <font size=1>[http://code.google.com/p/prebake/source/browse/trunk/code/src/org/prebake/service/bake/ExecFn.java (src)]</font> ===
 The fire function *may* call {{{os.exec(path, argv...)}}} to spawn a
 process that runs the executable named by {{{path}}} with the given
 arguments and returns a ProcessObject.

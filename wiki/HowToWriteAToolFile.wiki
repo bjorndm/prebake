@@ -3,7 +3,7 @@
 = How To Write a [ToolFile Tool File] =
 
 == Source ==
-Builtin tools go in the [http://code.google.com/p/prebake/source/browse/trunk/src/org/prebake/service/tools tools] directory.  They have to have a name that is a java identifier with `.js` added to the end.
+Builtin tools go in the [http://code.google.com/p/prebake/source/browse/trunk/code/src/org/prebake/service/tools tools] directory.  They have to have a name that is a java identifier with `.js` added to the end.
 
 See the [ToolFile tool file wiki] for information about the JavaScript APIs available to tool files.
 

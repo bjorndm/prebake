@@ -13,7 +13,7 @@ will start up the bakery service.  It will write create a {{{.prebake}}} [Prebak
 || {{{--ignore=<ignore-pattern>}}} || a regex of file paths to ignore || E.g. {{{\.bak$|/\.svn/}}} ignores files that end with ".bak" and ".svn" directories and their contents. ||
 || {{{--umask=<umask>}}} || [http://en.wikipedia.org/wiki/Umask mask] for permissions on all built files || In octal ||
 || {{{--tools=<dir0>:<dir1>}}} || a search path for [ToolFile tools] || ||
-|| {{{--www-port}}} || a port number || for serving [http://code.google.com/p/prebake/source/browse/trunk/src/org/prebake/service/www/package-info.java HTTP] documentation, status, and logs ||
+|| {{{--www-port}}} || a port number || for serving [http://code.google.com/p/prebake/source/browse/trunk/code/src/org/prebake/service/www/package-info.java HTTP] documentation, status, and logs ||
 || {{{-localhost-trusted}}} || boolean || if specified, then the HTTP requests on `--www-port` don't need credentials ||
 || {{{<plan-file>}}} || paths to [PlanFile plan] files. || If none supplied, defaults to {{{<client-root-directory>/Bakefile.js}}} ||
 
@@ -25,7 +25,7 @@ bake [<logging-options>] [<verb>] <target> ...
 will connect to a {{{prebakery}}} by looking for a {{{.prebake}}} [PrebakeDirectory directory] in an ancestorward traversal and send the specified [PreBakeCommand command].  If no verb is specified, then it defaults to `bake`.
 
 == Commands ==
-Both the [http://code.google.com/p/prebake/source/browse/trunk/src/org/prebake/service/Main.java service] and the [http://code.google.com/p/prebake/source/browse/trunk/src/org/prebake/client/Main.java client] are implemented as Java classes.
+Both the [http://code.google.com/p/prebake/source/browse/trunk/code/src/org/prebake/service/Main.java service] and the [http://code.google.com/p/prebake/source/browse/trunk/code/src/org/prebake/client/Main.java client] are implemented as Java classes.
 The are executable scripts under the `bin`
-[http://code.google.com/p/prebake/source/browse/trunk/bin/ directory]
+[http://code.google.com/p/prebake/source/browse/trunk/code/bin/ directory]
 that can be used to launch these in a JVM.

@@ -1,6 +1,6 @@
 #summary HTML used in documentation
 
-= Preformatted Static HTML <font size=1>[http://code.google.com/p/prebake/source/browse/trunk/src/org/prebake/core/PreformattedStaticHtml.java (src)]</font> =
+= Preformatted Static HTML <font size=1>[http://code.google.com/p/prebake/source/browse/trunk/code/src/org/prebake/core/PreformattedStaticHtml.java (src)]</font> =
 
 All in-JavaScript [DocumentationRecord documentation] is written in a
 subset of HTML4 that is not an XSS vector, and is easily converted to

@@ -1,6 +1,6 @@
 #summary graph of dependencies between products.
 
-= Plan Graph <font size="1">[http://code.google.com/p/prebake/source/browse/trunk/src/org/prebake/service/plan/PlanGraph.java (src)]</font> =
+= Plan Graph <font size="1">[http://code.google.com/p/prebake/source/browse/trunk/code/src/org/prebake/service/plan/PlanGraph.java (src)]</font> =
 
 Prebake uses a graph of dependencies between products to figure out how to build targets.
 

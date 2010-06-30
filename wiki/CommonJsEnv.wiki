@@ -1,6 +1,6 @@
 #summary Builtin APIs available to all JavaScript
 
-= Common JavaScript Environment <font size="1">[http://code.google.com/p/prebake/source/browse/trunk/src/org/prebake/js/CommonEnvironment.java (src)]</font> =
+= Common JavaScript Environment <font size="1">[http://code.google.com/p/prebake/source/browse/trunk/code/src/org/prebake/js/CommonEnvironment.java (src)]</font> =
 
 All JavaScript files run by prebake can use global definitions to make it easy to [JsConsole debug], deal with file paths and [Glob globs].
 

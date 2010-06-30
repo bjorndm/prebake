@@ -1,6 +1,6 @@
 #summary JSON like data structures with powerless methods.
 
-= ΛSON <font size="1">[http://code.google.com/p/prebake/source/browse/trunk/src/org/prebake/js/YSON.java (src)]</font> =
+= ΛSON <font size="1">[http://code.google.com/p/prebake/source/browse/trunk/code/src/org/prebake/js/YSON.java (src)]</font> =
 
 Objects that are structurally similar to JSON but that allow embedding of code.
 

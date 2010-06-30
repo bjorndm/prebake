@@ -2,7 +2,7 @@
 
 = Plan Files =
 
-A plan file specifies how to build outputs.  See one of <a href="http://code.google.com/p/prebake/source/browse/trunk/Bakefile.js">prebake's plan file</a> for an example.
+A plan file specifies how to build outputs.  See one of <a href="http://code.google.com/p/prebake/source/browse/trunk/code/Bakefile.js">prebake's plan file</a> for an example.
 
 A plan file is a JavaScript file that produces a [YSON ΛSON] object containing [Product product] definitions.
 Prebake combines the products from all the plan files to produce a [PlanGraph] which is used to figure out how to build specific rules.

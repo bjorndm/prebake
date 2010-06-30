@@ -16,5 +16,5 @@ common in parallel.
 
 (†) - tool files can create paths into the ClientRoot.  It is not
 unmounted, sor unreadable.  Don't do that.  There are
-[http://code.google.com/p/prebake/source/browse/trunk/src/org/prebake/service/bake/WorkingFileChecker.java checks]
+[http://code.google.com/p/prebake/source/browse/trunk/code/src/org/prebake/service/bake/WorkingFileChecker.java checks]
 that will try to prevent this from happening accidentally.

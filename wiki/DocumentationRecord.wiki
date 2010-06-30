@@ -1,6 +1,6 @@
 #summary Structured documentation of a system artifact.
 
-= DocumentationRecord <font size="1">[http://code.google.com/p/prebake/source/browse/trunk/src/org/prebake/core/Documentation.java (src)]</font> =
+= DocumentationRecord <font size="1">[http://code.google.com/p/prebake/source/browse/trunk/code/src/org/prebake/core/Documentation.java (src)]</font> =
 
 Human readable documentation for part of the system.
 
