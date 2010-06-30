@@ -87,12 +87,16 @@ var jars = [
         ["src/**.java"].concat(jars), "out/doc/api///**.html",
         { visibility: "protected" })]
   },
-  checks: {
+  java_checks: {
     help: "Runs FindBugs over the source code (and test code)",
     actions: [tools.findbugs(["out/{test-lib,lib}///**.class"].concat(jars),
                              "out/reports/bugs///index.html",
-                             { effort: "max", priority: "medium" }),
-              tools.jslint(['src/**.js'], ['out/reports/jslint///**'])]
+                             { effort: "max", priority: "medium" })]
+  },
+  js_checks: {
+    help: "Runs JsLint over the source code (and test code)",
+    actions: [tools.jslint(['src/**.js'], ['out/reports/jslint///**'],
+                           { builtin: ['console', 'glob', 'load', 'sys'] })]
   },
   jars: {
     help: "Packages service and client into separate jars",

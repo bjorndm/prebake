@@ -1,5 +1,12 @@
-// Supporting JS for /plan/index.html
-// This is loosely adapted from third_party/foograph/test.html
+/**
+ * @fileoverview
+ * Supporting JS for /plan/index.html
+ * This is loosely adapted from third_party/foograph/test.html
+ *
+ * @overrides window
+ * @requires Graph, Vertex, VertexStyle, canvasWrapper
+ * @requires ForceDirectedVertexLayout, KamadaKawaiVertexLayout
+ */
 
 (function() {
   // Styles used for different kinds of nodes in the draw function below.

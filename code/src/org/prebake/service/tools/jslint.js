@@ -12,72 +12,76 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-function emptyArr() { return []; }
+(function () {
 
-function optionalArray(typeDescriptor) {
-  return { type: 'default', delegate: typeDescriptor, defaultValue: emptyArr };
-}
+  function emptyArr() { return []; }
 
-var options = {
-  type: 'Object',
-  properties: {
-    builtin: optionalArray({ type: 'Array', delegate: 'string' }),
-    ignore: optionalArray({ type: 'Array', delegate: 'string' })
+  function optionalArray(typeDescriptor) {
+    return { type: 'default', delegate: typeDescriptor, defaultValue: emptyArr };
   }
-};
 
-var schemaModule = load('/--baked-in--/tools/json-schema.js')({ load: load });
+  var options = {
+    type: 'Object',
+    properties: {
+      builtin: optionalArray({ type: 'Array', delegate: 'string' }),
+      ignore: optionalArray({ type: 'Array', delegate: 'string' })
+    }
+  };
 
-function decodeOptions(optionsSchema, action, opt_config) {
-  // For this to be a mobile function we can't use schemaModule defined above.
   var schemaModule = load('/--baked-in--/tools/json-schema.js')({ load: load });
-  var schemaOut = {};
-  if (schemaModule.schema(optionsSchema).check(
-          '_', action.options || {}, schemaOut, console,
-          // Shows up in the error stack.
-          [action.tool + '.action.options'])) {
-    if (opt_config) { schemaModule.mixin(schemaOut._, opt_config); }
-    return true;
-  } else {
-    return false;
-  }
-}
 
-function flatten(var_args) {
-  var out = [];
-  var k = -1;
-  function flattenOntoOut(args) {
-    for (var i = 0, n = args.length; i < n; ++i) {
-      var item = args[i];
-      if (item instanceof Array) {
-        flattenOntoOut(item);
-      } else {
-        out[++k] = item;
+  function decodeOptions(optionsSchema, action, opt_config) {
+    // For this to be a mobile function we can't use schemaModule defined above.
+    var schemaModule = load('/--baked-in--/tools/json-schema.js')({ load: load });
+    var schemaOut = {};
+    if (schemaModule.schema(optionsSchema).check(
+            '_', action.options || {}, schemaOut, console,
+            // Shows up in the error stack.
+            [action.tool + '.action.options'])) {
+      if (opt_config) { schemaModule.mixin(schemaOut._, opt_config); }
+      return true;
+    } else {
+      return false;
+    }
+  }
+
+  function flatten(var_args) {
+    var out = [];
+    var k = -1;
+    function flattenOntoOut(args) {
+      for (var i = 0, n = args.length; i < n; ++i) {
+        var item = args[i];
+        if (item instanceof Array) {
+          flattenOntoOut(item);
+        } else {
+          out[++k] = item;
+        }
       }
     }
+    flattenOntoOut(arguments);
+    return out;
   }
-  flattenOntoOut(arguments);
-  return out;
-}
 
-({
-  help: 'Sanity checks for JavaScript.\n<pre class=\"prettyprint lang-js\">'
-      + schemaModule.example(schemaModule.schema(options)) + '</pre>',
-  check: decodeOptions.bind({}, options),
-  fire: function fire(inputs, product, action, os) {
-    var config = {};
-    if (!decodeOptions(options, action, config)) { return os.failed; }
-    var outDir = glob.rootOf(action.outputs);
-    if (outDir === null) {
-      console.error(
-          'Cannot determine output directory from '
-          + JSON.stringify(action.outputs));
-      return os.failed;
+  return ({
+    help: 'Sanity checks for JavaScript.\n<pre class=\"prettyprint lang-js\">'
+        + schemaModule.example(schemaModule.schema(options)) + '</pre>',
+    check: decodeOptions.bind({}, options),
+    fire: function fire(inputs, product, action, os) {
+      var config = {};
+      if (!decodeOptions(options, action, config)) { return os.failed; }
+      var outDir = glob.rootOf(action.outputs);
+      if (outDir === null) {
+        console.error(
+            'Cannot determine output directory from '
+            + JSON.stringify(action.outputs));
+        return os.failed;
+      }
+      return os.exec(flatten(
+          'jslint', '--out', outDir,
+          Array.map(config.builtin, function (s) { return ['--builtin', s ]; }),
+          Array.map(config.ignore, function (s) { return ['--ignore', s ]; }),
+          '--',
+          inputs));
     }
-    return os.exec(flatten(
-        'jslint', '--out', outDir,
-        Array.map(config.builtin, function (s) { return ['--builtin', s ]; }),
-        Array.map(config.ignore, function (s) { return ['--ignore', s ]; }),
-        Array.map(inputs, function (s) { return ['--js', s ]; })));
-  }
-})
+  });
+})()
