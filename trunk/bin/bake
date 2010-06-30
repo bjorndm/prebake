@@ -17,4 +17,4 @@ auth_www | bake | files_changed | graph | plan | shutdown | sync | tool_help)
   ;;
 esac
 
-exec "$JAVA" -jar "$PREBAKE_HOME/ant-jars/client.jar" $cmd_guess "$@"
+exec "$JAVA" -jar "$PREBAKE_HOME/code/ant-jars/client.jar" $cmd_guess "$@"

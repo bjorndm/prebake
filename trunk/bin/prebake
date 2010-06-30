@@ -7,4 +7,4 @@ fi
 source "$PREBAKE_HOME"/bin/common.sh
 check_java_version
 
-"$JAVA" -server -jar "$PREBAKE_HOME/ant-jars/service.jar" "$@"
+"$JAVA" -server -jar "$PREBAKE_HOME/code/ant-jars/service.jar" "$@"
