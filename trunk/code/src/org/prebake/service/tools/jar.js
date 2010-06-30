@@ -19,7 +19,8 @@
       operation: { type: 'optional', delegate: ['c', 't', 'x'] },
       manifest: {
         type: 'optional',
-        delegate: { type: 'Object', properties: {}, doesNotUnderstand: 'string' }
+        delegate: { type: 'Object', properties: {},
+                    doesNotUnderstand: 'string' }
       }
     }
   };
@@ -74,7 +75,7 @@
       } else {
         throw new Error('Cannot determine whether to jar or unjar');
       }
-  
+
       var command = ['$$jar', operation || 'c', jarfile];
       if (operation === 'x') {
         // Channel outputs based on root paths.
@@ -101,7 +102,8 @@
           var matching = Array.filter(inputs, glob.matcher(inputGlob));
           if (matching.length) {
             var sourceDir = glob.rootOf(inputGlob);
-            var xform = glob.xformer(sourceDir.replace(/\\/g, '/') + '/**', '**');
+            var xform = glob.xformer(
+                sourceDir.replace(/\\/g, '/') + '/**', '**');
             command.push(sourceDir, String(matching.length));
             for (var j = 0, m = matching.length; j < m; ++j) {
               command[command.length] = xform(matching[j]);

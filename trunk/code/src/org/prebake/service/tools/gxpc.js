@@ -36,7 +36,8 @@
         defaultValue: yieldNone
       },
       source: { type: 'optional', delegate: 'string' },
-      verbose: { type: 'default', delegate: 'boolean', defaultValue: yieldFalse },
+      verbose: { type: 'default', delegate: 'boolean',
+                 defaultValue: yieldFalse },
       error: {
         type: 'default',
         delegate: { type: 'Array', delegate: ['i18n'] },
@@ -51,7 +52,8 @@
 
   function decodeOptions(optionsSchema, action, opt_config) {
     // For this to be a mobile function we can't use schemaModule defined above.
-    var schemaModule = load('/--baked-in--/tools/json-schema.js')({ load: load });
+    var schemaModule = load('/--baked-in--/tools/json-schema.js')(
+        { load: load });
     var schemaOut = {};
     var options = action.options || {};
     if (schemaModule.schema(optionsSchema).check(

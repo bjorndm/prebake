@@ -32,7 +32,7 @@ public class JsLintTest extends ToolTestCase {
         .withInputPath("src/foo.js", "src/bar.js")
         .expectExec(
             1, "jslint", "--out", "out/reports/jslint",
-            "--js", "src/foo.js", "--js", "src/bar.js")
+            "--", "src/foo.js", "src/bar.js")
         .expectLog("Running process 1")
         .expectLog("Waiting for process 1")
         .expectLog("Exited with true")
@@ -48,7 +48,7 @@ public class JsLintTest extends ToolTestCase {
         .expectExec(
             1, "jslint", "--out", "out/reports/jslint",
             "--builtin", "glob", "--builtin", "console",
-            "--js", "src/foo.js", "--js", "src/bar.js")
+            "--", "src/foo.js", "src/bar.js")
         .expectLog("Running process 1")
         .expectLog("Waiting for process 1")
         .expectLog("Exited with true")
@@ -63,8 +63,7 @@ public class JsLintTest extends ToolTestCase {
         .withOption("ignore", ImmutableList.of("UNUSED_PROVIDE"))
         .expectExec(
             1, "jslint", "--out", "out/reports/jslint",
-            "--ignore", "UNUSED_PROVIDE",
-            "--js", "src/foo.js", "--js", "src/bar.js")
+            "--ignore", "UNUSED_PROVIDE", "--", "src/foo.js", "src/bar.js")
         .expectLog("Running process 1")
         .expectLog("Waiting for process 1")
         .expectLog("Exited with true")
@@ -85,7 +84,7 @@ public class JsLintTest extends ToolTestCase {
     tester
         .withInput(Glob.fromString("src///**.js"))
         .withOutput(Glob.fromString("out/reports/jslint///**"))
-        .expectExec(1, "jslint", "--out", "out/reports/jslint")
+        .expectExec(1, "jslint", "--out", "out/reports/jslint", "--")
         .expectLog("Running process 1")
         .expectLog("Waiting for process 1")
         .expectLog("Exited with true")

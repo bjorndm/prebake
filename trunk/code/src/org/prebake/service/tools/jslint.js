@@ -13,11 +13,10 @@
 // limitations under the License.
 
 (function () {
-
-  function emptyArr() { return []; }
+  function empty() { return []; }
 
   function optionalArray(typeDescriptor) {
-    return { type: 'default', delegate: typeDescriptor, defaultValue: emptyArr };
+    return { type: 'default', delegate: typeDescriptor, defaultValue: empty };
   }
 
   var options = {
@@ -32,7 +31,8 @@
 
   function decodeOptions(optionsSchema, action, opt_config) {
     // For this to be a mobile function we can't use schemaModule defined above.
-    var schemaModule = load('/--baked-in--/tools/json-schema.js')({ load: load });
+    var schemaModule = load('/--baked-in--/tools/json-schema.js')(
+        { load: load });
     var schemaOut = {};
     if (schemaModule.schema(optionsSchema).check(
             '_', action.options || {}, schemaOut, console,

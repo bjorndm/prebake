@@ -56,7 +56,7 @@
           <![CDATA[
           document.write(
              ''
-              + '<canvas style="height: 500px; width: 100%; display: block"'
+              + '<canvas style="height: 750px; width: 100%; display: block"'
               + ' id="plan-graph"></canvas>');
           ]]></script>
           <script type="text/javascript" src="../www-files/plan-graph.js"

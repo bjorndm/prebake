@@ -34,7 +34,8 @@
 
   function decodeOptions(optionsSchema, action, opt_config) {
     // For this to be a mobile function we can't use schemaModule defined above.
-    var schemaModule = load('/--baked-in--/tools/json-schema.js')({ load: load });
+    var schemaModule = load('/--baked-in--/tools/json-schema.js')(
+        { load: load });
     var schemaOut = {};
     var options = action.options || {};
     if (schemaModule.schema(optionsSchema).check(

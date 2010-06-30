@@ -13,6 +13,10 @@
 // limitations under the License.
 
 (function () {
+  var toPath = function (sep, str) {
+    return str.split(sep).filter(function (x) { return !!x; });
+  }.bind({}, sys.io.path.separator);
+
   var options = {
     type: 'Object',
     properties: {
@@ -21,7 +25,7 @@
         delegate: {
           type: 'union',
           options: [
-            { type: 'string', xform: function (s) { return s.split(/[:;]/g); } },
+            { type: 'string', xform: toPath },
             { type: 'Array', delegate: 'string' }
           ]
         }
@@ -77,8 +81,8 @@
         if (!outDir) {
           if (outDir === null) {
             console.error(
-                'Cannot determine output directory for class files.'
-                + '  Please include the same tree root in all your output globs.'
+                'Cannot determine output directory for class files.  Please'
+                + ' include the same tree root in all your output globs.'
                 + '  E.g., "lib///**.class"');
             return false;
           } else {
