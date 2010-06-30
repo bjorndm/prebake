@@ -121,24 +121,24 @@ public abstract class Bake {
     while (true) {
       Path portFile = prebakeDir.resolve(FileNames.PORT);
       logger.log(Level.FINER, "Reading port file {0}", portFile);
-      int port;
+      int port = -1;  // Interpreted below as unknown port so relaunch bakery.
       try {
         String portStr = read(portFile);
-        try {
-          port = Integer.parseInt(portStr);
-          if ((port & ~0x0ffff) != 0) {
+        if (!"".equals(portStr)) {
+          try {
+            port = Integer.parseInt(portStr);
+            if ((port & ~0x0ffff) != 0) {
+              logger.log(
+                  Level.SEVERE, "Bad port number {0}", portStr);
+            }
+          } catch (NumberFormatException ex) {
             logger.log(
-                Level.SEVERE, "Bad port number {0}", portStr);
-            port = -1;
+                Level.SEVERE, "Malformed port {0} in {1}",
+                new Object[] { portStr, portFile });
           }
-        } catch (NumberFormatException ex) {
-          logger.log(
-              Level.SEVERE, "Malformed port {0} in {1}",
-              new Object[] { portStr, portFile });
-          port = -1;
         }
       } catch (IOException ex) {
-        port = -1;
+        // use default port above.
       }
       try {
         if (port != -1) {

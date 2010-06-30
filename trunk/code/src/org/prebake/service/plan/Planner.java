@@ -210,9 +210,9 @@ public final class Planner implements Closeable {
           .write("      { value: frozenCopy(help), enumerable: false });\n")
           .write("  return o;\n")
           .write("}\n")
-          .write("({");
+          .write("({\n")
+          .write("  toString: function () { return '[object Tools]'; }");
 
-      boolean sawOne = false;
       for (Future<ToolSignature> f : toolbox.getAvailableToolSignatures()) {
         try {
           ToolSignature sig = f.get();
@@ -220,7 +220,7 @@ public final class Planner implements Closeable {
             gotAllTools = false;
             continue;
           }
-          if (sawOne) { sink.write(",\n"); }
+          sink.write(",\n");
           sink.writeValue(sig.name).write(":freeze(");
           if (sig.help != null) {
             sink.write("withHelp(").writeValue(sig.help).write(", ");
@@ -249,7 +249,6 @@ public final class Planner implements Closeable {
           }
           sink.write("    return action;\n")
               .write("  }))\n");
-          sawOne = true;
         } catch (ExecutionException ex) {
           logger.log(Level.SEVERE, "Tool not available", ex);
           gotAllTools = false;

@@ -79,6 +79,14 @@ import com.google.common.io.Resources;
  * @author Mike Samuel <mikesamuel@gmail.com>
  */
 final class JunitHtmlReportGenerator {
+  /**
+   * Used to move package summary files out of the space of package names used
+   * as directories.
+   * Otherwise, packages that end in {@code .html} collide with the package
+   * summary for their parent package.
+   */
+  private static final String PACKAGE_FILE_SUFFIX = "-pkg";
+
   static void generateHtmlReport(Map<String, ?> jsonReport, Path reportDir)
       throws IOException {
     // Group tests by packages so we can let users examine the results by
@@ -131,7 +139,8 @@ final class JunitHtmlReportGenerator {
       Map<String, Integer> itemSummary = generateHtmlReportOnePackage(
           packageName, tests, reportDir.resolve("index"), resultTypes);
       bagPutAll(itemSummary, summary);
-      table.add(htmlLink("index/" + packageName + ".html", packageName))
+      table.add(htmlLink("index/" + packageName + PACKAGE_FILE_SUFFIX + ".html",
+                         packageName))
           .add(htmlSpan("summary", summaryToHtml(itemSummary, resultTypes)));
     }
     writeReport(
@@ -164,7 +173,8 @@ final class JunitHtmlReportGenerator {
         });
     Map<String, Integer> summary = Maps.newHashMap();
     ImmutableList.Builder<Html> table = ImmutableList.builder();
-    Path outFile = reportDir.resolve(packageName + ".html");
+    Path outFile = reportDir.resolve(
+        packageName + PACKAGE_FILE_SUFFIX + ".html");
     mkdirs(outFile.getParent());
     String[] classNames = byClass.keySet().toArray(NO_STRINGS);
     Arrays.sort(classNames);
@@ -180,7 +190,7 @@ final class JunitHtmlReportGenerator {
     writeReport(
         outFile, "package " + packageName, KEY_VAL, table.build(), summary,
         tests, resultTypes,
-        "index", packageName);
+        "index", packageName + PACKAGE_FILE_SUFFIX);
     return summary;
   }
 
@@ -226,7 +236,7 @@ final class JunitHtmlReportGenerator {
     writeReport(
         outFile, "class " + className, KEY_VAL_PREVIEW, table.build(), summary,
         tests, resultTypes,
-        "index", packageName, className);
+        "index", packageName + PACKAGE_FILE_SUFFIX, className);
     return summary;
   }
 
@@ -274,7 +284,7 @@ final class JunitHtmlReportGenerator {
         outFile, "test " + displayName, KEY_VAL, table.build(), summary,
         // Wrap test in a list for consistency.
         ImmutableList.of(test), resultTypes,
-        "index", packageName, className, testId);
+        "index", packageName + PACKAGE_FILE_SUFFIX, className, testId);
     return summary;
   }
 
@@ -328,11 +338,11 @@ final class JunitHtmlReportGenerator {
             .append(nParent(depth - i - 1))
             .append(navBar[i])
             .append(".html\">");
-        appendHtml(out, navBar[i]);
+        appendHtml(out, navBarText(navBar[i]));
         out.append("</a><span class=\"nav_sep\">|</span>");
       }
       out.append("<span class=\"nav_top\">");
-      appendHtml(out, navBar[depth - 1]);
+      appendHtml(out, navBarText(navBar[depth - 1]));
       out.append("</span></h1>");
       out.append("<span class=\"page_summary\">");  // The summary
       summaryToHtml(summary, resultTypes).appendTo(out);
@@ -361,6 +371,13 @@ final class JunitHtmlReportGenerator {
     } finally {
       out.close();
     }
+  }
+
+  private static String navBarText(String navBarShort) {
+    int dash = navBarShort.lastIndexOf('-');
+    // Strip PACKAGE_FILE_SUFFIX from the end of the nav bar text.
+    if (dash >= 0) { navBarShort = navBarShort.substring(0, dash); }
+    return navBarShort;
   }
 
   static Html summaryToHtml(
