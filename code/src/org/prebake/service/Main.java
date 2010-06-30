@@ -262,6 +262,7 @@ public final class Main {
       while (!exitMutex[0]) {
         try {
           exitMutex.wait();
+          logger.log(Level.INFO, "Shut down cleanly");
         } catch (InterruptedException ex) {
           // Just exit below if the main thread is interrupted.
           break;

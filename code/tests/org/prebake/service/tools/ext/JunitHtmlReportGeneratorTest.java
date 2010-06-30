@@ -167,7 +167,7 @@ public class JunitHtmlReportGeneratorTest extends PbTestCase {
             "            test1_0.html \"...\"",
             "            test2_0.html \"...\"",
             "          Baz.html \"...\"",
-            "        boo.html \"...\"",
+            "        boo-pkg.html \"...\"",
             "        foo/",
             "          Bar/",
             "            iErroredOut_0.html \"...\"",
@@ -178,22 +178,22 @@ public class JunitHtmlReportGeneratorTest extends PbTestCase {
             "            boo_0.html \"...\"",
             "            far_0.html \"...\"",
             "          Baz.html \"...\"",
-            "        foo.html \"...\"",
+            "        foo-pkg.html \"...\"",
             "        foo.bar.baz/",
             "          Boo/",
             "            testing_0.html \"...\"",
             "          Boo.html \"...\"",
-            "        foo.bar.baz.html \"...\"",
+            "        foo.bar.baz-pkg.html \"...\"",
             "        org.example/",
             "          AllTests/",
             "            test_0.html \"...\"",
             "          AllTests.html \"...\"",
-            "        org.example.html \"...\"",
+            "        org.example-pkg.html \"...\"",
             "        poe.allen/",
             "          Edgar/",
             "            the_raven_0.html \"...\"",
             "          Edgar.html \"...\"",
-            "        poe.allen.html \"...\"",
+            "        poe.allen-pkg.html \"...\"",
             "      index.html \"...\"",
             "      junit_report.css \"...\"",
             ""),
@@ -237,8 +237,10 @@ public class JunitHtmlReportGeneratorTest extends PbTestCase {
             return FileVisitResult.CONTINUE;
           }
         });
+    System.err.println(
+        "Found " + goodLinks.size() + " good links and " + badLinks.size()
+        + " bad links");
     assertTrue(badLinks.toString(), badLinks.isEmpty());
-    System.err.println("Found " + goodLinks.size() + " links");
     assertTrue(goodLinks.size() > 60);
     assertEquals(
         Joiner.on("").join(
@@ -249,7 +251,7 @@ public class JunitHtmlReportGeneratorTest extends PbTestCase {
             "<script src=\"../../junit_report.js\"></script>",
             // The object digest.  A list of one test for this class.
             "<script type=\"text/javascript\">",
-            "startup([\"index\",\"foo.bar.baz\",\"Boo\"],",
+            "startup([\"index\",\"foo.bar.baz-pkg\",\"Boo\"],",
             " [{\"class_name\":\"foo.bar.baz.Boo\",",
             "\"method_name\":\"testing\",",
             "\"test_name\":\"testing\",",
@@ -262,7 +264,8 @@ public class JunitHtmlReportGeneratorTest extends PbTestCase {
             "<h1>",
             "<a class=\"nav_anc\" href=\"../../index.html\">index</a>",
             "<span class=\"nav_sep\">|</span>",
-            "<a class=\"nav_anc\" href=\"../foo.bar.baz.html\">foo.bar.baz</a>",
+            "<a class=\"nav_anc\" href=\"../foo.bar.baz-pkg.html\">",
+            "foo.bar.baz</a>",
             "<span class=\"nav_sep\">|</span>",
             "<span class=\"nav_top\">Boo</span>",
             "</h1>",
@@ -294,7 +297,7 @@ public class JunitHtmlReportGeneratorTest extends PbTestCase {
             "<script src=\"../../../junit_report.js\"></script>",
             // The object digest.  Just the one test.
             "<script type=\"text/javascript\">",
-            "startup([\"index\",\"foo\",\"Bar\",\"iErroredOut_0\"],",
+            "startup([\"index\",\"foo-pkg\",\"Bar\",\"iErroredOut_0\"],",
             " [{\"class_name\":\"foo.Bar\",",
             "\"method_name\":\"iErroredOut\",",
             "\"test_name\":\"I Errored Out\",",
@@ -309,7 +312,7 @@ public class JunitHtmlReportGeneratorTest extends PbTestCase {
             "<h1>",
             "<a class=\"nav_anc\" href=\"../../../index.html\">index</a>",
             "<span class=\"nav_sep\">|</span>",
-            "<a class=\"nav_anc\" href=\"../../foo.html\">foo</a>",
+            "<a class=\"nav_anc\" href=\"../../foo-pkg.html\">foo</a>",
             "<span class=\"nav_sep\">|</span>",
             "<a class=\"nav_anc\" href=\"../Bar.html\">Bar</a>",
             "<span class=\"nav_sep\">|</span>",
@@ -353,7 +356,7 @@ public class JunitHtmlReportGeneratorTest extends PbTestCase {
             "<script src=\"../junit_report.js\"></script>",
             // The object digest.  A list of tests for this package.
             "<script type=\"text/javascript\">",
-            "startup([\"index\",\"foo\"], [{\"class_name\":\"foo.Bar\",",
+            "startup([\"index\",\"foo-pkg\"], [{\"class_name\":\"foo.Bar\",",
             "\"method_name\":\"iPass\",",
             "\"test_name\":\"iPass\",",
             "\"out\":\"Hello, World!\",",
@@ -413,7 +416,7 @@ public class JunitHtmlReportGeneratorTest extends PbTestCase {
             "</body></html>").replace(">", ">\n"),
         CharStreams.toString(
             new InputStreamReader(fs.getPath(
-                "/reports/tests/index/foo.html").newInputStream(),
+                "/reports/tests/index/foo-pkg.html").newInputStream(),
             Charsets.UTF_8)).replace(">", ">\n"));
   }
 

@@ -84,7 +84,7 @@ var jars = [
   docs: {
     help: "Puts javadoc under docs",
     actions: [tools.javadoc(
-        ["src/**.java"].concat(jars), "out/doc/api///**.html",
+        ["{src,out/genfiles}/**.java"].concat(jars), "out/doc/api///**.html",
         { visibility: "protected" })]
   },
   java_checks: {

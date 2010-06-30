@@ -758,6 +758,10 @@ public class BakerTest extends PbTestCase {
   // TODO: process that takes a long time.
   // TODO: wrapping a process by using the old process as a prototype returns
   // the wrapper from run() and other methods.
+  // TODO: moving an output to the client would require moving a directory into
+  // the archive clobbering.
+  // TODO: moving an output to the client would require creating a directory
+  // over a file that should be archived.
 
   private final class Tester {
     FileSystem fs;
