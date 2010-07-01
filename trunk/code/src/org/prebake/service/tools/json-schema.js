@@ -71,12 +71,11 @@
  * method with the same signature as the global console.
  *
  * @author Mike Samuel <mikesamuel@gmail.com>
- * @provides schema, hop, defaultSchema, setSchema, arraySchema,
- *     objectSchema, unionSchema, predicateSchema, renderExample,
- *     xformer, str, isArray, mixin
  */
 
 "use strict";
+
+(function () {
 
 function schema(typeDescriptor) {
   if (typeof typeDescriptor === 'string') {
@@ -451,8 +450,10 @@ function mixin(from, to) {
 }
 
 // Export schema from this module.
-({
+return ({
   schema: schema,
   example: renderExample,
   mixin: mixin
 });
+
+})();
