@@ -100,7 +100,8 @@ public class JarProcess implements InVmProcess {
       Set<String> dirs = Sets.newHashSet();
       Path root = cwd.getRoot();
       while (pos < last) {
-        Path baseDir = cwd.resolve(argv[++pos]);
+        String basePath = argv[++pos];
+        Path baseDir = "".equals(basePath) ? cwd : cwd.resolve(basePath);
         int nFiles = Integer.parseInt(argv[++pos]);
         for (int end = pos + nFiles; pos < end;) {
           String file = argv[++pos];

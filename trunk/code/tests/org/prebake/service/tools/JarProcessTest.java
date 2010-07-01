@@ -167,4 +167,42 @@ public class JarProcessTest extends PbTestCase {
             ),
         fileSystemToAsciiArt(fs, 40));
   }
+
+  @Test public final void testBlankBaseDir() throws IOException {
+    fs = fileSystemFromAsciiArt(
+        "/",
+        "/",
+        "  read/",
+        "    foo.txt \"FOO\"",
+        "    bar.txt \"BAR\"",
+        "    baz.txt \"BAZ\"",
+        "  write/");
+    JarProcess h = new JarProcess();
+    byte result = h.run(
+        fs.getPath("/read"), "c", "/write/foo.jar",
+        "-1",
+        "", "3", "foo.txt", "bar.txt", "baz.txt");
+    assertEquals((byte) 0, result);
+
+    result = h.run(
+        fs.getPath("/write"), "x", "foo.jar",
+        "**");
+    assertEquals((byte) 0, result);
+
+    assertEquals(
+        Joiner.on('\n').join(
+            "/",
+            "  read/",
+            "    foo.txt \"FOO\"",
+            "    bar.txt \"BAR\"",
+            "    baz.txt \"BAZ\"",
+            "  write/",
+            "    foo.jar \"...\"",
+            "    foo.txt \"FOO\"",
+            "    bar.txt \"BAR\"",
+            "    baz.txt \"BAZ\"",
+            ""
+            ),
+        fileSystemToAsciiArt(fs, 40));
+  }
 }
