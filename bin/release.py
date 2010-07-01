@@ -11,9 +11,9 @@ import pipes
 
 # mapping of paths of built trees to paths of snapshot trees
 build_to_release = (
-  ('code/out/doc', 'snapshot/doc'),
-  ('code/out/reports', 'snapshot/reports'),
-  ('code/out/prebake.zip', 'snapshot/prebake.zip'),
+  ('code/out/doc', '../snapshot/doc'),
+  ('code/out/reports', '../snapshot/reports'),
+  ('code/out/prebake.zip', '../snapshot/prebake.zip'),
 )
 
 FILE = 'f'
