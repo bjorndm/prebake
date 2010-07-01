@@ -134,5 +134,21 @@ var jars = [
           'out/reports/tasks/**',
           { args: ['out/reports/tasks', []] })
     ]
+  },
+  bundle: {
+    help: 'package everything up into one convenient ZIP file',
+    // TODO: maybe include bin/{bake,prebake} in this bundle
+    actions: [
+        tools.cp('third_party/**.jar', 'lib/third_party/**.jar'),
+        tools.cp('out/jars/*.jar', 'lib/out/jars/*.jar'),
+        tools.jar(
+            [
+             'src/**.{js,java,css,txt,gxp}',
+             'out///doc/**',
+             'out///reports/**',
+             'lib/**.jar'
+            ],
+            ['out/prebake.zip'])],
+    outputs: ['out/prebake.zip']
   }
 })
