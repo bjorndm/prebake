@@ -1,0 +1,30 @@
+<html>
+<head>
+  <title>src/org/prebake/service/Prebakery.java</title>
+</head>
+<body><ol>
+<li>Line 443
+<pre class="prettyprint" id="task-0">              case auth_www:
+                String uriPath = ((Command.AuthWwwCommand) cmd).continuePath;
+<b>                // TODO: should we use the loopback address here so the URL can
+</b>                // be handed out?
+                w.write(&#34;http://127.0.0.1:&#34; + config.getWwwPort() + &#34;/auth?tok=&#34;
+</pre></li>
+<li>Line 453
+<pre class="prettyprint" id="task-1">                break;
+              case bake:
+<b>                // TODO: get rid of the ClientChannel
+</b>                // and use the LogHydra instead so that all output gets sent
+                // to observing clients.
+</pre></li>
+
+  <link rel=stylesheet
+   href="http://google-code-prettify.googlecode.com/svn/trunk/src/prettify.css" />
+  <script
+   src="http://google-code-prettify.googlecode.com/svn/trunk/src/lang-css.js">
+  </script>
+  <script
+   src="http://google-code-prettify.googlecode.com/svn/trunk/src/prettify.js">
+  </script>
+  <script>prettyPrint()</script>
+</ol></body></html>

@@ -1,0 +1,72 @@
+<html>
+<head>
+  <title>tests/org/prebake/util/StubFileSystemProvider.java</title>
+</head>
+<body><ol>
+<li>Line 357
+<pre class="prettyprint" id="task-0">      return Boolean.FALSE;
+    } else {
+<b>      // TODO fileKey, timestamps
+</b>      throw new IllegalArgumentException(attribute);
+    }
+</pre></li>
+<li>Line 429
+<pre class="prettyprint" id="task-1">  @Override
+  public boolean isHidden() {
+<b>    return getName().toString().startsWith(&#34;.&#34;);  // TODO: POSIX only
+</b>  }
+
+</pre></li>
+<li>Line 507
+<pre class="prettyprint" id="task-2">  @Override
+  public MemPath normalize() {
+<b>    // TODO: case fold for DOS.
+</b>    List&lt;String&gt; norm = Lists.newArrayList();
+    for (String part : parts) {
+</pre></li>
+<li>Line 545
+<pre class="prettyprint" id="task-3">      WatchService watcher, Kind&lt;?&gt;[] events, Modifier... modifiers)
+      throws IOException {
+<b>    // TODO: modifiers
+</b>    return register(watcher, events);
+  }
+</pre></li>
+<li>Line 558
+<pre class="prettyprint" id="task-4">        public BasicFileAttributes readAttributes() throws IOException {
+          final Map&lt;String, ?&gt; attrs
+<b>              = MemPath.this.readAttributes(&#34;*&#34;, options);  // TODO: only basic
+</b>          return new BasicFileAttributes() {
+            public FileTime creationTime() {
+</pre></li>
+<li>Line 732
+<pre class="prettyprint" id="task-5">  }
+
+<b>  /** @param modes TODO ignored */
+</b>  boolean __hasAccess(MemPath p, AccessMode... modes) {
+    Node node = lookup(p);
+</pre></li>
+<li>Line 755
+<pre class="prettyprint" id="task-6">
+  URI __toUri(MemPath p) {
+<b>    // TODO: strip root and convert separators.
+</b>    // Attach fragment for cwd, and attach root and sep query parameters.
+    return URI.create(&#34;mfs://&#34; + __toRealPath(p));
+</pre></li>
+<li>Line 893
+<pre class="prettyprint" id="task-7">  }
+
+<b>  /** @param kinds TODO */
+</b>  WatchKey __register(MemPath p, WatchService ws, Kind&lt;?&gt;... kinds)
+      throws IOException {
+</pre></li>
+
+  <link rel=stylesheet
+   href="http://google-code-prettify.googlecode.com/svn/trunk/src/prettify.css" />
+  <script
+   src="http://google-code-prettify.googlecode.com/svn/trunk/src/lang-css.js">
+  </script>
+  <script
+   src="http://google-code-prettify.googlecode.com/svn/trunk/src/prettify.js">
+  </script>
+  <script>prettyPrint()</script>
+</ol></body></html>

@@ -1,0 +1,23 @@
+<html>
+<head>
+  <title>src/org/prebake/service/www/www-files/plan-graph.js</title>
+</head>
+<body><ol>
+<li>Line 86
+<pre class="prettyprint" id="task-0">      for (var i = 0, n = adjacentNodes.length; i &lt; n; ++i) {
+        var endVertex = vertices[adjacentNodes[i]];
+<b>        var label = null;  // TODO: label with glob intersection.
+</b>        g.insertEdge(label, 3/*weight*/, startVertex, endVertex, null/*style*/);
+      }
+</pre></li>
+
+  <link rel=stylesheet
+   href="http://google-code-prettify.googlecode.com/svn/trunk/src/prettify.css" />
+  <script
+   src="http://google-code-prettify.googlecode.com/svn/trunk/src/lang-css.js">
+  </script>
+  <script
+   src="http://google-code-prettify.googlecode.com/svn/trunk/src/prettify.js">
+  </script>
+  <script>prettyPrint()</script>
+</ol></body></html>

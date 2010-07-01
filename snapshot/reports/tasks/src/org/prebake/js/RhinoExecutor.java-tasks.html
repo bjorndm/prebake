@@ -1,0 +1,51 @@
+<html>
+<head>
+  <title>src/org/prebake/js/RhinoExecutor.java</title>
+</head>
+<body><ol>
+<li>Line 83
+<pre class="prettyprint" id="task-0">      Character.class.getName(),
+      Double.class.getName(),
+<b>      // TODO: do exceptions expose non-determinism via stack details?
+</b>      EcmaError.class.getName(),
+      EvaluatorException.class.getName(),
+</pre></li>
+<li>Line 111
+<pre class="prettyprint" id="task-1">      // Make Rhino runtime call observeInstructionCount every so often to check
+      // the CPU quota.
+<b>      context.setInstructionObserverThreshold(10000);  // TODO: tuning param
+</b>      context.setClassShutter(new ClassShutter() {
+        public boolean visibleToScripts(String fullClassName) {
+</pre></li>
+<li>Line 194
+<pre class="prettyprint" id="task-2">    }
+    Context context = SANDBOXINGFACTORY.enterContext();
+<b>    // TODO: figure out appropriate optimization level
+</b>    context.setOptimizationLevel(-1);
+    try {
+</pre></li>
+<li>Line 344
+<pre class="prettyprint" id="task-3">
+  public final class LoadFn extends BaseFunction {
+<b>    // TODO: attach help info to load
+</b>    private final Scriptable globalScope;
+    private final Loader loader;
+</pre></li>
+<li>Line 438
+<pre class="prettyprint" id="task-4">
+    final class LoadedModule extends BaseFunction {
+<b>      // TODO: attach help info showing where it came from and
+</b>      // calling conventions.
+      private final String srcName;
+</pre></li>
+
+  <link rel=stylesheet
+   href="http://google-code-prettify.googlecode.com/svn/trunk/src/prettify.css" />
+  <script
+   src="http://google-code-prettify.googlecode.com/svn/trunk/src/lang-css.js">
+  </script>
+  <script
+   src="http://google-code-prettify.googlecode.com/svn/trunk/src/prettify.js">
+  </script>
+  <script>prettyPrint()</script>
+</ol></body></html>

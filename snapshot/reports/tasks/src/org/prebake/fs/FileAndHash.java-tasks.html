@@ -1,0 +1,23 @@
+<html>
+<head>
+  <title>src/org/prebake/fs/FileAndHash.java</title>
+</head>
+<body><ol>
+<li>Line 62
+<pre class="prettyprint" id="task-0">  public Path getPath() { return p; }
+  public String getContentAsString(Charset encoding) {
+<b>    // TODO: take a null encoding where it is not known and examine
+</b>    // the content prefix to figure out the charset.
+    return new String(content, encoding);
+</pre></li>
+
+  <link rel=stylesheet
+   href="http://google-code-prettify.googlecode.com/svn/trunk/src/prettify.css" />
+  <script
+   src="http://google-code-prettify.googlecode.com/svn/trunk/src/lang-css.js">
+  </script>
+  <script
+   src="http://google-code-prettify.googlecode.com/svn/trunk/src/prettify.js">
+  </script>
+  <script>prettyPrint()</script>
+</ol></body></html>

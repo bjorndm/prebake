@@ -1,0 +1,30 @@
+<html>
+<head>
+  <title>src/org/prebake/service/tools/ToolLoader.java</title>
+</head>
+<body><ol>
+<li>Line 58
+<pre class="prettyprint" id="task-0">    String pName = p.getName().toString();
+    Path parent = p.getParent();
+<b>    // TODO: Allow &#34;.../&lt;tool-name&gt;&#34; to load another tool.
+</b>    if (&#34;...&#34;.equals(pName) &amp;&amp; base.equals(parent)) {
+      try {
+</pre></li>
+<li>Line 63
+<pre class="prettyprint" id="task-1">        p = toolBox.nextToolPath(current, base.resolve(&#34;...&#34;));
+      } catch (IOException ex) {
+<b>        // TODO: Need to make it depend on all the subsequent tools.
+</b>        pathsLoaded.add(p);
+        hashes.withHash(FileVersioner.NO_FILE_HASH);
+</pre></li>
+
+  <link rel=stylesheet
+   href="http://google-code-prettify.googlecode.com/svn/trunk/src/prettify.css" />
+  <script
+   src="http://google-code-prettify.googlecode.com/svn/trunk/src/lang-css.js">
+  </script>
+  <script
+   src="http://google-code-prettify.googlecode.com/svn/trunk/src/prettify.js">
+  </script>
+  <script>prettyPrint()</script>
+</ol></body></html>

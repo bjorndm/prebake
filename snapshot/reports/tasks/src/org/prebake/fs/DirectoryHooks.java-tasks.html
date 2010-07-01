@@ -1,0 +1,65 @@
+<html>
+<head>
+  <title>src/org/prebake/fs/DirectoryHooks.java</title>
+</head>
+<body><ol>
+<li>Line 62
+<pre class="prettyprint" id="task-0">  // Windows : http://msdn.microsoft.com/en-us/library/aa365261(VS.85).aspx
+
+<b>  // TODO: HIGH: handle symbolic links.  First figure out what the watch service
+</b>  // does with them, then maybe keep a db with symbolic link targets in
+  // FileHashes.
+</pre></li>
+<li>Line 132
+<pre class="prettyprint" id="task-1">
+        if (kind == StandardWatchEventKind.OVERFLOW) {
+<b>          // TODO: figure out what overflow means.
+</b>          continue;
+        }
+</pre></li>
+<li>Line 146
+<pre class="prettyprint" id="task-2">                &#34;isDirectory&#34;, LinkOption.NOFOLLOW_LINKS);
+          } catch (IOException ex) {
+<b>            // TODO: handle
+</b>            ex.printStackTrace();
+          }
+</pre></li>
+<li>Line 155
+<pre class="prettyprint" id="task-3">        if (isDir) {
+          if (kind == StandardWatchEventKind.ENTRY_CREATE) {
+<b>            // TODO: What about permission changes that make it readable?
+</b>            try {
+              register(child, ws, keys);
+</pre></li>
+<li>Line 159
+<pre class="prettyprint" id="task-4">              register(child, ws, keys);
+            } catch (IOException ex) {
+<b>              // TODO: handle
+</b>              ex.printStackTrace();
+            }
+</pre></li>
+<li>Line 184
+<pre class="prettyprint" id="task-5">    try {
+      Files.walkFileTree(p, new SimpleFileVisitor&lt;Path&gt;() {
+<b>        // TODO: implement other visitor methods
+</b>        @Override
+        public FileVisitResult preVisitDirectory(Path dir) {
+</pre></li>
+<li>Line 188
+<pre class="prettyprint" id="task-6">        public FileVisitResult preVisitDirectory(Path dir) {
+          try {
+<b>            // TODO: if we know the toWatch predicate skips everything under dir
+</b>            // then don&#39;t continue.
+            // HACK: don&#39;t watch the .prebake directory, especially the
+</pre></li>
+
+  <link rel=stylesheet
+   href="http://google-code-prettify.googlecode.com/svn/trunk/src/prettify.css" />
+  <script
+   src="http://google-code-prettify.googlecode.com/svn/trunk/src/lang-css.js">
+  </script>
+  <script
+   src="http://google-code-prettify.googlecode.com/svn/trunk/src/prettify.js">
+  </script>
+  <script>prettyPrint()</script>
+</ol></body></html>

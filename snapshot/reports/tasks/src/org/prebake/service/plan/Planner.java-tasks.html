@@ -1,0 +1,30 @@
+<html>
+<head>
+  <title>src/org/prebake/service/plan/Planner.java</title>
+</head>
+<body><ol>
+<li>Line 198
+<pre class="prettyprint" id="task-0">  private List&lt;Future&lt;ImmutableList&lt;Product&gt;&gt;&gt; getProductLists() {
+    Logger logger = logs.logger;
+<b>    // TODO: instead create an input so each tool&#39;s validator is in its own
+</b>    // appropriately named file to keep stack traces informative.
+    String toolJs;
+</pre></li>
+<li>Line 309
+<pre class="prettyprint" id="task-1">          } finally {
+            logs.logHydra.artifactProcessingEnded(artifactDescriptor);
+<b>            // TODO: HIGH: why is the log file not written?
+</b>          }
+        }
+</pre></li>
+
+  <link rel=stylesheet
+   href="http://google-code-prettify.googlecode.com/svn/trunk/src/prettify.css" />
+  <script
+   src="http://google-code-prettify.googlecode.com/svn/trunk/src/lang-css.js">
+  </script>
+  <script
+   src="http://google-code-prettify.googlecode.com/svn/trunk/src/prettify.js">
+  </script>
+  <script>prettyPrint()</script>
+</ol></body></html>

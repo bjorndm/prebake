@@ -1,0 +1,44 @@
+<html>
+<head>
+  <title>src/org/prebake/service/bake/Baker.java</title>
+</head>
+<body><ol>
+<li>Line 149
+<pre class="prettyprint" id="task-0">    if (status == null &amp;&amp; !productName.bindings.isEmpty()) {
+      // Derive the product if possible.
+<b>      // TODO: maybe share this with similar code in the PlanGraph.
+</b>      BoundName templateName = BoundName.fromString(productName.getRawIdent());
+      ProductStatus template = productStatuses.get(templateName);
+</pre></li>
+<li>Line 238
+<pre class="prettyprint" id="task-1">                      workDir, product, paths, hashes);
+                  if (Boolean.TRUE.equals(result.result)) {
+<b>                    // TODO: can&#39;t pass if there are problems moving files to
+</b>                    // the repo.
+                    ImmutableList&lt;Path&gt; outputs = finisher.moveToRepo(
+</pre></li>
+<li>Line 424
+<pre class="prettyprint" id="task-2">  }
+
+<b>  // TODO: move listener results onto execer
+</b>  /**
+   * Should be linked to the {@link org.prebake.service.plan.Planner} to receive
+</pre></li>
+<li>Line 598
+<pre class="prettyprint" id="task-3">      for (BoundName postReq : postReqs) {
+        ProductStatus dep = productStatuses.get(postReq);
+<b>        // TODO: do we need to remove any path -&gt; artifact address in the
+</b>        // file versioner.
+        if (dep != null) { dep.invalidate(); }
+</pre></li>
+
+  <link rel=stylesheet
+   href="http://google-code-prettify.googlecode.com/svn/trunk/src/prettify.css" />
+  <script
+   src="http://google-code-prettify.googlecode.com/svn/trunk/src/lang-css.js">
+  </script>
+  <script
+   src="http://google-code-prettify.googlecode.com/svn/trunk/src/prettify.js">
+  </script>
+  <script>prettyPrint()</script>
+</ol></body></html>
