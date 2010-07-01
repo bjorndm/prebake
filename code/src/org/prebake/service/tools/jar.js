@@ -102,8 +102,9 @@
           var matching = Array.filter(inputs, glob.matcher(inputGlob));
           if (matching.length) {
             var sourceDir = glob.rootOf(inputGlob);
-            var xform = glob.xformer(
-                sourceDir.replace(/\\/g, '/') + '/**', '**');
+            var xform = sourceDir
+                ? glob.xformer(sourceDir.replace('\\', '/') + '/**', '**')
+                : function (x) { return x; };
             command.push(sourceDir, String(matching.length));
             for (var j = 0, m = matching.length; j < m; ++j) {
               command[command.length] = xform(matching[j]);

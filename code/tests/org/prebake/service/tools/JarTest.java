@@ -68,13 +68,27 @@ public class JarTest extends ToolTestCase {
     fail("Ran successfully");
   }
 
-  @Test public final void testExplicitAtion() throws IOException {
+  @Test public final void testExplicitAction() throws IOException {
     tester
         .withInput(Glob.fromString("foo.jar"))
         .withOutput(Glob.fromString("lib///**.class"))
         .withInputPath("foo.jar")
         .withOption("operation", "x")
         .expectExec(1, "$$jar", "x", "foo.jar", "lib///**.class")
+        .expectLog("Running process 1")
+        .expectLog("Waiting for process 1")
+        .expectLog("Exited with true")
+        .run();
+  }
+
+  @Test public final void testEmptyGlobRoot() throws IOException {
+    tester
+        .withInput(Glob.fromString("lib/**.class"))
+        .withOutput(Glob.fromString("foo.jar"))
+        .withInputPath("lib/Foo.class", "lib/Bar.class")
+        .expectExec(
+            1, "$$jar", "c", "foo.jar", "-1",
+            "", "2", "lib/Foo.class", "lib/Bar.class")
         .expectLog("Running process 1")
         .expectLog("Waiting for process 1")
         .expectLog("Exited with true")
