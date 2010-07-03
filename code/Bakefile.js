@@ -57,8 +57,12 @@ var jars = [
           ].join("\n"),
       contact: "Mike Samuel <mikesamuel@gmail.com>"
     },
-    actions: [tools.cp("src/org/prebake/service/**.{css,js,txt}",
-                       "out/lib/org/prebake/service/**.{css,js,txt}"),
+    actions: [tools.cp(["src/org/prebake/service/**.{css,txt}",
+                        "src/org/prebake/service/tools/*.js"],
+                       ["out/lib/org/prebake/service/**.{css,txt}",
+                        "out/lib/org/prebake/service/tools/*.js"]),
+              tools.jsmin("src/org/prebake/service/www/**.js",
+                          "out/lib/org/prebake/service/www/**.js"),
               // Make a list of the builtin tools.
               tools.ls("src/org/prebake/service/tools/*.js",
                        "out/lib/org/prebake/service/tools/tools.txt")]
