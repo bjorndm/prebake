@@ -87,7 +87,14 @@ public class PlannerTest extends PbTestCase {
   }
 
   @Test public final void testToolsAvailable() throws IOException {
-    String planFile = "for(var k in tools){\nconsole.log(k);\n}\n({})";
+    String planFile = (
+        ""
+        + "for(var k in tools){\n"
+        + "  if (tools[k].length == 3) {\n"
+        + "   console.log(k);\n"
+        + "  }\n"
+        + "}\n"
+        + "({})");
     test.withFileSystem(
             "/",
             "  cwd/",
@@ -98,9 +105,9 @@ public class PlannerTest extends PbTestCase {
             tool("cp"))
         .withPlanFiles("plan.js")
         .expectLog(
-            "/cwd/plan.js:2:INFO: gcc",
-            "/cwd/plan.js:2:INFO: javac",
-            "/cwd/plan.js:2:INFO: cp",
+            "/cwd/plan.js:3:INFO: gcc",
+            "/cwd/plan.js:3:INFO: javac",
+            "/cwd/plan.js:3:INFO: cp",
             "INFO: Plan file plan.js is up to date")
         .run();
     assertEquals(

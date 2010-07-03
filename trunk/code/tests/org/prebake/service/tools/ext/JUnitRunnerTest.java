@@ -76,7 +76,7 @@ public class JUnitRunnerTest extends PbTestCase {
               "          testIgnored_0.html \"...\"",
               "          testSucceedsToo_0.html \"...\"",
               "        JUnitRunnerTest$FakeTestClass2.html \"...\"",
-              "      org.prebake.service.tools.ext.html \"...\"",
+              "      org.prebake.service.tools.ext-pkg.html \"...\"",
               "    index.html \"...\"",
               "    junit_report.css \"...\"",
               ""),
