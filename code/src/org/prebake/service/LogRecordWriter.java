@@ -25,6 +25,8 @@ import javax.annotation.Nullable;
 import com.google.common.io.Closeables;
 import com.google.common.io.Flushables;
 
+import org.prebake.js.Executor;
+
 /**
  * Responsible for formatting log messages.
  *
@@ -66,23 +68,35 @@ final class LogRecordWriter implements Closeable, Flushable {
     if (th == null) { return; }
     String s = th.toString();
     publishLine(s, 2);
-    StackTraceElement[] els = th.getStackTrace();
-    int nToSkip = 0;
-    for (int i = els.length, j = output.length;
-         --i >= 0 && --j >= 0; ++nToSkip) {
-      if (!els[i].equals(output[j])) { break; }
-    }
-    int n = els.length - nToSkip;
-    for (int i = 0; i < n; ++i) {
-      StackTraceElement el = els[i];
-      if (showStack(el)) {
-        publishLine(el.toString(), 4);
-        while (++i < n) { publishLine(els[i].toString(), 4); }
-        break;
+    if (th instanceof Executor.AbnormalExitException) {
+      String jsStack = ((Executor.AbnormalExitException) th).getScriptTrace();
+      if (jsStack.length() != 0) {
+        for (String jsStackLine : jsStack.split("[\r\n]+")) {
+          if (jsStackLine.startsWith("\tat ")) {
+            jsStackLine = jsStackLine.substring(4);
+          }
+          publishLine(jsStackLine, 4);
+        }
       }
+    } else {
+      StackTraceElement[] els = th.getStackTrace();
+      int nToSkip = 0;
+      for (int i = els.length, j = output.length;
+           --i >= 0 && --j >= 0; ++nToSkip) {
+        if (!els[i].equals(output[j])) { break; }
+      }
+      int n = els.length - nToSkip;
+      for (int i = 0; i < n; ++i) {
+        StackTraceElement el = els[i];
+        if (showStack(el)) {
+          publishLine(el.toString(), 4);
+          while (++i < n) { publishLine(els[i].toString(), 4); }
+          break;
+        }
+      }
+      if (nToSkip != 0) { publishLine("... " + nToSkip + " more", 4); }
+      publishThrowable(th.getCause(), els);
     }
-    if (nToSkip != 0) { publishLine("... " + nToSkip + " more", 4); }
-    publishThrowable(th.getCause(), els);
   }
 
   private void publishLine(String s, int indent) throws IOException {

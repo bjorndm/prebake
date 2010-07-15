@@ -133,11 +133,9 @@ function schema(typeDescriptor) {
         var propsOut = {};
         var props = typeDescriptor.properties;
         for (var key in props) {
-          if (hop.call(props, key)) {
-            propsOut[key] = schema(props[key]);
-          }
+          if (def(props, key)) { propsOut[key] = schema(props[key]); }
         }
-        var dnu = hop.call(typeDescriptor, 'doesNotUnderstand')
+        var dnu = def(typeDescriptor, 'doesNotUnderstand')
             ? schema(typeDescriptor['doesNotUnderstand'])
             : undefined;
         return objectSchema(propsOut, dnu);
@@ -247,14 +245,14 @@ function objectSchema(props, dnu) {
       }
       var slen = stack.length;
       for (var vkey in value) {
-        if (!hop.call(value, vkey)) { continue; }
+        if (!def(value, vkey)) { continue; }
         stack[slen] = vkey;
-        if (hop.call(props, vkey)) { continue; }
+        if (def(props, vkey)) { continue; }
         if (!(dnu && dnu.check(vkey, value[vkey], outObj, console, stack))) {
           stack.length = slen;
           var keyAndAllProps = [vkey];
           for (var pkey in props) {
-            if (hop.call(props, pkey)) { keyAndAllProps.push(pkey); }
+            if (def(props, pkey)) { keyAndAllProps.push(pkey); }
           }
           console.error('Unknown property ' + vkey + ' for ' + stack);
           console.didYouMean.apply(console, keyAndAllProps);
@@ -262,9 +260,9 @@ function objectSchema(props, dnu) {
         }
       }
       for (var pkey in props) {
-        if (!hop.call(props, pkey)) { continue; }
+        if (!def(props, pkey)) { continue; }
         stack[slen] = pkey;
-        var vProp = hop.call(value, pkey) ? value[pkey] : undefined;
+        var vProp = def(value, pkey) ? value[pkey] : undefined;
         if (!props[pkey].check(pkey, vProp, outObj, console, stack)) {
           stack.length = slen;
           return false;
@@ -278,7 +276,7 @@ function objectSchema(props, dnu) {
       var sawOne = false;
       outBuf.push('{');
       for (var key in props) {
-        if (!hop.call(props, key)) { continue; }
+        if (!def(props, key)) { continue; }
         if (sawOne) { outBuf.push(','); }
         sawOne = true;
         outBuf.push(JSON.stringify(key), ':');
@@ -314,7 +312,7 @@ function setSchema(options) {
   return {
     check: function (key, value, out, console, stack) {
       var str = JSON.stringify(value);
-      if (hop.call(options, str)) {
+      if (def(options, str)) {
         out[key] = options[str];
         return true;
       }
@@ -322,9 +320,7 @@ function setSchema(options) {
       if (console.didYouMean) {
         var strAndAllOptions = [str];
         for (var option in options) {
-          if (hop.call(options, option)) {
-            strAndAllOptions.push(option);
-          }
+          if (def(options, option)) { strAndAllOptions.push(option); }
         }
         console.didYouMean.apply(console, strAndAllOptions);
       }
@@ -334,7 +330,7 @@ function setSchema(options) {
       outBuf.push('(');
       var sawOne = false;
       for (var option in options) {
-        if (hop.call(options, option)) {
+        if (def(options, option)) {
           if (sawOne) { outBuf.push('|'); }
           sawOne = true;
           outBuf.push(option);
@@ -435,7 +431,16 @@ function predicateSchema(typeDescriptor, predicate) {
   };
 }
 
-var hop = {}.hasOwnProperty;
+var op = Object.prototype;
+/**
+ * Te define options objects and schema objects as "having" a property if that
+ * property exists and is not the same as that on the Object prototype, so tools
+ * can wrap other tools and use prototypical inheritance to add just a few
+ * fields.
+ */
+function def(o, k) {
+  return k in o && o[k] !== op[k];
+}
 var str = {}.toString;
 
 function isArray(o) {
@@ -445,7 +450,7 @@ function isArray(o) {
 
 function mixin(from, to) {
   for (var k in from) {
-    if (hop.call(from, k)) { to[k] = from[k]; }
+    if (def(from, k)) { to[k] = from[k]; }
   }
 }
 

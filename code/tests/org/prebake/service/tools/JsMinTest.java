@@ -16,8 +16,6 @@ package org.prebake.service.tools;
 
 import org.prebake.core.Glob;
 
-import com.google.common.collect.ImmutableList;
-
 import java.io.IOException;
 
 import org.junit.Test;
