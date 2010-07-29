@@ -35,6 +35,10 @@
     };
   }
 
+  function anyOf(items) {
+    return { type: 'Array', delegate: items };
+  }
+
   var optBool = def('boolean');
   var defTrue = def('boolean', true);
 
@@ -134,6 +138,25 @@
     'stack-protector'
     ];
 
+  var F_DUMP_OPTIONS = def({
+        type: 'union',
+        options: [
+          'boolean',
+          'all',
+          anyOf([
+              'address',
+              'slim',
+              'raw',
+              'details',
+              'stats',
+              'blocks',
+              'vops',
+              'lineno',
+              'uid'
+            ])
+        ]
+      });
+
   var options = {
     type: 'Object',
     properties: {
@@ -155,8 +178,8 @@
       fChar: def(['signed', 'unsigned'], 'unsigned'),
       fBitfields: def(['signed', 'unsigned'], 'signed'),
       auxInfo: def('string'),  // TODO: infer from output extension?
-      fNoAsm: optBool,  // disable inline assembly
-      fNoBuiltin: def(
+      fAsm: optBool,  // disable inline assembly
+      fBuiltin: def(
         { type: 'union',
           options: [ 'boolean', { type: 'Array', delegate: 'string' }] }
       ),
@@ -189,17 +212,8 @@
       fMessageLength: def('uint32'),
       fDiagnosticShowLocation: def(['once', 'every-line'], 'once'),
       fSyntaxOnly: optBool,
-      W: def({
-        type: 'Array',
-        delegate: ['all', 'extra', 'most', 'error'].concat(WARNINGS)
-      }),
-      w: def([
-        'none',
-        {
-          type: 'Array',
-          delegate: WARNINGS
-        }
-      ]),
+      W: def(anyOf(['all', 'extra', 'most', 'error'].concat(WARNINGS))),
+      w: def(['none', anyOf(WARNINGS)]),
       WlargerThan: def('uint32'),
       Wnormalized: def(['none', 'id', 'nfc', 'nfkc']),
       g: def({
@@ -229,15 +243,36 @@
       fProfileArcs: optBool,
       fTreeBasedProfiling: optBool,
       fTestCoverage: optBool,
-      d: {
-        type: 'Array',
-        delegate: [
+      d: anyOf([
           'A', 'B', 'c', 'C', 'd', 'D', 'E', 'f', 'g', 'G', 'h', 'i', 'j', 'k',
           'l', 'L', 'm', 'M', 'n', 'N', 'o', 'r', 'R', 's', 'S', 't', 'T', 'V',
-          'w', 'z', 'Z', 'a', 'H', 'm', 'p', 'P', 'v', 'x', 'y']
-      },
+          'w', 'z', 'Z', 'a', 'H', 'm', 'p', 'P', 'v', 'x', 'y']),
+      dDumpNoaddr: optBool,
       fDumpUnnumbered: optBool,
-      // TODO: fdump-translation-unit and following
+      fDumpTranslationUnit: F_DUMP_OPTIONS,
+      fDumpClassHierarchy: F_DUMP_OPTIONS,
+      fDumpIpo: def(['all', 'cgraph']),
+      fDumpTree: def({
+        type: 'Object',
+        properties: {
+          options: F_DUMP_OPTIONS,
+          switches: [
+            'all', 
+            def(anyOf([
+                'original', 'optimized', 'inlined', 'gimple', 'cfg', 'vcg',
+                'ch', 'ssa', 'salias', 'alias', 'ccp', 'storeccp', 'pre', 'fre',
+                'copyprop', 'store_copyprop', 'dce', 'mudflap', 'sra', 'sink',
+                'dom', 'dse', 'phiopt', 'formprop', 'copyrename', 'nrv', 'vect',
+                'vrp']))
+          ]
+        }
+      }),
+      fTreeVectorizerVerbose: def('uint32'),
+      fRandomSeed: def('string'),
+      fSchedVerbose: def('uint32'),
+      saveTemps: optBool,   // TODO: assume if there are .i and .s in the output globs
+      time: optBool,
+      // TODO: fvar-tracking
     }
   };
 
