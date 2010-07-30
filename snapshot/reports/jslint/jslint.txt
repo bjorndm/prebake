@@ -1,0 +1,75 @@
+WARNING : gcc.js:19+3 - 8: Will not work in IE
+gcc.js:19:   const SOURCE_EXT = /\.(?:c(?:c|pp?|xx|\+\+)?|C|mm?|M|F|fpp|FPP|r|s)$/;
+             ^^^^^
+WARNING : gcc.js:20+3 - 8: Will not work in IE
+gcc.js:20:   const PREPROCESSED_EXT
+             ^^^^^
+WARNING : gcc.js:22+3 - 8: Will not work in IE
+gcc.js:22:   const ASM_EXT = /\.[sS]$/;
+             ^^^^^
+WARNING : gcc.js:23+3 - 8: Will not work in IE
+gcc.js:23:   const HEADER_EXT = /\.(?:hh?)$/;
+             ^^^^^
+WARNING : gcc.js:24+3 - 8: Will not work in IE
+gcc.js:24:   const OBJ_EXT = /\.(\.o|obj)$/;
+             ^^^^^
+WARNING : gcc.js:274+20 - 21: Will not work in IE
+gcc.js:274:       time: optBool,
+                               ^
+WARNING : gcc.js:290+9 - 14: Will not work in IE
+gcc.js:290:         const ALL = 0;
+                    ^^^^^
+WARNING : gcc.js:291+9 - 14: Will not work in IE
+gcc.js:291:         const COMPILE = 2;
+                    ^^^^^
+WARNING : gcc.js:292+9 - 14: Will not work in IE
+gcc.js:292:         const PREPROCESS = 1;
+                    ^^^^^
+ERROR : gcc.js:307+21 - 27: Symbol schema has not been defined
+gcc.js:307:           case ALL: schema._.stage = '*'; break;
+                                ^^^^^^
+ERROR : gcc.js:322+53 - 63: Symbol outputExts has not been defined
+gcc.js:322:         schemaOut._.fDumpTranslationUnit = '.tu' in outputExts;
+                                                                ^^^^^^^^^^
+WARNING : gcc.js:390+9 - 392+46: Code is not reachable
+gcc.js:390:         console.error(
+                    ^^^^^^^^^^^^^^^
+WARNING : gcc.js:407+49 - 52: Code is not reachable
+gcc.js:407:       for (var i = 0, n = inputs.length; i < n; ++i) {
+                                                            ^^^
+WARNING : gcc.js:411+11 - 71: Code is not reachable
+gcc.js:411:           console.error('Cannot determine output for input %s', input);
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+WARNING : gcc.js:412+11 - 22: Code is not reachable
+gcc.js:412:           errs = true;
+                      ^^^^^^^^^^^
+WARNING : gcc.js:414+45 - 67: Code is not reachable
+gcc.js:414:         if (!hop.call(minGroups, output)) { minGroups[output] = []; }
+                                                        ^^^^^^^^^^^^^^^^^^^^^^
+WARNING : gcc.js:415+9 - 38: Code is not reachable
+gcc.js:415:         minGroups[output].push(input);
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+WARNING : gcc.js:419+29 - 53: Code is not reachable
+gcc.js:419:       if (!config.rename) { flags.push('--norename'); }
+                                        ^^^^^^^^^^^^^^^^^^^^^^^^
+WARNING : gcc.js:420+7 - 23: Code is not reachable
+gcc.js:420:       flags.push('--');
+                  ^^^^^^^^^^^^^^^^
+WARNING : gcc.js:424+9 - 77: Code is not reachable
+gcc.js:424:         procs.push(os.exec(flags.concat(minGroups[output])).writeTo(output));
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+WARNING : gcc.js:432+56 - 59: Code is not reachable
+gcc.js:432:               for (var i = 0, n = procs.length; i < n; ++i) { procs[i].run(); }
+                                                                   ^^^
+WARNING : gcc.js:432+63 - 77: Code is not reachable
+gcc.js:432:               for (var i = 0, n = procs.length; i < n; ++i) { procs[i].run(); }
+                                                                          ^^^^^^^^^^^^^^
+WARNING : gcc.js:437+56 - 59: Code is not reachable
+gcc.js:437:               for (var i = 0, n = procs.length; i < n; ++i) {
+                                                                   ^^^
+WARNING : gcc.js:438+17 - 45: Code is not reachable
+gcc.js:438:                 result |= procs[i].waitFor();
+                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 UNDEFINED_SYMBOL
+  9 NOT_IE
+ 13 CODE_NOT_REACHABLE

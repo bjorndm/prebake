@@ -1,0 +1,72 @@
+<html>
+<head>
+  <title>src/org/prebake/service/tools/gcc.js</title>
+</head>
+<body><ol>
+<li>Line 18
+<pre class="prettyprint" id="task-0">  var schemaModule = load(&#39;/--baked-in--/tools/json-schema.js&#39;)({ load: load });
+
+<b>  // TODO: turn into a regex for code and header separately.
+</b>  const SOURCE_EXT = /\.(?:c(?:c|pp?|xx|\+\+)?|C|mm?|M|F|fpp|FPP|r|s)$/;
+  const PREPROCESSED_EXT
+</pre></li>
+<li>Line 180
+<pre class="prettyprint" id="task-1">      fChar: def([&#39;signed&#39;, &#39;unsigned&#39;], &#39;unsigned&#39;),
+      fBitfields: def([&#39;signed&#39;, &#39;unsigned&#39;], &#39;signed&#39;),
+<b>      auxInfo: def(&#39;string&#39;),  // TODO: infer from output extension?
+</b>      fAsm: optBool,  // disable inline assembly
+      fBuiltin: def(
+</pre></li>
+<li>Line 273
+<pre class="prettyprint" id="task-2">      fRandomSeed: def(&#39;string&#39;),
+      fSchedVerbose: def(&#39;uint32&#39;),
+<b>      saveTemps: optBool,   // TODO: assume if there are .i and .s in the output globs
+</b>      time: optBool,
+      // TODO: fvar-tracking
+</pre></li>
+<li>Line 275
+<pre class="prettyprint" id="task-3">      saveTemps: optBool,   // TODO: assume if there are .i and .s in the output globs
+      time: optBool,
+<b>      // TODO: fvar-tracking
+</b>    }
+  };
+</pre></li>
+<li>Line 300
+<pre class="prettyprint" id="task-4">          } else if (OBJ_EXT.test(output)) {
+            if (stage &lt; COMPILE) { stage = COMPILE; }
+<b>          // TODO: asm instruction for link?
+</b>          } else {
+            stage = ALL;
+</pre></li>
+<li>Line 349
+<pre class="prettyprint" id="task-5">
+  function toGccArch(javaArch) {
+<b>    // TODO: flesh this out to support AMD and x86 64b.
+</b>    if (/power/i.test(javaArch)) {
+      if (/64/.test(javaArch)) {
+</pre></li>
+<li>Line 386
+<pre class="prettyprint" id="task-6">      }
+
+<b> // TODO: review everything below
+</b>      throw new Error(&#34;TODO: finish implementing gcc tool&#34;);
+      var outDir = glob.rootOf(action.outputs);
+</pre></li>
+<li>Line 387
+<pre class="prettyprint" id="task-7">
+ // TODO: review everything below
+<b>      throw new Error(&#34;TODO: finish implementing gcc tool&#34;);
+</b>      var outDir = glob.rootOf(action.outputs);
+      if (outDir === null) {
+</pre></li>
+
+  <link rel=stylesheet
+   href="http://google-code-prettify.googlecode.com/svn/trunk/src/prettify.css" />
+  <script
+   src="http://google-code-prettify.googlecode.com/svn/trunk/src/lang-css.js">
+  </script>
+  <script
+   src="http://google-code-prettify.googlecode.com/svn/trunk/src/prettify.js">
+  </script>
+  <script>prettyPrint()</script>
+</ol></body></html>
