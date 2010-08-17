@@ -291,7 +291,9 @@ public abstract class ToolTestCase extends PbTestCase {
             "^/--baked-in--/tools/([\\w-]+\\.js:)\\d+(:[A-Z])", "$1##$2"));
       }
       if (result.exit != null) {
-        log.add("Threw " + result.exit.getCause());
+        log.add(
+            "Threw " + result.exit.getCause().toString()
+            .replaceAll("\\.js#\\d+", ".js#?"));
       } else {
         log.add("Exited with " + result.result);
       }

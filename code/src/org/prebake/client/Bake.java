@@ -331,5 +331,5 @@ final class DeadConnection implements Connection {
   public OutputStream getOutputStream() throws IOException {
     throw new IOException();
   }
-  public void close() throws IOException { /* noop */ }
+  public void close() { /* noop */ }
 }

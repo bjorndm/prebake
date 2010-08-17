@@ -136,7 +136,7 @@ public class StubScheduledExecutorService implements ScheduledExecutorService {
 
   public <T> Future<T> submit(final Runnable r, final T result) {
     return submit(new Callable<T>() {
-      public T call() throws Exception {
+      public T call() {
         r.run();
         return result;
       }

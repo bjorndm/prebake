@@ -142,7 +142,7 @@
         type: 'union',
         options: [
           'boolean',
-          'all',
+          ['all'],
           anyOf([
               'address',
               'slim',

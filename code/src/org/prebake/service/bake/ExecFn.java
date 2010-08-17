@@ -122,7 +122,7 @@ final class ExecFn extends SimpleMembranableFunction {
         protected Process startRunning(boolean inheritOutput,
             boolean closeInput, Path outFile, boolean truncateOutput,
             Path inFile, ImmutableMap<String, String> environment,
-            boolean inheritEnvironment) throws IOException {
+            boolean inheritEnvironment) {
           if (f == null) {  // Not preemptively killed.
             f = execer.submit(new Callable<Byte>() {
               public Byte call() throws Exception {
@@ -342,7 +342,7 @@ final class ExecFn extends SimpleMembranableFunction {
 }
 
 class NullInputStream extends InputStream {
-  @Override public int read() throws IOException { return -1; }
+  @Override public int read() { return -1; }
   @Override public int available() { return 0; }
   @Override public int read(byte[] buf, int pos, int len) { return -1; }
 }
