@@ -191,7 +191,8 @@ public class PlannerTest extends PbTestCase {
         .expectProduct("myProduct", action("myTool", "**.foo", "**.bar"))
         .expectLog(
             "INFO: Plan file plan1.js is up to date",
-            "WARNING: Error executing plan plan2.js\n"
+            "WARNING: Failed to execute plan plan2.js\n"
+            + "org.prebake.js.Executor$AbnormalExitException: "
             + "org.mozilla.javascript.JavaScriptException:"
             + " [object Object] (/cwd/plan2.js#1)",
             "SEVERE: Failed to update plan plan2.js")
