@@ -243,7 +243,7 @@ public class OsProcessTest extends PbTestCase {
     @Override
     protected void preemptivelyKill() {
       action = new Callable<Integer>() {
-        public Integer call() throws Exception { return -1; }
+        public Integer call() { return -1; }
       };
     }
 

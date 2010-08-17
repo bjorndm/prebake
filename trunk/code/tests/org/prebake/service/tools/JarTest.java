@@ -19,7 +19,6 @@ import org.prebake.core.Glob;
 import java.io.IOException;
 
 import org.junit.Test;
-import org.mozilla.javascript.JavaScriptException;
 
 public class JarTest extends ToolTestCase {
   public JarTest() { super("jar"); }
@@ -51,21 +50,16 @@ public class JarTest extends ToolTestCase {
   }
 
   @Test public final void testCannotInferAction() throws IOException {
-    try {
-      tester
-          .withInput(Glob.fromString("foo.bar"))
-          .withOutput(Glob.fromString("lib///**.class"))
-          .withInputPath("foo.bar")
-          .run();
-    } catch (JavaScriptException ex) {
-      assertEquals(
-          "Error: Expected a fully specified archive, not lib///**.class.  If"
-          + " you are trying to extract, specify the option { operation: 'x' }."
-          + " (/--baked-in--/tools/jar.js#?)",
-          ex.getMessage().replaceAll("\\.js#\\d+", ".js#?"));
-      return;
-    }
-    fail("Ran successfully");
+    tester
+        .withInput(Glob.fromString("foo.bar"))
+        .withOutput(Glob.fromString("lib///**.class"))
+        .withInputPath("foo.bar")
+        .expectLog(
+            "Threw org.mozilla.javascript.JavaScriptException:"
+            + " Error: Expected a fully specified archive, not lib///**.class."
+            + "  If you are trying to extract, specify the option"
+            + " { operation: 'x' }. (/--baked-in--/tools/jar.js#?)")
+        .run();
   }
 
   @Test public final void testExplicitAction() throws IOException {

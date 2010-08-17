@@ -289,7 +289,7 @@ public final class Planner implements Closeable {
     synchronized (pp) {
       if (pp.future != null) { return pp.future; }
       return pp.future = execer.submit(new Callable<ImmutableList<Product>>() {
-        public ImmutableList<Product> call() throws Exception {
+        public ImmutableList<Product> call() {
           synchronized (pp) {
             if (pp.valid) { return pp.products; }
           }
