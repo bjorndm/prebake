@@ -57,6 +57,7 @@ import java.io.Reader;
 import java.io.Writer;
 import java.lang.Thread.UncaughtExceptionHandler;
 import java.nio.file.FileSystem;
+import java.nio.file.FileSystemException;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.nio.file.attribute.DosFileAttributeView;
@@ -336,7 +337,14 @@ public abstract class Prebakery implements Closeable {
       if (fs.supportedFileAttributeViews().contains("dos")) {
         DosFileAttributeView dosAttrs = dir.getFileAttributeView(
             DosFileAttributeView.class);
-        if (dosAttrs != null) { dosAttrs.setHidden(true); }
+        if (dosAttrs != null) {
+          try {
+            dosAttrs.setHidden(true);
+          } catch (FileSystemException ex) {
+            // Ignore because some OSes (Ubuntu, I'm looking at you) lie about
+            // supporting key elements of the DOS attribute view.
+          }
+        }
       }
     }
     Path cmdlineFile = dir.resolve(fs.getPath(FileNames.CMD_LINE));
