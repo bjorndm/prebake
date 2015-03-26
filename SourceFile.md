@@ -1,0 +1,1 @@
+A source file is any file under the ClientRoot that does not match the IgnoredFileSet and that is not a GeneratedFile.  Typically, the set of source files is the set of files under revision control.

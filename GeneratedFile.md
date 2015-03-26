@@ -1,0 +1,1 @@
+A generated file is any file that is derived from zero or more [source files](SourceFile.md) and generated files as a result of building a [Product](Product.md).
